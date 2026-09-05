@@ -9,7 +9,7 @@
   import { tagColorForName } from './lib/colors.js';
   import { _, locale as activeLocale } from 'svelte-i18n';
   import { LOCALE_OPTIONS, setAppLocale } from './lib/i18n.js';
-  import { firstLinePreview, markdownToPlainText } from './lib/notes.js';
+  import { firstLinePreview, markdownToPlainText, normalizeTagName } from './lib/notes.js';
   import { isLockedTitle } from './lib/note-lock.js';
   import {
     createIssue,
@@ -21,6 +21,7 @@
     renameLabel,
     purgeIssueAttachments,
     searchIssuesPage,
+    setIssueLabels,
     setIssueState,
     verifyConnection
   } from './lib/github.js';
@@ -102,12 +103,26 @@
   let lockSessionTimer;
   let selectedIssueIds = new Set();
   let selectionAnchorId = null;
+  let selectionTagPanelOpen = false;
+  let selectionTagSearch = '';
+  let selectionTagBusy = false;
   let longPressTimer;
   let longPressStart = null;
   let suppressIssueClickId = null;
   let suppressIssueClickTimer;
 
   $: selectionMode = selectedIssueIds.size > 0;
+  $: selectedIssues = visibleIssues.filter((issue) => !issue.local && selectedIssueIds.has(issue.id));
+  $: selectionTagCounts = countSelectionTags(selectedIssues);
+  $: selectionTagOptions = buildSelectionTagOptions(
+    repositoryLabels,
+    selectionTagCounts,
+    selectionTagSearch
+  );
+  $: selectionNewTagName = normalizeTagName(selectionTagSearch);
+  $: canCreateSelectionTag = Boolean(selectionNewTagName)
+    && !selectionTagOptions.some((option) => option.name.toLocaleLowerCase() === selectionNewTagName.toLocaleLowerCase());
+  $: if (!selectionMode && selectionTagPanelOpen) closeSelectionTagPanel();
 
   $: emptyMessage = appliedQuery
     ? $_("m.e9cc6d0e9a")
@@ -940,6 +955,7 @@
 
   function clearIssueSelection() {
     cancelIssueLongPress();
+    closeSelectionTagPanel();
     selectedIssueIds = new Set();
     selectionAnchorId = null;
     suppressIssueClickId = null;
@@ -956,14 +972,92 @@
   }
 
   function moveSelectedIssues() {
-    const selectedIssues = visibleIssues.filter((issue) => !issue.local && selectedIssueIds.has(issue.id));
     if (!selectedIssues.length) {
       clearIssueSelection();
       return;
     }
     const nextState = state === 'open' ? 'closed' : 'open';
+    const movedIssues = selectedIssues;
     clearIssueSelection();
-    for (const issue of selectedIssues) moveIssue(issue, nextState, { confirmAction: false });
+    for (const issue of movedIssues) moveIssue(issue, nextState, { confirmAction: false });
+  }
+
+  function countSelectionTags(issues) {
+    const counts = new Map();
+    for (const issue of issues) {
+      for (const label of issue.labels || []) {
+        const key = label.name.toLocaleLowerCase();
+        counts.set(key, (counts.get(key) || 0) + 1);
+      }
+    }
+    return counts;
+  }
+
+  function buildSelectionTagOptions(labels, counts, search) {
+    const term = search.trim().replace(/^#+/, '').toLocaleLowerCase();
+    return labels
+      .map((label) => ({ name: label.name, count: counts.get(label.name.toLocaleLowerCase()) || 0 }))
+      .filter((option) => option.name.toLocaleLowerCase().includes(term))
+      // 선택에 이미 붙은 태그를 위로 올려, 떼는 조작을 먼저 만나게 한다.
+      .sort((a, b) => (b.count > 0) - (a.count > 0) || a.name.localeCompare(b.name, $activeLocale));
+  }
+
+  function autofocus(node) {
+    requestAnimationFrame(() => node.focus());
+  }
+
+  function closeSelectionTagPanel() {
+    selectionTagPanelOpen = false;
+    selectionTagSearch = '';
+  }
+
+  function toggleSelectionTagPanel() {
+    if (selectionTagPanelOpen) closeSelectionTagPanel();
+    else selectionTagPanelOpen = true;
+  }
+
+  function toggleSelectionTag(name) {
+    const applied = selectionTagCounts.get(name.toLocaleLowerCase()) || 0;
+    // 선택한 노트 전부에 붙어 있을 때만 떼고, 일부만 붙어 있으면 나머지에 마저 붙인다.
+    applySelectionTag(name, applied > 0 && applied === selectedIssues.length ? 'remove' : 'add');
+  }
+
+  async function applySelectionTag(name, mode) {
+    // 새 태그 이름만 정규화 대상이라, 공백이 들어간 기존 라벨 이름은 그대로 쓴다.
+    const tagName = String(name || '').trim();
+    if (!tagName || selectionTagBusy) return;
+    const targets = selectedIssues.filter(
+      (issue) => Boolean(hasIssueLabel(issue, tagName)) === (mode === 'remove')
+    );
+    if (!targets.length) return;
+
+    error = '';
+    selectionTagBusy = true;
+    const refreshed = {};
+    try {
+      if (mode === 'add' && !repositoryLabels.some((label) => label.name.toLocaleLowerCase() === tagName.toLocaleLowerCase())) {
+        mergeRepositoryLabels([await createLabel(token, repo, tagName)]);
+      }
+      // 노트마다 순차로 요청해 GitHub의 연속 쓰기 제한을 피하고, 끝난 것부터 목록에 반영한다.
+      for (const issue of targets) {
+        const currentNames = (issue.labels || []).map((label) => label.name);
+        const nextNames = mode === 'add'
+          ? [...currentNames, tagName]
+          : currentNames.filter((label) => label.toLocaleLowerCase() !== tagName.toLocaleLowerCase());
+        const saved = await setIssueLabels(token, repo, issue.number, nextNames);
+        const savedLabels = saved.labels || [];
+        refreshed[issue.number] = ++issueRefreshSequence;
+        issues = issues.map((item) => item.id === issue.id ? { ...item, labels: savedLabels } : item);
+        if (selectedIssue?.id === issue.id) selectedIssue = { ...selectedIssue, labels: savedLabels };
+      }
+    } catch (reason) {
+      error = friendlyError(reason);
+    } finally {
+      selectionTagBusy = false;
+      // 열려 있는 편집기는 선택이 풀린 뒤 GitHub에서 다시 읽어 태그를 맞춘다.
+      if (Object.keys(refreshed).length) issueRefreshRequests = { ...issueRefreshRequests, ...refreshed };
+      if (mode === 'remove' && activeLabel.toLocaleLowerCase() === tagName.toLocaleLowerCase()) loadIssues(true);
+    }
   }
 
   function noteRefreshStateChanged(issueNumber, active) {
@@ -1608,7 +1702,23 @@
             <i class="bi bi-gear" aria-hidden="true"></i> {$_('settings.sidebarLabel')}
           </button>
           <div class="sidebar-selection-toolbar" class:active={selectionMode} aria-hidden={!selectionMode}>
-            <button type="button" class="btn btn-sm btn-outline-danger" on:click={moveSelectedIssues} tabindex={selectionMode ? 0 : -1}>
+            <button
+              type="button"
+              class="btn btn-sm btn-outline-secondary"
+              class:active={selectionTagPanelOpen}
+              aria-expanded={selectionTagPanelOpen}
+              on:click={toggleSelectionTagPanel}
+              tabindex={selectionMode ? 0 : -1}
+            >
+              <i class="bi bi-tags" aria-hidden="true"></i> {$_("m.848eed0fbd")}
+            </button>
+            <button
+              type="button"
+              class="btn btn-sm btn-outline-danger"
+              disabled={selectionTagBusy}
+              on:click={moveSelectedIssues}
+              tabindex={selectionMode ? 0 : -1}
+            >
               <i class={`bi ${state === 'open' ? 'bi-trash3' : 'bi-arrow-counterclockwise'}`} aria-hidden="true"></i>
               {state === 'open' ? $_("m.f6fdbe48dc") : $_("m.3cbe6d6b9a")}
             </button>
@@ -1617,6 +1727,53 @@
             </button>
           </div>
         </div>
+
+        {#if selectionMode && selectionTagPanelOpen}
+          <div class="sidebar-selection-tags" class:is-busy={selectionTagBusy}>
+            <div class="selection-tag-search">
+              <input
+                bind:value={selectionTagSearch}
+                placeholder={$_("m.eb7b580e41")}
+                aria-label={$_("m.eb7b580e41")}
+                maxlength="51"
+                use:autofocus
+              />
+              {#if selectionTagBusy}
+                <span class="spinner-border spinner-border-sm region-spinner" aria-hidden="true"></span>
+              {/if}
+            </div>
+            <div class="selection-tag-list" aria-label={$_("m.9e704d11d1")}>
+              {#each selectionTagOptions as option (option.name)}
+                {@const appliedToAll = option.count > 0 && option.count === selectedIssues.length}
+                <button
+                  type="button"
+                  disabled={selectionTagBusy}
+                  on:click={() => toggleSelectionTag(option.name)}
+                >
+                  <span class="label-dot" style={`--label-color:#${tagColorForName(option.name)}`}></span>
+                  <span class="selection-tag-name">#{option.name}</span>
+                  {#if option.count}
+                    <span class="selection-tag-count">{option.count}/{selectedIssues.length}</span>
+                  {/if}
+                  <i class={`bi ${appliedToAll ? 'bi-dash-lg' : 'bi-plus-lg'}`} aria-hidden="true"></i>
+                </button>
+              {/each}
+              {#if canCreateSelectionTag}
+                <button
+                  type="button"
+                  class="create-tag"
+                  disabled={selectionTagBusy}
+                  on:click={() => applySelectionTag(selectionNewTagName, 'add')}
+                >
+                  <span class="label-dot" style={`--label-color:#${tagColorForName(selectionNewTagName)}`}></span>
+                  {$_('dynamic.createTag', { values: { name: selectionNewTagName } })}
+                </button>
+              {:else if !selectionTagOptions.length}
+                <span class="tag-dropdown-empty">{$_("m.2240ffb750")}</span>
+              {/if}
+            </div>
+          </div>
+        {/if}
 
         {#if error}
           <div class="sidebar-message text-danger">{error}</div>

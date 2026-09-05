@@ -15,6 +15,7 @@ import {
   renameLabel,
   searchIssues,
   searchIssuesPage,
+  setIssueLabels,
   updateIssue,
   uploadAttachment,
   verifyConnection
@@ -224,6 +225,21 @@ describe('GitHub API client', () => {
     expect(updateUrl).toBe('https://api.github.com/repos/owner/repo/issues/31');
     expect(updateOptions.method).toBe('PATCH');
     expect(updateOptions.keepalive).toBe(true);
+  });
+
+  it('라벨만 교체할 때 제목·본문을 함께 보내지 않는다', async () => {
+    fetch.mockResolvedValueOnce(jsonResponse({ id: 1, number: 31, labels: [{ name: '개인' }] }));
+
+    await expect(setIssueLabels('token', 'owner/repo', 31, ['개인'])).resolves.toEqual({
+      id: 1,
+      number: 31,
+      labels: [{ name: '개인' }]
+    });
+
+    const [url, options] = fetch.mock.calls[0];
+    expect(url).toBe('https://api.github.com/repos/owner/repo/issues/31');
+    expect(options.method).toBe('PATCH');
+    expect(JSON.parse(options.body)).toEqual({ labels: ['개인'] });
   });
 
   it('GitHub 오류의 상태와 API 한도 정보를 유지한다', async () => {

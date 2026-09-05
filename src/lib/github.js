@@ -182,6 +182,14 @@ export function updateIssue(token, repoInput, issueNumber, note, requestOptions 
   });
 }
 
+export function setIssueLabels(token, repoInput, issueNumber, labels) {
+  const repo = normalizeRepo(repoInput);
+  return request(`/repos/${repo}/issues/${issueNumber}`, token, {
+    method: 'PATCH',
+    body: JSON.stringify({ labels })
+  });
+}
+
 export async function listLabels(token, repoInput) {
   const repo = normalizeRepo(repoInput);
   return request(`/repos/${repo}/labels?per_page=100`, token);

@@ -59,3 +59,7 @@ export function firstLinePreview(value, maxLength = 50) {
   const firstLine = String(value || '').split(/\r?\n/, 1)[0] || '';
   return Array.from(markdownToPlainText(firstLine)).slice(0, maxLength).join('');
 }
+
+export function normalizeTagName(value) {
+  return Array.from(String(value ?? '').trim().replace(/^#+/, '').replace(/\s+/g, '-')).slice(0, 50).join('');
+}

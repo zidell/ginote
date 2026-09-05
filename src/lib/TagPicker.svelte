@@ -1,6 +1,7 @@
 <script>
   import { onDestroy, onMount } from 'svelte';
   import { tagColorForName } from './colors.js';
+  import { normalizeTagName } from './notes.js';
   import { _ } from 'svelte-i18n';
 
   export let availableLabels = [];
@@ -19,7 +20,7 @@
     .filter((label) => !hasSelected(label.name))
     .filter((label) => label.name.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase()))
     .slice(0, 12);
-  $: newTagName = normalizeTag(search);
+  $: newTagName = normalizeTagName(search);
   $: canCreate = Boolean(newTagName)
     && !hasSelected(newTagName)
     && !availableLabels.some((label) => label.name.toLocaleLowerCase() === newTagName.toLocaleLowerCase());
@@ -29,10 +30,6 @@
 
   function hasSelected(name) {
     return selectedLabels.some((label) => label.toLocaleLowerCase() === name.toLocaleLowerCase());
-  }
-
-  function normalizeTag(value) {
-    return Array.from(value.trim().replace(/^#+/, '').replace(/\s+/g, '-')).slice(0, 50).join('');
   }
 
   function toggle() {

@@ -3,6 +3,7 @@ import {
   automaticTitle,
   firstLinePreview,
   linkAtCursor,
+  normalizeTagName,
   markdownToPlainText,
   shortenMiddle
 } from './notes.js';
@@ -82,5 +83,19 @@ describe('firstLinePreview', () => {
 
   it('짧은 첫 줄을 임의로 늘리지 않는다', () => {
     expect(firstLinePreview('한\n아주 긴 둘째 줄')).toBe('한');
+  });
+});
+
+describe('normalizeTagName', () => {
+  it('앞의 #과 공백을 정리해 태그 이름을 만든다', () => {
+    expect(normalizeTagName('  ##일간 기록 ')).toBe('일간-기록');
+  });
+
+  it('50자를 넘는 이름은 잘라낸다', () => {
+    expect(normalizeTagName('가'.repeat(60))).toBe('가'.repeat(50));
+  });
+
+  it('빈 값은 빈 문자열로 둔다', () => {
+    expect(normalizeTagName('  #  ')).toBe('');
   });
 });
