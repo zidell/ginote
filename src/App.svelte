@@ -65,9 +65,6 @@
   let totalIssues = 0;
   let error = '';
   let notice = '';
-  let toastMessage = '';
-  let toastTimer;
-  let toastSequence = 0;
   let routeStack = [];
   let titleMode = 'first-line';
   let editorFont = 'system';
@@ -271,7 +268,6 @@
       clearTimeout(lockSessionTimer);
       clearTimeout(longPressTimer);
       clearTimeout(suppressIssueClickTimer);
-      clearTimeout(toastTimer);
       window.removeEventListener('keydown', handleGlobalKeydown);
       window.removeEventListener('paste', handleGlobalPaste);
       unsubscribe();
@@ -453,23 +449,6 @@
     }
     if (reason?.status === 403) return $_("m.26096781ad");
     return reason?.message || $_("m.285cc7fd9a");
-  }
-
-  function showToast(message) {
-    clearTimeout(toastTimer);
-    const sequence = ++toastSequence;
-    toastMessage = message;
-    toastTimer = setTimeout(() => {
-      if (sequence !== toastSequence) return;
-      toastMessage = '';
-    }, 2400);
-    return sequence;
-  }
-
-  function hideToast(sequence) {
-    if (sequence !== toastSequence) return;
-    clearTimeout(toastTimer);
-    toastMessage = '';
   }
 
   async function copyMcpText(value, successMessage) {
@@ -1337,7 +1316,6 @@
     ) return;
 
     error = '';
-    const deletionToast = nextState === 'closed' ? showToast($_("m.1fe3b7e75f")) : 0;
     const removedIndex = issues.findIndex((item) => item.id === issue.id);
     const wasSelected = selectedIssue?.id === issue.id;
 
@@ -1356,7 +1334,6 @@
           : $_("m.a480a954e7");
       })
       .catch((reason) => {
-        if (deletionToast) hideToast(deletionToast);
         if (!issues.some((item) => item.id === issue.id)) {
           const insertionIndex = removedIndex < 0 ? issues.length : Math.min(removedIndex, issues.length);
           issues = [...issues.slice(0, insertionIndex), issue, ...issues.slice(insertionIndex)];
@@ -1671,9 +1648,6 @@
     class="app-shell"
     class:mobile-detail-active={Boolean(contentRoute)}
   >
-    {#if toastMessage}
-      <div class="app-toast" role="status">{toastMessage}</div>
-    {/if}
     <main class="note-workspace">
       <aside class="note-sidebar">
         <div class="sidebar-heading">
