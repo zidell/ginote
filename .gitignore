@@ -12,3 +12,6 @@ src-tauri/gen
 *.p12
 *.pfx
 .tauri-signing-private-key
+
+# 미리보기 GIF 캡처 중간 산출물
+docs/preview/frames

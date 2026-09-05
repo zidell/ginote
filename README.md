@@ -55,6 +55,34 @@ JavaScript 파일만 전달하고, 로그인이나 노트 저장을 처리하는
 
 ![Issue Note 사용 미리보기](docs/preview.gif)
 
+미리보기 GIF는 실시간 녹화가 아니라, 더미 저장소를 연결한 앱을 대본대로
+조작하면서 **화면이 바뀔 때마다 한 장씩** 캡처해 만듭니다. 프레임마다 재생
+시간을 직접 지정하므로 캡처가 느려도 결과물에서 동작이 끊기지 않습니다.
+
+```bash
+npm run preview:gif
+```
+
+GitHub API는 모두 가로채 더미 데이터로 응답하므로 실제 저장소나 PAT가 필요
+없습니다. 미리 띄워 둔 서버가 없으면 스크립트가 `vite preview`를 직접
+실행하고(필요하면 빌드까지) 끝나면 정리합니다. 인코딩에는 `ffmpeg`가
+필요합니다.
+
+선택 옵션:
+
+- `--url`, `--port`: 이미 띄워 둔 미리보기 서버 주소(기본값 `http://127.0.0.1:4173`)
+- `--width`, `--height`: 브라우저 캡처 해상도(기본값 1280×800)
+- `--gif-width`: 출력 GIF 가로 크기(기본값 960)
+- `--lang`: 앱 표시 언어(기본값 `en`)
+- `--output`: 출력 GIF 경로(기본값 `docs/preview.gif`)
+- `--frames-dir`: 프레임 PNG 저장 경로(기본값 `docs/preview/frames`)
+- `--keep-frames`: 최종 GIF 생성 후 PNG 프레임 보존
+- `--no-encode`: ffmpeg 없이 프레임만 저장
+- `--headful`: 브라우저 창을 띄운 채로 캡처
+
+장면 대본은 `scripts/preview/scenario.mjs`, 더미 데이터와 API 모의 응답은
+`scripts/preview/fixture.mjs`에 있습니다.
+
 ## 시작하기
 
 ```bash
