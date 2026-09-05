@@ -54,13 +54,13 @@ const errors = {
   ko: { githubRequest: 'GitHub 요청에 실패했습니다.', repositoryFormat: '저장소를 owner/repository 형식으로 입력해주세요.', issueNumberRequired: '첨부하기 전에 이슈 번호가 필요합니다.', attachmentLoad: '첨부 파일을 불러오지 못했습니다.' }
 };
 const meta = {
-  en: { description: 'A serverless personal notes app backed by GitHub Issues', sourceCode: 'View source code on GitHub' },
-  ko: { description: 'GitHub Issues를 저장소로 사용하는 서버 없는 개인 노트 앱', sourceCode: 'GitHub에서 소스 코드 보기' },
-  'zh-CN': { description: '以 GitHub Issues 为存储空间的无服务器个人笔记应用', sourceCode: '在 GitHub 上查看源代码' },
-  ja: { description: 'GitHub Issuesを保存先として使うサーバーレス個人ノートアプリ', sourceCode: 'GitHubでソースコードを見る' },
-  de: { description: 'Eine serverlose persönliche Notiz-App auf Basis von GitHub Issues', sourceCode: 'Quellcode auf GitHub ansehen' },
-  fr: { description: 'Une application de notes personnelles sans serveur basée sur GitHub Issues', sourceCode: 'Voir le code source sur GitHub' },
-  it: { description: 'Un’app di note personali serverless basata su GitHub Issues', sourceCode: 'Visualizza il codice sorgente su GitHub' }
+  en: { description: 'Simple notes, kept as GitHub Issues', sourceCode: 'View source code on GitHub' },
+  ko: { description: 'GitHub Issues에 그대로 보관되는 심플한 노트', sourceCode: 'GitHub에서 소스 코드 보기' },
+  'zh-CN': { description: '简洁的笔记，直接保存为 GitHub Issues', sourceCode: '在 GitHub 上查看源代码' },
+  ja: { description: 'シンプルなノートを、GitHub Issuesにそのまま保存', sourceCode: 'GitHubでソースコードを見る' },
+  de: { description: 'Einfache Notizen, gespeichert als GitHub Issues', sourceCode: 'Quellcode auf GitHub ansehen' },
+  fr: { description: 'Des notes simples, conservées sous forme d’issues GitHub', sourceCode: 'Voir le code source sur GitHub' },
+  it: { description: 'Note semplici, conservate come issue di GitHub', sourceCode: 'Visualizza il codice sorgente su GitHub' }
 };
 const settings = {
   en: { language: 'Language', sidebarLabel: 'Settings', patReplacementPlaceholder: 'Enter only to replace the saved PAT', backgroundRefreshInterval: 'Check for new notes', refreshDisabled: 'Off', minutes: 'minutes' },

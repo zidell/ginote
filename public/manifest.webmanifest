@@ -2,7 +2,7 @@
   "id": "./",
   "name": "Ginote",
   "short_name": "Ginote",
-  "description": "A serverless personal notes app backed by GitHub Issues",
+  "description": "Simple notes, kept as GitHub Issues",
   "lang": "en",
   "start_url": "./#!/",
   "scope": "./",
