@@ -413,9 +413,11 @@
   }
 
   async function lockNote(pin) {
+    // 새 노트는 이슈 번호가 아직 발급 중일 수 있는데, 그 번호가 암호화 컨텍스트라 먼저 기다린다.
+    const target = issue || await resolveRemoteIssue();
     activeLockPin = pin;
     onSetLockSession(pin);
-    encryptedBody = await encryptLockedBody(body, pin, issue?.number || remoteIssue?.number);
+    encryptedBody = await encryptLockedBody(body, pin, target?.number);
     lockState = 'unlocked';
     lockPanelMode = '';
     removeLocalDraft();
@@ -1183,7 +1185,7 @@
         </label>
       {/if}
     </div>
-    <div class:has-issue={Boolean(issue)} class="dropdown detail-toolbar-more">
+    <div class="dropdown detail-toolbar-more">
       <button
         class="btn btn-outline-secondary responsive-toolbar-button"
         type="button"
@@ -1206,16 +1208,18 @@
         </div>
         {#if issue}
           <div class="dropdown-divider detail-toolbar-mobile-divider"></div>
-          {#if editable}
-            <button
-              type="button"
-              class="dropdown-item"
-              on:click={() => lockState === 'plain' ? requestLock() : removeLock()}
-            >
-              <i class={`bi ${lockState === 'plain' ? 'bi-lock' : 'bi-unlock'}`} aria-hidden="true"></i>
-              {lockState === 'plain' ? '잠금' : lockState === 'locked' ? '잠금 열기' : '잠금 풀기'}
-            </button>
-          {/if}
+        {/if}
+        {#if editable}
+          <button
+            type="button"
+            class="dropdown-item"
+            on:click={() => lockState === 'plain' ? requestLock() : removeLock()}
+          >
+            <i class={`bi ${lockState === 'plain' ? 'bi-lock' : 'bi-unlock'}`} aria-hidden="true"></i>
+            {lockState === 'plain' ? '잠금' : lockState === 'locked' ? '잠금 열기' : '잠금 풀기'}
+          </button>
+        {/if}
+        {#if issue}
           {#if !readOnly}
             <button
               type="button"

@@ -150,8 +150,7 @@ button, input, textarea { font: inherit; }
 .detail-toolbar-actions { justify-content: flex-end; gap: .5rem; }
 .detail-toolbar-start .btn { display: inline-grid; place-items: center; min-width: 42px; }
 .detail-toolbar-actions-mobile { display: none; }
-.detail-toolbar-more { display: none; }
-.detail-toolbar-more.has-issue { display: block; }
+.detail-toolbar-more { display: block; }
 .detail-toolbar-more > .btn { min-width: 42px; }
 .detail-toolbar-mobile-actions, .detail-toolbar-mobile-divider { display: none; }
 .detail-toolbar-more .dropdown-item.detail-toolbar-desktop-delete { display: none; }
@@ -227,8 +226,7 @@ button, input, textarea { font: inherit; }
 .label-dot { width: .55rem; height: .55rem; flex: none; border-radius: 50%; background: var(--label-color); }
 
 @media (min-width: 992px) {
-  .detail-toolbar-more { display: none; }
-  .detail-toolbar-more.has-issue { display: block; }
+  .detail-toolbar-more { display: block; }
   .detail-toolbar-more .dropdown-item.detail-toolbar-desktop-delete { display: flex; }
   .detail-toolbar-more .dropdown-menu { --bs-dropdown-item-padding-y: .55rem; min-width: auto; padding-block: .35rem; }
 }
