@@ -32,7 +32,8 @@
   const LONG_PRESS_MS = 500;
   const LONG_PRESS_MOVE_TOLERANCE_PX = 10;
   const ATTACHMENT_PRUNE_INTERVAL_MS = 24 * 60 * 60 * 1000;
-  const LOCK_SESSION_MS = 60 * 60 * 1000;
+  const LOCK_SESSION_DEFAULT_MINUTES = 60;
+  const LOCK_SESSION_OPTIONS = [5, 15, 30, 60, 180, 480];
   const SIDEBAR_LOAD_MORE_THRESHOLD_PX = 160;
   const router = createStackRouter({ mode: 'hashbang', escToBack: true });
   const newContextTarget = externalLinkTarget();
@@ -74,6 +75,7 @@
   let autoSaveSeconds = 5;
   let issuePageSize = 30;
   let backgroundRefreshMinutes = BACKGROUND_REFRESH_DEFAULT_MINUTES;
+  let lockSessionMinutes = LOCK_SESSION_DEFAULT_MINUTES;
   let languagePreference = 'auto';
   let settingsSnapshot = null;
   let backgroundRefreshTimer;
@@ -148,9 +150,10 @@
   function setLockSession(pin) {
     clearTimeout(lockSessionTimer);
     lockPin = pin;
+    if (!pin) return;
     lockSessionTimer = setTimeout(() => {
       lockPin = '';
-    }, LOCK_SESSION_MS);
+    }, lockSessionMinutes * 60 * 1000);
   }
 
   onMount(() => {
@@ -232,6 +235,7 @@
       autoSaveSeconds = clampNumber(saved.preferences?.autoSaveSeconds, 3, 30, 5);
       issuePageSize = clampNumber(saved.preferences?.issuePageSize, 10, 100, 30);
       backgroundRefreshMinutes = normalizeBackgroundRefreshMinutes(saved.preferences?.backgroundRefreshMinutes);
+      lockSessionMinutes = normalizeLockSessionMinutes(saved.preferences?.lockSessionMinutes);
       const savedLanguage = saved.preferences?.language || 'auto';
       languagePreference = LOCALE_OPTIONS.some((option) => option.value === savedLanguage) ? savedLanguage : 'auto';
       setAppLocale(languagePreference);
@@ -249,6 +253,7 @@
 
     return () => {
       clearInterval(backgroundRefreshTimer);
+      clearTimeout(lockSessionTimer);
       clearTimeout(longPressTimer);
       clearTimeout(suppressIssueClickTimer);
       clearTimeout(toastTimer);
@@ -325,6 +330,7 @@
           autoSaveSeconds,
           issuePageSize,
           backgroundRefreshMinutes,
+          lockSessionMinutes,
           language: languagePreference
         }
       })
@@ -340,6 +346,11 @@
   function normalizeBackgroundRefreshMinutes(value) {
     const minutes = Number(value);
     return BACKGROUND_REFRESH_OPTIONS.includes(minutes) ? minutes : BACKGROUND_REFRESH_DEFAULT_MINUTES;
+  }
+
+  function normalizeLockSessionMinutes(value) {
+    const minutes = Number(value);
+    return LOCK_SESSION_OPTIONS.includes(minutes) ? minutes : LOCK_SESSION_DEFAULT_MINUTES;
   }
 
   function restartBackgroundRefreshTimer() {
@@ -1127,8 +1138,11 @@
     autoSaveSeconds = clampNumber(autoSaveSeconds, 3, 30, 5);
     issuePageSize = Math.round(clampNumber(issuePageSize, 10, 100, 30));
     backgroundRefreshMinutes = normalizeBackgroundRefreshMinutes(backgroundRefreshMinutes);
+    lockSessionMinutes = normalizeLockSessionMinutes(lockSessionMinutes);
     persistSettings(repo);
     restartBackgroundRefreshTimer();
+    // 유지 시간을 바꾸면 이미 열려 있는 잠금 세션도 새 길이로 다시 센다.
+    if (lockPin) setLockSession(lockPin);
     settingsSnapshot = null;
     labelRenameDrafts = [];
     appState = 'ready';
@@ -1148,6 +1162,7 @@
     autoSaveSeconds = clampNumber(autoSaveSeconds, 3, 30, 5);
     issuePageSize = Math.round(clampNumber(issuePageSize, 10, 100, 30));
     backgroundRefreshMinutes = normalizeBackgroundRefreshMinutes(backgroundRefreshMinutes);
+    lockSessionMinutes = normalizeLockSessionMinutes(lockSessionMinutes);
     const needsConnectionCheck = connectionSettingsChanged();
     if (!needsConnectionCheck && labelRenameDrafts.length === 0) {
       finishLocalSettingsSave();
@@ -1271,6 +1286,7 @@
       autoSaveSeconds,
       issuePageSize,
       backgroundRefreshMinutes,
+      lockSessionMinutes,
       languagePreference
     };
     error = '';
@@ -1293,6 +1309,7 @@
       autoSaveSeconds,
       issuePageSize,
       backgroundRefreshMinutes,
+      lockSessionMinutes,
       languagePreference
     } = settingsSnapshot);
     setAppLocale(languagePreference);
@@ -1452,6 +1469,19 @@
                     </option>
                   {/each}
                 </select>
+              </div>
+              <div class="mt-3">
+                <label class="form-label" for="lock-session-minutes">{$_('settings.lockSessionDuration')}</label>
+                <select id="lock-session-minutes" class="form-select" bind:value={lockSessionMinutes}>
+                  {#each LOCK_SESSION_OPTIONS as minutes}
+                    <option value={minutes}>
+                      {minutes % 60 === 0
+                        ? `${minutes / 60} ${$_('settings.hours')}`
+                        : `${minutes} ${$_('settings.minutes')}`}
+                    </option>
+                  {/each}
+                </select>
+                <div class="form-text">{$_('settings.lockSessionHelp')}</div>
               </div>
               </fieldset>
 
@@ -1765,6 +1795,7 @@
               lineHeight={editorLineHeight}
               {autoSaveSeconds}
               {lockPin}
+              {lockSessionMinutes}
               onSetLockSession={setLockSession}
               paused={topRoute?.screen === 'settings' || route !== contentRoute || selectionMode}
               readOnly={selectionMode}

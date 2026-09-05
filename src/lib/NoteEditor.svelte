@@ -58,6 +58,7 @@
   export let onMove = () => {};
   export let onBack = () => {};
   export let lockPin = '';
+  export let lockSessionMinutes = 60;
   export let onSetLockSession = () => {};
 
   const DRAFTS_KEY = 'issue-note.drafts.v1';
@@ -151,6 +152,10 @@
   $: if (mounted && !paused && externalPasteRequest?.id > handledExternalPasteRequest) {
     handleExternalPasteRequest();
   }
+  $: lockSessionLabel = lockSessionMinutes % 60 === 0
+    ? `${lockSessionMinutes / 60}시간`
+    : `${lockSessionMinutes}분`;
+
   $: if (mounted && lockState === 'locked' && lockPin && lockPin !== activeLockPin && !lockPanelBusy) {
     reuseLockPin(lockPin);
   }
@@ -1364,7 +1369,7 @@
             <p>암호 재사용중...</p>
           {:else}
             <p>{lockPanelMode === 'lock'
-              ? '모든 잠금 노트에 같은 6자리 숫자를 사용하세요. 숫자는 저장되지 않고 1시간 동안만 재사용되며, 잊으면 내용을 복구할 수 없습니다.'
+              ? `모든 잠금 노트에 같은 6자리 숫자를 사용하세요. 숫자는 저장되지 않고 ${lockSessionLabel} 동안만 재사용되며, 잊으면 내용을 복구할 수 없습니다.`
               : '내용을 보려면 계정에서 사용한 6자리 숫자를 입력하세요.'}</p>
             <input
               id={`note-lock-pin-${editorId}`}
