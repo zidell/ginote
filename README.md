@@ -1,7 +1,7 @@
 # Ginote
 
-GitHub Issues를 개인 노트처럼 쓰기 위한 심플하고 안전한 웹 앱입니다. 별도의 앱
-서버나 데이터베이스 없이, 브라우저에서 GitHub 저장소를 직접 읽고 씁니다.
+Ginote는 GitHub Issues를 개인 노트처럼 쓰기 위한 심플하고 안전한 웹 앱입니다.
+별도의 앱 서버나 데이터베이스 없이, 브라우저에서 GitHub 저장소를 직접 읽고 씁니다.
 
 **서비스 주소(누구나 바로 사용 가능):** [note.gitools.net](https://note.gitools.net)
 
