@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { composeAttachmentComment } from './attachments.js';
+import { setAppLocale } from './i18n.js';
 import {
   createIssue,
   createLabel,
@@ -43,6 +44,8 @@ function attachmentComment(id, issueNumber, name = `${id}.png`) {
 
 describe('GitHub API client', () => {
   beforeEach(() => {
+    // 오류 문구는 앱 locale을 따르므로, 실행 환경의 시스템 언어와 무관하게 고정한다.
+    setAppLocale('en');
     vi.stubGlobal('fetch', vi.fn());
   });
 
