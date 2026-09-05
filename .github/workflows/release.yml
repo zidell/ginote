@@ -23,7 +23,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG_NAME: v${{ env.RELEASE_VERSION }}
-          RELEASE_NAME: Issue Note v${{ env.RELEASE_VERSION }}
+          RELEASE_NAME: Ginote v${{ env.RELEASE_VERSION }}
           RELEASE_BODY: Download the installer for your platform. These builds are not notarized or code-signed.
         run: |
           release_id="$(
@@ -106,7 +106,7 @@ jobs:
         with:
           releaseId: ${{ needs.prepare-release.outputs.release_id }}
           tagName: v${{ env.RELEASE_VERSION }}
-          releaseName: Issue Note v${{ env.RELEASE_VERSION }}
+          releaseName: Ginote v${{ env.RELEASE_VERSION }}
           releaseBody: Download the installer for your platform. These builds are not notarized or code-signed.
           releaseDraft: true
           prerelease: false

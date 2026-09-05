@@ -1754,7 +1754,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "issue-note"
+name = "ginote"
 version = "0.1.0"
 dependencies = [
  "tauri",

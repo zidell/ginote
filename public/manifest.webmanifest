@@ -1,7 +1,7 @@
 {
   "id": "./",
-  "name": "GitHub Issue Notes",
-  "short_name": "Issue Notes",
+  "name": "Ginote",
+  "short_name": "Ginote",
   "description": "A serverless personal notes app backed by GitHub Issues",
   "lang": "en",
   "start_url": "./#!/",

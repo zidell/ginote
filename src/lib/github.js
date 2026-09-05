@@ -264,7 +264,7 @@ export async function uploadAttachment(token, repoInput, issueNumber, file) {
   const result = await request(`/repos/${repo}/contents/${encodedPath}`, token, {
     method: 'PUT',
     body: JSON.stringify({
-      message: `Add Issue Note attachment: ${file.name}`,
+      message: `Add Ginote attachment: ${file.name}`,
       content
     })
   });
@@ -370,7 +370,7 @@ export async function deleteAttachment(token, repoInput, attachment) {
   return request(`/repos/${repo}/contents/${encodedPath}`, token, {
     method: 'DELETE',
     body: JSON.stringify({
-      message: `Delete Issue Note attachment: ${attachment.name}`,
+      message: `Delete Ginote attachment: ${attachment.name}`,
       sha: attachment.sha
     })
   });

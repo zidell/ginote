@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Issue Note",
+  "productName": "Ginote",
   "version": "../package.json",
   "identifier": "net.gitools.note",
   "build": {
@@ -13,7 +13,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "Issue Note",
+        "title": "Ginote",
         "width": 1180,
         "height": 780,
         "minWidth": 360,

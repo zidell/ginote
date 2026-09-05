@@ -21,13 +21,13 @@ describe('i18n', () => {
 
   it('모든 지원 언어에 설정 위저드 번역을 제공한다', () => {
     const expectedTitles = {
-      en: 'Set up Issue Note',
-      ko: 'Issue Note 설정',
-      'zh-CN': '设置 Issue Note',
-      ja: 'Issue Noteのセットアップ',
-      de: 'Issue Note einrichten',
-      fr: 'Configurer Issue Note',
-      it: 'Configura Issue Note'
+      en: 'Set up Ginote',
+      ko: 'Ginote 설정',
+      'zh-CN': '设置 Ginote',
+      ja: 'Ginoteのセットアップ',
+      de: 'Ginote einrichten',
+      fr: 'Configurer Ginote',
+      it: 'Configura Ginote'
     };
 
     for (const [locale, title] of Object.entries(expectedTitles)) {

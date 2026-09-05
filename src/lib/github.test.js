@@ -336,7 +336,7 @@ describe('GitHub API client', () => {
     expect(decodeURIComponent(new URL(url).pathname)).toContain(result.path);
     expect(options.method).toBe('PUT');
     expect(JSON.parse(options.body)).toMatchObject({
-      message: 'Add Issue Note attachment: 계획 #1?.txt',
+      message: 'Add Ginote attachment: 계획 #1?.txt',
       content: 'QUI='
     });
   });
@@ -355,7 +355,7 @@ describe('GitHub API client', () => {
     expect(decodeURIComponent(new URL(url).pathname)).toContain(attachment.path);
     expect(options.method).toBe('DELETE');
     expect(JSON.parse(options.body)).toEqual({
-      message: 'Delete Issue Note attachment: 여행 사진.png',
+      message: 'Delete Ginote attachment: 여행 사진.png',
       sha: 'file-sha'
     });
   });

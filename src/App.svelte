@@ -407,10 +407,10 @@
   function makePatCreationUrl(value) {
     const selected = repositoryName(value);
     const url = new URL('https://github.com/settings/personal-access-tokens/new');
-    url.searchParams.set('name', `Issue Note${selected ? ` - ${selected.name}` : ''}`.slice(0, 40));
+    url.searchParams.set('name', `Ginote${selected ? ` - ${selected.name}` : ''}`.slice(0, 40));
     url.searchParams.set(
       'description',
-      selected ? `Issue Note access for ${selected.fullName}` : 'Issue Note repository access'
+      selected ? `Ginote access for ${selected.fullName}` : 'Ginote repository access'
     );
     url.searchParams.set('expires_in', 'none');
     url.searchParams.set('issues', 'write');

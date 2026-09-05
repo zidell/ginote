@@ -1,3 +1,3 @@
 fn main() {
-    issue_note_lib::run();
+    ginote_lib::run();
 }

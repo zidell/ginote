@@ -40,7 +40,7 @@
   }
 </script>
 
-<a class="setup-source-link small text-secondary" href="https://github.com/zidell/github-issue-notes" target={externalTarget} rel="noreferrer">
+<a class="setup-source-link small text-secondary" href="https://github.com/zidell/ginote" target={externalTarget} rel="noreferrer">
   <i class="bi bi-github me-1" aria-hidden="true"></i>{$_('meta.sourceCode')}
 </a>
 

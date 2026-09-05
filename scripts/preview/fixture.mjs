@@ -2,7 +2,7 @@
 // 실제 저장소를 건드리지 않고도 목록·검색·작성·태그·휴지통 흐름을 모두 보여준다.
 import { tagColorForName } from '../../src/lib/colors.js';
 
-export const PREVIEW_REPO = 'octonote/notes';
+export const PREVIEW_REPO = 'octocat/notes';
 export const PREVIEW_TOKEN = 'github_pat_preview_dummy_token';
 
 const AVATAR = 'data:image/svg+xml;base64,' + Buffer.from(
@@ -12,7 +12,7 @@ const AVATAR = 'data:image/svg+xml;base64,' + Buffer.from(
      </linearGradient></defs>
      <rect width="96" height="96" rx="48" fill="url(#g)"/>
      <text x="48" y="62" font-family="Helvetica, Arial, sans-serif" font-size="42"
-       font-weight="700" fill="#ffffff" text-anchor="middle">N</text>
+       font-weight="700" fill="#ffffff" text-anchor="middle">O</text>
    </svg>`
 ).toString('base64');
 
@@ -33,7 +33,7 @@ const issue = ({ number, body, labels = [], updatedAt, state = 'open', closedAt 
   body,
   labels: labels.map(label),
   comments,
-  user: { login: 'octonote', avatar_url: AVATAR },
+  user: { login: 'octocat', avatar_url: AVATAR },
   html_url: `https://github.com/${PREVIEW_REPO}/issues/${number}`,
   created_at: updatedAt,
   updated_at: updatedAt,
@@ -226,7 +226,7 @@ export async function installGitHubMock(context, fixture) {
     const body = request.postData() ? JSON.parse(request.postData()) : {};
 
     if (path === '/user') {
-      return json(route, { login: 'octonote', name: 'Octo Note', avatar_url: AVATAR });
+      return json(route, { login: 'octocat', name: 'Octo Cat', avatar_url: AVATAR });
     }
 
     if (path === `/repos/${PREVIEW_REPO}`) {

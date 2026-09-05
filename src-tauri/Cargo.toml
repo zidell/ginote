@@ -1,12 +1,12 @@
 [package]
-name = "issue-note"
+name = "ginote"
 version = "0.1.0"
 description = "A serverless notes app backed by GitHub Issues"
 authors = ["zidell"]
 edition = "2021"
 
 [lib]
-name = "issue_note_lib"
+name = "ginote_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]

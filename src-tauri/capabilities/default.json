@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "main-capability",
-  "description": "Permissions for the main Issue Note window",
+  "description": "Permissions for the main Ginote window",
   "windows": ["main"],
   "permissions": [
     "core:default",

@@ -1,4 +1,4 @@
-# Issue Note
+# Ginote
 
 GitHub Issues를 개인 노트처럼 쓰기 위한 심플하고 안전한 웹 앱입니다. 별도의 앱
 서버나 데이터베이스 없이, 브라우저에서 GitHub 저장소를 직접 읽고 씁니다.
@@ -7,7 +7,7 @@ GitHub Issues를 개인 노트처럼 쓰기 위한 심플하고 안전한 웹 �
 
 ## 내 데이터는 어디로 가나요?
 
-**Issue Note는 완전히 정적인 SPA입니다.** 배포 서버는 빌드된 HTML, CSS,
+**Ginote는 완전히 정적인 SPA입니다.** 배포 서버는 빌드된 HTML, CSS,
 JavaScript 파일만 전달하고, 로그인이나 노트 저장을 처리하는 앱 백엔드는
 존재하지 않습니다. 앱을 연 뒤의 데이터 통신은 사용자의 브라우저와 GitHub API
 사이에서 직접 이루어집니다.
@@ -53,7 +53,7 @@ JavaScript 파일만 전달하고, 로그인이나 노트 저장을 처리하는
 
 ## 화면
 
-![Issue Note 사용 미리보기](docs/preview.gif)
+![Ginote 사용 미리보기](docs/preview.gif)
 
 미리보기 GIF를 다시 만드는 방법은 [docs/screencasting.md](docs/screencasting.md)에
 정리했습니다.
@@ -359,6 +359,8 @@ UI 번역은 `svelte-i18n`, `src/lib/i18n.js`, `src/lib/locales/`의 메시지 �
 
 - 연결 설정과 선택 사항: `localStorage`의 `issue-note.settings.v1`
 - 복구용 노트 초안: `localStorage`의 `issue-note.drafts.v1`
+- 위 키 이름의 `issue-note` 접두사는 앱 이름을 Ginote로 바꾸기 전부터 쓰던
+  식별자입니다. 이미 저장된 설정과 초안을 그대로 읽기 위해 유지합니다.
 - 로컬 초안 저장: 편집 중 1초 간격
 - GitHub 자동 저장: 마지막 수정 후 5초
 - 새 노트: `Ctrl+N` 또는 `Cmd+N`
@@ -393,6 +395,9 @@ PAT 입력은 password 필드로 표시합니다. 설정 화면을 다시 열 �
 .issue-note-assets/issues/{이슈 번호}/{UUID}-{파일명}
 <!-- issue-note-attachment:{Base64 JSON} -->
 ```
+
+경로와 마커의 `issue-note` 접두사도 이름을 바꾸기 전부터 쓰던 식별자입니다.
+이미 올라간 첨부파일을 계속 읽어야 하므로 앱 이름과 별개로 유지합니다.
 
 마커는 댓글의 마지막에 위치하며 현재 메타데이터 `version`은 `1`입니다. 파일당
 댓글 하나라는 관계, 노트당 30개·파일당 10MB 제한, 모든 댓글 페이지를 끝까지
