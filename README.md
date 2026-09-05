@@ -430,11 +430,6 @@ Tauri에서 외부 HTTP(S) 링크는 `@tauri-apps/plugin-opener`로 시스템 �
 `src-tauri/tauri.conf.json`이 `../package.json`을 읽으므로 별도 숫자를 중복해
 관리하지 않습니다.
 
-공식 데모는 현재 Cloudflare Pages에 연결되어 있어 `main` 푸시 후 자동으로
-배포됩니다. Cloudflare 계정 ID, 프로젝트 내부 정보, DNS 설정 같은 개인 배포
-정보는 저장소에 추가하지 않습니다. 포크 사용자는 `npm run build`로 생성된
-`dist/`를 원하는 정적 호스팅 서비스에 배포할 수 있습니다.
-
 ### 변경 시 테스트 위치
 
 - 제목 생성·Markdown 미리보기: `src/lib/notes.test.js`
