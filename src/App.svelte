@@ -34,7 +34,7 @@
   const LONG_PRESS_MOVE_TOLERANCE_PX = 10;
   const ATTACHMENT_PRUNE_INTERVAL_MS = 24 * 60 * 60 * 1000;
   const LOCK_SESSION_DEFAULT_MINUTES = 60;
-  const LOCK_SESSION_OPTIONS = [5, 15, 30, 60, 180, 480];
+  const LOCK_SESSION_OPTIONS = [5, 15, 30, 60, 180, 480, 720, 1440];
   const SIDEBAR_LOAD_MORE_THRESHOLD_PX = 160;
   const router = createStackRouter({ mode: 'hashbang', escToBack: true });
   const newContextTarget = externalLinkTarget();
