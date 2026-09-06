@@ -229,3 +229,85 @@ describe('NoteEditor 첨부 파일', () => {
     vi.unstubAllGlobals();
   });
 });
+
+describe('NoteEditor 빠른 노트 전환 레이스', () => {
+  function deferred() {
+    let resolve;
+    const promise = new Promise((res) => { resolve = res; });
+    return { promise, resolve };
+  }
+
+  it('할당 대기 중 다른 노트로 전환해 파괴된 인스턴스는 onCreated를 다시 부르지 않는다', async () => {
+    localStorage.clear();
+    const allocation = deferred();
+    const onCreated = vi.fn();
+
+    const { unmount, rerender } = render(NoteEditor, {
+      token: 't',
+      repo: 'owner/race',
+      issue: null,
+      initialDraft: { id: 'session-A', title: '', body: '', labels: [] },
+      allocationPromise: allocation.promise,
+      autoSaveSeconds: 9999,
+      paused: false,
+      onCreated
+    });
+
+    const bodyTextarea = document.querySelector('.inline-body');
+    await fireEvent.input(bodyTextarea, { target: { value: '전환 전에 입력한 내용' } });
+
+    // 사용자가 번호 할당 응답이 오기 전에 다른 노트로 전환한다: paused=true로
+    // 바뀌면 afterUpdate가 즉시 flushRemoteSave()를 실행해 allocationPromise를
+    // 기다리는 saveRemote()가 시작된다.
+    await rerender({ paused: true });
+
+    // 부모(App.svelte)가 이 사이에 번호 할당을 먼저 처리해 라우트 세그먼트를
+    // note.{번호}로 바꾸면 이 NoteEditor 인스턴스는 destroy된다.
+    unmount();
+
+    // 이제서야 번호 할당 응답이 도착한다.
+    allocation.resolve({ number: 42, title: '', body: '', labels: [] });
+
+    await waitFor(() => expect(updateIssue).toHaveBeenCalled());
+    // destroyed 가드가 없었다면 여기서 onCreated가 또 호출돼 부모의
+    // noteCreated()가 중복 실행됐을 것이다.
+    await new Promise((resolveTimer) => setTimeout(resolveTimer, 20));
+    expect(onCreated).not.toHaveBeenCalled();
+  });
+
+  it('저장 실패로 남은 새 노트 초안이 이후의 다른 새 노트로 새어나가지 않는다', async () => {
+    localStorage.clear();
+    updateIssue.mockRejectedValueOnce(new Error('network down'));
+
+    const sessionA = render(NoteEditor, {
+      token: 't',
+      repo: 'owner/race',
+      issue: null,
+      initialDraft: { id: 'session-A', title: '', body: '', labels: [] },
+      allocationPromise: Promise.resolve({ number: 42, title: '', body: '', labels: [] }),
+      autoSaveSeconds: 9999,
+      paused: false
+    });
+
+    const bodyA = document.querySelector('.inline-body');
+    await fireEvent.input(bodyA, { target: { value: 'A 노트만의 내용' } });
+    await fireEvent.keyDown(bodyA, { key: 's', ctrlKey: true });
+
+    await waitFor(() => expect(updateIssue).toHaveBeenCalled());
+    // 저장이 실패했으므로 세션 A의 초안은 localStorage에 남는다.
+    sessionA.unmount();
+
+    render(NoteEditor, {
+      token: 't',
+      repo: 'owner/race',
+      issue: null,
+      initialDraft: { id: 'session-B', title: '', body: '', labels: [] },
+      allocationPromise: Promise.resolve({ number: 43, title: '', body: '', labels: [] }),
+      autoSaveSeconds: 9999,
+      paused: false
+    });
+
+    const bodyB = document.querySelector('.inline-body');
+    expect(bodyB.value).not.toContain('A 노트만의 내용');
+  });
+});
