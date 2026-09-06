@@ -22,10 +22,21 @@ export function normalizeLockSessionMinutes(value) {
   return LOCK_SESSION_OPTIONS.includes(minutes) ? minutes : LOCK_SESSION_DEFAULT_MINUTES;
 }
 
+export function normalizeListRowFields(raw) {
+  const source = raw && typeof raw === 'object' ? raw : {};
+  return {
+    title: source.title !== false,
+    summary: source.summary !== false,
+    meta: source.meta !== false,
+    tags: source.tags !== false
+  };
+}
+
 export function normalizePreferences(raw) {
   const savedLanguage = raw?.language || 'auto';
   return {
     titleMode: raw?.titleMode || 'first-line',
+    listRowFields: normalizeListRowFields(raw?.listRowFields),
     editorFont: raw?.editorFont || 'system',
     editorFontSize: Number(raw?.editorFontSize) || 16,
     editorLineHeight: Number(raw?.editorLineHeight) || 1.7,
@@ -40,6 +51,7 @@ export function normalizePreferences(raw) {
 export function preferenceSignature(preferences) {
   return JSON.stringify([
     preferences.titleMode,
+    preferences.listRowFields,
     preferences.editorFont,
     preferences.editorFontSize,
     preferences.editorLineHeight,
