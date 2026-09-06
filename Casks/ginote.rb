@@ -5,7 +5,9 @@ cask "ginote" do
   url "https://github.com/zidell/ginote/releases/download/v#{version}/Ginote_#{version}_universal.dmg"
   name "Ginote"
   desc "Serverless notes app backed by GitHub Issues"
-  homepage "https://note.gitools.net"
+  homepage "https://note.gitools.net/"
+
+  depends_on :macos
 
   app "Ginote.app"
 
