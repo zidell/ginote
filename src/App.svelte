@@ -103,6 +103,7 @@
   let notice = '';
   let routeStack = [];
   let titleMode = 'first-line';
+  let listRowFields = { title: true, summary: true, meta: true, tags: true };
   let editorFont = 'system';
   let editorFontSize = 16;
   let editorLineHeight = 1.7;
@@ -277,6 +278,7 @@
       activeWorkspaceId = settingsDocument.activeWorkspaceId;
       ({
         titleMode,
+        listRowFields,
         editorFont,
         editorFontSize,
         editorLineHeight,
@@ -390,6 +392,7 @@
   function currentPreferences() {
     return {
       titleMode,
+      listRowFields,
       editorFont,
       editorFontSize,
       editorLineHeight,
@@ -1651,6 +1654,25 @@
                   <option value="separate">{$_("m.4a13beb6d6")}</option>
                 </select>
               </div>
+              <div class="mb-3">
+                <span class="form-label d-block">{$_("m.62c6f9ddb9")}</span>
+                <div class="form-check form-check-inline">
+                  <input class="form-check-input" type="checkbox" id="list-field-title" bind:checked={listRowFields.title} on:change={announceDeferredApply} />
+                  <label class="form-check-label" for="list-field-title">{$_("m.768e0c1c69")}</label>
+                </div>
+                <div class="form-check form-check-inline">
+                  <input class="form-check-input" type="checkbox" id="list-field-summary" bind:checked={listRowFields.summary} on:change={announceDeferredApply} />
+                  <label class="form-check-label" for="list-field-summary">{$_("m.12b71c3e0f")}</label>
+                </div>
+                <div class="form-check form-check-inline">
+                  <input class="form-check-input" type="checkbox" id="list-field-meta" bind:checked={listRowFields.meta} on:change={announceDeferredApply} />
+                  <label class="form-check-label" for="list-field-meta">{$_("m.e2a9becb94")}</label>
+                </div>
+                <div class="form-check form-check-inline">
+                  <input class="form-check-input" type="checkbox" id="list-field-tags" bind:checked={listRowFields.tags} on:change={announceDeferredApply} />
+                  <label class="form-check-label" for="list-field-tags">{$_("m.848eed0fbd")}</label>
+                </div>
+              </div>
               <div class="row g-2">
                 <div class="col-sm-6">
                   <label class="form-label" for="editor-font">{$_("m.b97c4d4cdd")}</label>
@@ -1996,13 +2018,19 @@
                   aria-label={$_('dynamic.openNote', { values: { title: issue.title } })}
                 ></button>
                 <div class="note-row-content">
-                  <span class="note-row-title">{markdownToPlainText(issue.title)}</span>
-                  <span class="note-row-preview">{isLockedTitle(issue.title) ? '잠금된 노트입니다' : excerpt(issue.body, issue.title)}</span>
-                  <span class="note-row-meta">
-                    {issue.local ? $_("m.6f65454664") : `#${issue.number} · ${formatDate(issue.updated_at)}`}
-                  </span>
+                  {#if listRowFields.title}
+                    <span class="note-row-title">{markdownToPlainText(issue.title)}</span>
+                  {/if}
+                  {#if listRowFields.summary}
+                    <span class="note-row-preview">{isLockedTitle(issue.title) ? '잠금된 노트입니다' : excerpt(issue.body, issue.title)}</span>
+                  {/if}
+                  {#if listRowFields.meta}
+                    <span class="note-row-meta">
+                      {issue.local ? $_("m.6f65454664") : `#${issue.number} · ${formatDate(issue.updated_at)}`}
+                    </span>
+                  {/if}
                 </div>
-                {#if issue.labels?.length}
+                {#if listRowFields.tags && issue.labels?.length}
                   <div class="note-row-labels">
                     {#each issue.labels as label (label.id || label.name)}
                       <span style={`--tag-color:#${labelColor(label)}`}>#{label.name}</span>

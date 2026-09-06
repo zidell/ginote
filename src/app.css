@@ -175,7 +175,7 @@ button, input, textarea { font: inherit; }
 .note-row-title { overflow: hidden; margin-bottom: .2rem; color: #e8e8e8; font-size: .92rem; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
 .note-row-preview { overflow: hidden; margin-bottom: .25rem; color: #aaa; font-size: .8rem; text-overflow: ellipsis; white-space: nowrap; }
 .note-row-meta, .reader-meta { color: #777; font-size: .72rem; }
-.note-row-labels { position: relative; z-index: 2; display: flex; flex-wrap: wrap; gap: .25rem; margin-top: .45rem; opacity: .6; pointer-events: none; }
+.note-row-labels { position: relative; z-index: 2; display: flex; flex-wrap: wrap; gap: .25rem; opacity: .6; pointer-events: none; }
 .note-row-labels span { padding: .08rem .12rem; color: var(--tag-color); font-size: .68rem; }
 .note-row-refresh-spinner { position: absolute; z-index: 3; top: 50%; right: .85rem; color: #aaa; opacity: .8; pointer-events: none; transform: translateY(-50%); }
 .list-load-more { display: flex; justify-content: center; padding: .85rem .75rem 1.25rem; }

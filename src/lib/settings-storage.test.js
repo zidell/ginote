@@ -58,6 +58,7 @@ describe('normalizePreferences', () => {
   it('값이 없으면 전부 기본값을 채운다', () => {
     expect(normalizePreferences(undefined)).toEqual({
       titleMode: 'first-line',
+      listRowFields: { title: true, summary: true, meta: true, tags: true },
       editorFont: 'system',
       editorFontSize: 16,
       editorLineHeight: 1.7,
