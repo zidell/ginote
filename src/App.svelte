@@ -6,11 +6,35 @@
   import NoteEditor from './lib/NoteEditor.svelte';
   import SetupWizard from './lib/SetupWizard.svelte';
   import TagSettings from './lib/TagSettings.svelte';
+  import WorkspaceList from './lib/WorkspaceList.svelte';
+  import WorkspaceSwitcher from './lib/WorkspaceSwitcher.svelte';
   import { tagColorForName } from './lib/colors.js';
   import { _, locale as activeLocale } from 'svelte-i18n';
   import { LOCALE_OPTIONS, setAppLocale } from './lib/i18n.js';
   import { firstLinePreview, markdownToPlainText, normalizeTagName } from './lib/notes.js';
   import { isLockedTitle } from './lib/note-lock.js';
+  import { makePatCreationUrl, normalizeToken, parseRepositoryAddress } from './lib/repo-address.js';
+  import {
+    BACKGROUND_REFRESH_DEFAULT_MINUTES,
+    BACKGROUND_REFRESH_OPTIONS,
+    LOCK_SESSION_DEFAULT_MINUTES,
+    LOCK_SESSION_OPTIONS,
+    clampNumber,
+    createWorkspaceRecord,
+    loadSettingsDocument,
+    normalizeBackgroundRefreshMinutes,
+    normalizeLockSessionMinutes,
+    preferenceSignature,
+    renameWorkspace as renameWorkspaceRecord,
+    reorderWorkspace,
+    saveSettingsDocument,
+    workspaceDisplayName
+  } from './lib/settings-storage.js';
+  import {
+    getCachedIssueList,
+    invalidateCachedIssueList,
+    setCachedIssueList
+  } from './lib/issue-cache.js';
   import {
     createIssue,
     createLabel,
@@ -26,15 +50,10 @@
     verifyConnection
   } from './lib/github.js';
 
-  const STORAGE_KEY = 'issue-note.settings.v1';
   const ATTACHMENT_PRUNE_STORAGE_KEY = 'issue-note.attachment-prune.v1';
-  const BACKGROUND_REFRESH_DEFAULT_MINUTES = 60;
-  const BACKGROUND_REFRESH_OPTIONS = [0, 5, 15, 30, 60, 180];
   const LONG_PRESS_MS = 500;
   const LONG_PRESS_MOVE_TOLERANCE_PX = 10;
   const ATTACHMENT_PRUNE_INTERVAL_MS = 24 * 60 * 60 * 1000;
-  const LOCK_SESSION_DEFAULT_MINUTES = 60;
-  const LOCK_SESSION_OPTIONS = [5, 15, 30, 60, 180, 480, 720, 1440];
   const SIDEBAR_LOAD_MORE_THRESHOLD_PX = 160;
   const router = createStackRouter({ mode: 'hashbang', escToBack: true });
   const newContextTarget = externalLinkTarget();
@@ -43,6 +62,15 @@
   let tokenInputValue = '';
   let repo = '';
   let rememberToken = true;
+  let workspaces = [];
+  let activeWorkspaceId = '';
+  let workspaceWizardOpen = false;
+  let workspaceWizardKey = 0;
+  let workspaceWizardRepo = '';
+  let workspaceWizardToken = '';
+  let workspaceWizardRememberToken = true;
+  let workspaceWizardBusy = false;
+  let workspaceWizardError = '';
   let appState = 'booting';
   let user = null;
   let repository = null;
@@ -75,13 +103,16 @@
   let backgroundRefreshMinutes = BACKGROUND_REFRESH_DEFAULT_MINUTES;
   let lockSessionMinutes = LOCK_SESSION_DEFAULT_MINUTES;
   let languagePreference = 'auto';
-  let settingsSnapshot = null;
   let backgroundRefreshTimer;
   let labelBusy = '';
   let labelMutation = null;
   let labelMutationSequence = 0;
-  let labelRenameDrafts = [];
   let settingsRouteOverride = '';
+  let settingsEntryPageSize = 0;
+  let settingsEntrySignature = '';
+  let toastMessage = '';
+  let toastTimer;
+  let toastSequence = 0;
   let sidebarScrollElement;
   let sidebarToolsElement;
   let sidebarToolsOffset = 0;
@@ -127,7 +158,7 @@
       ? $_("m.f5dd983c9d")
       : $_("m.123eda8d5e");
   $: patCreationUrl = makePatCreationUrl(repo);
-  $: guideRepository = repositoryName(repo);
+  $: guideRepository = parseRepositoryAddress(repo);
   $: repositoryIssuesUrl = repository?.html_url
     ? `${repository.html_url.replace(/\/$/, '')}/issues`
     : guideRepository ? `https://github.com/${guideRepository.fullName}/issues` : '';
@@ -220,8 +251,7 @@
         }
       }
       if (wasInSettings && !isInSettings) {
-        if (settingsSnapshot) restoreSettingsSnapshot();
-        if (appState === 'connecting') appState = 'ready';
+        applySettingsChanges();
         if (settingsRouteOverride) {
           const target = settingsRouteOverride;
           settingsRouteOverride = '';
@@ -233,31 +263,36 @@
       if (previousLabel !== nextLabel && appState === 'ready' && !isInSettings) loadIssues();
     }
 
-    try {
-      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
-      repo = saved.repo || '';
-      token = saved.token || '';
-      // PAT가 아직 없는 첫 실행에도 기본값은 저장으로 둔다. 실제 저장 여부는
-      // 연결 직전에 개인용 디바이스인지 한 번 더 확인한다.
-      rememberToken = true;
-      titleMode = saved.preferences?.titleMode || 'first-line';
-      editorFont = saved.preferences?.editorFont || 'system';
-      editorFontSize = Number(saved.preferences?.editorFontSize) || 16;
-      editorLineHeight = Number(saved.preferences?.editorLineHeight) || 1.7;
-      autoSaveSeconds = clampNumber(saved.preferences?.autoSaveSeconds, 3, 30, 5);
-      issuePageSize = clampNumber(saved.preferences?.issuePageSize, 10, 100, 30);
-      backgroundRefreshMinutes = normalizeBackgroundRefreshMinutes(saved.preferences?.backgroundRefreshMinutes);
-      lockSessionMinutes = normalizeLockSessionMinutes(saved.preferences?.lockSessionMinutes);
-      const savedLanguage = saved.preferences?.language || 'auto';
-      languagePreference = LOCALE_OPTIONS.some((option) => option.value === savedLanguage) ? savedLanguage : 'auto';
+    const settingsDocument = loadSettingsDocument();
+    if (settingsDocument) {
+      workspaces = settingsDocument.workspaces;
+      activeWorkspaceId = settingsDocument.activeWorkspaceId;
+      ({
+        titleMode,
+        editorFont,
+        editorFontSize,
+        editorLineHeight,
+        autoSaveSeconds,
+        issuePageSize,
+        backgroundRefreshMinutes,
+        lockSessionMinutes,
+        language: languagePreference
+      } = settingsDocument.preferences);
       setAppLocale(languagePreference);
+      const activeWorkspace = workspaces.find((workspace) => workspace.id === activeWorkspaceId);
+      if (activeWorkspace) {
+        repo = activeWorkspace.repo;
+        token = activeWorkspace.token;
+        // PAT가 아직 없는 첫 실행에도 기본값은 저장으로 둔다. 실제 저장 여부는
+        // 연결 직전에 개인용 디바이스인지 한 번 더 확인한다.
+        rememberToken = activeWorkspace.rememberToken;
+      }
       if (token && repo) {
         connect(false, true);
       } else {
         appState = 'setup';
       }
-    } catch {
-      localStorage.removeItem(STORAGE_KEY);
+    } else {
       appState = 'setup';
     }
 
@@ -268,6 +303,7 @@
       clearTimeout(lockSessionTimer);
       clearTimeout(longPressTimer);
       clearTimeout(suppressIssueClickTimer);
+      clearTimeout(toastTimer);
       window.removeEventListener('keydown', handleGlobalKeydown);
       window.removeEventListener('paste', handleGlobalPaste);
       unsubscribe();
@@ -292,7 +328,10 @@
       selectedIssue = issues.find((issue) => issue.number === issueNumber) || null;
       // 삭제됐거나 더는 현재 목록에 없는 이슈의 오래된 URL은 본문 레이어를
       // 비워 두지 않는다. 첫 목록 요청이 끝난 뒤 홈 목록으로 되돌린다.
-      if (!selectedIssue && appState === 'ready' && !loading) router.navigate('/');
+      // 설정 화면이 떠 있는 동안에는 미루고, 닫을 때 다시 판단한다.
+      if (!selectedIssue && appState === 'ready' && !loading && topRoute?.screen !== 'settings') {
+        router.navigate('/');
+      }
       return;
     }
 
@@ -327,41 +366,35 @@
     );
   }
 
+  function currentPreferences() {
+    return {
+      titleMode,
+      editorFont,
+      editorFontSize,
+      editorLineHeight,
+      autoSaveSeconds,
+      issuePageSize,
+      backgroundRefreshMinutes,
+      lockSessionMinutes,
+      language: languagePreference
+    };
+  }
+
   function persistSettings(normalizedRepo) {
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({
-        repo: normalizedRepo,
-        token: rememberToken ? token : '',
-        preferences: {
-          titleMode,
-          editorFont,
-          editorFontSize,
-          editorLineHeight,
-          autoSaveSeconds,
-          issuePageSize,
-          backgroundRefreshMinutes,
-          lockSessionMinutes,
-          language: languagePreference
-        }
-      })
-    );
-  }
-
-  function clampNumber(value, minimum, maximum, fallback) {
-    const number = Number(value);
-    if (!Number.isFinite(number)) return fallback;
-    return Math.min(maximum, Math.max(minimum, number));
-  }
-
-  function normalizeBackgroundRefreshMinutes(value) {
-    const minutes = Number(value);
-    return BACKGROUND_REFRESH_OPTIONS.includes(minutes) ? minutes : BACKGROUND_REFRESH_DEFAULT_MINUTES;
-  }
-
-  function normalizeLockSessionMinutes(value) {
-    const minutes = Number(value);
-    return LOCK_SESSION_OPTIONS.includes(minutes) ? minutes : LOCK_SESSION_DEFAULT_MINUTES;
+    const existingIndex = workspaces.findIndex((workspace) => workspace.id === activeWorkspaceId);
+    const existingDisplayName = existingIndex === -1 ? '' : workspaces[existingIndex].displayName;
+    const workspaceRecord = {
+      id: activeWorkspaceId || crypto.randomUUID(),
+      repo: normalizedRepo,
+      token,
+      rememberToken,
+      displayName: existingDisplayName || ''
+    };
+    workspaces = existingIndex === -1
+      ? [...workspaces, workspaceRecord]
+      : workspaces.map((workspace, index) => (index === existingIndex ? workspaceRecord : workspace));
+    activeWorkspaceId = workspaceRecord.id;
+    saveSettingsDocument({ workspaces, activeWorkspaceId, preferences: currentPreferences() });
   }
 
   function restartBackgroundRefreshTimer() {
@@ -410,37 +443,6 @@
     }
   }
 
-  function repositoryName(value) {
-    const cleaned = value
-      .trim()
-      .replace(/^https?:\/\/github\.com\//i, '')
-      .replace(/\.git$/i, '')
-      .replace(/^\/+|\/+$/g, '');
-    const parts = cleaned.split('/');
-    return parts.length === 2 && parts.every(Boolean)
-      ? { owner: parts[0], name: parts[1], fullName: cleaned }
-      : null;
-  }
-
-  function normalizeToken(value) {
-    return String(value || '').replace(/[\u200B-\u200D\u2060\uFEFF]/g, '').trim();
-  }
-
-  function makePatCreationUrl(value) {
-    const selected = repositoryName(value);
-    const url = new URL('https://github.com/settings/personal-access-tokens/new');
-    url.searchParams.set('name', `Ginote${selected ? ` - ${selected.name}` : ''}`.slice(0, 40));
-    url.searchParams.set(
-      'description',
-      selected ? `Ginote access for ${selected.fullName}` : 'Ginote repository access'
-    );
-    url.searchParams.set('expires_in', 'none');
-    url.searchParams.set('issues', 'write');
-    url.searchParams.set('contents', 'write');
-    if (selected) url.searchParams.set('target_name', selected.owner);
-    return url.toString();
-  }
-
   function friendlyError(reason) {
     if (reason?.status === 401) return $_("m.faea518485");
     if (reason?.status === 404) return $_("m.ff34a34522");
@@ -462,21 +464,17 @@
   }
 
   async function connect(showSuccess = true, restoring = false) {
-    const fromSettings = routeStack.at(-1)?.screen === 'settings' && Boolean(settingsSnapshot);
-    const isFirstConnection = !restoring && !fromSettings && appState === 'setup';
-    if (isFirstConnection && rememberToken && !hasConfirmedPatStorage) {
+    if (!restoring && appState === 'setup' && rememberToken && !hasConfirmedPatStorage) {
       if (!confirm($_('setup.confirmPatStorage'))) return;
       hasConfirmedPatStorage = true;
     }
-    const replacementToken = normalizeToken(tokenInputValue);
-    const requestedToken = replacementToken || (fromSettings ? settingsSnapshot.token : token);
+    const requestedToken = normalizeToken(tokenInputValue) || token;
     const requestedRepo = repo;
     error = '';
     notice = '';
     appState = restoring ? 'restoring' : 'connecting';
     try {
       const result = await verifyConnection(requestedToken, requestedRepo);
-      if (fromSettings && routeStack.at(-1)?.screen !== 'settings') return;
       token = requestedToken;
       tokenInputValue = '';
       repo = result.repo;
@@ -489,15 +487,151 @@
       appState = 'ready';
       applyRoute();
       pruneExpiredAttachments();
-      if (fromSettings) {
-        settingsSnapshot = null;
-        router.pop();
-      }
     } catch (reason) {
-      if (fromSettings && routeStack.at(-1)?.screen !== 'settings') return;
-      appState = fromSettings ? 'ready' : 'setup';
+      appState = 'setup';
       error = friendlyError(reason);
     }
+  }
+
+  async function switchWorkspace(workspaceId) {
+    if (!workspaceId || workspaceId === activeWorkspaceId) return;
+    const target = workspaces.find((workspace) => workspace.id === workspaceId);
+    if (!target) return;
+
+    // 나가는 워크스페이스의 목록/필터 상태를 캐시해 다시 돌아왔을 때 즉시 보여준다(stale-while-revalidate).
+    setCachedIssueList(activeWorkspaceId, {
+      issues, repositoryLabels, issuePage, hasMoreIssues, totalIssues,
+      state, query, appliedQuery, activeLabel
+    });
+
+    clearIssueSelection();
+    selectedIssue = null;
+    pendingNote = null;
+    pendingAllocation = null;
+    state = 'open';
+    query = '';
+    appliedQuery = '';
+    activeLabel = '';
+    router.navigate('/');
+
+    activeWorkspaceId = workspaceId;
+    token = target.token;
+    repo = target.repo;
+    rememberToken = target.rememberToken;
+    user = null;
+    repository = null;
+    error = '';
+    notice = '';
+    saveSettingsDocument({ workspaces, activeWorkspaceId, preferences: currentPreferences() });
+
+    const cached = getCachedIssueList(workspaceId);
+    if (cached) {
+      ({ issues, repositoryLabels, issuePage, hasMoreIssues, totalIssues } = cached);
+      appState = 'ready';
+    } else {
+      issues = [];
+      repositoryLabels = [];
+      // 이미 인증된 워크스페이스로 전환하는 것뿐이므로, 최초 설정용 스텝바이스텝
+      // 마법사(appState 'connecting') 대신 부팅 시 자동 재연결과 같은 가벼운
+      // 로딩 화면(appState 'restoring')을 보여준다.
+      appState = 'restoring';
+    }
+
+    try {
+      const result = await verifyConnection(token, repo);
+      user = result.user;
+      repository = result.repository;
+      appState = 'ready';
+      restartBackgroundRefreshTimer();
+      await Promise.all([loadIssues(), loadRepositoryLabels()]);
+      applyRoute();
+      pruneExpiredAttachments();
+    } catch (reason) {
+      appState = cached ? 'ready' : 'setup';
+      error = friendlyError(reason);
+    }
+  }
+
+  async function completeAddWorkspace({ repo: newRepo, token: newToken, rememberToken: remember }) {
+    const result = await verifyConnection(newToken, newRepo);
+    const record = createWorkspaceRecord({ repo: result.repo, token: newToken, rememberToken: remember });
+    workspaces = [...workspaces, record];
+    await switchWorkspace(record.id);
+  }
+
+  function openAddWorkspaceWizard() {
+    workspaceWizardKey += 1;
+    workspaceWizardRepo = '';
+    workspaceWizardToken = '';
+    workspaceWizardRememberToken = true;
+    workspaceWizardError = '';
+    workspaceWizardOpen = true;
+  }
+
+  function closeAddWorkspaceWizard() {
+    if (workspaceWizardBusy) return;
+    workspaceWizardOpen = false;
+  }
+
+  async function submitAddWorkspace() {
+    workspaceWizardBusy = true;
+    workspaceWizardError = '';
+    try {
+      await completeAddWorkspace({
+        repo: workspaceWizardRepo,
+        token: normalizeToken(workspaceWizardToken),
+        rememberToken: workspaceWizardRememberToken
+      });
+      workspaceWizardOpen = false;
+    } catch (reason) {
+      workspaceWizardError = friendlyError(reason);
+    } finally {
+      workspaceWizardBusy = false;
+    }
+  }
+
+  function forgetWorkspace(workspaceId) {
+    workspaces = workspaces.filter((workspace) => workspace.id !== workspaceId);
+    invalidateCachedIssueList(workspaceId);
+    saveSettingsDocument({ workspaces, activeWorkspaceId, preferences: currentPreferences() });
+    if (activeWorkspaceId !== workspaceId) return;
+    const next = workspaces[0];
+    if (next) {
+      switchWorkspace(next.id);
+      return;
+    }
+    activeWorkspaceId = '';
+    token = '';
+    tokenInputValue = '';
+    repo = '';
+    user = null;
+    repository = null;
+    issues = [];
+    totalIssues = 0;
+    repositoryLabels = [];
+    pendingNote = null;
+    selectedIssue = null;
+    appState = 'setup';
+    router.navigate('/');
+  }
+
+  function moveWorkspace(workspaceId, direction) {
+    workspaces = reorderWorkspace(workspaces, workspaceId, direction);
+    saveSettingsDocument({ workspaces, activeWorkspaceId, preferences: currentPreferences() });
+  }
+
+  function renameWorkspace(workspaceId, displayName) {
+    workspaces = renameWorkspaceRecord(workspaces, workspaceId, displayName);
+    saveSettingsDocument({ workspaces, activeWorkspaceId, preferences: currentPreferences() });
+  }
+
+  function leaveWorkspace(workspaceId) {
+    const target = workspaces.find((workspace) => workspace.id === workspaceId);
+    if (!target) return;
+    const repoLabel = workspaceDisplayName(target);
+    if (!confirm($_('workspace.leaveConfirm', { values: { repo: repoLabel } }))) return;
+    forgetWorkspace(workspaceId);
+    notice = $_('workspace.leftNotice', { values: { repo: repoLabel } });
   }
 
   async function loadIssues(background = false) {
@@ -881,21 +1015,13 @@
       if (toggleIssueSelection(issue, event.shiftKey)) previewSelectedIssue(issue);
       return;
     }
-    selectNote(issue);
-  }
-
-  function handleIssueLabelClick(event, issue, labelName) {
-    if (suppressIssueClickId === issue.id) {
+    if (event.shiftKey && selectedIssue && !selectedIssue.local && !issue.local && selectedIssue.id !== issue.id) {
       event.preventDefault();
-      suppressIssueClickId = null;
-      clearTimeout(suppressIssueClickTimer);
+      selectionAnchorId = selectedIssue.id;
+      if (toggleIssueSelection(issue, true)) previewSelectedIssue(issue);
       return;
     }
-    if (selectionMode) {
-      if (toggleIssueSelection(issue, event.shiftKey)) previewSelectedIssue(issue);
-      return;
-    }
-    openLabel(labelName);
+    selectNote(issue);
   }
 
   function toggleIssueSelection(issue, selectRange = false) {
@@ -1084,7 +1210,7 @@
   }
 
   function hasIssueLabel(issue, labelName) {
-    return issue.labels?.some(
+    return issue?.labels?.some(
       (label) => label.name.toLocaleLowerCase() === labelName.toLocaleLowerCase()
     );
   }
@@ -1154,13 +1280,16 @@
   async function renameRepositoryLabel(label, nextName) {
     if (labelBusy) return false;
     const normalizedName = Array.from(nextName.trim()).slice(0, 50).join('');
-    if (!normalizedName || normalizedName === label.name) return true;
+    if (!normalizedName) {
+      error = $_('dynamic.tagNameRequired', { values: { name: label.name } });
+      return false;
+    }
+    if (normalizedName === label.name) return true;
     labelBusy = label.name;
     error = '';
     try {
-      const connectedToken = settingsSnapshot?.token || token;
-      const connectedRepo = repository?.full_name || settingsSnapshot?.repo || repo;
-      const savedLabel = await renameLabel(connectedToken, connectedRepo, label.name, normalizedName);
+      const connectedRepo = repository?.full_name || repo;
+      const savedLabel = await renameLabel(token, connectedRepo, label.name, normalizedName);
       repositoryLabels = repositoryLabels
         .map((item) => item.name === label.name ? savedLabel : item)
         .sort((a, b) => a.name.localeCompare(b.name, $activeLocale));
@@ -1182,73 +1311,39 @@
     }
   }
 
-  async function applyLabelRenameDrafts() {
-    for (const draft of labelRenameDrafts) {
-      const label = repositoryLabels.find((item) => item.id === draft.label.id);
-      if (!label) continue;
-      if (!draft.nextName) {
-        error = $_('dynamic.tagNameRequired', { values: { name: label.name } });
-        return false;
-      }
-      if (!await renameRepositoryLabel(label, draft.nextName)) return false;
-    }
-    labelRenameDrafts = [];
-    return true;
+  function showToast(message) {
+    clearTimeout(toastTimer);
+    const sequence = ++toastSequence;
+    toastMessage = message;
+    toastTimer = setTimeout(() => {
+      if (sequence !== toastSequence) return;
+      toastMessage = '';
+    }, 2400);
   }
 
-  function connectionSettingsChanged() {
-    if (!settingsSnapshot) return true;
-    const requestedRepo = repositoryName(repo)?.fullName || repo.trim();
-    const savedRepo = repositoryName(settingsSnapshot.repo)?.fullName || settingsSnapshot.repo.trim();
-    return Boolean(normalizeToken(tokenInputValue))
-      || requestedRepo.toLocaleLowerCase() !== savedRepo.toLocaleLowerCase();
-  }
-
-  function finishLocalSettingsSave() {
-    const pageSizeChanged = issuePageSize !== settingsSnapshot?.issuePageSize;
-    tokenInputValue = '';
-    repo = repository?.full_name || repositoryName(repo)?.fullName || repo.trim();
-    autoSaveSeconds = clampNumber(autoSaveSeconds, 3, 30, 5);
+  // 환경설정은 화면을 벗어날 때(닫기·뒤로) 한 번에 확정한다.
+  function applySettingsChanges() {
+    if (appState !== 'ready') return;
+    editorFontSize = Math.round(clampNumber(editorFontSize, 12, 32, 16));
+    editorLineHeight = clampNumber(editorLineHeight, 1.2, 2.5, 1.7);
+    autoSaveSeconds = Math.round(clampNumber(autoSaveSeconds, 3, 30, 5));
     issuePageSize = Math.round(clampNumber(issuePageSize, 10, 100, 30));
     backgroundRefreshMinutes = normalizeBackgroundRefreshMinutes(backgroundRefreshMinutes);
     lockSessionMinutes = normalizeLockSessionMinutes(lockSessionMinutes);
+    // 그냥 들여다보기만 하고 나온 경우에는 저장도 알림도 하지 않는다.
+    if (preferenceSignature(currentPreferences()) === settingsEntrySignature) return;
     persistSettings(repo);
     restartBackgroundRefreshTimer();
     // 유지 시간을 바꾸면 이미 열려 있는 잠금 세션도 새 길이로 다시 센다.
     if (lockPin) setLockSession(lockPin);
-    settingsSnapshot = null;
-    labelRenameDrafts = [];
-    appState = 'ready';
-    notice = '';
-    router.pop();
-    if (pageSizeChanged) loadIssues();
+    // 페이지 크기는 목록 요청에 그대로 들어가므로, 바뀌었으면 다시 불러온다.
+    if (issuePageSize !== settingsEntryPageSize) loadIssues();
+    settingsEntryPageSize = issuePageSize;
+    settingsEntrySignature = preferenceSignature(currentPreferences());
   }
 
-  async function saveConfiguration() {
-    if (topRoute?.screen !== 'settings') {
-      await connect(true);
-      return;
-    }
-
-    error = '';
-    notice = '';
-    autoSaveSeconds = clampNumber(autoSaveSeconds, 3, 30, 5);
-    issuePageSize = Math.round(clampNumber(issuePageSize, 10, 100, 30));
-    backgroundRefreshMinutes = normalizeBackgroundRefreshMinutes(backgroundRefreshMinutes);
-    lockSessionMinutes = normalizeLockSessionMinutes(lockSessionMinutes);
-    const needsConnectionCheck = connectionSettingsChanged();
-    if (!needsConnectionCheck && labelRenameDrafts.length === 0) {
-      finishLocalSettingsSave();
-      return;
-    }
-
-    appState = 'connecting';
-    if (!await applyLabelRenameDrafts()) {
-      appState = 'ready';
-      return;
-    }
-    if (needsConnectionCheck) await connect(false);
-    else finishLocalSettingsSave();
+  function announceDeferredApply() {
+    showToast($_("m.be71371eed"));
   }
 
   async function createRepositoryLabel(name) {
@@ -1258,9 +1353,8 @@
     labelBusy = normalizedName;
     error = '';
     try {
-      const connectedToken = settingsSnapshot?.token || token;
-      const connectedRepo = repository?.full_name || settingsSnapshot?.repo || repo;
-      const savedLabel = await createLabel(connectedToken, connectedRepo, normalizedName);
+      const connectedRepo = repository?.full_name || repo;
+      const savedLabel = await createLabel(token, connectedRepo, normalizedName);
       mergeRepositoryLabels([savedLabel]);
       notice = $_('dynamic.tagAdded', { values: { name: savedLabel.name } });
     } catch (reason) {
@@ -1272,12 +1366,12 @@
 
   async function deleteRepositoryLabel(label) {
     if (labelBusy) return;
+    if (!confirm($_('dynamic.deleteTagConfirm', { values: { name: label.name } }))) return;
     labelBusy = label.name;
     error = '';
     try {
-      const connectedToken = settingsSnapshot?.token || token;
-      const connectedRepo = repository?.full_name || settingsSnapshot?.repo || repo;
-      await removeLabel(connectedToken, connectedRepo, label.name);
+      const connectedRepo = repository?.full_name || repo;
+      await removeLabel(token, connectedRepo, label.name);
       repositoryLabels = repositoryLabels.filter((item) => item.name !== label.name);
       issues = issues.map((issue) => replaceLabelInIssue(issue, label.name));
       pendingNote = replaceLabelInIssue(pendingNote, label.name);
@@ -1346,72 +1440,15 @@
   function openSettings() {
     clearIssueSelection();
     settingsRouteOverride = '';
-    settingsSnapshot = {
-      token,
-      repo,
-      rememberToken,
-      titleMode,
-      editorFont,
-      editorFontSize,
-      editorLineHeight,
-      autoSaveSeconds,
-      issuePageSize,
-      backgroundRefreshMinutes,
-      lockSessionMinutes,
-      languagePreference
-    };
+    settingsEntryPageSize = issuePageSize;
+    settingsEntrySignature = preferenceSignature(currentPreferences());
     error = '';
     notice = '';
-    labelRenameDrafts = [];
-    tokenInputValue = '';
     router.push('settings');
-  }
-
-  function restoreSettingsSnapshot() {
-    if (!settingsSnapshot) return;
-    ({
-      token,
-      repo,
-      rememberToken,
-      titleMode,
-      editorFont,
-      editorFontSize,
-      editorLineHeight,
-      autoSaveSeconds,
-      issuePageSize,
-      backgroundRefreshMinutes,
-      lockSessionMinutes,
-      languagePreference
-    } = settingsSnapshot);
-    setAppLocale(languagePreference);
-    tokenInputValue = '';
-    settingsSnapshot = null;
-    labelRenameDrafts = [];
-    error = '';
   }
 
   function closeSettings() {
     router.pop();
-  }
-
-  function forgetSettings() {
-    if (!confirm($_("m.ad0db93efe"))) return;
-    localStorage.removeItem(STORAGE_KEY);
-    token = '';
-    tokenInputValue = '';
-    repo = '';
-    user = null;
-    repository = null;
-    issues = [];
-    totalIssues = 0;
-    repositoryLabels = [];
-    pendingNote = null;
-    selectedIssue = null;
-    settingsSnapshot = null;
-    settingsRouteOverride = '';
-    appState = 'setup';
-    router.navigate('/');
-    notice = $_("m.b5f846b636");
   }
 
   function excerpt(body) {
@@ -1433,7 +1470,7 @@
   }
 </script>
 
-{#if appState === 'booting' || appState === 'restoring'}
+{#if (appState === 'booting' || appState === 'restoring') && topRoute?.screen !== 'settings'}
   <main class="boot-screen">
     <img class="brand-mark brand-mark-sm" src="./icon.svg" alt="" />
     <span class="text-secondary small">
@@ -1441,7 +1478,7 @@
     </span>
   </main>
 {:else}
-  {#if appState === 'setup' || (appState === 'connecting' && topRoute?.screen !== 'settings')}
+  {#if appState === 'setup' || appState === 'connecting'}
     <SetupWizard
       bind:repo
       bind:tokenInputValue
@@ -1453,7 +1490,12 @@
     />
   {/if}
   {#if topRoute?.screen === 'settings'}
-  <main class="setup-shell settings-overlay container py-4 py-md-5">
+  <!-- svelte-ignore a11y_click_events_have_key_events -->
+  <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+  <main
+    class="setup-shell settings-overlay container py-4 py-md-5"
+    on:click={(event) => { if (event.target === event.currentTarget) closeSettings(); }}
+  >
     <section class="setup-card card border-0 shadow-sm mx-auto overflow-hidden">
       <div class="row g-0">
         <div class="col-12 bg-white p-4 p-md-5">
@@ -1464,9 +1506,9 @@
             <button
               class="btn btn-sm btn-outline-secondary flex-shrink-0"
               aria-label={$_("m.6bf9c432ba")}
-              disabled={appState === 'connecting'}
+              title={$_("m.6bf9c432ba")}
               on:click={closeSettings}
-            ><i class="bi bi-x-lg" aria-hidden="true"></i> {$_("m.bbfa773e5a")}</button>
+            ><i class="bi bi-x-lg" aria-hidden="true"></i></button>
           </div>
 
           {#if error}
@@ -1476,7 +1518,28 @@
             <div class="alert alert-success" role="status">{notice}</div>
           {/if}
 
-          <form on:submit|preventDefault={saveConfiguration}>
+          <div>
+            {#if workspaces.length}
+              <div class="workspace-section mb-4">
+                <h3 class="workspace-section-title">{$_('workspace.settingsSectionTitle')}</h3>
+                <p class="form-text mt-0">{$_('workspace.settingsSectionHelp')}</p>
+                <WorkspaceList
+                  {workspaces}
+                  {activeWorkspaceId}
+                  onMove={moveWorkspace}
+                  onLeave={leaveWorkspace}
+                  onSwitch={switchWorkspace}
+                  onRename={renameWorkspace}
+                  onAddWorkspace={openAddWorkspaceWizard}
+                  tagLabels={repositoryLabels}
+                  tagBusy={labelBusy}
+                  onCreateTag={createRepositoryLabel}
+                  onRenameTag={renameRepositoryLabel}
+                  onDeleteTag={deleteRepositoryLabel}
+                />
+              </div>
+            {/if}
+
             <fieldset class="editor-settings mb-4">
               <legend>{$_("m.cf8e8136d8")}</legend>
               <div class="mb-3">
@@ -1494,7 +1557,7 @@
               </div>
               <div class="mb-3">
                 <label class="form-label" for="title-mode">{$_("m.871b7ed110")}</label>
-                <select id="title-mode" class="form-select" bind:value={titleMode}>
+                <select id="title-mode" class="form-select" bind:value={titleMode} on:change={announceDeferredApply}>
                   <option value="first-line">{$_("m.7358ee0f0a")}</option>
                   <option value="separate">{$_("m.4a13beb6d6")}</option>
                 </select>
@@ -1502,7 +1565,7 @@
               <div class="row g-2">
                 <div class="col-sm-6">
                   <label class="form-label" for="editor-font">{$_("m.b97c4d4cdd")}</label>
-                  <select id="editor-font" class="form-select" bind:value={editorFont}>
+                  <select id="editor-font" class="form-select" bind:value={editorFont} on:change={announceDeferredApply}>
                     <option value="system">{$_("m.9d8d380806")}</option>
                     <option value="sans">{$_("m.ecc39dc539")}</option>
                     <option value="serif">{$_("m.a5c78a86fa")}</option>
@@ -1511,29 +1574,34 @@
                 </div>
                 <div class="col-6 col-sm-3">
                   <label class="form-label" for="font-size">{$_("m.b7152342a2")}</label>
-                  <input id="font-size" class="form-control" type="number" min="12" max="32" step="1" bind:value={editorFontSize} />
+                  <input id="font-size" class="form-control" type="number" min="12" max="32" step="1" bind:value={editorFontSize} on:change={announceDeferredApply} />
                 </div>
                 <div class="col-6 col-sm-3">
                   <label class="form-label" for="line-height">{$_("m.65be5133e7")}</label>
-                  <input id="line-height" class="form-control" type="number" min="1.2" max="2.5" step="0.1" bind:value={editorLineHeight} />
+                  <input id="line-height" class="form-control" type="number" min="1.2" max="2.5" step="0.1" bind:value={editorLineHeight} on:change={announceDeferredApply} />
                 </div>
               </div>
               <div class="row g-2 mt-1">
                 <div class="col-6">
-                  <label class="form-label" for="auto-save-seconds">{$_("Auto-save delay")}</label>
+                  <label class="form-label" for="auto-save-seconds">{$_("m.41380d4108")}</label>
                   <div class="input-group">
-                    <input id="auto-save-seconds" class="form-control" type="number" min="3" max="30" step="1" bind:value={autoSaveSeconds} />
-                    <span class="input-group-text">{$_("sec")}</span>
+                    <input id="auto-save-seconds" class="form-control" type="number" min="3" max="30" step="1" bind:value={autoSaveSeconds} on:change={announceDeferredApply} />
+                    <span class="input-group-text">{$_("m.920a25ef68")}</span>
                   </div>
                 </div>
                 <div class="col-6">
-                  <label class="form-label" for="issue-page-size">{$_("Notes per page")}</label>
-                  <input id="issue-page-size" class="form-control" type="number" min="10" max="100" step="1" bind:value={issuePageSize} />
+                  <label class="form-label" for="issue-page-size">{$_("m.31ec42c218")}</label>
+                  <input id="issue-page-size" class="form-control" type="number" min="10" max="100" step="1" bind:value={issuePageSize} on:change={announceDeferredApply} />
                 </div>
               </div>
               <div class="mt-3">
                 <label class="form-label" for="background-refresh-minutes">{$_('settings.backgroundRefreshInterval')}</label>
-                <select id="background-refresh-minutes" class="form-select" bind:value={backgroundRefreshMinutes}>
+                <select
+                  id="background-refresh-minutes"
+                  class="form-select"
+                  bind:value={backgroundRefreshMinutes}
+                  on:change={announceDeferredApply}
+                >
                   {#each BACKGROUND_REFRESH_OPTIONS as minutes}
                     <option value={minutes}>
                       {minutes === 0 ? $_('settings.refreshDisabled') : `${minutes} ${$_('settings.minutes')}`}
@@ -1543,7 +1611,12 @@
               </div>
               <div class="mt-3">
                 <label class="form-label" for="lock-session-minutes">{$_('settings.lockSessionDuration')}</label>
-                <select id="lock-session-minutes" class="form-select" bind:value={lockSessionMinutes}>
+                <select
+                  id="lock-session-minutes"
+                  class="form-select"
+                  bind:value={lockSessionMinutes}
+                  on:change={announceDeferredApply}
+                >
                   {#each LOCK_SESSION_OPTIONS as minutes}
                     <option value={minutes}>
                       {minutes % 60 === 0
@@ -1555,14 +1628,6 @@
                 <div class="form-text">{$_('settings.lockSessionHelp')}</div>
               </div>
               </fieldset>
-
-              <TagSettings
-                labels={repositoryLabels}
-                busy={labelBusy || (appState === 'connecting' ? 'connecting' : '')}
-                onCreate={createRepositoryLabel}
-                onRenameDrafts={(drafts) => { labelRenameDrafts = drafts; }}
-                onDelete={deleteRepositoryLabel}
-              />
 
               <details class="pat-guide mcp-guide mb-4">
                 <summary class="d-flex align-items-center justify-content-between gap-3">
@@ -1627,17 +1692,7 @@
                 </div>
               </details>
 
-            <button class="btn btn-primary btn-lg w-100" disabled={appState === 'connecting'}>
-              <i class="bi bi-check-lg" aria-hidden="true"></i>
-              {appState === 'connecting' ? $_("m.984f7f9989") : $_("m.913aba9f96")}
-            </button>
-          </form>
-
-          {#if localStorage.getItem(STORAGE_KEY)}
-            <button class="btn btn-link text-danger w-100 mt-3" on:click={forgetSettings}>
-              <i class="bi bi-trash3" aria-hidden="true"></i> {$_("m.da4c8914b3")}
-            </button>
-          {/if}
+          </div>
         </div>
       </div>
     </section>
@@ -1648,21 +1703,21 @@
     class="app-shell"
     class:mobile-detail-active={Boolean(contentRoute)}
   >
+    {#if toastMessage}
+      <div class="app-toast" role="status">{toastMessage}</div>
+    {/if}
     <main class="note-workspace">
       <aside class="note-sidebar">
         <div class="sidebar-heading">
           <div class="sidebar-heading-main" class:is-hidden={selectionMode}>
-            {#if user && repositoryIssuesUrl}
-              <a
-                class="sidebar-profile"
-                href={repositoryIssuesUrl}
-                target={newContextTarget}
-                rel="noreferrer"
-                aria-label={`${repo} Issues`}
-              >
-                <img class="avatar" src={user.avatar_url} alt={user.login} />
-              </a>
-            {/if}
+            <WorkspaceSwitcher
+              {workspaces}
+              {activeWorkspaceId}
+              {user}
+              {repositoryIssuesUrl}
+              busy={appState === 'connecting' || appState === 'restoring'}
+              onSwitch={switchWorkspace}
+            />
             <div class="sidebar-heading-title">
               <h1>{state === 'open' ? $_("m.70440046a3") : $_("m.e3bf62bb7f")}</h1>
               <span>{$_('dynamic.noteCount', { values: { count: displayedIssueCount } })}</span>
@@ -1861,11 +1916,7 @@
                 {#if issue.labels?.length}
                   <div class="note-row-labels">
                     {#each issue.labels as label (label.id || label.name)}
-                      <button
-                        type="button"
-                        style={`--tag-color:#${labelColor(label)}`}
-                        on:click={(event) => handleIssueLabelClick(event, issue, label.name)}
-                      >#{label.name}</button>
+                      <span style={`--tag-color:#${labelColor(label)}`}>#{label.name}</span>
                     {/each}
                   </div>
                 {/if}
@@ -1954,4 +2005,23 @@
     </main>
   </div>
   {/if}
+{/if}
+
+{#if workspaceWizardOpen}
+  <div class="workspace-wizard-overlay">
+    {#key workspaceWizardKey}
+      <SetupWizard
+        bind:repo={workspaceWizardRepo}
+        bind:tokenInputValue={workspaceWizardToken}
+        bind:rememberToken={workspaceWizardRememberToken}
+        busy={workspaceWizardBusy}
+        error={workspaceWizardError}
+        patCreationUrl={makePatCreationUrl(workspaceWizardRepo)}
+        initialStep={3}
+        allowCancel
+        onCancel={closeAddWorkspaceWizard}
+        onConnect={submitAddWorkspace}
+      />
+    {/key}
+  </div>
 {/if}

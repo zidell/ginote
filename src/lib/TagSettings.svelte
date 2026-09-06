@@ -6,7 +6,7 @@
   export let labels = [];
   export let busy = '';
   export let onCreate = () => {};
-  export let onRenameDrafts = () => {};
+  export let onRename = () => {};
   export let onDelete = () => {};
 
   let drafts = {};
@@ -19,18 +19,25 @@
 
   function updateDraft(name, value) {
     drafts = { ...drafts, [name]: value };
-    onRenameDrafts(labels
-      .map((label) => ({ label, nextName: (name === label.name ? value : draftValue(label.name)).trim() }))
-      .filter(({ label, nextName }) => nextName !== label.name));
+  }
+
+  function clearDraft(name) {
+    const { [name]: removed, ...remainingDrafts } = drafts;
+    drafts = remainingDrafts;
+  }
+
+  // 입력이 끝난 시점(blur·Enter)에만 이름 변경을 보내, 타이핑 도중 이름이 바뀌지 않게 한다.
+  async function commitRename(label) {
+    const nextName = draftValue(label.name).trim();
+    if (nextName === label.name) {
+      clearDraft(label.name);
+      return;
+    }
+    if (await onRename(label, nextName)) clearDraft(label.name);
   }
 
   function deleteLabel(label) {
-    const { [label.name]: removed, ...remainingDrafts } = drafts;
-    drafts = remainingDrafts;
-    onRenameDrafts(labels
-      .filter((item) => item.id !== label.id)
-      .map((item) => ({ label: item, nextName: draftValue(item.name).trim() }))
-      .filter(({ label: item, nextName }) => nextName !== item.name));
+    clearDraft(label.name);
     onDelete(label);
   }
 
@@ -78,9 +85,11 @@
             disabled={Boolean(busy)}
             aria-label={$_('dynamic.tagName', { values: { name: label.name } })}
             on:input={(event) => updateDraft(label.name, event.currentTarget.value)}
+            on:change={() => commitRename(label)}
             on:keydown={(event) => {
               if (event.key === 'Enter') {
                 event.preventDefault();
+                event.currentTarget.blur();
               }
             }}
           />
