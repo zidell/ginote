@@ -1,4 +1,3 @@
-import { composeAttachmentComment, parseAttachmentComment } from './attachments.js';
 import { tagColorForName } from './colors.js';
 import { translate } from './i18n.js';
 import { parseRepositoryAddress } from './repo-address.js';
@@ -283,45 +282,71 @@ export async function uploadAttachment(token, repoInput, issueNumber, file) {
   };
 }
 
-export async function createAttachmentComment(token, repoInput, issueNumber, attachment) {
+export async function listIssueComments(token, repoInput, issueNumber) {
   const repo = normalizeRepo(repoInput);
-  const comment = await request(`/repos/${repo}/issues/${issueNumber}/comments`, token, {
-    method: 'POST',
-    body: JSON.stringify({ body: composeAttachmentComment(repo, attachment) })
-  });
-  return {
-    ...attachment,
-    commentId: comment.id,
-    commentUrl: comment.html_url
-  };
-}
-
-export async function listIssueAttachmentComments(token, repoInput, issueNumber) {
-  const repo = normalizeRepo(repoInput);
-  const directory = `${issueAttachmentDirectory(issueNumber)}/`;
-  const attachments = [];
+  const comments = [];
   const visitedPages = new Set();
   let page = 1;
   let pagePath = `/repos/${repo}/issues/${issueNumber}/comments?per_page=100`;
   while (pagePath && !visitedPages.has(pagePath)) {
     visitedPages.add(pagePath);
-    const { data: comments, response } = await request(pagePath, token, { withResponse: true });
-    attachments.push(
-      ...comments
-        .map(parseAttachmentComment)
-        .filter((attachment) => attachment?.path.startsWith(directory))
+    const { data: pageComments, response } = await request(pagePath, token, { withResponse: true });
+    comments.push(
+      ...pageComments.map((comment) => ({
+        id: comment.id,
+        body: comment.body || '',
+        author: comment.user?.login || '',
+        avatarUrl: comment.user?.avatar_url || '',
+        createdAt: comment.created_at,
+        updatedAt: comment.updated_at,
+        url: comment.html_url
+      }))
     );
     const linkedNextPage = nextPagePath(response.headers.get('link'));
     page += 1;
     pagePath = linkedNextPage
-      || (comments.length === 100
+      || (pageComments.length === 100
         ? `/repos/${repo}/issues/${issueNumber}/comments?per_page=100&page=${page}`
         : '');
   }
-  return attachments;
+  return comments;
 }
 
-export async function deleteAttachmentComment(token, repoInput, commentId) {
+export async function updateIssueComment(token, repoInput, commentId, body) {
+  const repo = normalizeRepo(repoInput);
+  const comment = await request(`/repos/${repo}/issues/comments/${commentId}`, token, {
+    method: 'PATCH',
+    body: JSON.stringify({ body })
+  });
+  return {
+    id: comment.id,
+    body: comment.body || '',
+    author: comment.user?.login || '',
+    avatarUrl: comment.user?.avatar_url || '',
+    createdAt: comment.created_at,
+    updatedAt: comment.updated_at,
+    url: comment.html_url
+  };
+}
+
+export async function createIssueComment(token, repoInput, issueNumber, body) {
+  const repo = normalizeRepo(repoInput);
+  const comment = await request(`/repos/${repo}/issues/${issueNumber}/comments`, token, {
+    method: 'POST',
+    body: JSON.stringify({ body })
+  });
+  return {
+    id: comment.id,
+    body: comment.body || '',
+    author: comment.user?.login || '',
+    avatarUrl: comment.user?.avatar_url || '',
+    createdAt: comment.created_at,
+    updatedAt: comment.updated_at,
+    url: comment.html_url
+  };
+}
+
+export async function deleteIssueComment(token, repoInput, commentId) {
   const repo = normalizeRepo(repoInput);
   return request(`/repos/${repo}/issues/comments/${commentId}`, token, {
     method: 'DELETE'
@@ -381,29 +406,9 @@ export async function deleteAttachment(token, repoInput, attachment) {
 }
 
 export async function purgeIssueAttachments(token, repoInput, issueNumber) {
-  const [comments, files] = await Promise.all([
-    listIssueAttachmentComments(token, repoInput, issueNumber),
-    listIssueAttachmentFiles(token, repoInput, issueNumber)
-  ]);
-  const filesByPath = new Map(files.map((file) => [file.path, file]));
-  let deletedFiles = 0;
-  let deletedComments = 0;
-
-  for (const comment of comments) {
-    const file = filesByPath.get(comment.path);
-    if (file) {
-      await deleteAttachment(token, repoInput, file);
-      filesByPath.delete(comment.path);
-      deletedFiles += 1;
-    }
-    await deleteAttachmentComment(token, repoInput, comment.commentId);
-    deletedComments += 1;
-  }
-
-  for (const file of filesByPath.values()) {
+  const files = await listIssueAttachmentFiles(token, repoInput, issueNumber);
+  for (const file of files) {
     await deleteAttachment(token, repoInput, file);
-    deletedFiles += 1;
   }
-
-  return { deletedFiles, deletedComments };
+  return { deletedFiles: files.length };
 }

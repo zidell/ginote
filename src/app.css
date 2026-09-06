@@ -169,7 +169,6 @@ button, input, textarea { font: inherit; }
 .note-row-title, .note-row-preview, .note-row-meta { display: block; }
 .note-row-title { overflow: hidden; margin-bottom: .2rem; color: #e8e8e8; font-size: .92rem; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
 .note-row-preview { overflow: hidden; margin-bottom: .25rem; color: #aaa; font-size: .8rem; text-overflow: ellipsis; white-space: nowrap; }
-.note-row-content .note-row-preview.auto-title-preview { color: #e8e8e8; font-size: .9rem; font-weight: 600; }
 .note-row-meta, .reader-meta { color: #777; font-size: .72rem; }
 .note-row-labels { position: relative; z-index: 2; display: flex; flex-wrap: wrap; gap: .25rem; margin-top: .45rem; pointer-events: none; }
 .note-row-labels span { padding: .08rem .12rem; color: var(--tag-color); font-size: .68rem; }
@@ -199,12 +198,14 @@ button, input, textarea { font: inherit; }
 .detail-toolbar-more .dropdown-item { display: flex; align-items: center; gap: .55rem; }
 .detail-toolbar-start .mobile-back { display: none; white-space: nowrap; }
 .inline-editor { position: relative; height: 100%; display: flex; flex-direction: column; }
-.save-status { display: inline-flex; align-items: center; gap: .35rem; margin-left: .25rem; color: #777; }
+.save-status { display: inline-flex; align-items: center; gap: .35rem; margin-left: .25rem; color: #777; opacity: 0; }
+.save-status.is-visible { opacity: 1; }
 .braille-spinner { width: 1ch; flex: 0 0 1ch; opacity: 0; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; line-height: 1; text-align: center; }
 .braille-spinner.active { opacity: 1; }
 .editor-notice { flex: none; padding: .55rem .85rem; border-bottom: 1px solid #363636; background: #201b1b; font-size: .8rem; }
-.inline-editor-fields { --editor-gutter: clamp(1rem, 3vw, 2.5rem); position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; padding-top: var(--editor-gutter); font-family: var(--note-font); }
+.inline-editor-fields { --editor-gutter: clamp(1rem, 3vw, 2.5rem); position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; padding-top: var(--editor-gutter); overflow-y: auto; font-family: var(--note-font); }
 .inline-editor-fields.is-lock-protected { outline: 1px dashed #c7a43a; outline-offset: -3px; box-shadow: inset 0 0 0 3px rgba(199, 164, 58, .05); }
+.inline-editor-fields.is-dragging-files { border-radius: 6px; outline: 2px dashed #5680d8; outline-offset: -.65rem; background: rgba(37, 99, 235, .08); }
 .note-lock-overlay { position: absolute; z-index: 8; inset: 0; display: grid; place-items: center; padding: 1rem; background: rgba(23, 23, 23, .68); }
 .note-lock-panel { width: min(360px, 100%); display: grid; gap: .8rem; padding: 1.35rem; border: 1px solid #554b2b; border-radius: 8px; color: #ddd; background: #202020; box-shadow: 0 18px 50px rgba(0, 0, 0, .4); text-align: center; }
 .note-lock-panel > i { color: #d5b74f; font-size: 1.65rem; }
@@ -221,6 +222,7 @@ button, input, textarea { font: inherit; }
 .attachment-section.is-loading > .attachment-list { opacity: .48; }
 .attachment-api-overlay { position: absolute; z-index: 3; inset: 0 0 .75rem; pointer-events: none; }
 .attachment-list { display: flex; gap: .5rem; overflow-x: auto; }
+.attachment-list-loading { display: flex; align-items: center; height: 96px; }
 .attachment-item, .attachment-add-tile { width: 116px; height: 96px; flex: 0 0 116px; border: 1px solid #383838; border-radius: 5px; overflow: hidden; background: #202020; }
 .attachment-item { position: relative; }
 .attachment-open { width: 100%; height: 100%; display: block; padding: 0; border: 0; color: #aaa; text-align: left; background: transparent; }
@@ -261,9 +263,24 @@ button, input, textarea { font: inherit; }
 .tag-dropdown-empty { display: block; padding: .65rem .5rem; color: #777; font-size: .78rem; text-align: center; }
 .inline-title { flex: none; width: auto; margin: 0 var(--editor-gutter) 1rem; padding: 0 0 .75rem; border: 0; border-bottom: 1px solid #3a3a3a; outline: none; color: #eee; background: transparent; font-family: var(--note-font); font-size: calc(var(--note-font-size) * 1.35); font-weight: 650; line-height: 1.3; }
 .inline-title::placeholder, .inline-body::placeholder { color: #5f5f5f; }
-.inline-body { flex: 1; width: 100%; min-height: 0; padding: 0 var(--editor-gutter) var(--editor-gutter); resize: none; border: 0; outline: none; color: #ddd; background: transparent; font-family: var(--note-font); font-size: var(--note-font-size); line-height: var(--note-line-height); }
-.inline-body.is-dragging-files { border-radius: 6px; outline: 2px dashed #5680d8; outline-offset: .65rem; background: rgba(37, 99, 235, .08); }
+.inline-body { flex: none; width: 100%; min-height: 300px; padding: 0 var(--editor-gutter) var(--editor-gutter); resize: none; overflow: hidden; border: 0; outline: none; color: #ddd; background: transparent; font-family: var(--note-font); font-size: var(--note-font-size); line-height: var(--note-line-height); }
 .inline-title[readonly], .inline-body[readonly] { cursor: default; }
+.note-comments-section { flex: none; display: flex; flex-direction: column; margin: .75rem var(--editor-gutter) 0; padding: .9rem 0 var(--editor-gutter); border-top: 1px solid #303030; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+.note-comments-loading { display: flex; justify-content: center; padding: .5rem 0; }
+.note-comment-item { display: flex; flex-direction: column; gap: .3rem; padding: .7rem 0; }
+.note-comment-item:not(:first-child) { border-top: 1px solid #2a2a2a; }
+.note-comment-meta { display: flex; align-items: center; gap: .5rem; color: #999; font-size: .74rem; }
+.note-comment-author { color: #ccc; font-weight: 600; }
+.note-comment-date { color: #777; }
+.note-comment-side { display: flex; align-items: center; gap: .35rem; margin-left: auto; }
+.note-comment-status { color: #777; }
+.note-comment-status-failed { color: #ef9a9a; }
+.note-comment-more { width: 1.5rem; height: 1.5rem; display: grid; place-items: center; padding: 0; border: 0; border-radius: 4px; color: #888; background: transparent; }
+.note-comment-more:hover { color: #ddd; background: #2a2a2a; }
+.note-comment-body { width: 100%; min-height: 1.6em; padding: 0; border: 0; outline: none; color: #ddd; background: transparent; resize: none; overflow: hidden; font-family: var(--note-font); font-size: calc(var(--note-font-size) * .92); line-height: var(--note-line-height); }
+.note-comment-add { align-self: flex-start; margin-top: .6rem; padding: .3rem .15rem; border: 0; color: #888; background: transparent; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: .82rem; }
+.note-comment-add:hover { color: #ddd; }
+.note-comment-body[readonly] { cursor: default; }
 .label-dot { width: .55rem; height: .55rem; flex: none; border-radius: 50%; background: var(--label-color); }
 
 @media (min-width: 992px) {
