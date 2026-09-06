@@ -15,3 +15,6 @@ src-tauri/gen
 
 # 미리보기 GIF 캡처 중간 산출물
 docs/preview/frames
+
+# 커밋하지 않는 개인 작업용 스크래치 폴더
+tmp/
