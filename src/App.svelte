@@ -51,10 +51,14 @@
   } from './lib/github.js';
 
   const ATTACHMENT_PRUNE_STORAGE_KEY = 'issue-note.attachment-prune.v1';
+  const SIDEBAR_WIDTH_STORAGE_KEY = 'issue-note.sidebar-width.v1';
   const LONG_PRESS_MS = 500;
   const LONG_PRESS_MOVE_TOLERANCE_PX = 10;
   const ATTACHMENT_PRUNE_INTERVAL_MS = 24 * 60 * 60 * 1000;
   const SIDEBAR_LOAD_MORE_THRESHOLD_PX = 160;
+  const SIDEBAR_WIDTH_MIN = 200;
+  const SIDEBAR_WIDTH_MAX = 600;
+  const SIDEBAR_WIDTH_DEFAULT = 340;
   const router = createStackRouter({ mode: 'hashbang', escToBack: true });
   const newContextTarget = externalLinkTarget();
 
@@ -117,6 +121,8 @@
   let toastMessage = '';
   let toastTimer;
   let toastSequence = 0;
+  let sidebarWidth = SIDEBAR_WIDTH_DEFAULT;
+  let sidebarResizing = false;
   let sidebarScrollElement;
   let sidebarToolsElement;
   let sidebarToolsOffset = 0;
@@ -163,9 +169,6 @@
       : $_("m.123eda8d5e");
   $: patCreationUrl = makePatCreationUrl(repo);
   $: guideRepository = parseRepositoryAddress(repo);
-  $: repositoryIssuesUrl = repository?.html_url
-    ? `${repository.html_url.replace(/\/$/, '')}/issues`
-    : guideRepository ? `https://github.com/${guideRepository.fullName}/issues` : '';
   $: mcpRepository = repository?.full_name || guideRepository?.fullName || repo.trim();
   $: mcpUsagePrompt = $_('dynamic.mcpPrompt', {
     values: { repo: mcpRepository || 'owner/repository', issueNumber: '{issue number}' }
@@ -204,6 +207,7 @@
   }
 
   onMount(() => {
+    sidebarWidth = loadSidebarWidth();
     router.init();
     window.addEventListener('keydown', handleGlobalKeydown);
     window.addEventListener('paste', handleGlobalPaste);
@@ -422,6 +426,51 @@
     }, backgroundRefreshMinutes * 60 * 1000);
   }
 
+  function loadSidebarWidth() {
+    try {
+      const raw = localStorage.getItem(SIDEBAR_WIDTH_STORAGE_KEY);
+      if (raw === null) return SIDEBAR_WIDTH_DEFAULT;
+      return clampNumber(raw, SIDEBAR_WIDTH_MIN, SIDEBAR_WIDTH_MAX, SIDEBAR_WIDTH_DEFAULT);
+    } catch {
+      return SIDEBAR_WIDTH_DEFAULT;
+    }
+  }
+
+  function persistSidebarWidth(width) {
+    try {
+      localStorage.setItem(SIDEBAR_WIDTH_STORAGE_KEY, String(width));
+    } catch {
+      // 폭 저장에 실패해도 현재 세션 사용에는 지장이 없다.
+    }
+  }
+
+  function startSidebarResize(event) {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    const startX = event.clientX;
+    const startWidth = sidebarWidth;
+    sidebarResizing = true;
+
+    function handleMove(moveEvent) {
+      sidebarWidth = clampNumber(
+        startWidth + (moveEvent.clientX - startX),
+        SIDEBAR_WIDTH_MIN,
+        SIDEBAR_WIDTH_MAX,
+        SIDEBAR_WIDTH_DEFAULT
+      );
+    }
+
+    function handleUp() {
+      sidebarResizing = false;
+      window.removeEventListener('pointermove', handleMove);
+      window.removeEventListener('pointerup', handleUp);
+      persistSidebarWidth(sidebarWidth);
+    }
+
+    window.addEventListener('pointermove', handleMove);
+    window.addEventListener('pointerup', handleUp);
+  }
+
   function shouldPruneExpiredAttachments() {
     try {
       const lastPruned = Number(JSON.parse(localStorage.getItem(ATTACHMENT_PRUNE_STORAGE_KEY) || '{}')[repo]);
@@ -560,7 +609,8 @@
       repository = result.repository;
       appState = 'ready';
       restartBackgroundRefreshTimer();
-      await Promise.all([loadIssues(), loadRepositoryLabels()]);
+      // 캐시로 이미 목록을 보여준 상태라면 로딩 스피너 없이 조용히 갱신한다.
+      await Promise.all([loadIssues(Boolean(cached)), loadRepositoryLabels()]);
       applyRoute();
       pruneExpiredAttachments();
     } catch (reason) {
@@ -1745,15 +1795,21 @@
     {#if toastMessage}
       <div class="app-toast" role="status">{toastMessage}</div>
     {/if}
-    <main class="note-workspace">
+    <main class="note-workspace" class:sidebar-resizing={sidebarResizing} style="--sidebar-width: {sidebarWidth}px">
       <aside class="note-sidebar">
+        <div
+          class="sidebar-resize-handle"
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="사이드바 너비 조절"
+          on:pointerdown={startSidebarResize}
+        ></div>
         <div class="sidebar-heading">
           <div class="sidebar-heading-main" class:is-hidden={selectionMode}>
             <WorkspaceSwitcher
               {workspaces}
               {activeWorkspaceId}
               {user}
-              {repositoryIssuesUrl}
               busy={appState === 'connecting' || appState === 'restoring'}
               onSwitch={switchWorkspace}
             />
@@ -1899,6 +1955,7 @@
                 {/if}
               </div>
             </div>
+            <div class="note-list-body">
             <div class="sidebar-new-note">
               <button
                 class="btn btn-primary btn-sm btn-block w-100"
@@ -1972,6 +2029,7 @@
                 </div>
               {/if}
             {/if}
+            </div>
           </div>
           {#if loading}
             <div class="list-api-overlay" aria-label={$_("m.6e6e21803f")}>
