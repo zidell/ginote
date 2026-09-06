@@ -18,6 +18,15 @@ export function isLockedTitle(title = '') {
   return String(title).startsWith(LOCK_PREFIX);
 }
 
+export function isLockedPayload(value) {
+  try {
+    const packed = fromBase64(String(value ?? ''));
+    return packed[0] === FORMAT_VERSION && packed.length > HEADER_BYTES;
+  } catch {
+    return false;
+  }
+}
+
 export function addLockToTitle(title = '') {
   const plainTitle = removeLockFromTitle(title);
   return `${LOCK_PREFIX} ${plainTitle}`.trimEnd().slice(0, 256);
@@ -58,16 +67,20 @@ export async function decryptLockedBody(body, pin, issueNumber) {
   if (packed[0] !== FORMAT_VERSION || packed.length <= HEADER_BYTES) {
     throw new Error('지원하지 않는 잠금 데이터입니다.');
   }
-  try {
-    const salt = packed.slice(1, 1 + SALT_BYTES);
-    const iv = packed.slice(1 + SALT_BYTES, HEADER_BYTES);
-    const ciphertext = packed.slice(HEADER_BYTES);
-    const key = await deriveKey(normalizedPin, context, APP_PEPPER, salt, ['decrypt']);
-    const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ciphertext);
-    return decoder.decode(decrypted);
-  } catch {
-    throw new Error('6자리 숫자가 맞지 않거나 잠긴 이슈가 아닙니다.');
+  const salt = packed.slice(1, 1 + SALT_BYTES);
+  const iv = packed.slice(1 + SALT_BYTES, HEADER_BYTES);
+  const ciphertext = packed.slice(HEADER_BYTES);
+  const peppers = APP_PEPPER === DEFAULT_APP_PEPPER ? [APP_PEPPER] : [APP_PEPPER, DEFAULT_APP_PEPPER];
+  for (const pepper of peppers) {
+    try {
+      const key = await deriveKey(normalizedPin, context, pepper, salt, ['decrypt']);
+      const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ciphertext);
+      return decoder.decode(decrypted);
+    } catch {
+      // 이 pepper로는 열리지 않음 — 다음 후보로 계속 시도한다.
+    }
   }
+  throw new Error('6자리 숫자가 맞지 않거나 잠긴 이슈가 아닙니다.');
 }
 
 function requirePin(pin) {

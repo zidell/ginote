@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { composeAttachmentComment, parseAttachmentComment } from './attachments.js';
+import {
+  composeAttachmentLink,
+  compressAttachmentLinks,
+  expandAttachmentLinks,
+  insertAttachmentLinks,
+  parseAttachmentPaths,
+  removeAttachmentLink
+} from './attachments.js';
 
 const imageAttachment = {
   name: '여행 사진 [1].png',
@@ -9,56 +16,107 @@ const imageAttachment = {
   size: 2048
 };
 
-describe('attachment comment metadata', () => {
-  it('이미지 미리보기와 메타데이터를 담은 댓글을 만든다', () => {
-    const body = composeAttachmentComment('owner/private-notes', imageAttachment);
+describe('attachment link 본문 삽입', () => {
+  it('이미지는 미리보기 이미지 링크로 만든다', () => {
+    const link = composeAttachmentLink('owner/private-notes', imageAttachment);
 
-    expect(body).toContain('![여행 사진 \\[1\\].png]');
-    expect(body).toContain('owner/private-notes/raw/HEAD/');
-    expect(body).toContain('%EC%97%AC%ED%96%89%20%EC%82%AC%EC%A7%84.png');
-    expect(body).toMatch(/<!-- issue-note-attachment:[A-Za-z0-9+/=]+ -->$/);
+    expect(link).toContain('![여행 사진 \\[1\\].png]');
+    expect(link).toContain('owner/private-notes/raw/HEAD/');
+    expect(link).toContain('%EC%97%AC%ED%96%89%20%EC%82%AC%EC%A7%84.png');
   });
 
   it('일반 파일은 링크로 표시한다', () => {
-    const body = composeAttachmentComment('owner/repo', {
+    const link = composeAttachmentLink('owner/repo', {
       ...imageAttachment,
       name: 'plan.pdf',
       type: 'application/pdf'
     });
 
-    expect(body).toContain('[📎 plan.pdf](');
-    expect(body).not.toContain('![plan.pdf](');
+    expect(link).toContain('[📎 plan.pdf](');
+    expect(link).not.toContain('![plan.pdf](');
   });
 
-  it('생성한 댓글을 첨부 정보로 손실 없이 복원한다', () => {
-    const parsed = parseAttachmentComment({
-      id: 987,
-      html_url: 'https://github.com/owner/repo/issues/31#issuecomment-987',
-      body: composeAttachmentComment('owner/repo', imageAttachment)
-    });
-
-    expect(parsed).toEqual({
-      version: 1,
+  it('본문에 있는 첨부 링크들의 경로를 순서대로 추출한다', () => {
+    const first = composeAttachmentLink('owner/repo', imageAttachment);
+    const second = composeAttachmentLink('owner/repo', {
       ...imageAttachment,
-      commentId: 987,
-      commentUrl: 'https://github.com/owner/repo/issues/31#issuecomment-987'
+      name: 'plan.pdf',
+      type: 'application/pdf',
+      path: '.issue-note-assets/issues/31/id2-plan.pdf'
     });
+    const body = `노트 내용\n\n${first}\n\n중간 문장\n\n${second}\n`;
+
+    expect(parseAttachmentPaths(body)).toEqual([
+      imageAttachment.path,
+      '.issue-note-assets/issues/31/id2-plan.pdf'
+    ]);
   });
 
-  it('손상되거나 지원하지 않는 마커는 무시한다', () => {
-    const wrongVersion = btoa(JSON.stringify({
-      version: 2,
-      name: 'photo.png',
-      path: '.issue-note-assets/issues/31/photo.png'
-    }));
-
-    expect(parseAttachmentComment({ body: '일반 댓글' })).toBeNull();
-    expect(parseAttachmentComment({ body: '<!-- issue-note-attachment:not-base64! -->' })).toBeNull();
-    expect(parseAttachmentComment({ body: `<!-- issue-note-attachment:${wrongVersion} -->` })).toBeNull();
+  it('첨부 raw 링크가 아닌 일반 링크는 무시한다', () => {
+    const body = '내용 [문서](https://example.com/doc) 및 ![그림](https://github.com/owner/repo/blob/main/pic.png)';
+    expect(parseAttachmentPaths(body)).toEqual([]);
   });
 
-  it('마커 뒤에 다른 본문이 있으면 전용 첨부 댓글로 보지 않는다', () => {
-    const body = `${composeAttachmentComment('owner/repo', imageAttachment)}\n추가 문장`;
-    expect(parseAttachmentComment({ body })).toBeNull();
+  it('본문에서 첨부 링크를 제거하고 남은 빈 줄을 정리한다', () => {
+    const link = composeAttachmentLink('owner/repo', imageAttachment);
+    const body = `노트 내용\n\n${link}\n\n다음 문단`;
+
+    expect(removeAttachmentLink(body, link)).toBe('노트 내용\n\n다음 문단');
+  });
+
+  it('제거할 링크가 본문에 없으면 그대로 반환한다', () => {
+    const link = composeAttachmentLink('owner/repo', imageAttachment);
+    expect(removeAttachmentLink('노트 내용', link)).toBe('노트 내용');
+  });
+
+  it('위치를 지정하지 않으면 본문 끝에 링크를 추가한다', () => {
+    const link = composeAttachmentLink('owner/repo', imageAttachment);
+    expect(insertAttachmentLinks('노트 내용', [link])).toBe(`노트 내용\n\n${link}`);
+  });
+
+  it('빈 본문에 추가할 때는 앞뒤 빈 줄을 넣지 않는다', () => {
+    const link = composeAttachmentLink('owner/repo', imageAttachment);
+    expect(insertAttachmentLinks('', [link])).toBe(link);
+  });
+
+  it('커서 위치에 링크를 끼워 넣고 앞뒤 문단과 빈 줄로 구분한다', () => {
+    const link = composeAttachmentLink('owner/repo', imageAttachment);
+    const body = '앞 문단내용\n뒤 문단내용';
+    const cursor = body.indexOf('\n뒤');
+
+    expect(insertAttachmentLinks(body, [link], cursor)).toBe(
+      `앞 문단내용\n\n${link}\n\n뒤 문단내용`
+    );
+  });
+
+  it('여러 링크를 한 번에 넣을 때는 링크끼리도 빈 줄로 구분한다', () => {
+    const first = composeAttachmentLink('owner/repo', imageAttachment);
+    const second = composeAttachmentLink('owner/repo', {
+      ...imageAttachment,
+      name: 'plan.pdf',
+      type: 'application/pdf',
+      path: '.issue-note-assets/issues/31/id2-plan.pdf'
+    });
+
+    expect(insertAttachmentLinks('', [first, second])).toBe(`${first}\n\n${second}`);
+  });
+
+  it('편집기에서는 저장소 주소를 {repo}로 압축해 보여준다', () => {
+    const link = composeAttachmentLink('owner/repo', imageAttachment);
+    const body = `노트 내용\n\n${link}`;
+
+    const compressed = compressAttachmentLinks(body, 'owner/repo');
+
+    expect(compressed).not.toContain('https://github.com/owner/repo/raw/HEAD/');
+    expect(compressed).toContain('{repo}/');
+  });
+
+  it('저장 직전에는 압축된 주소를 다시 실제 GitHub 주소로 펼친다', () => {
+    const link = composeAttachmentLink('owner/repo', imageAttachment);
+    const body = `노트 내용\n\n${link}`;
+
+    const roundTripped = expandAttachmentLinks(compressAttachmentLinks(body, 'owner/repo'), 'owner/repo');
+
+    expect(roundTripped).toBe(body);
   });
 });

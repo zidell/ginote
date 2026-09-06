@@ -1,13 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { composeAttachmentComment } from './attachments.js';
 import { setAppLocale } from './i18n.js';
 import {
   createIssue,
+  createIssueComment,
   createLabel,
   deleteAttachment,
+  deleteIssueComment,
   getIssue,
-  listIssueAttachmentComments,
   listIssueAttachmentFiles,
+  listIssueComments,
   listExpiredClosedIssues,
   listIssues,
   listIssuesPage,
@@ -17,6 +18,7 @@ import {
   searchIssuesPage,
   setIssueLabels,
   updateIssue,
+  updateIssueComment,
   uploadAttachment,
   verifyConnection
 } from './github.js';
@@ -28,18 +30,14 @@ function jsonResponse(data, { status = 200, headers = {} } = {}) {
   });
 }
 
-function attachmentComment(id, issueNumber, name = `${id}.png`) {
-  const attachment = {
-    name,
-    type: 'image/png',
-    path: `.issue-note-assets/issues/${issueNumber}/${name}`,
-    sha: `sha-${id}`,
-    size: id
-  };
+function plainComment(id, issueNumber, body = `댓글 ${id}`) {
   return {
     id,
+    body,
     html_url: `https://github.com/owner/repo/issues/${issueNumber}#issuecomment-${id}`,
-    body: composeAttachmentComment('owner/repo', attachment)
+    user: { login: 'tester', avatar_url: 'https://example.com/a.png' },
+    created_at: '2026-09-01T00:00:00Z',
+    updated_at: '2026-09-01T00:00:00Z'
   };
 }
 
@@ -285,19 +283,15 @@ describe('GitHub API client', () => {
   });
 
   it('Link 헤더가 없어도 100개인 댓글 페이지를 끝까지 읽는다', async () => {
-    const firstPage = [
-      attachmentComment(1, 31, 'first.png'),
-      attachmentComment(2, 99, 'other-issue.png'),
-      ...Array.from({ length: 98 }, (_, index) => ({ id: index + 10, body: '일반 댓글' }))
-    ];
-    const secondPage = [attachmentComment(3, 31, 'second.png')];
+    const firstPage = Array.from({ length: 100 }, (_, index) => plainComment(index + 1, 31));
+    const secondPage = [plainComment(101, 31)];
     fetch
       .mockResolvedValueOnce(jsonResponse(firstPage))
       .mockResolvedValueOnce(jsonResponse(secondPage));
 
-    const result = await listIssueAttachmentComments('token', 'owner/repo', 31);
+    const result = await listIssueComments('token', 'owner/repo', 31);
 
-    expect(result.map((item) => item.name)).toEqual(['first.png', 'second.png']);
+    expect(result.map((item) => item.id)).toEqual([...Array.from({ length: 100 }, (_, i) => i + 1), 101]);
     expect(fetch).toHaveBeenCalledTimes(2);
     expect(fetch.mock.calls[0][0]).toContain('/issues/31/comments?per_page=100');
     expect(fetch.mock.calls[1][0]).toContain('/issues/31/comments?per_page=100&page=2');
@@ -310,12 +304,102 @@ describe('GitHub API client', () => {
           link: '<https://api.github.com/repos/owner/repo/issues/31/comments?per_page=100&page=7>; rel="next"'
         }
       }))
-      .mockResolvedValueOnce(jsonResponse([attachmentComment(7, 31, 'linked.png')]));
+      .mockResolvedValueOnce(jsonResponse([plainComment(7, 31)]));
 
-    const result = await listIssueAttachmentComments('token', 'owner/repo', 31);
+    const result = await listIssueComments('token', 'owner/repo', 31);
 
     expect(result).toHaveLength(1);
     expect(fetch.mock.calls[1][0]).toContain('page=7');
+  });
+
+  it('댓글을 정규화해 조회한다', async () => {
+    fetch.mockResolvedValueOnce(jsonResponse([
+      {
+        id: 2,
+        body: '일반 댓글입니다',
+        html_url: 'https://github.com/owner/repo/issues/31#issuecomment-2',
+        user: { login: 'tester', avatar_url: 'https://example.com/a.png' },
+        created_at: '2026-09-01T00:00:00Z',
+        updated_at: '2026-09-02T00:00:00Z'
+      }
+    ]));
+
+    const result = await listIssueComments('token', 'owner/repo', 31);
+
+    expect(result).toEqual([{
+      id: 2,
+      body: '일반 댓글입니다',
+      author: 'tester',
+      avatarUrl: 'https://example.com/a.png',
+      createdAt: '2026-09-01T00:00:00Z',
+      updatedAt: '2026-09-02T00:00:00Z',
+      url: 'https://github.com/owner/repo/issues/31#issuecomment-2'
+    }]);
+    expect(fetch.mock.calls[0][0]).toContain('/issues/31/comments?per_page=100');
+  });
+
+  it('댓글을 수정할 때 본문만 전송한다', async () => {
+    fetch.mockResolvedValueOnce(jsonResponse({
+      id: 2,
+      body: '수정한 댓글',
+      html_url: 'https://github.com/owner/repo/issues/31#issuecomment-2',
+      user: { login: 'tester', avatar_url: 'https://example.com/a.png' },
+      created_at: '2026-09-01T00:00:00Z',
+      updated_at: '2026-09-03T00:00:00Z'
+    }));
+
+    const result = await updateIssueComment('token', 'owner/repo', 2, '수정한 댓글');
+    const [url, options] = fetch.mock.calls[0];
+
+    expect(url).toBe('https://api.github.com/repos/owner/repo/issues/comments/2');
+    expect(options.method).toBe('PATCH');
+    expect(JSON.parse(options.body)).toEqual({ body: '수정한 댓글' });
+    expect(result).toEqual({
+      id: 2,
+      body: '수정한 댓글',
+      author: 'tester',
+      avatarUrl: 'https://example.com/a.png',
+      createdAt: '2026-09-01T00:00:00Z',
+      updatedAt: '2026-09-03T00:00:00Z',
+      url: 'https://github.com/owner/repo/issues/31#issuecomment-2'
+    });
+  });
+
+  it('새 댓글을 작성하면 본문만 전송하고 정규화해 반환한다', async () => {
+    fetch.mockResolvedValueOnce(jsonResponse({
+      id: 3,
+      body: '새 댓글',
+      html_url: 'https://github.com/owner/repo/issues/31#issuecomment-3',
+      user: { login: 'tester', avatar_url: 'https://example.com/a.png' },
+      created_at: '2026-09-04T00:00:00Z',
+      updated_at: '2026-09-04T00:00:00Z'
+    }));
+
+    const result = await createIssueComment('token', 'owner/repo', 31, '새 댓글');
+    const [url, options] = fetch.mock.calls[0];
+
+    expect(url).toBe('https://api.github.com/repos/owner/repo/issues/31/comments');
+    expect(options.method).toBe('POST');
+    expect(JSON.parse(options.body)).toEqual({ body: '새 댓글' });
+    expect(result).toEqual({
+      id: 3,
+      body: '새 댓글',
+      author: 'tester',
+      avatarUrl: 'https://example.com/a.png',
+      createdAt: '2026-09-04T00:00:00Z',
+      updatedAt: '2026-09-04T00:00:00Z',
+      url: 'https://github.com/owner/repo/issues/31#issuecomment-3'
+    });
+  });
+
+  it('댓글을 삭제한다', async () => {
+    fetch.mockResolvedValueOnce(new Response(null, { status: 204 }));
+
+    await deleteIssueComment('token', 'owner/repo', 2);
+    const [url, options] = fetch.mock.calls[0];
+
+    expect(url).toBe('https://api.github.com/repos/owner/repo/issues/comments/2');
+    expect(options.method).toBe('DELETE');
   });
 
   it('첨부 폴더가 없으면 빈 목록으로 처리하고 하위 폴더를 제외한다', async () => {
@@ -376,27 +460,22 @@ describe('GitHub API client', () => {
     });
   });
 
-  it('만료된 노트의 연결된 첨부와 고아 첨부를 함께 정리한다', async () => {
-    const linked = attachmentComment(7, 31, 'linked.png');
+  it('만료된 노트의 첨부 파일을 모두 정리한다', async () => {
     fetch
-      .mockResolvedValueOnce(jsonResponse([linked]))
       .mockResolvedValueOnce(jsonResponse([
         { type: 'file', name: 'linked.png', path: '.issue-note-assets/issues/31/linked.png', sha: 'linked-sha', size: 7 },
         { type: 'file', name: 'orphan.png', path: '.issue-note-assets/issues/31/orphan.png', sha: 'orphan-sha', size: 8 }
       ]))
       .mockResolvedValueOnce(jsonResponse({ commit: { sha: '1' } }))
-      .mockResolvedValueOnce(new Response(null, { status: 204 }))
       .mockResolvedValueOnce(jsonResponse({ commit: { sha: '2' } }));
 
     await expect(purgeIssueAttachments('token', 'owner/repo', 31)).resolves.toEqual({
-      deletedFiles: 2,
-      deletedComments: 1
+      deletedFiles: 2
     });
 
-    expect(fetch.mock.calls).toHaveLength(5);
+    expect(fetch.mock.calls).toHaveLength(3);
+    expect(fetch.mock.calls[1][1].method).toBe('DELETE');
     expect(fetch.mock.calls[2][1].method).toBe('DELETE');
-    expect(fetch.mock.calls[3][0]).toContain('/issues/comments/7');
-    expect(fetch.mock.calls[4][1].method).toBe('DELETE');
   });
 
   it('잘못된 저장소 형식은 fetch 전에 거부한다', async () => {

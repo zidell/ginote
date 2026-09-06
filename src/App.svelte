@@ -11,7 +11,7 @@
   import { tagColorForName } from './lib/colors.js';
   import { _, locale as activeLocale } from 'svelte-i18n';
   import { LOCALE_OPTIONS, setAppLocale } from './lib/i18n.js';
-  import { firstLinePreview, markdownToPlainText, normalizeTagName } from './lib/notes.js';
+  import { markdownToPlainText, normalizeTagName } from './lib/notes.js';
   import { isLockedTitle } from './lib/note-lock.js';
   import { makePatCreationUrl, normalizeToken, parseRepositoryAddress } from './lib/repo-address.js';
   import {
@@ -1451,13 +1451,13 @@
     router.pop();
   }
 
-  function excerpt(body) {
-    const text = markdownToPlainText(body);
+  function excerpt(body, title = '') {
+    const plainBody = markdownToPlainText(body);
+    const plainTitle = markdownToPlainText(title);
+    const text = plainTitle && plainBody.startsWith(plainTitle)
+      ? plainBody.slice(plainTitle.length).trimStart()
+      : plainBody;
     return text || $_("m.0c3fd88e60");
-  }
-
-  function autoTitleExcerpt(body) {
-    return firstLinePreview(body) || $_("m.0c3fd88e60");
   }
 
   function formatDate(value) {
@@ -1671,9 +1671,9 @@
                   </ol>
 
                   <p class="small text-secondary">
-                    {$_("m.178f58ebdd")}
-                    {' '}<code>&lt;!-- issue-note-attachment:... --&gt;</code>{' '}
-                    {$_("m.fbdd445070")}
+                    {$_("m.689b609f4f")}
+                    {' '}<code>.issue-note-assets/issues/42/</code>.{' '}
+                    {$_("m.19c4d90df7")}
                   </p>
 
                   <label class="form-label small" for="mcp-usage-prompt">{$_("m.2838abde9d")}</label>
@@ -1900,15 +1900,8 @@
                   aria-label={$_('dynamic.openNote', { values: { title: issue.title } })}
                 ></button>
                 <div class="note-row-content">
-                  {#if titleMode === 'separate'}
-                    <span class="note-row-title">{markdownToPlainText(issue.title)}</span>
-                  {/if}
-                  <span
-                    class="note-row-preview"
-                    class:auto-title-preview={titleMode === 'first-line'}
-                  >{isLockedTitle(issue.title)
-                    ? titleMode === 'first-line' ? markdownToPlainText(issue.title) : '잠금된 노트입니다'
-                    : titleMode === 'first-line' ? autoTitleExcerpt(issue.body) : excerpt(issue.body)}</span>
+                  <span class="note-row-title">{markdownToPlainText(issue.title)}</span>
+                  <span class="note-row-preview">{isLockedTitle(issue.title) ? '잠금된 노트입니다' : excerpt(issue.body, issue.title)}</span>
                   <span class="note-row-meta">
                     {issue.local ? $_("m.6f65454664") : `#${issue.number} · ${formatDate(issue.updated_at)}`}
                   </span>
@@ -1979,6 +1972,7 @@
               {lockPin}
               {lockSessionMinutes}
               onSetLockSession={setLockSession}
+              currentUserLogin={user?.login || ''}
               paused={topRoute?.screen === 'settings' || route !== contentRoute || selectionMode}
               readOnly={selectionMode}
               availableLabels={repositoryLabels}

@@ -7,24 +7,34 @@
   import TagPicker from './TagPicker.svelte';
   import { automaticTitle, linkAtCursor, shortenMiddle } from './notes.js';
   import {
+    composeAttachmentLink,
+    compressAttachmentLinks,
+    expandAttachmentLinks,
+    insertAttachmentLinks,
+    parseAttachmentPaths,
+    removeAttachmentLink
+  } from './attachments.js';
+  import {
     addLockToTitle,
     decryptLockedBody,
     encryptLockedBody,
+    isLockedPayload,
     isLockedTitle,
     normalizeLockPin,
     removeLockFromTitle
   } from './note-lock.js';
   import {
-    createAttachmentComment,
     createIssue,
+    createIssueComment,
     createLabel,
     deleteAttachment,
-    deleteAttachmentComment,
+    deleteIssueComment,
     downloadAttachment,
     getIssue,
-    listIssueAttachmentComments,
     listIssueAttachmentFiles,
+    listIssueComments,
     updateIssue,
+    updateIssueComment,
     uploadAttachment
   } from './github.js';
 
@@ -60,6 +70,7 @@
   export let lockPin = '';
   export let lockSessionMinutes = 60;
   export let onSetLockSession = () => {};
+  export let currentUserLogin = '';
 
   const DRAFTS_KEY = 'issue-note.drafts.v1';
   const MAX_ATTACHMENTS = 30;
@@ -79,6 +90,8 @@
   let lockSessionExpiring = false;
   let lockReuseTimer;
   let attachments = [];
+  let orphanedAttachments = [];
+  let attachmentsLoading = false;
   let remoteIssue = issue || allocatedIssue;
   let labels = (issue?.labels || initialDraft?.labels || []).map((label) => label.name);
   let dirty = false;
@@ -104,7 +117,13 @@
   let reconciledIssueNumber = null;
   let destroyed = false;
   let wasPaused = paused;
-  let loadingAttachments = Number(remoteIssue?.comments || 0) > 0;
+  let comments = [];
+  let loadingComments = Number(remoteIssue?.comments || 0) > 0;
+  let commentsIssueNumber = null;
+  let savingCommentIds = new Set();
+  let commentSaveFailedIds = new Set();
+  let dirtyCommentIds = new Set();
+  let deletingCommentIds = new Set();
   let error = '';
   let localTimer;
   let remoteTimer;
@@ -125,23 +144,25 @@
     mono: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace'
   }[font] || 'sans-serif';
   $: viewedAttachment = viewerIndex >= 0 ? attachments[viewerIndex] : null;
+  $: displayBody = compressAttachmentLinks(body, repo);
+  $: hasAttachmentRefs = parseAttachmentPaths(body).length > 0;
   $: editable = !archived && !readOnly;
   $: compactStatus = !editable
     ? $_("m.601dcc1c87")
     : saveFailed
       ? $_("m.0a44446762")
-      : saving || dirty
-        ? $_("m.369c534df3")
-        : issue
-          ? $_("m.c0ae8f6ea8")
-          : $_("m.2b7b05c002");
-  $: showSaveStatus = !editable || saveFailed || saving || dirty || !issue;
+      : '';
+  $: showSaveStatus = !editable || saveFailed || saving;
   $: if (!issue && allocatedIssue?.number && remoteIssue?.number !== allocatedIssue.number) {
     remoteIssue = allocatedIssue;
   }
-  $: if (remoteIssue?.number && reconciledIssueNumber !== remoteIssue.number) {
+  $: if (remoteIssue?.number && lockState !== 'locked' && reconciledIssueNumber !== remoteIssue.number) {
     reconciledIssueNumber = remoteIssue.number;
     reconcileIssueAttachments(remoteIssue.number);
+  }
+  $: if (remoteIssue?.number && commentsIssueNumber !== remoteIssue.number) {
+    commentsIssueNumber = remoteIssue.number;
+    loadIssueComments(remoteIssue.number);
   }
   $: if (labelMutation?.id && labelMutation.id !== appliedLabelMutation) {
     applyLabelMutation(labelMutation);
@@ -279,10 +300,6 @@
     flushRemoteSave({ keepalive: true });
   }
 
-  function finishAttachmentLoad() {
-    loadingAttachments = false;
-  }
-
   function changed() {
     if (!editable || lockState === 'locked') return;
     if (titleMode === 'first-line') title = automaticTitle(body);
@@ -318,14 +335,15 @@
   }
 
   function currentNote() {
+    const trimmedBody = body.trim();
     const resolvedTitle = lockState === 'locked'
       ? title.trim()
       : titleMode === 'first-line'
-      ? automaticTitle(body) || (attachments.length ? $_("m.c33437b1cb") : '')
+      ? automaticTitle(trimmedBody) || (attachments.length ? $_("m.c33437b1cb") : '')
       : title.trim();
     return {
       title: resolvedTitle,
-      body,
+      body: trimmedBody,
       labels
     };
   }
@@ -338,13 +356,21 @@
     });
   }
 
+  function withRevivedAttachmentLinks(bodyText) {
+    if (!orphanedAttachments.length) return bodyText;
+    const links = orphanedAttachments.map((attachment) => composeAttachmentLink(repo, attachment));
+    orphanedAttachments = [];
+    return `${links.join('\n')}\n\n${bodyText}`;
+  }
+
   async function noteForRemote(note) {
-    if (lockState === 'plain') return note;
+    if (lockState === 'plain') return { ...note, body: withRevivedAttachmentLinks(note.body) };
     if (lockState === 'locked') {
       return { ...note, title: addLockToTitle(note.title), body: encryptedBody };
     }
     if (!activeLockPin) throw new Error('잠금 세션이 만료되었습니다.');
-    encryptedBody = await encryptLockedBody(note.body, activeLockPin, issue?.number || remoteIssue?.number);
+    const remoteBody = withRevivedAttachmentLinks(note.body);
+    encryptedBody = await encryptLockedBody(remoteBody, activeLockPin, issue?.number || remoteIssue?.number);
     return { ...note, title: addLockToTitle(note.title), body: encryptedBody };
   }
 
@@ -430,7 +456,8 @@
     if (!encryptedBody || lockState !== 'locked') return;
     lockPanelBusy = true;
     try {
-      body = await decryptLockedBody(encryptedBody, pin, issue?.number || remoteIssue?.number);
+      const contextIssueNumber = issue?.number || remoteIssue?.number;
+      body = await decryptLockedBody(encryptedBody, pin, contextIssueNumber);
       activeLockPin = pin;
       lockState = 'unlocked';
       lockPanelMode = '';
@@ -438,6 +465,7 @@
       lockPanelError = '';
       onSetLockSession(pin);
       lastRemoteSignature = noteSignature(currentNote());
+      comments = await decryptCommentBodies(comments, pin, contextIssueNumber);
     } catch (reason) {
       if (!automatic) throw reason;
       activeLockPin = '';
@@ -659,7 +687,6 @@
       removeLocalDraft();
       onRefreshed(refreshed);
 
-      loadingAttachments = Number(refreshed.comments || 0) > 0;
       reconciledIssueNumber = null;
     } catch (reason) {
       if (background) return;
@@ -681,6 +708,7 @@
       return;
     }
     uploadBatchActive = true;
+    const insertionPoint = bodyInput ? bodyInput.selectionStart : null;
     const requestedFiles = Array.from(fileList || []);
     const remainingSlots = Math.max(0, MAX_ATTACHMENTS - attachments.length);
     const files = requestedFiles.slice(0, remainingSlots);
@@ -697,7 +725,7 @@
       uploadBatchActive = false;
       return;
     }
-    let uploadedAny = false;
+    const uploadedAttachments = [];
     for (const file of files) {
       if (file.size > 10 * 1024 * 1024) {
         error = $_('dynamic.fileTooLarge', { values: { name: file.name } });
@@ -706,28 +734,14 @@
 
       uploading += 1;
       error = '';
-      let storedFile = null;
       try {
-        storedFile = await uploadAttachment(token, repo, targetIssue.number, file);
-        const attachment = await createAttachmentComment(
-          token,
-          repo,
-          targetIssue.number,
-          storedFile
-        );
+        const attachment = await uploadAttachment(token, repo, targetIssue.number, file);
+        uploadedAttachments.push(attachment);
         if (!destroyed) {
           replaceAttachments([...attachments, attachment]);
           retainPreviewUrl(attachment.path, URL.createObjectURL(file));
         }
-        uploadedAny = true;
       } catch (reason) {
-        if (storedFile) {
-          try {
-            await deleteAttachment(token, repo, storedFile);
-          } catch {
-            // 다음에 이 이슈를 열 때 댓글이 없는 파일을 다시 연결한다.
-          }
-        }
         error = reason?.status === 403
           ? $_("m.8c4abbd3b6")
           : reason?.message || $_("m.d5ca50a853");
@@ -735,7 +749,9 @@
         uploading -= 1;
       }
     }
-    if (uploadedAny && !issue) {
+    if (uploadedAttachments.length) {
+      const links = uploadedAttachments.map((attachment) => composeAttachmentLink(repo, attachment));
+      body = insertAttachmentLinks(body, links, insertionPoint);
       changed();
       clearTimeout(remoteTimer);
       await saveRemote(true);
@@ -793,6 +809,7 @@
   }
 
   function handleBodyInput(event) {
+    body = expandAttachmentLinks(displayBody, repo);
     changed();
     updateLinkTooltip(event);
   }
@@ -937,14 +954,13 @@
         if (reason?.status !== 404) throw reason;
       }
       fileDeleted = true;
-      if (attachment.commentId) {
-        try {
-          await deleteAttachmentComment(token, repo, attachment.commentId);
-        } catch (reason) {
-          if (reason?.status !== 404) {
-            error = $_("m.5b9587e48d");
-          }
-        }
+      orphanedAttachments = orphanedAttachments.filter((item) => item.path !== attachment.path);
+      const link = composeAttachmentLink(repo, attachment);
+      if (body.includes(link)) {
+        body = removeAttachmentLink(body, link);
+        changed();
+        clearTimeout(remoteTimer);
+        await saveRemote(true);
       }
       if (previewUrls[attachment.path]) URL.revokeObjectURL(previewUrls[attachment.path]);
       const nextPreviewUrls = { ...previewUrls };
@@ -975,12 +991,9 @@
   }
 
   async function reconcileIssueAttachments(issueNumber) {
-    loadingAttachments = Number(remoteIssue?.comments || 0) > 0;
+    attachmentsLoading = true;
     try {
-      const [files, comments] = await Promise.all([
-        listIssueAttachmentFiles(token, repo, issueNumber),
-        listIssueAttachmentComments(token, repo, issueNumber)
-      ]);
+      const files = await listIssueAttachmentFiles(token, repo, issueNumber);
       if (destroyed || remoteIssue?.number !== issueNumber) return;
       if (uploading || deletingPath) {
         reconciledIssueNumber = null;
@@ -988,38 +1001,174 @@
       }
       const filesByPath = new Map(files.map((file) => [file.path, file]));
       const connectedPaths = new Set();
-      const nextAttachments = [];
+      const linkedAttachments = [];
 
-      for (const commentAttachment of comments) {
-        const file = filesByPath.get(commentAttachment.path);
-        if (!file || connectedPaths.has(commentAttachment.path)) {
-          await deleteAttachmentComment(token, repo, commentAttachment.commentId);
-          continue;
-        }
-        connectedPaths.add(commentAttachment.path);
-        nextAttachments.push({ ...commentAttachment, ...file });
-      }
-
-      for (const file of files) {
-        if (connectedPaths.has(file.path)) continue;
+      for (const path of parseAttachmentPaths(body)) {
+        const file = filesByPath.get(path);
+        if (!file || connectedPaths.has(path)) continue;
+        connectedPaths.add(path);
         const name = inferredAttachmentName(file);
-        const recovered = await createAttachmentComment(token, repo, issueNumber, {
-          ...file,
-          name,
-          type: inferredAttachmentType(name)
-        });
-        connectedPaths.add(file.path);
-        nextAttachments.push(recovered);
+        linkedAttachments.push({ ...file, name, type: inferredAttachmentType(name) });
       }
+
+      // 파일은 남아있는데 본문 링크만 사라진 경우 명시적으로 삭제한 게 아니므로 목록에는 계속 남겨두고,
+      // 실제 본문 복구는 다음 저장 시점(noteForRemote)에만 반영해 현재 편집 화면은 건드리지 않는다.
+      orphanedAttachments = files
+        .filter((file) => !connectedPaths.has(file.path))
+        .map((file) => {
+          const name = inferredAttachmentName(file);
+          return { ...file, name, type: inferredAttachmentType(name) };
+        });
 
       if (destroyed || remoteIssue?.number !== issueNumber) return;
-      replaceAttachments(nextAttachments);
+      replaceAttachments([...linkedAttachments, ...orphanedAttachments]);
       attachments.filter(isImage).forEach(loadPreview);
     } catch (reason) {
       if (!destroyed) error = reason?.message || $_("m.ab5becbd3a");
     } finally {
-      if (!destroyed && remoteIssue?.number === issueNumber) finishAttachmentLoad();
+      attachmentsLoading = false;
     }
+  }
+
+  async function decryptCommentBodies(rawComments, pin, issueNumber) {
+    if (!pin) return rawComments;
+    return Promise.all(rawComments.map(async (comment) => {
+      if (!isLockedPayload(comment.body)) return comment;
+      try {
+        return { ...comment, body: await decryptLockedBody(comment.body, pin, issueNumber) };
+      } catch {
+        return comment;
+      }
+    }));
+  }
+
+  async function loadIssueComments(issueNumber) {
+    loadingComments = Number(remoteIssue?.comments || 0) > 0;
+    try {
+      const nextComments = await listIssueComments(token, repo, issueNumber);
+      if (destroyed || remoteIssue?.number !== issueNumber) return;
+      comments = lockState === 'unlocked'
+        ? await decryptCommentBodies(nextComments, activeLockPin, issue?.number || remoteIssue?.number)
+        : nextComments;
+    } catch (reason) {
+      if (!destroyed) error = reason?.message || $_("m.ab5becbd3a");
+    } finally {
+      if (!destroyed && remoteIssue?.number === issueNumber) loadingComments = false;
+    }
+  }
+
+  function markCommentDirty(comment) {
+    commentSaveFailedIds.delete(comment.id);
+    commentSaveFailedIds = commentSaveFailedIds;
+    dirtyCommentIds.add(comment.id);
+    dirtyCommentIds = dirtyCommentIds;
+  }
+
+  function discardNewComment(comment) {
+    comments = comments.filter((item) => item.id !== comment.id);
+    dirtyCommentIds.delete(comment.id);
+    commentSaveFailedIds.delete(comment.id);
+  }
+
+  async function saveComment(comment) {
+    if (!editable || lockState === 'locked') return;
+    const trimmedBody = comment.body.trim();
+    if (comment.isNew && !trimmedBody) {
+      discardNewComment(comment);
+      return;
+    }
+    if (!dirtyCommentIds.has(comment.id)) return;
+    comment.body = trimmedBody;
+    savingCommentIds.add(comment.id);
+    savingCommentIds = savingCommentIds;
+    try {
+      const remoteBody = lockState === 'unlocked'
+        ? await encryptLockedBody(trimmedBody, activeLockPin, issue?.number || remoteIssue?.number)
+        : trimmedBody;
+      const saved = comment.isNew
+        ? await createIssueComment(token, repo, remoteIssue.number, remoteBody)
+        : await updateIssueComment(token, repo, comment.id, remoteBody);
+      dirtyCommentIds.delete(comment.id);
+      if (comment.isNew) {
+        const index = comments.findIndex((item) => item.id === comment.id);
+        if (index >= 0) {
+          comments[index] = { ...saved, body: trimmedBody };
+          comments = comments;
+        }
+      } else {
+        comment.author = saved.author || comment.author;
+        comment.updatedAt = saved.updatedAt;
+      }
+    } catch (reason) {
+      commentSaveFailedIds.add(comment.id);
+      error = reason?.message || $_("m.ab5becbd3a");
+    } finally {
+      savingCommentIds.delete(comment.id);
+      savingCommentIds = savingCommentIds;
+      commentSaveFailedIds = commentSaveFailedIds;
+      dirtyCommentIds = dirtyCommentIds;
+    }
+  }
+
+  async function addComment() {
+    if (!editable || lockState === 'locked' || !remoteIssue?.number) return;
+    const now = new Date().toISOString();
+    const draft = {
+      id: `draft-${crypto.randomUUID()}`,
+      body: '',
+      author: currentUserLogin,
+      avatarUrl: '',
+      createdAt: now,
+      updatedAt: now,
+      isNew: true
+    };
+    comments = [...comments, draft];
+    await tick();
+    document.getElementById(`comment-body-${draft.id}`)?.focus();
+  }
+
+  async function removeComment(comment) {
+    if (!editable || lockState === 'locked') return;
+    if (comment.isNew) {
+      discardNewComment(comment);
+      return;
+    }
+    if (!confirm($_("m.b88a2bf0d1"))) return;
+    deletingCommentIds.add(comment.id);
+    deletingCommentIds = deletingCommentIds;
+    try {
+      await deleteIssueComment(token, repo, comment.id);
+      comments = comments.filter((item) => item.id !== comment.id);
+    } catch (reason) {
+      error = reason?.message || $_("m.ab5becbd3a");
+    } finally {
+      deletingCommentIds.delete(comment.id);
+      deletingCommentIds = deletingCommentIds;
+    }
+  }
+
+  function handleCommentKeydown(event, comment) {
+    if (!editable || event.key.toLocaleLowerCase() !== 's' || (!event.ctrlKey && !event.metaKey)) return;
+    event.preventDefault();
+    saveComment(comment);
+  }
+
+  function autosize(node, value) {
+    const resize = () => {
+      node.style.height = 'auto';
+      node.style.height = `${node.scrollHeight}px`;
+    };
+    resize();
+    return { update: resize };
+  }
+
+  function insertAttachmentAtEnd(attachment) {
+    if (!editable || !attachment || parseAttachmentPaths(body).includes(attachment.path)) return;
+    orphanedAttachments = orphanedAttachments.filter((item) => item.path !== attachment.path);
+    body = insertAttachmentLinks(body, [composeAttachmentLink(repo, attachment)]);
+    changed();
+    clearTimeout(remoteTimer);
+    saveRemote(true);
   }
 
   function openViewer(index) {
@@ -1077,6 +1226,22 @@
     }).format(new Date(value));
   }
 
+  function pad2(value) {
+    return String(value).padStart(2, '0');
+  }
+
+  function formatDateOnly(value) {
+    if (!value) return '';
+    const date = new Date(value);
+    return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+  }
+
+  function formatDateTime(value) {
+    if (!value) return '';
+    const date = new Date(value);
+    return `${formatDateOnly(value)} ${pad2(date.getHours())}:${pad2(date.getMinutes())}`;
+  }
+
   function applyLabelMutation(mutation) {
     appliedLabelMutation = mutation.id;
     labels = labels
@@ -1125,13 +1290,11 @@
       >
         <i class="bi bi-arrow-left" aria-hidden="true"></i><span class="mobile-back-label"> {$_("m.a1fffaaafb")}</span>
       </button>
-      <span>{lockState === 'locked' ? '🔒 ' : lockState === 'unlocked' ? '🔐 ' : ''}{issue ? `#${issue.number}` : $_("m.2b7b05c002")}</span>
-      {#if showSaveStatus}
-        <span class="save-status" aria-live="polite">
-          <BrailleSpinner active={saving} />
-          {compactStatus}
-        </span>
-      {/if}
+      <span>{lockState === 'locked' ? '🔒 ' : lockState === 'unlocked' ? '🔐 ' : ''}{issue ? formatDateOnly(issue.updated_at || issue.created_at) : $_("m.2b7b05c002")}</span>
+      <span class="save-status" class:is-visible={showSaveStatus} aria-live="polite">
+        <BrailleSpinner active={saving} />
+        {#if compactStatus}{compactStatus}{/if}
+      </span>
     </div>
     {#if editable}
       <input
@@ -1248,13 +1411,24 @@
   <div
     class="inline-editor-fields"
     class:is-lock-protected={lockState !== 'plain'}
+    class:is-dragging-files={draggingFiles}
+    role="presentation"
     style={`--note-font:${fontStack};--note-font-size:${fontSize}px;--note-line-height:${lineHeight}`}
+    on:dragenter={handleDragEnter}
+    on:dragover={handleDragOver}
+    on:dragleave={handleDragLeave}
+    on:drop={handleDrop}
   >
-    {#if loadingAttachments || attachments.length || uploading || deletingPath}
+    {#if attachments.length || uploading || deletingPath || (attachmentsLoading && hasAttachmentRefs)}
       <section
         class="attachment-section"
-        class:is-loading={Boolean(loadingAttachments || uploading || deletingPath)}
+        class:is-loading={Boolean(uploading || deletingPath)}
       >
+        {#if !attachments.length && attachmentsLoading}
+          <div class="attachment-list-loading">
+            <BrailleSpinner active />
+          </div>
+        {:else}
         <div class="attachment-list">
           {#each attachments as attachment, index (attachment.path)}
             <div class="attachment-item">
@@ -1297,7 +1471,8 @@
             </label>
           {/if}
         </div>
-        {#if loadingAttachments || uploading || deletingPath}
+        {/if}
+        {#if uploading || deletingPath}
           <div class="attachment-api-overlay" aria-label={$_("m.f4ea49bc96")}>
             <span class="spinner-border spinner-border-sm region-spinner" aria-hidden="true"></span>
           </div>
@@ -1341,8 +1516,7 @@
     <textarea
       bind:this={bodyInput}
       class="inline-body"
-      class:is-dragging-files={draggingFiles}
-      bind:value={body}
+      bind:value={displayBody}
       on:input={handleBodyInput}
       on:keydown={handleEditorKeydown}
       on:keyup={updateLinkTooltip}
@@ -1351,10 +1525,6 @@
       on:scroll={hideLinkTooltip}
       on:blur={handleBodyBlur}
       on:paste={handlePaste}
-      on:dragenter={handleDragEnter}
-      on:dragover={handleDragOver}
-      on:dragleave={handleDragLeave}
-      on:drop={handleDrop}
       placeholder={titleMode === 'first-line' ? $_("m.fd0b5408d9") : $_("m.5f35b29acf")}
       aria-label={$_("m.6aa90334da")}
       autocomplete="off"
@@ -1362,7 +1532,70 @@
       autocapitalize="none"
       spellcheck="false"
       readonly={!editable || lockState === 'locked'}
+      use:autosize={displayBody}
     ></textarea>
+    {#if loadingComments || comments.length || (editable && lockState !== 'locked' && remoteIssue?.number)}
+      <section class="note-comments-section">
+        {#if loadingComments && !comments.length}
+          <div class="note-comments-loading">
+            <BrailleSpinner active />
+          </div>
+        {:else}
+          {#each comments as comment (comment.id)}
+            <div class="note-comment-item">
+              <div class="note-comment-meta">
+                <span class="note-comment-author">{comment.author}</span>
+                <span class="note-comment-date">{formatDateTime(comment.updatedAt || comment.createdAt)}</span>
+                <div class="note-comment-side">
+                  {#if savingCommentIds.has(comment.id)}
+                    <span class="note-comment-status">{$_("m.369c534df3")}</span>
+                  {:else if commentSaveFailedIds.has(comment.id)}
+                    <span class="note-comment-status note-comment-status-failed">{$_("m.0a44446762")}</span>
+                  {/if}
+                  {#if editable && lockState !== 'locked'}
+                    <div class="dropdown">
+                      <button
+                        type="button"
+                        class="note-comment-more"
+                        data-bs-toggle="dropdown"
+                        aria-expanded="false"
+                        aria-label={$_("m.02f145f769")}
+                      ><i class="bi bi-three-dots" aria-hidden="true"></i></button>
+                      <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end">
+                        <li>
+                          <button
+                            type="button"
+                            class="dropdown-item"
+                            disabled={deletingCommentIds.has(comment.id)}
+                            on:click={() => removeComment(comment)}
+                          ><i class="bi bi-trash3" aria-hidden="true"></i> {$_("m.f6fdbe48dc")}</button>
+                        </li>
+                      </ul>
+                    </div>
+                  {/if}
+                </div>
+              </div>
+              <textarea
+                id={`comment-body-${comment.id}`}
+                class="note-comment-body"
+                bind:value={comment.body}
+                on:input={() => markCommentDirty(comment)}
+                on:keydown={(event) => handleCommentKeydown(event, comment)}
+                on:blur={() => saveComment(comment)}
+                placeholder={$_("m.ee6540eb88")}
+                readonly={!editable || lockState === 'locked'}
+                use:autosize={comment.body}
+              ></textarea>
+            </div>
+          {/each}
+        {/if}
+        {#if editable && lockState !== 'locked' && remoteIssue?.number}
+          <button type="button" class="note-comment-add" on:click={addComment}>
+            <i class="bi bi-plus-lg" aria-hidden="true"></i> {$_("m.7d3764e42e")}
+          </button>
+        {/if}
+      </section>
+    {/if}
     {#if lockState === 'locked' || lockPanelMode}
       <div class="note-lock-overlay">
         <form class="note-lock-panel" novalidate on:submit|preventDefault={submitLockPanel}>
@@ -1438,6 +1671,11 @@
           <a href={previewUrls[viewedAttachment.path]} download={viewedAttachment.name}>
             <i class="bi bi-download" aria-hidden="true"></i> {$_("m.a479c9c34e")}
           </a>
+        {/if}
+        {#if editable && !parseAttachmentPaths(body).includes(viewedAttachment.path)}
+          <button type="button" on:click={() => insertAttachmentAtEnd(viewedAttachment)}>
+            <i class="bi bi-file-earmark-plus" aria-hidden="true"></i> 본문삽입
+          </button>
         {/if}
         {#if editable}
           <button type="button" on:click={() => removeAttachment(viewedAttachment)}>
