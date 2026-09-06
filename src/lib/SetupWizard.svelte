@@ -9,10 +9,13 @@
   export let error = '';
   export let patCreationUrl = 'https://github.com/settings/personal-access-tokens/new';
   export let onConnect = () => {};
+  export let initialStep = 1;
+  export let allowCancel = false;
+  export let onCancel = () => {};
 
   const externalTarget = externalLinkTarget();
   const lastStep = 4;
-  let step = 1;
+  let step = initialStep;
 
   $: normalizedRepository = repo
     .trim()
@@ -28,7 +31,7 @@
 
   function previous() {
     if (busy) return;
-    step = Math.max(1, step - 1);
+    step = Math.max(initialStep, step - 1);
   }
 
   function submit() {
@@ -40,9 +43,11 @@
   }
 </script>
 
-<a class="setup-source-link small text-secondary" href="https://github.com/zidell/ginote" target={externalTarget} rel="noreferrer">
-  <i class="bi bi-github me-1" aria-hidden="true"></i>{$_('meta.sourceCode')}
-</a>
+{#if !allowCancel}
+  <a class="setup-source-link small text-secondary" href="https://github.com/zidell/ginote" target={externalTarget} rel="noreferrer">
+    <i class="bi bi-github me-1" aria-hidden="true"></i>{$_('meta.sourceCode')}
+  </a>
+{/if}
 
 <main class="setup-shell setup-wizard-shell px-3 py-4 py-md-5">
   <section class="setup-card setup-wizard card border-0 shadow-sm mx-auto overflow-hidden">
@@ -53,6 +58,9 @@
           <h1 class="h4 fw-bold mb-1">{$_('setup.wizardTitle')}</h1>
           <p class="text-secondary mb-0">{$_('setup.stepCount', { values: { step, total: lastStep } })}</p>
         </div>
+        {#if allowCancel}
+          <button type="button" class="btn-close ms-auto" aria-label={$_('setup.close')} on:click={onCancel} disabled={busy}></button>
+        {/if}
       </header>
 
       <ol class="setup-progress" aria-label={$_('setup.progressLabel')}>
@@ -88,11 +96,16 @@
             </a>
           {:else if step === 3}
             <div class="setup-step-icon"><i class="bi bi-lock-fill" aria-hidden="true"></i></div>
-            <h2 class="h5 fw-bold">{$_('setup.repositoryTitle')}</h2>
-            <p class="text-secondary">{$_('setup.repositoryDescription')}</p>
-            <a class="btn btn-outline-secondary w-100 mb-4" href="https://github.com/new?visibility=private" target={externalTarget} rel="noreferrer">
+            <h2 class="h5 fw-bold">{allowCancel ? $_('setup.repositoryTitleWorkspace') : $_('setup.repositoryTitle')}</h2>
+            <p class="text-secondary">{allowCancel ? $_('setup.repositoryDescriptionWorkspace') : $_('setup.repositoryDescription')}</p>
+            <a
+              class="btn btn-outline-secondary w-100 mb-4"
+              href={allowCancel ? 'https://github.com/new' : 'https://github.com/new?visibility=private'}
+              target={externalTarget}
+              rel="noreferrer"
+            >
               <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>
-              {$_('setup.createRepository')}
+              {allowCancel ? $_('setup.createRepositoryWorkspace') : $_('setup.createRepository')}
             </a>
             <label for="setup-repo" class="form-label fw-semibold">{$_('setup.repositoryAddress')}</label>
             <input
@@ -138,9 +151,13 @@
         </div>
 
         <div class="setup-wizard-actions">
-          {#if step > 1}
+          {#if step > initialStep}
             <button type="button" class="btn btn-link text-secondary" on:click={previous} disabled={busy}>
               <i class="bi bi-chevron-left" aria-hidden="true"></i> {$_('setup.previous')}
+            </button>
+          {:else if allowCancel}
+            <button type="button" class="btn btn-link text-secondary" on:click={onCancel} disabled={busy}>
+              {$_('setup.cancel')}
             </button>
           {:else}
             <span></span>

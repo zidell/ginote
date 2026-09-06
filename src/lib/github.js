@@ -1,6 +1,7 @@
 import { composeAttachmentComment, parseAttachmentComment } from './attachments.js';
 import { tagColorForName } from './colors.js';
 import { translate } from './i18n.js';
+import { parseRepositoryAddress } from './repo-address.js';
 
 const API_ROOT = 'https://api.github.com';
 export const DEFAULT_ISSUE_PAGE_SIZE = 30;
@@ -58,16 +59,11 @@ function nextPagePath(linkHeader) {
 }
 
 function normalizeRepo(value) {
-  const cleaned = value
-    .trim()
-    .replace(/^https?:\/\/github\.com\//i, '')
-    .replace(/\.git$/i, '')
-    .replace(/^\/+|\/+$/g, '');
-
-  if (!/^[^/\s]+\/[^/\s]+$/.test(cleaned)) {
+  const parsed = parseRepositoryAddress(value);
+  if (!parsed) {
     throw new Error(translate('errors.repositoryFormat'));
   }
-  return cleaned;
+  return parsed.fullName;
 }
 
 function issueOnly(items) {
