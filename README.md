@@ -227,9 +227,23 @@ GitHub Actions 실행 번호를 패치 버전에 넣은 `0.1.<run_number>` 형�
 연결된 버전 태그는 자동으로 삭제합니다.
 
 릴리스 워크플로는 macOS universal, Windows, Linux 설치 파일을 만들어 GitHub의
-Releases 탭에 게시합니다. 현재 macOS 빌드는 ad-hoc 서명만 적용되며 공증되지
-않고, Windows 빌드도 신뢰할 수 있는 게시자 인증서로 서명되지 않습니다. 따라서
-다운로드한 사용자의 운영체제가 최초 실행 경고를 표시할 수 있습니다.
+Releases 탭에 게시합니다. 저장소 시크릿(`APPLE_CERTIFICATE`,
+`APPLE_CERTIFICATE_PASSWORD`, `APPLE_SIGNING_IDENTITY`, `APPLE_ID`,
+`APPLE_PASSWORD`, `APPLE_TEAM_ID`)이 설정되어 있으면 macOS 빌드는 서명과
+공증을 거칩니다. 설정되어 있지 않으면 `tauri.conf.json`의 `signingIdentity`
+기본값(`-`, ad-hoc)으로 빌드되어 최초 실행 경고가 표시될 수 있습니다. Windows
+빌드는 신뢰할 수 있는 게시자 인증서로 서명되지 않습니다.
+
+### Homebrew (macOS)
+
+```bash
+brew tap zidell/ginote https://github.com/zidell/ginote
+brew install --cask ginote
+```
+
+`Casks/ginote.rb`는 릴리스 워크플로의 `update-cask` 작업이 매 릴리스마다
+최신 macOS universal dmg의 버전과 sha256으로 자동 갱신하며, main에 직접
+커밋됩니다.
 
 ## 빌드
 
@@ -297,6 +311,7 @@ PAT, 개인 저장소 이름, 개인 배포 설정과 실제 노트 데이터는
 | `public/manifest.webmanifest` | 설치형 앱 정보와 아이콘 정의 |
 | `public/sw.js` | 같은 출처의 정적 앱 파일만 다루는 서비스 워커 |
 | `.github/workflows/release.yml` | 버전 태그의 데스크톱 멀티 플랫폼 릴리스 |
+| `Casks/ginote.rb` | Homebrew cask formula (release.yml이 자동 갱신) |
 | `src/lib/*.test.js` | 데이터 변환과 GitHub API 계약 테스트 |
 
 Svelte 컴포넌트는 현재 프로젝트와 같은 문법·상태 모델을 유지합니다. 전역 목록과
