@@ -1358,18 +1358,18 @@
       ><i class="bi bi-three-dots-vertical" aria-hidden="true"></i></button>
       <div class="dropdown-menu dropdown-menu-dark dropdown-menu-end">
         <div class="detail-toolbar-mobile-actions">
-          {#if issue && !readOnly}
+          {#if remoteIssue && !readOnly}
             <button
               type="button"
               class="dropdown-item"
-              on:click={() => onMove(issue)}
+              on:click={() => onMove(remoteIssue)}
             >
               <i class={`bi ${archived ? 'bi-arrow-counterclockwise' : 'bi-trash3'}`} aria-hidden="true"></i>
               {archived ? $_("m.3cbe6d6b9a") : $_("m.f6fdbe48dc")}
             </button>
           {/if}
         </div>
-        {#if issue}
+        {#if remoteIssue}
           <div class="dropdown-divider detail-toolbar-mobile-divider"></div>
         {/if}
         {#if editable}
@@ -1382,24 +1382,24 @@
             {lockState === 'plain' ? '잠금' : lockState === 'locked' ? '잠금 열기' : '잠금 풀기'}
           </button>
         {/if}
-        {#if issue}
+        {#if remoteIssue}
           {#if !readOnly}
             <button
               type="button"
               class="dropdown-item detail-toolbar-desktop-delete"
-              on:click={() => onMove(issue)}
+              on:click={() => onMove(remoteIssue)}
             >
               <i class={`bi ${archived ? 'bi-arrow-counterclockwise' : 'bi-trash3'}`} aria-hidden="true"></i>
               {archived ? $_("m.3cbe6d6b9a") : $_("m.f6fdbe48dc")}
             </button>
           {/if}
-          <a class="dropdown-item" href={issue.html_url} target={newContextTarget} rel="noreferrer">
+          <a class="dropdown-item" href={remoteIssue.html_url} target={newContextTarget} rel="noreferrer">
             <i class="bi bi-github" aria-hidden="true"></i> {$_('dynamic.viewOnGitHub')}
           </a>
           <div class="dropdown-divider"></div>
           <div class="dropdown-header detail-toolbar-timestamps">
-            <span>{$_('dynamic.createdAt', { values: { date: formatTimestamp(issue.created_at) } })}</span>
-            <span>{$_('dynamic.updatedAt', { values: { date: formatTimestamp(issue.updated_at) } })}</span>
+            <span>{$_('dynamic.createdAt', { values: { date: formatTimestamp(remoteIssue.created_at) } })}</span>
+            <span>{$_('dynamic.updatedAt', { values: { date: formatTimestamp(remoteIssue.updated_at) } })}</span>
           </div>
         {/if}
       </div>
