@@ -46,7 +46,7 @@
   export let ignoreRecoveredDraft = false;
   export let externalPasteRequest = null;
   export let refreshRequest = 0;
-  export let allocatedIssue = null;
+  export let justCreated = false;
   export let allocationPromise = null;
   export let archived = false;
   export let titleMode = 'first-line';
@@ -74,7 +74,10 @@
 
   const DRAFTS_KEY = 'issue-note.drafts.v1';
   const MAX_ATTACHMENTS = 30;
-  const draftId = issue ? `issue.${issue.number}` : 'new';
+  // 아직 번호가 없는 새 노트는 initialDraft.id(세션마다 고유)로 구분해야, 저장 도중
+  // 리마운트되며 남겨진 이전 세션의 초안이 이후의 다른 새 노트에 잘못 복구되지 않는다.
+  // 새로고침 직후처럼 initialDraft가 없을 때만 공용 'new' 키로 복구를 시도한다.
+  const draftId = issue ? `issue.${issue.number}` : initialDraft?.id || 'new';
   const newContextTarget = externalLinkTarget();
 
   const initiallyLocked = isLockedTitle(issue?.title);
@@ -92,7 +95,7 @@
   let attachments = [];
   let orphanedAttachments = [];
   let attachmentsLoading = false;
-  let remoteIssue = issue || allocatedIssue;
+  let remoteIssue = issue;
   let labels = (issue?.labels || initialDraft?.labels || []).map((label) => label.name);
   let dirty = false;
   let saving = false;
@@ -153,9 +156,6 @@
       ? $_("m.0a44446762")
       : '';
   $: showSaveStatus = !editable || saveFailed || saving;
-  $: if (!issue && allocatedIssue?.number && remoteIssue?.number !== allocatedIssue.number) {
-    remoteIssue = allocatedIssue;
-  }
   $: if (remoteIssue?.number && lockState !== 'locked' && reconciledIssueNumber !== remoteIssue.number) {
     reconciledIssueNumber = remoteIssue.number;
     reconcileIssueAttachments(remoteIssue.number);
@@ -211,7 +211,7 @@
     window.addEventListener('pagehide', handlePageExit);
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
-    if (!issue && editable && !paused) {
+    if ((!issue || justCreated) && editable && !paused) {
       tick().then(() => bodyInput?.focus());
     }
 
@@ -570,12 +570,21 @@
         availableLabels = [...availableLabels, ...createdLabels];
         onLabelsAvailable(createdLabels);
       }
+      if (destroyed) return;
 
       const targetIssue = issue || await resolveRemoteIssue();
       const remoteNote = await noteForRemote(note);
       const saved = targetIssue
         ? await updateIssue(token, repo, targetIssue.number, remoteNote, requestOptions)
         : await createIssue(token, repo, remoteNote, requestOptions);
+
+      // 이 시점에 컴포넌트가 이미 파괴됐다면(예: 새 노트가 번호를 받아
+      // note.{번호}로 리마운트됨) 요청 자체는 이미 서버에 반영됐으므로 되돌리지
+      // 않되, onSaved/onCreated를 또 호출하거나 이 죽은 인스턴스가 스스로
+      // 다음 저장을 예약하는 일은 막는다. 그러지 않으면 부모의 noteCreated()가
+      // 두 번 실행되거나, 새로 마운트된 인스턴스와 무관하게 낡은 내용이 나중에
+      // 덮어쓸 수 있다.
+      if (destroyed) return;
 
       remoteIssue = saved;
       if (lockState !== 'plain') encryptedBody = saved.body || encryptedBody;
@@ -598,10 +607,10 @@
         : reason?.status === 403
           ? $_("m.fde564557e")
           : reason?.message || $_("m.3a743b0e61");
-      scheduleRemoteSave(15000);
+      if (!destroyed) scheduleRemoteSave(15000);
     } finally {
       saving = false;
-      if (forceSaveQueued) {
+      if (forceSaveQueued && !destroyed) {
         forceSaveQueued = false;
         clearTimeout(remoteTimer);
         saveRemote(true);

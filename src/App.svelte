@@ -79,6 +79,10 @@
   let selectedIssue = null;
   let pendingNote = null;
   let pendingAllocation = null;
+  // 새 노트가 번호를 받아 정식 이슈로 바뀌는 순간 NoteEditor가 (segment가
+  // new→note.{번호}로 바뀌므로) 리마운트된다. 그 인스턴스가 계속 이어서
+  // 타이핑할 수 있도록 딱 그 첫 렌더에서만 포커스를 넣어준다.
+  let justPromotedNumber = null;
   let externalPasteRequest = null;
   let pasteRequestSequence = 0;
   let pruningExpiredAttachments = false;
@@ -322,9 +326,17 @@
 
   function applyRoute() {
     const route = [...routeStack].reverse().find((item) => ['note', 'new'].includes(item.screen));
-    const issueNumber = Number(route?.value);
+
+    // 새 노트는 번호 할당 직후 주소가 note.{번호}로 바뀌지만 issues 목록에는
+    // 아직 없다. 이 경우를 "삭제된 옛날 URL"로 오인해 홈으로 되돌리면 안 되므로
+    // pendingNote와 대조해 먼저 처리한다.
+    if (isPendingNoteRoute(route)) {
+      selectedIssue = pendingNote;
+      return;
+    }
 
     if (route?.screen === 'note') {
+      const issueNumber = Number(route.value);
       selectedIssue = issues.find((issue) => issue.number === issueNumber) || null;
       // 삭제됐거나 더는 현재 목록에 없는 이슈의 오래된 URL은 본문 레이어를
       // 비워 두지 않는다. 첫 목록 요청이 끝난 뒤 홈 목록으로 되돌린다.
@@ -335,11 +347,6 @@
       return;
     }
 
-    if (route?.screen === 'new') {
-      selectedIssue = pendingNote;
-      return;
-    }
-
     selectedIssue = null;
   }
 
@@ -347,6 +354,16 @@
     if (route.screen === 'new') return null;
     const issueNumber = Number(route.value);
     return issues.find((issue) => issue.number === issueNumber) || null;
+  }
+
+  // 새 노트는 번호를 배경에서 미리 받아오는 즉시 주소도 note.{번호}로 바꿔서
+  // 새로고침해도 같은 이슈를 이어쓰게 한다. 이 시점엔 아직 issues 목록에는
+  // 없으므로, 그 사이의 note.{번호} 라우트도 pendingNote 기준으로는 여전히
+  // "새 노트 세션"으로 취급해야 초안·할당된 이슈 정보를 계속 물려줄 수 있다.
+  function isPendingNoteRoute(route) {
+    if (!route) return false;
+    if (route.screen === 'new') return true;
+    return route.screen === 'note' && pendingNote != null && Number(route.value) === pendingNote.number;
   }
 
   function labelFromRoutes(routes) {
@@ -846,7 +863,11 @@
     appliedQuery = query;
     if (!pendingNote) {
       pendingNote = {
-        id: 'local-new-note',
+        // 세션마다 고유해야 한다. 타이핑할 때마다 pendingNote가 스프레드로
+        // 재생성되므로(참조가 바뀜), 나중에 도착하는 allocatePendingIssue
+        // 콜백은 참조 대신 이 id로 "그때 그 세션이 맞는지" 대조한다. 고정
+        // 문자열이면 다음 새 노트 세션과 혼동될 수 있다.
+        id: `local-new-note-${crypto.randomUUID()}`,
         number: null,
         title: $_("m.2b7b05c002"),
         body: pastedBody,
@@ -930,14 +951,21 @@
         body: '',
         labels: localNote.labels.map((label) => label.name)
       });
+      // localNote.id로 대조하는 이유: 사용자가 타이핑하면 noteDraftChanged가
+      // pendingNote를 스프레드로 매번 재생성해 참조(===)가 바뀐다. id는
+      // newNote()에서 세션마다 새로 발급하므로(crypto.randomUUID), 그 사이에
+      // 이 세션이 이미 취소되고(예: 워크스페이스 전환) 다른 새 노트 세션이
+      // 시작됐어도 서로 혼동되지 않는다.
       if (pendingNote === localNote || pendingNote?.id === localNote.id) {
-        pendingNote = {
-          ...pendingNote,
-          number: created.number,
-          allocatedIssue: created,
-          allocation: 'ready'
-        };
-        if (isNewRoute) selectedIssue = pendingNote;
+        // 번호가 확보된 순간 바로 정식 생성으로 취급한다. 아무것도 입력하지
+        // 않아도 "새 노트" 버튼이 계속 막혀 있지 않도록. 그사이 실제로 입력된
+        // 내용이 있으면 빈 할당 응답 대신 그 내용을 그대로 반영한다.
+        noteCreated({
+          ...created,
+          title: pendingNote.title || created.title,
+          body: pendingNote.body || created.body,
+          labels: pendingNote.labels?.length ? pendingNote.labels : created.labels
+        });
       }
       return created;
     } catch (reason) {
@@ -1189,7 +1217,9 @@
   }
 
   function noteCreated(savedIssue) {
-    const newNoteIsActive = contentRoute?.screen === 'new';
+    // 번호 할당 시점에 이미 주소를 note.{번호}로 바꿔두므로, 저장이 끝날 때쯤엔
+    // contentRoute.screen이 'new'가 아니라 'note'일 수 있다.
+    const newNoteIsActive = isPendingNoteRoute(contentRoute);
     error = '';
     query = activeLabel ? `#${activeLabel}` : '';
     appliedQuery = query;
@@ -1199,6 +1229,15 @@
     pendingNote = null;
     pendingAllocation = null;
     if (newNoteIsActive) selectedIssue = savedIssue;
+    if (newNoteIsActive) {
+      // note.{번호}로 리마운트되는 그 인스턴스에서만 한 번 포커스를 넣도록,
+      // 렌더가 반영된 직후 바로 지운다(이후 그 번호를 다시 열 때 엉뚱하게
+      // 자동 포커스되지 않게).
+      justPromotedNumber = savedIssue.number;
+      tick().then(() => {
+        if (justPromotedNumber === savedIssue.number) justPromotedNumber = null;
+      });
+    }
     if (newNoteIsActive && activeLabel && !hasIssueLabel(savedIssue, activeLabel)) {
       router.navigate(`/note.${savedIssue.number}`);
     } else {
@@ -1223,7 +1262,7 @@
     if (!sourceIssue) {
       if (!pendingNote) return;
       pendingNote = { ...pendingNote, ...draft };
-      if (isNewRoute) selectedIssue = pendingNote;
+      if (isPendingNoteRoute(contentRoute)) selectedIssue = pendingNote;
       return;
     }
 
@@ -1946,7 +1985,7 @@
         {#if contentRoutes.length}
           {#each contentRoutes as route (route.segment)}
             {@const routeIssue = issueForRoute(route)}
-            {#if route.screen === 'new' || routeIssue}
+            {#if isPendingNoteRoute(route) || routeIssue}
             <div
               class="note-detail-layer"
               class:active={route === contentRoute}
@@ -1956,12 +1995,12 @@
               {token}
               {repo}
               issue={routeIssue}
-              initialDraft={route.screen === 'new' ? pendingNote : null}
-              ignoreRecoveredDraft={route.screen === 'new' && Boolean(pendingNote?.ignoreRecoveredDraft)}
+              initialDraft={isPendingNoteRoute(route) ? pendingNote : null}
+              ignoreRecoveredDraft={isPendingNoteRoute(route) && Boolean(pendingNote?.ignoreRecoveredDraft)}
+              justCreated={Boolean(routeIssue) && routeIssue.number === justPromotedNumber}
               externalPasteRequest={route === contentRoute ? externalPasteRequest : null}
               refreshRequest={routeIssue ? issueRefreshRequests[routeIssue.number] || 0 : 0}
-              allocatedIssue={route.screen === 'new' ? pendingNote?.allocatedIssue : null}
-              allocationPromise={route.screen === 'new' ? pendingAllocation : null}
+              allocationPromise={isPendingNoteRoute(route) ? pendingAllocation : null}
               editorId={route.segment.replace(/[^a-zA-Z0-9_-]/g, '-')}
               archived={state === 'closed'}
               {titleMode}
