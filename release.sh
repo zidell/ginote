@@ -47,7 +47,7 @@ for ((attempt = 0; attempt < 30; attempt++)); do
       --event workflow_dispatch \
       --limit 10 \
       --json databaseId,headSha \
-      --jq ".[] | select(.headSha == \\\"$release_sha\\\") | .databaseId" \
+      --jq ".[] | select(.headSha == \"$release_sha\") | .databaseId" \
       | head -n 1
   )"
   [[ -n "$run_id" ]] && break
