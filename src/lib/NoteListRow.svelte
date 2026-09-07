@@ -14,6 +14,7 @@
   export let archived = false;
   export let listRowFields = { title: true, summary: true, meta: true, tags: true };
   export let refreshing = false;
+  export let pendingDeletion = false;
   export let onPointerDown = () => {};
   export let onPointerMove = () => {};
   export let onPointerUp = () => {};
@@ -52,6 +53,8 @@
   class:selection-mode={selectionMode}
   class:selected={checked}
   class:is-archived={archived}
+  class:pending-deletion={pendingDeletion}
+  aria-busy={refreshing || pendingDeletion}
   on:pointerdown={(event) => onPointerDown(event, issue)}
   on:pointermove={onPointerMove}
   on:pointerup={onPointerUp}
@@ -97,7 +100,7 @@
       {/each}
     </div>
   {/if}
-  {#if refreshing}
+  {#if refreshing || pendingDeletion}
     <span class="note-row-refresh-spinner" aria-label={$_("m.6e6e21803f")}>
       <BrailleSpinner active />
     </span>

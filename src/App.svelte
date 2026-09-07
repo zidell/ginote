@@ -64,6 +64,7 @@
   const ATTACHMENT_PRUNE_STORAGE_KEY = 'issue-note.attachment-prune.v1';
   const SIDEBAR_WIDTH_STORAGE_KEY = 'issue-note.sidebar-width.v1';
   const LONG_PRESS_MS = 500;
+  const KEYBOARD_DELETE_DELAY_MS = 3000;
   const LONG_PRESS_MOVE_TOLERANCE_PX = 10;
   const ATTACHMENT_PRUNE_INTERVAL_MS = 24 * 60 * 60 * 1000;
   const SIDEBAR_LOAD_MORE_THRESHOLD_PX = 160;
@@ -143,6 +144,8 @@
   let toastMessage = '';
   let toastTimer;
   let toastSequence = 0;
+  let pendingIssueDeletion = null;
+  let pendingIssueDeletionTimer;
   let sidebarWidth = SIDEBAR_WIDTH_DEFAULT;
   let sidebarResizing = false;
   let sidebarScrollElement;
@@ -173,6 +176,7 @@
 
   $: selectionMode = selectedIssueIds.size > 0;
   $: selectedIssues = visibleIssues.filter((issue) => !issue.local && selectedIssueIds.has(issue.id));
+  $: pendingIssueDeletionIds = new Set(pendingIssueDeletion?.map((issue) => issue.id) ?? []);
   $: selectionTagCounts = countSelectionTags(selectedIssues);
   $: selectionTagOptions = buildSelectionTagOptions(
     repositoryLabels,
@@ -344,6 +348,7 @@
       clearTimeout(longPressTimer);
       clearTimeout(suppressIssueClickTimer);
       clearTimeout(toastTimer);
+      clearTimeout(pendingIssueDeletionTimer);
       touchMedia.removeEventListener('change', updateTouchDevice);
       window.removeEventListener('keydown', handleGlobalKeydown);
       window.removeEventListener('paste', handleGlobalPaste);
@@ -369,13 +374,17 @@
     // pendingNote와 대조해 먼저 처리한다.
     if (isPendingNoteRoute(route)) {
       selectedIssue = pendingNote;
+      synchronizeKeyboardFocusWithDetail(pendingNote);
       return;
     }
 
     if (route?.screen === 'note') {
       const issueNumber = Number(route.value);
       selectedIssue = issues.find((issue) => issue.number === issueNumber) || null;
-      if (selectedIssue) lastOpenedIssueIds.set(activeWorkspaceId, selectedIssue.id);
+      if (selectedIssue) {
+        lastOpenedIssueIds.set(activeWorkspaceId, selectedIssue.id);
+        synchronizeKeyboardFocusWithDetail(selectedIssue);
+      }
       // 삭제됐거나 더는 현재 목록에 없는 이슈의 오래된 URL은 본문 레이어를
       // 비워 두지 않는다. 첫 목록 요청이 끝난 뒤 홈 목록으로 되돌린다.
       // 설정 화면이 떠 있는 동안에는 미루고, 닫을 때 다시 판단한다.
@@ -392,6 +401,13 @@
     if (route.screen === 'new') return null;
     const issueNumber = Number(route.value);
     return issues.find((issue) => issue.number === issueNumber) || null;
+  }
+
+  function synchronizeKeyboardFocusWithDetail(issue) {
+    if (!issue) return;
+    const issueId = String(issue.id);
+    if (keyboardFocusedIssueId !== issueId) keyboardEnteredIssueId = '';
+    keyboardFocusedIssueId = issueId;
   }
 
   // 새 노트는 번호를 배경에서 미리 받아오는 즉시 주소도 note.{번호}로 바꿔서
@@ -987,6 +1003,7 @@
       pendingAllocation = allocatePendingIssue(pendingNote);
     }
     selectedIssue = pendingNote;
+    synchronizeKeyboardFocusWithDetail(pendingNote);
     if (topRoute?.screen === 'note') {
       router.replace('new');
     } else {
@@ -997,6 +1014,11 @@
 
   function handleGlobalKeydown(event) {
     const workspaceNumber = workspaceNumberFromEvent(event);
+    if (event.key === 'Escape' && pendingIssueDeletion) {
+      event.preventDefault();
+      cancelPendingIssueDeletion();
+      return;
+    }
     if (event.key === 'Escape' && helpTopic) {
       event.preventDefault();
       closeHelp();
@@ -1021,18 +1043,67 @@
       return;
     }
     if (
-      selectionMode
-      && state === 'open'
+      !selectionMode
+      && canUseKeyboardListNavigation()
       && isNoteRowButton(document.activeElement)
       && !event.repeat
       && !event.altKey
       && !event.ctrlKey
       && !event.metaKey
       && !event.shiftKey
-      && ['Delete', 'Backspace'].includes(event.key)
+      && event.key === ' '
+    ) {
+      const issue = keyboardFocusedListIssue();
+      if (!issue || issue.local) return;
+      event.preventDefault();
+      selectedIssueIds = new Set([issue.id]);
+      selectionAnchorId = issue.id;
+      return;
+    }
+    if (
+      selectionMode
+      && canUseKeyboardListNavigation()
+      && hasNoInteractiveFocus()
+      && !event.altKey
+      && !event.ctrlKey
+      && !event.metaKey
+      && !event.shiftKey
+      && ['ArrowDown', 'ArrowUp'].includes(event.key)
     ) {
       event.preventDefault();
-      moveSelectedIssues();
+      moveNoteRowFocus(event.key === 'ArrowDown' ? 1 : -1);
+      return;
+    }
+    if (
+      selectionMode
+      && canUseKeyboardListNavigation()
+      && hasNoInteractiveFocus()
+      && !event.repeat
+      && !event.altKey
+      && !event.ctrlKey
+      && !event.metaKey
+      && !event.shiftKey
+      && ['Enter', ' '].includes(event.key)
+    ) {
+      const issue = keyboardFocusedListIssue();
+      if (!issue) return;
+      event.preventDefault();
+      toggleIssueSelection(issue);
+      return;
+    }
+    if (
+      state === 'open'
+      && hasNoInteractiveFocus()
+      && keyboardDeletionTargets().length > 0
+      && !event.repeat
+      && !event.altKey
+      && !event.ctrlKey
+      && !event.metaKey
+      && !event.shiftKey
+      && isDeleteShortcut(event)
+    ) {
+      event.preventDefault();
+      scheduleSelectedIssuesDeletion(keyboardDeletionTargets());
       return;
     }
     if (
@@ -1099,7 +1170,7 @@
       && !event.metaKey
       && !event.shiftKey
       && ['ArrowDown', 'ArrowUp'].includes(event.key)
-      && (hasNoInteractiveFocus() || isNoteRowButton(document.activeElement))
+      && hasNoInteractiveFocus()
     ) {
       event.preventDefault();
       moveNoteRowFocus(event.key === 'ArrowDown' ? 1 : -1);
@@ -1114,7 +1185,7 @@
       && !event.metaKey
       && !event.shiftKey
       && !event.isComposing
-      && event.key.toLocaleLowerCase() === 'n'
+      && isNewNoteShortcut(event)
     ) {
       event.preventDefault();
       newNote();
@@ -1141,7 +1212,12 @@
   }
 
   function hasNoInteractiveFocus() {
-    return document.activeElement === document.body;
+    const activeElement = document.activeElement;
+    return !(
+      activeElement instanceof HTMLInputElement
+      || activeElement instanceof HTMLTextAreaElement
+      || activeElement instanceof HTMLSelectElement
+    );
   }
 
   function isKeyboardEnteredNoteSelection() {
@@ -1156,8 +1232,23 @@
     return Number(keyMatch?.[0] || codeMatch?.[1] || 0);
   }
 
+  function isDeleteShortcut(event) {
+    return ['Delete', 'Backspace'].includes(event.key)
+      || ['Delete', 'Backspace'].includes(event.code);
+  }
+
+  function isNewNoteShortcut(event) {
+    // event.key는 현재 입력 소스를 반영하지만 event.code는 물리 키 위치를 유지한다.
+    return event.key.toLocaleLowerCase() === 'n' || event.code === 'KeyN';
+  }
+
   function isNoteRowButton(element) {
     return element instanceof HTMLElement && element.classList.contains('note-row-hit-area');
+  }
+
+  function keyboardFocusedListIssue() {
+    return [...pinnedIssues, ...unpinnedVisibleIssues]
+      .find((issue) => String(issue.id) === keyboardFocusedIssueId);
   }
 
   function noteRowButtons() {
@@ -1173,16 +1264,23 @@
     const focusedIndex = buttons.indexOf(document.activeElement);
     let targetIndex = focusedIndex;
     if (targetIndex === -1) {
-      const lastOpenedIssueId = lastOpenedIssueIds.get(activeWorkspaceId);
-      const lastOpenedIndex = buttons.findIndex((button) => button.dataset.issueId === String(lastOpenedIssueId));
-      if (lastOpenedIndex !== -1) {
-        targetIndex = lastOpenedIndex + direction;
+      const keyboardFocusedIndex = buttons.findIndex(
+        (button) => button.dataset.issueId === keyboardFocusedIssueId
+      );
+      if (selectionMode && keyboardFocusedIndex !== -1) {
+        targetIndex = keyboardFocusedIndex + direction;
       } else {
-        const containerBounds = sidebarScrollElement.getBoundingClientRect();
-        targetIndex = buttons.findIndex((button) => {
-          const bounds = button.getBoundingClientRect();
-          return bounds.bottom > containerBounds.top && bounds.top < containerBounds.bottom;
-        });
+        const lastOpenedIssueId = lastOpenedIssueIds.get(activeWorkspaceId);
+        const lastOpenedIndex = buttons.findIndex((button) => button.dataset.issueId === String(lastOpenedIssueId));
+        if (lastOpenedIndex !== -1) {
+          targetIndex = lastOpenedIndex + direction;
+        } else {
+          const containerBounds = sidebarScrollElement.getBoundingClientRect();
+          targetIndex = buttons.findIndex((button) => {
+            const bounds = button.getBoundingClientRect();
+            return bounds.bottom > containerBounds.top && bounds.top < containerBounds.bottom;
+          });
+        }
       }
     } else {
       targetIndex += direction;
@@ -1297,6 +1395,7 @@
   }
 
   function selectNote(issue) {
+    synchronizeKeyboardFocusWithDetail(issue);
     if (!issue.local) {
       refreshingIssueNumber = issue.number;
       issueRefreshRequests = { [issue.number]: ++issueRefreshSequence };
@@ -1317,6 +1416,8 @@
       if (longPressStart?.issueId !== issue.id) return;
       selectedIssueIds = new Set([issue.id]);
       selectionAnchorId = issue.id;
+      keyboardFocusedIssueId = String(issue.id);
+      keyboardEnteredIssueId = '';
       suppressIssueClickId = issue.id;
       clearTimeout(suppressIssueClickTimer);
       suppressIssueClickTimer = setTimeout(() => {
@@ -1372,6 +1473,10 @@
 
   function toggleIssueSelection(issue, selectRange = false) {
     if (issue.local) return false;
+    cancelPendingIssueDeletion();
+    // 마우스 선택 뒤에도 이후 키보드 조작의 기준은 마지막으로 고른 항목이다.
+    keyboardFocusedIssueId = String(issue.id);
+    keyboardEnteredIssueId = '';
     const nextSelected = new Set(selectedIssueIds);
     if (selectRange && selectionAnchorId !== null) {
       const selectableIssues = visibleIssues.filter((item) => !item.local);
@@ -1405,6 +1510,7 @@
   }
 
   function clearIssueSelection() {
+    cancelPendingIssueDeletion();
     cancelIssueLongPress();
     closeSelectionTagPanel();
     selectedIssueIds = new Set();
@@ -1418,17 +1524,51 @@
     const availableIds = new Set(nextIssues.filter((issue) => !issue.local).map((issue) => issue.id));
     const nextSelected = new Set([...selectedIssueIds].filter((id) => availableIds.has(id)));
     if (nextSelected.size === selectedIssueIds.size) return;
+    cancelPendingIssueDeletion();
     selectedIssueIds = nextSelected;
     if (!nextSelected.has(selectionAnchorId)) selectionAnchorId = nextSelected.values().next().value ?? null;
   }
 
   function moveSelectedIssues() {
-    if (!selectedIssues.length) {
+    moveIssues(selectedIssues);
+  }
+
+  function keyboardDeletionTargets() {
+    if (selectedIssues.length) return selectedIssues;
+    if (!isNoteRowButton(document.activeElement)) return [];
+    const focusedIssueId = document.activeElement.dataset.issueId;
+    const focusedIssue = [...pinnedIssues, ...unpinnedVisibleIssues]
+      .find((issue) => String(issue.id) === focusedIssueId);
+    return focusedIssue && !focusedIssue.local ? [focusedIssue] : [];
+  }
+
+  function scheduleSelectedIssuesDeletion(issuesToDelete) {
+    if (pendingIssueDeletion || !issuesToDelete.length) return;
+
+    // 타이머가 도는 동안 목록이 갱신돼도 대상이 섞이지 않도록 현재 선택을 보관한다.
+    pendingIssueDeletion = [...issuesToDelete];
+    pendingIssueDeletionTimer = setTimeout(() => {
+      const issuesToMove = pendingIssueDeletion;
+      pendingIssueDeletion = null;
+      pendingIssueDeletionTimer = null;
+      moveIssues(issuesToMove);
+    }, KEYBOARD_DELETE_DELAY_MS);
+  }
+
+  function cancelPendingIssueDeletion() {
+    if (!pendingIssueDeletion) return;
+    clearTimeout(pendingIssueDeletionTimer);
+    pendingIssueDeletionTimer = null;
+    pendingIssueDeletion = null;
+  }
+
+  function moveIssues(issuesToMove) {
+    if (!issuesToMove?.length) {
       clearIssueSelection();
       return;
     }
     const nextState = state === 'open' ? 'closed' : 'open';
-    const movedIssues = selectedIssues;
+    const movedIssues = issuesToMove;
     clearIssueSelection();
     for (const issue of movedIssues) moveIssue(issue, nextState, { confirmAction: false });
   }
@@ -1560,7 +1700,10 @@
     totalIssues = Math.max(totalIssues, (pendingNote?.countBaseline ?? totalIssues) + 1);
     pendingNote = null;
     pendingAllocation = null;
-    if (newNoteIsActive) selectedIssue = savedIssue;
+    if (newNoteIsActive) {
+      selectedIssue = savedIssue;
+      synchronizeKeyboardFocusWithDetail(savedIssue);
+    }
     if (newNoteIsActive) {
       // note.{번호}로 리마운트되는 그 인스턴스에서만 한 번 포커스를 넣도록,
       // 렌더가 반영된 직후 바로 지운다(이후 그 번호를 다시 열 때 엉뚱하게
@@ -2140,7 +2283,7 @@
             <button
               type="button"
               class="btn btn-sm btn-outline-danger"
-              disabled={selectionTagBusy}
+              disabled={selectionTagBusy || pendingIssueDeletion}
               on:click={moveSelectedIssues}
               tabindex={selectionMode ? 0 : -1}
             >
@@ -2280,6 +2423,7 @@
                     archived={state === 'closed'}
                     {listRowFields}
                     refreshing={refreshingIssueNumber === issue.number}
+                    pendingDeletion={pendingIssueDeletionIds.has(issue.id)}
                     onPointerDown={beginIssueLongPress}
                     onPointerMove={trackIssueLongPress}
                     onPointerUp={finishIssueLongPress}
@@ -2304,6 +2448,7 @@
                   archived={state === 'closed'}
                   {listRowFields}
                   refreshing={refreshingIssueNumber === issue.number}
+                  pendingDeletion={pendingIssueDeletionIds.has(issue.id)}
                   onPointerDown={beginIssueLongPress}
                   onPointerMove={trackIssueLongPress}
                   onPointerUp={finishIssueLongPress}
