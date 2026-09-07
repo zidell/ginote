@@ -166,7 +166,7 @@ code { color: #d8d8d8; }
 .note-row-hit-area:focus-visible { outline: 2px solid #3b82f6; outline-offset: -2px; }
 .note-row-content { position: relative; z-index: 0; pointer-events: none; }
 .note-row-title, .note-row-preview, .note-row-meta { display: block; }
-.note-row-title { overflow: hidden; margin-bottom: .2rem; color: #e8e8e8; font-size: .92rem; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.note-row-title { overflow: hidden; margin-bottom: .2rem; color: #e8e8e8; font-size: .92rem; text-overflow: ellipsis; white-space: nowrap; }
 .note-row-pin { margin-right: .3rem; color: #e05252; font-size: .78rem; }
 .note-row-lock { margin-right: .3rem; color: #c7a43a; font-size: .78rem; }
 .note-row-preview { overflow: hidden; margin-bottom: .25rem; color: #aaa; font-size: .8rem; text-overflow: ellipsis; white-space: nowrap; }
