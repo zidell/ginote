@@ -198,6 +198,12 @@ code { color: #d8d8d8; }
 .help-points li { margin-bottom: .4rem; }
 .help-section-title { margin: 1rem 0 .5rem; font-size: .95rem; font-weight: 600; color: #e6e6e6; }
 .help-code { padding: .6rem .75rem; background: #222; border: 1px solid #3a3a3a; border-radius: 6px; color: #ddd; font-size: .8rem; white-space: pre-wrap; word-break: break-all; }
+.keyboard-shortcuts { display: grid; gap: .5rem; margin: 1rem 0; }
+.keyboard-shortcuts > div { display: grid; grid-template-columns: minmax(8rem, auto) 1fr; align-items: center; gap: .75rem; }
+.keyboard-shortcuts dt, .keyboard-shortcuts dd { margin: 0; }
+.keyboard-shortcuts dt { white-space: nowrap; }
+.keyboard-shortcuts kbd { padding: .15rem .35rem; border: 1px solid #555; border-radius: 4px; color: #ddd; background: #292929; font-family: var(--bs-font-monospace); font-size: .75rem; font-weight: 500; }
+@media (max-width: 420px) { .keyboard-shortcuts > div { grid-template-columns: 1fr; gap: .2rem; } }
 .region-spinner { --bs-spinner-width: 1rem; --bs-spinner-height: 1rem; --bs-spinner-border-width: .14em; }
 .app-toast { position: fixed; z-index: 1100; top: 100px; left: 50%; padding: .55rem .85rem; border: 1px solid #d9b83f; border-radius: 5px; color: #2b2410; background: #f2d35c; box-shadow: 0 6px 18px rgba(0, 0, 0, .35); font-size: .85rem; pointer-events: none; transform: translateX(-50%); }
 .list-api-overlay, .attachment-api-overlay { display: grid; place-items: center; background: rgba(10, 10, 10, .42); }
