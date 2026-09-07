@@ -8,6 +8,7 @@
   export let issue;
   export let pinned = false;
   export let selected = false;
+  export let keyboardFocused = false;
   export let selectionMode = false;
   export let checked = false;
   export let archived = false;
@@ -47,6 +48,7 @@
 <article
   class="note-list-row"
   class:active={selected}
+  class:keyboard-focused={keyboardFocused}
   class:selection-mode={selectionMode}
   class:selected={checked}
   class:is-archived={archived}
@@ -67,6 +69,7 @@
   {/if}
   <button
     class="note-row-hit-area"
+    data-issue-id={issue.id}
     on:click={(event) => onClick(event, issue)}
     aria-label={$_('dynamic.openNote', { values: { title: issue.title } })}
   ></button>

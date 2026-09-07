@@ -161,12 +161,13 @@ code { color: #d8d8d8; }
 .note-list-row { position: relative; width: 100%; display: block; padding: .75rem; border: 0; border-bottom: 1px solid #303030; text-align: left; background: #1b1b1b; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; touch-action: pan-y; }
 .note-list-row:hover { background: #242424; }
 .note-list-row.active { background: #202b40; box-shadow: inset 3px 0 #3b82f6; }
+.note-list-row.keyboard-focused { outline: 1px dashed #6b94dc; outline-offset: -3px; }
 .note-list-row.selection-mode { padding-left: 2.75rem; }
 .note-list-row.selected { background: #202b40; box-shadow: inset 3px 0 #3b82f6; }
 .note-list-row.is-archived { opacity: .5; }
 .note-row-checkbox { position: absolute; z-index: 3; top: 50%; left: .85rem; margin: 0; transform: translateY(-50%); }
 .note-row-hit-area { position: absolute; z-index: 1; inset: 0; width: 100%; padding: 0; border: 0; background: transparent; }
-.note-row-hit-area:focus-visible { outline: 2px solid #3b82f6; outline-offset: -2px; }
+.note-row-hit-area:focus-visible { outline: 1px dashed #6b94dc; outline-offset: -3px; }
 .note-row-content { position: relative; z-index: 0; pointer-events: none; }
 .note-row-title, .note-row-preview, .note-row-meta { display: block; }
 .note-row-title { overflow: hidden; margin-bottom: .2rem; color: #e8e8e8; font-size: .92rem; text-overflow: ellipsis; white-space: nowrap; }

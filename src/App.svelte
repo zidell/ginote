@@ -93,12 +93,16 @@
   let pinnedIssues = [];
   let repositoryLabels = [];
   let selectedIssue = null;
+  let keyboardFocusedIssueId = '';
+  let keyboardEnteredIssueId = '';
+  const lastOpenedIssueIds = new Map();
   let pendingNote = null;
   let pendingAllocation = null;
   // 새 노트가 번호를 받아 정식 이슈로 바뀌는 순간 NoteEditor가 (segment가
   // new→note.{번호}로 바뀌므로) 리마운트된다. 그 인스턴스가 계속 이어서
   // 타이핑할 수 있도록 딱 그 첫 렌더에서만 포커스를 넣어준다.
   let justPromotedNumber = null;
+  let editorFocusRequest = 0;
   let externalPasteRequest = null;
   let pasteRequestSequence = 0;
   let pruningExpiredAttachments = false;
@@ -369,6 +373,7 @@
     if (route?.screen === 'note') {
       const issueNumber = Number(route.value);
       selectedIssue = issues.find((issue) => issue.number === issueNumber) || null;
+      if (selectedIssue) lastOpenedIssueIds.set(activeWorkspaceId, selectedIssue.id);
       // 삭제됐거나 더는 현재 목록에 없는 이슈의 오래된 URL은 본문 레이어를
       // 비워 두지 않는다. 첫 목록 요청이 끝난 뒤 홈 목록으로 되돌린다.
       // 설정 화면이 떠 있는 동안에는 미루고, 닫을 때 다시 판단한다.
@@ -588,6 +593,7 @@
     setCachedIssueList(activeWorkspaceId, {
       issues, repositoryLabels, issuePage, hasMoreIssues, totalIssues,
       state, query, appliedQuery, activeLabel,
+      openNoteSegment: contentRoute?.screen === 'note' ? contentRoute.segment : '',
       sidebarScrollTop: sidebarScrollElement?.scrollTop || 0,
       sidebarToolsOffset,
       sidebarToolsRevealing
@@ -595,6 +601,8 @@
 
     clearIssueSelection();
     selectedIssue = null;
+    keyboardFocusedIssueId = '';
+    keyboardEnteredIssueId = '';
     pendingNote = null;
     pendingAllocation = null;
     // 이전 워크스페이스 요청의 로딩 표시가 새 목록 위에 남지 않게 초기화한다.
@@ -604,7 +612,6 @@
     query = '';
     appliedQuery = '';
     activeLabel = '';
-    router.navigate('/');
 
     activeWorkspaceId = workspaceId;
     pinnedIssues = loadPinnedNotes(workspaceId);
@@ -621,6 +628,8 @@
     if (cached) {
       ({ issues, repositoryLabels, issuePage, hasMoreIssues, totalIssues, state, query, appliedQuery, activeLabel } = cached);
       appState = 'ready';
+      // 유효 기간 안의 캐시라면 그 워크스페이스에서 마지막으로 열던 노트도 되돌린다.
+      router.navigate(cached.openNoteSegment ? `/${cached.openNoteSegment}` : '/');
       await tick();
       if (sidebarScrollElement) {
         sidebarScrollElement.scrollTop = cached.sidebarScrollTop || 0;
@@ -635,6 +644,7 @@
       // 마법사(appState 'connecting') 대신 부팅 시 자동 재연결과 같은 가벼운
       // 로딩 화면(appState 'restoring')을 보여준다.
       appState = 'restoring';
+      router.navigate('/');
     }
 
     try {
@@ -984,6 +994,7 @@
   }
 
   function handleGlobalKeydown(event) {
+    const workspaceNumber = workspaceNumberFromEvent(event);
     if (event.key === 'Escape' && helpTopic) {
       event.preventDefault();
       closeHelp();
@@ -1007,10 +1018,78 @@
       return;
     }
     if (
-      appState === 'ready'
-      && routeStack.length === 0
-      && !window.location.hash
-      && document.activeElement === document.body
+      canUseListKeyboardShortcuts()
+      && hasNoInteractiveFocus()
+      && !event.repeat
+      && !event.altKey
+      && !event.ctrlKey
+      && !event.metaKey
+      && !event.shiftKey
+      && !event.isComposing
+      && workspaceNumber
+    ) {
+      const workspace = workspaces[workspaceNumber - 1];
+      if (!workspace) return;
+      event.preventDefault();
+      switchWorkspace(workspace.id);
+      return;
+    }
+    if (
+      canUseListKeyboardShortcuts()
+      && !event.repeat
+      && !event.altKey
+      && !event.ctrlKey
+      && !event.metaKey
+      && !event.shiftKey
+      && event.key === 'Enter'
+      && isNoteRowButton(document.activeElement)
+    ) {
+      const issueId = document.activeElement.dataset.issueId;
+      const issue = [...pinnedIssues, ...unpinnedVisibleIssues].find((item) => String(item.id) === issueId);
+      if (!issue) return;
+      event.preventDefault();
+      if (keyboardEnteredIssueId === issueId) {
+        editorFocusRequest += 1;
+        return;
+      }
+      keyboardEnteredIssueId = issueId;
+      // 열람으로 들어갈 때는 목록 행의 실제 포커스를 해제한다. 점선은 별도 상태로 유지된다.
+      document.activeElement?.blur?.();
+      selectNote(issue);
+      return;
+    }
+    if (
+      canUseListKeyboardShortcuts()
+      && hasNoInteractiveFocus()
+      && !event.repeat
+      && !event.altKey
+      && !event.ctrlKey
+      && !event.metaKey
+      && !event.shiftKey
+      && event.key === 'Enter'
+      && ['note', 'new'].includes(contentRoute?.screen)
+    ) {
+      event.preventDefault();
+      editorFocusRequest += 1;
+      return;
+    }
+    if (
+      canUseListKeyboardShortcuts()
+      && !event.repeat
+      && !event.altKey
+      && !event.ctrlKey
+      && !event.metaKey
+      && !event.shiftKey
+      && ['ArrowDown', 'ArrowUp'].includes(event.key)
+      && (hasNoInteractiveFocus() || isNoteRowButton(document.activeElement))
+    ) {
+      event.preventDefault();
+      moveNoteRowFocus(event.key === 'ArrowDown' ? 1 : -1);
+      return;
+    }
+    if (
+      canUseListKeyboardShortcuts()
+      && hasNoInteractiveFocus()
       && !event.repeat
       && !event.altKey
       && !event.ctrlKey
@@ -1034,6 +1113,73 @@
     ) return;
     event.preventDefault();
     newNote();
+  }
+
+  function canUseListKeyboardShortcuts() {
+    const isHomeOrNote = routeStack.length === 0
+      || /^#!\/?$/.test(window.location.hash)
+      || contentRoute?.screen === 'note'
+      || /^#!\/note\.\d+$/.test(window.location.hash);
+    return (
+      appState === 'ready'
+      && topRoute?.screen !== 'settings'
+      && !workspaceWizardOpen
+      && !helpTopic
+      && !selectionMode
+      && isHomeOrNote
+    );
+  }
+
+  function hasNoInteractiveFocus() {
+    // 버튼을 클릭해 노트를 연 뒤에도 브라우저가 그 버튼을 활성 요소로 남겨둘 수 있다.
+    // 단일 키는 실제 텍스트 입력·편집 중일 때만 막는다.
+    return !isEditableElement(document.activeElement);
+  }
+
+  function workspaceNumberFromEvent(event) {
+    const keyMatch = /^[1-9]$/.exec(event.key);
+    const codeMatch = /^(?:Digit|Numpad)([1-9])$/.exec(event.code);
+    return Number(keyMatch?.[0] || codeMatch?.[1] || 0);
+  }
+
+  function isNoteRowButton(element) {
+    return element instanceof HTMLElement && element.classList.contains('note-row-hit-area');
+  }
+
+  function noteRowButtons() {
+    return sidebarScrollElement
+      ? Array.from(sidebarScrollElement.querySelectorAll('.note-row-hit-area'))
+      : [];
+  }
+
+  function moveNoteRowFocus(direction) {
+    const buttons = noteRowButtons();
+    if (!buttons.length) return;
+
+    const focusedIndex = buttons.indexOf(document.activeElement);
+    let targetIndex = focusedIndex;
+    if (targetIndex === -1) {
+      const lastOpenedIssueId = lastOpenedIssueIds.get(activeWorkspaceId);
+      const lastOpenedIndex = buttons.findIndex((button) => button.dataset.issueId === String(lastOpenedIssueId));
+      if (lastOpenedIndex !== -1) {
+        targetIndex = lastOpenedIndex + direction;
+      } else {
+        const containerBounds = sidebarScrollElement.getBoundingClientRect();
+        targetIndex = buttons.findIndex((button) => {
+          const bounds = button.getBoundingClientRect();
+          return bounds.bottom > containerBounds.top && bounds.top < containerBounds.bottom;
+        });
+      }
+    } else {
+      targetIndex += direction;
+    }
+
+    if (targetIndex < 0 || targetIndex >= buttons.length) return;
+    const target = buttons[targetIndex];
+    keyboardFocusedIssueId = target.dataset.issueId || '';
+    keyboardEnteredIssueId = '';
+    target.scrollIntoView({ block: 'nearest' });
+    target.focus({ preventScroll: true });
   }
 
   function handleGlobalPaste(event) {
@@ -2049,6 +2195,7 @@
                     {issue}
                     pinned
                     selected={selectedIssue?.id === issue.id}
+                    keyboardFocused={keyboardFocusedIssueId === String(issue.id)}
                     {selectionMode}
                     checked={selectedIssueIds.has(issue.id)}
                     archived={state === 'closed'}
@@ -2072,6 +2219,7 @@
                 <NoteListRow
                   {issue}
                   selected={selectedIssue?.id === issue.id}
+                  keyboardFocused={keyboardFocusedIssueId === String(issue.id)}
                   {selectionMode}
                   checked={selectedIssueIds.has(issue.id)}
                   archived={state === 'closed'}
@@ -2126,6 +2274,7 @@
               initialDraft={isPendingNoteRoute(route) ? pendingNote : null}
               ignoreRecoveredDraft={isPendingNoteRoute(route) && Boolean(pendingNote?.ignoreRecoveredDraft)}
               justCreated={Boolean(routeIssue) && routeIssue.number === justPromotedNumber}
+              focusRequest={route === contentRoute ? editorFocusRequest : 0}
               externalPasteRequest={route === contentRoute ? externalPasteRequest : null}
               refreshRequest={routeIssue ? issueRefreshRequests[routeIssue.number] || 0 : 0}
               allocationPromise={isPendingNoteRoute(route) ? pendingAllocation : null}
