@@ -71,7 +71,7 @@
   const SIDEBAR_WIDTH_MIN = 200;
   const SIDEBAR_WIDTH_MAX = 600;
   const SIDEBAR_WIDTH_DEFAULT = 340;
-  const HELP_TOPICS = new Set(['security', 'mcp', 'app']);
+  const HELP_TOPICS = new Set(['security', 'mcp', 'app', 'keyboard']);
   const router = createStackRouter({ mode: 'hashbang', escToBack: true });
   const newContextTarget = externalLinkTarget();
 
@@ -2546,6 +2546,8 @@
               <button type="button" class="help-link" on:click={() => openHelp('mcp')}>{$_('help.buttonMcp')}</button>
               <span class="help-sep" aria-hidden="true">|</span>
               <button type="button" class="help-link" on:click={() => openHelp('app')}>{$_('help.buttonApp')}</button>
+              <span class="help-sep" aria-hidden="true">|</span>
+              <button type="button" class="help-link" on:click={() => openHelp('keyboard')}>{$_('help.buttonKeyboard')}</button>
             </div>
           </div>
         {/if}
@@ -2590,6 +2592,8 @@
               {$_('help.securityTitle')}
             {:else if helpTopic === 'mcp'}
               {$_('m.5fe5834eaa')}
+            {:else if helpTopic === 'keyboard'}
+              {$_('help.keyboardTitle')}
             {:else}
               {$_('help.appTitle')}
             {/if}
@@ -2617,7 +2621,7 @@
           </ul>
           <p class="small help-text">{$_('help.securityOutro')}</p>
           <a
-            class="btn btn-sm btn-outline-secondary"
+            class="btn btn-sm btn-link"
             href="https://github.com/zidell/ginote#readme"
             target={newContextTarget}
             rel="noreferrer"
@@ -2625,6 +2629,19 @@
         {:else if helpTopic === 'mcp'}
           <p class="small help-text">{$_('help.mcpIntro')}</p>
           <McpGuide {mcpRepository} {mcpUsagePrompt} onCopy={copyMcpText} {newContextTarget} />
+        {:else if helpTopic === 'keyboard'}
+          <p class="small help-text">{$_('help.keyboardIntro')}</p>
+          <dl class="keyboard-shortcuts small help-text">
+            <div><dt><kbd>↑</kbd> <kbd>↓</kbd></dt><dd>{$_('help.keyboardMove')}</dd></div>
+            <div><dt><kbd>Enter</kbd></dt><dd>{$_('help.keyboardOpen')}</dd></div>
+            <div><dt><kbd>N</kbd></dt><dd>{$_('help.keyboardNew')}</dd></div>
+            <div><dt><kbd>1</kbd>~<kbd>9</kbd></dt><dd>{$_('help.keyboardWorkspace')}</dd></div>
+            <div><dt><kbd>Esc</kbd></dt><dd>{$_('help.keyboardEscape')}</dd></div>
+            <div><dt><kbd>Space</kbd></dt><dd>{$_('help.keyboardSelect')}</dd></div>
+            <div><dt><kbd>Shift</kbd> + <kbd>↑</kbd> <kbd>↓</kbd></dt><dd>{$_('help.keyboardRangeSelect')}</dd></div>
+            <div><dt><kbd>Delete</kbd> / <kbd>Backspace</kbd></dt><dd>{$_('help.keyboardTrash')}</dd></div>
+          </dl>
+          <p class="small help-text mb-0">{$_('help.keyboardNote')}</p>
         {:else}
           <p class="small help-text">{$_('help.appIntro')}</p>
           <h3 class="help-section-title">{$_('help.appPwaSectionTitle')}</h3>
@@ -2641,7 +2658,7 @@
           <pre class="help-code">brew tap zidell/ginote https://github.com/zidell/ginote
 brew install --cask ginote</pre>
           <a
-            class="btn btn-sm btn-outline-secondary"
+            class="btn btn-sm btn-link"
             href="https://github.com/zidell/ginote/releases"
             target={newContextTarget}
             rel="noreferrer"

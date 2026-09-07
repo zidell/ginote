@@ -53,7 +53,7 @@
   on:click={() => onCopy(mcpUsagePrompt, $_("m.bacaacbf86"))}
 ><i class="bi bi-copy" aria-hidden="true"></i> {$_("m.81979baa04")}</button>
 <a
-  class="btn btn-sm btn-outline-secondary w-100"
+  class="btn btn-sm btn-link w-100"
   href="https://github.com/github/github-mcp-server"
   target={newContextTarget}
   rel="noreferrer"
