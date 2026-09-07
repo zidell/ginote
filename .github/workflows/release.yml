@@ -1,9 +1,11 @@
 name: Desktop release
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
+
+concurrency:
+  group: desktop-release
+  cancel-in-progress: false
 
 permissions:
   contents: read
