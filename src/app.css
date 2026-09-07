@@ -60,6 +60,7 @@ button, input, textarea { font: inherit; }
 .editor-settings { padding: 1rem; border: 1px solid #3a3a3a; border-radius: 5px; }
 .editor-settings legend { float: none; width: auto; margin: 0 0 .75rem; padding: 0 .25rem; color: #bbb; font-size: .85rem; font-weight: 600; }
 .editor-settings .form-label { color: #aaa; font-size: .8rem; }
+.settings-help-note { margin-top: .35rem; color: #666; font-size: .7rem; line-height: 1.4; }
 .workspace-section-title { margin: 0; color: #eee; font-size: 1.05rem; font-weight: 700; }
 .workspace-order-list { display: flex; flex-direction: column; gap: .4rem; margin: 0 0 .5rem; padding: 0; list-style: none; }
 .workspace-order-item { padding: .5rem .65rem; border: 1px solid #333; border-radius: 4px; background: #1d1d1d; }
