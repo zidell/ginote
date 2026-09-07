@@ -47,6 +47,7 @@
   export let externalPasteRequest = null;
   export let refreshRequest = 0;
   export let justCreated = false;
+  export let focusRequest = 0;
   export let allocationPromise = null;
   export let archived = false;
   export let titleMode = 'first-line';
@@ -136,6 +137,7 @@
   let remoteTimer;
   let fileInput;
   let bodyInput;
+  let handledFocusRequest = 0;
   let mobileTagPicker;
   let linkTooltip;
   let activeLink = null;
@@ -220,6 +222,15 @@
     }
 
   });
+
+  $: if (
+    focusRequest > handledFocusRequest
+    && !paused
+    && lockState !== 'locked'
+  ) {
+    handledFocusRequest = focusRequest;
+    tick().then(() => bodyInput?.focus());
+  }
 
   afterUpdate(() => {
     const becamePaused = paused && !wasPaused;
@@ -383,6 +394,16 @@
     lockPanelPin = '';
     lockPanelError = '';
     tick().then(() => document.querySelector(`#note-lock-pin-${editorId}`)?.focus());
+  }
+
+  function focusBodyFromOuterGutter(node) {
+    const handlePointerDown = (event) => {
+      if (event.target !== node || !editable || lockState === 'locked') return;
+      event.preventDefault();
+      bodyInput?.focus();
+    };
+    node.addEventListener('pointerdown', handlePointerDown);
+    return { destroy: () => node.removeEventListener('pointerdown', handlePointerDown) };
   }
 
   function closeLockPanel() {
@@ -1432,7 +1453,7 @@
 
   {#if error}<div class="editor-notice text-danger">{error}</div>{/if}
 
-  <div class="inline-editor-scroll">
+  <div class="inline-editor-scroll" use:focusBodyFromOuterGutter>
   <div
     class="inline-editor-fields"
     class:is-lock-protected={lockState !== 'plain'}
