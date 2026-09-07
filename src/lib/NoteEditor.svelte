@@ -51,8 +51,9 @@
   export let archived = false;
   export let titleMode = 'first-line';
   export let font = 'system';
-  export let fontSize = 16;
-  export let lineHeight = 1.7;
+  export let fontSize = 17;
+  export let lineHeight = 1.8;
+  export let maxWidth = 840;
   export let autoSaveSeconds = 5;
   export let paused = false;
   export let readOnly = false;
@@ -67,6 +68,9 @@
   export let onLabelsAvailable = () => {};
   export let onMove = () => {};
   export let onBack = () => {};
+  export let pinned = false;
+  export let pinDisabled = false;
+  export let onTogglePin = () => {};
   export let lockPin = '';
   export let lockSessionMinutes = 60;
   export let onSetLockSession = () => {};
@@ -1299,7 +1303,7 @@
       >
         <i class="bi bi-arrow-left" aria-hidden="true"></i><span class="mobile-back-label"> {$_("m.a1fffaaafb")}</span>
       </button>
-      <span>{lockState === 'locked' ? '🔒 ' : lockState === 'unlocked' ? '🔐 ' : ''}{issue ? formatDateOnly(issue.updated_at || issue.created_at) : $_("m.2b7b05c002")}</span>
+      <span>{#if lockState === 'locked'}<i class="bi bi-lock-fill toolbar-lock-icon" aria-hidden="true"></i>{:else if lockState === 'unlocked'}<i class="bi bi-unlock-fill toolbar-lock-icon" aria-hidden="true"></i>{/if}{issue ? formatDateOnly(issue.updated_at || issue.created_at) : $_("m.2b7b05c002")}</span>
       <span class="save-status" class:is-visible={showSaveStatus} aria-live="polite">
         <BrailleSpinner active={saving} />
         {#if compactStatus}{compactStatus}{/if}
@@ -1392,6 +1396,17 @@
           </button>
         {/if}
         {#if remoteIssue}
+          <button
+            type="button"
+            class="dropdown-item"
+            disabled={!pinned && pinDisabled}
+            on:click={() => onTogglePin()}
+          >
+            <i class={`bi ${pinned ? 'bi-pin-angle-fill' : 'bi-pin-angle'}`} aria-hidden="true"></i>
+            {pinned ? '고정 해제' : '상단고정'}
+          </button>
+        {/if}
+        {#if remoteIssue}
           {#if !readOnly}
             <button
               type="button"
@@ -1422,7 +1437,7 @@
     class:is-lock-protected={lockState !== 'plain'}
     class:is-dragging-files={draggingFiles}
     role="presentation"
-    style={`--note-font:${fontStack};--note-font-size:${fontSize}px;--note-line-height:${lineHeight}`}
+    style={`--note-font:${fontStack};--note-font-size:${fontSize}px;--note-line-height:${lineHeight};--editor-max-width:${maxWidth}px`}
     on:dragenter={handleDragEnter}
     on:dragover={handleDragOver}
     on:dragleave={handleDragLeave}

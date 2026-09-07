@@ -1,9 +1,9 @@
 <script>
   import { onMount, tick } from 'svelte';
   import { createStackRouter } from 'spa-stack-router';
-  import BrailleSpinner from './lib/BrailleSpinner.svelte';
   import { externalLinkTarget } from './lib/external-links.js';
   import NoteEditor from './lib/NoteEditor.svelte';
+  import NoteListRow from './lib/NoteListRow.svelte';
   import SetupWizard from './lib/SetupWizard.svelte';
   import TagSettings from './lib/TagSettings.svelte';
   import WorkspaceList from './lib/WorkspaceList.svelte';
@@ -11,8 +11,7 @@
   import { tagColorForName } from './lib/colors.js';
   import { _, locale as activeLocale } from 'svelte-i18n';
   import { LOCALE_OPTIONS, setAppLocale } from './lib/i18n.js';
-  import { markdownToPlainText, normalizeTagName } from './lib/notes.js';
-  import { isLockedTitle } from './lib/note-lock.js';
+  import { normalizeTagName } from './lib/notes.js';
   import { makePatCreationUrl, normalizeToken, parseRepositoryAddress } from './lib/repo-address.js';
   import {
     BACKGROUND_REFRESH_DEFAULT_MINUTES,
@@ -35,6 +34,13 @@
     invalidateCachedIssueList,
     setCachedIssueList
   } from './lib/issue-cache.js';
+  import {
+    loadPinnedNotes,
+    MAX_PINNED_NOTES,
+    replacePinnedNoteSnapshot,
+    savePinnedNotes,
+    togglePinnedNote
+  } from './lib/pinned-notes-storage.js';
   import {
     createIssue,
     createLabel,
@@ -79,6 +85,7 @@
   let user = null;
   let repository = null;
   let issues = [];
+  let pinnedIssues = [];
   let repositoryLabels = [];
   let selectedIssue = null;
   let pendingNote = null;
@@ -105,8 +112,9 @@
   let titleMode = 'first-line';
   let listRowFields = { title: true, summary: true, meta: true, tags: true };
   let editorFont = 'system';
-  let editorFontSize = 16;
-  let editorLineHeight = 1.7;
+  let editorFontSize = 17;
+  let editorLineHeight = 1.8;
+  let editorMaxWidth = 840;
   let autoSaveSeconds = 5;
   let issuePageSize = 30;
   let backgroundRefreshMinutes = BACKGROUND_REFRESH_DEFAULT_MINUTES;
@@ -183,6 +191,8 @@
   $: visibleIssues = pendingNote && state === 'open' && (!appliedQuery || queryIsLabelFilter) && pendingMatchesLabel
     ? [pendingNote, ...issues.filter((issue) => issue.number !== pendingNote.number)]
     : issues;
+  $: pinnedIssueIds = new Set(pinnedIssues.map((issue) => issue.id));
+  $: unpinnedVisibleIssues = visibleIssues.filter((issue) => !pinnedIssueIds.has(issue.id));
   $: displayedIssueCount = pendingNote && state === 'open' && (!appliedQuery || queryIsLabelFilter) && pendingMatchesLabel
     ? Math.max(totalIssues, pendingNote.countBaseline + 1)
     : totalIssues;
@@ -276,12 +286,14 @@
     if (settingsDocument) {
       workspaces = settingsDocument.workspaces;
       activeWorkspaceId = settingsDocument.activeWorkspaceId;
+      pinnedIssues = loadPinnedNotes(activeWorkspaceId);
       ({
         titleMode,
         listRowFields,
         editorFont,
         editorFontSize,
         editorLineHeight,
+        editorMaxWidth,
         autoSaveSeconds,
         issuePageSize,
         backgroundRefreshMinutes,
@@ -396,6 +408,7 @@
       editorFont,
       editorFontSize,
       editorLineHeight,
+      editorMaxWidth,
       autoSaveSeconds,
       issuePageSize,
       backgroundRefreshMinutes,
@@ -584,6 +597,7 @@
     router.navigate('/');
 
     activeWorkspaceId = workspaceId;
+    pinnedIssues = loadPinnedNotes(workspaceId);
     token = target.token;
     repo = target.repo;
     rememberToken = target.rememberToken;
@@ -677,6 +691,7 @@
     user = null;
     repository = null;
     issues = [];
+    pinnedIssues = [];
     totalIssues = 0;
     repositoryLabels = [];
     pendingNote = null;
@@ -1254,6 +1269,10 @@
   function noteSaved(savedIssue, localDraft = null) {
     const displayedIssue = localDraft ? { ...savedIssue, ...localDraft } : savedIssue;
     issues = issues.map((issue) => issue.id === savedIssue.id ? displayedIssue : issue);
+    if (pinnedIssueIds.has(savedIssue.id)) {
+      pinnedIssues = replacePinnedNoteSnapshot(pinnedIssues, displayedIssue);
+      savePinnedNotes(activeWorkspaceId, pinnedIssues);
+    }
     const savedIssueIsActive = contentRoute?.screen === 'note'
       && Number(contentRoute.value) === savedIssue.number;
     if (savedIssueIsActive) selectedIssue = displayedIssue;
@@ -1264,9 +1283,19 @@
 
   function noteRefreshed(refreshedIssue) {
     issues = issues.map((issue) => issue.id === refreshedIssue.id ? refreshedIssue : issue);
+    if (pinnedIssueIds.has(refreshedIssue.id)) {
+      pinnedIssues = replacePinnedNoteSnapshot(pinnedIssues, refreshedIssue);
+      savePinnedNotes(activeWorkspaceId, pinnedIssues);
+    }
     const refreshedIssueIsActive = contentRoute?.screen === 'note'
       && Number(contentRoute.value) === refreshedIssue.number;
     if (refreshedIssueIsActive) selectedIssue = refreshedIssue;
+  }
+
+  function togglePin(issue) {
+    if (!issue || issue.local) return;
+    pinnedIssues = togglePinnedNote(pinnedIssues, issue);
+    savePinnedNotes(activeWorkspaceId, pinnedIssues);
   }
 
   function noteCreated(savedIssue) {
@@ -1305,10 +1334,6 @@
     return issue?.labels?.some(
       (label) => label.name.toLocaleLowerCase() === labelName.toLocaleLowerCase()
     );
-  }
-
-  function labelColor(label) {
-    return tagColorForName(label?.name);
   }
 
   function noteDraftChanged(sourceIssue, draft) {
@@ -1416,8 +1441,9 @@
   // 환경설정은 화면을 벗어날 때(닫기·뒤로) 한 번에 확정한다.
   function applySettingsChanges() {
     if (appState !== 'ready') return;
-    editorFontSize = Math.round(clampNumber(editorFontSize, 12, 32, 16));
-    editorLineHeight = clampNumber(editorLineHeight, 1.2, 2.5, 1.7);
+    editorFontSize = Math.round(clampNumber(editorFontSize, 12, 32, 17));
+    editorLineHeight = clampNumber(editorLineHeight, 1.2, 2.5, 1.8);
+    editorMaxWidth = Math.round(clampNumber(editorMaxWidth, 480, 1600, 840));
     autoSaveSeconds = Math.round(clampNumber(autoSaveSeconds, 3, 30, 5));
     issuePageSize = Math.round(clampNumber(issuePageSize, 10, 100, 30));
     backgroundRefreshMinutes = normalizeBackgroundRefreshMinutes(backgroundRefreshMinutes);
@@ -1543,23 +1569,6 @@
     router.pop();
   }
 
-  function excerpt(body, title = '') {
-    const plainBody = markdownToPlainText(body);
-    const plainTitle = markdownToPlainText(title);
-    const text = plainTitle && plainBody.startsWith(plainTitle)
-      ? plainBody.slice(plainTitle.length).trimStart()
-      : plainBody;
-    return text || $_("m.0c3fd88e60");
-  }
-
-  function formatDate(value) {
-    return new Intl.DateTimeFormat($activeLocale, {
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    }).format(new Date(value));
-  }
 </script>
 
 {#if (appState === 'booting' || appState === 'restoring') && topRoute?.screen !== 'settings'}
@@ -1703,6 +1712,15 @@
                 <div class="col-6">
                   <label class="form-label" for="issue-page-size">{$_("m.31ec42c218")}</label>
                   <input id="issue-page-size" class="form-control" type="number" min="10" max="100" step="1" bind:value={issuePageSize} on:change={announceDeferredApply} />
+                </div>
+              </div>
+              <div class="row g-2 mt-1">
+                <div class="col-6">
+                  <label class="form-label" for="editor-max-width">{$_('settings.editorMaxWidth')}</label>
+                  <div class="input-group">
+                    <input id="editor-max-width" class="form-control" type="number" min="480" max="1600" step="10" bind:value={editorMaxWidth} on:change={announceDeferredApply} />
+                    <span class="input-group-text">px</span>
+                  </div>
                 </div>
               </div>
               <div class="mt-3">
@@ -1987,62 +2005,49 @@
                 <i class="bi bi-plus-lg" aria-hidden="true"></i> {$_("m.2b7b05c002")}
               </button>
             </div>
-            {#if !loading && visibleIssues.length === 0}
+            {#if pinnedIssues.length}
+              <div class="note-list-pinned">
+                {#each pinnedIssues as issue (issue.id)}
+                  <NoteListRow
+                    {issue}
+                    pinned
+                    selected={selectedIssue?.id === issue.id}
+                    {selectionMode}
+                    checked={selectedIssueIds.has(issue.id)}
+                    archived={state === 'closed'}
+                    {listRowFields}
+                    refreshing={refreshingIssueNumber === issue.number}
+                    onPointerDown={beginIssueLongPress}
+                    onPointerMove={trackIssueLongPress}
+                    onPointerUp={finishIssueLongPress}
+                    onPointerCancel={finishIssueLongPress}
+                    onContextMenu={handleIssueContextMenu}
+                    onClick={handleIssueClick}
+                    onSelectionClick={handleIssueSelectionClick}
+                  />
+                {/each}
+              </div>
+            {/if}
+            {#if !loading && unpinnedVisibleIssues.length === 0 && pinnedIssues.length === 0}
               <div class="list-status">{emptyMessage}</div>
             {:else}
-              {#each visibleIssues as issue (issue.id)}
-              <article
-                class="note-list-row"
-                class:active={selectedIssue?.id === issue.id}
-                class:selection-mode={selectionMode}
-                class:selected={selectedIssueIds.has(issue.id)}
-                class:is-archived={state === 'closed'}
-                on:pointerdown={(event) => beginIssueLongPress(event, issue)}
-                on:pointermove={trackIssueLongPress}
-                on:pointerup={finishIssueLongPress}
-                on:pointercancel={finishIssueLongPress}
-                on:contextmenu={(event) => handleIssueContextMenu(event, issue)}
-              >
-                {#if selectionMode && !issue.local}
-                  <input
-                    class="form-check-input note-row-checkbox"
-                    type="checkbox"
-                    checked={selectedIssueIds.has(issue.id)}
-                    aria-label={$_('dynamic.openNote', { values: { title: issue.title } })}
-                    on:click|stopPropagation={(event) => handleIssueSelectionClick(event, issue)}
-                  />
-                {/if}
-                <button
-                  class="note-row-hit-area"
-                  on:click={(event) => handleIssueClick(event, issue)}
-                  aria-label={$_('dynamic.openNote', { values: { title: issue.title } })}
-                ></button>
-                <div class="note-row-content">
-                  {#if listRowFields.title}
-                    <span class="note-row-title">{markdownToPlainText(issue.title)}</span>
-                  {/if}
-                  {#if listRowFields.summary}
-                    <span class="note-row-preview">{isLockedTitle(issue.title) ? '잠금된 노트입니다' : excerpt(issue.body, issue.title)}</span>
-                  {/if}
-                  {#if listRowFields.meta}
-                    <span class="note-row-meta">
-                      {issue.local ? $_("m.6f65454664") : `#${issue.number} · ${formatDate(issue.updated_at)}`}
-                    </span>
-                  {/if}
-                </div>
-                {#if listRowFields.tags && issue.labels?.length}
-                  <div class="note-row-labels">
-                    {#each issue.labels as label (label.id || label.name)}
-                      <span style={`--tag-color:#${labelColor(label)}`}>#{label.name}</span>
-                    {/each}
-                  </div>
-                {/if}
-                {#if refreshingIssueNumber === issue.number}
-                  <span class="note-row-refresh-spinner" aria-label={$_("m.6e6e21803f")}>
-                    <BrailleSpinner active />
-                  </span>
-                {/if}
-              </article>
+              {#each unpinnedVisibleIssues as issue (issue.id)}
+                <NoteListRow
+                  {issue}
+                  selected={selectedIssue?.id === issue.id}
+                  {selectionMode}
+                  checked={selectedIssueIds.has(issue.id)}
+                  archived={state === 'closed'}
+                  {listRowFields}
+                  refreshing={refreshingIssueNumber === issue.number}
+                  onPointerDown={beginIssueLongPress}
+                  onPointerMove={trackIssueLongPress}
+                  onPointerUp={finishIssueLongPress}
+                  onPointerCancel={finishIssueLongPress}
+                  onContextMenu={handleIssueContextMenu}
+                  onClick={handleIssueClick}
+                  onSelectionClick={handleIssueSelectionClick}
+                />
               {/each}
               {#if hasMoreIssues}
                 <div class="list-load-more">
@@ -2093,6 +2098,7 @@
               font={editorFont}
               fontSize={editorFontSize}
               lineHeight={editorLineHeight}
+              maxWidth={editorMaxWidth}
               {autoSaveSeconds}
               {lockPin}
               {lockSessionMinutes}
@@ -2102,6 +2108,9 @@
               readOnly={selectionMode}
               availableLabels={repositoryLabels}
               {labelMutation}
+              pinned={Boolean(routeIssue) && pinnedIssueIds.has(routeIssue.id)}
+              pinDisabled={pinnedIssues.length >= MAX_PINNED_NOTES}
+              onTogglePin={() => togglePin(routeIssue)}
               onSaved={noteSaved}
               onRefreshed={noteRefreshed}
               onRefreshStateChange={(active) => noteRefreshStateChanged(routeIssue?.number, active)}
