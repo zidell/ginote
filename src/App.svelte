@@ -10,6 +10,7 @@
   import WorkspaceList from './lib/WorkspaceList.svelte';
   import WorkspaceSwitcher from './lib/WorkspaceSwitcher.svelte';
   import { tagColorForName } from './lib/colors.js';
+  import { localFontFamily, localFontValue } from './lib/editor-fonts.js';
   import { _, locale as activeLocale } from 'svelte-i18n';
   import { LOCALE_OPTIONS, setAppLocale } from './lib/i18n.js';
   import { normalizeTagName } from './lib/notes.js';
@@ -120,6 +121,8 @@
   let titleMode = 'first-line';
   let listRowFields = { title: true, summary: true, meta: true, tags: true };
   let editorFont = 'system';
+  let localFontFamilies = [];
+  let localFontLoadState = 'idle';
   let editorFontSize = 17;
   let editorLineHeight = 1.8;
   let editorMaxWidth = 840;
@@ -1712,6 +1715,32 @@
     showToast($_("m.be71371eed"));
   }
 
+  async function loadLocalFonts() {
+    if (localFontLoadState === 'loading') return;
+    if (typeof window.queryLocalFonts !== 'function') {
+      localFontLoadState = 'unsupported';
+      return;
+    }
+
+    localFontLoadState = 'loading';
+    try {
+      const faces = await window.queryLocalFonts();
+      localFontFamilies = [...new Set(
+        faces.map((face) => String(face.family || '').trim()).filter(Boolean)
+      )].sort((left, right) => left.localeCompare(right));
+      localFontLoadState = 'ready';
+    } catch {
+      // 권한 거부와 보안 컨텍스트 오류 모두 사용자가 다시 시도할 수 있게 처리한다.
+      localFontLoadState = 'unavailable';
+    }
+  }
+
+  $: selectedLocalFont = localFontFamily(editorFont);
+  $: visibleLocalFontFamilies = [...new Set([
+    ...localFontFamilies,
+    ...(selectedLocalFont ? [selectedLocalFont] : [])
+  ])].sort((left, right) => left.localeCompare(right));
+
   async function createRepositoryLabel(name) {
     if (labelBusy) return;
     const normalizedName = Array.from(name.trim()).slice(0, 50).join('');
@@ -1952,11 +1981,20 @@
               <div class="row g-2">
                 <div class="col-sm-6">
                   <label class="form-label" for="editor-font">{$_("m.b97c4d4cdd")}</label>
-                  <select id="editor-font" class="form-select" bind:value={editorFont} on:change={announceDeferredApply}>
+                  <select
+                    id="editor-font"
+                    class="form-select"
+                    bind:value={editorFont}
+                    on:focus={loadLocalFonts}
+                    on:change={announceDeferredApply}
+                  >
                     <option value="system">{$_("m.9d8d380806")}</option>
                     <option value="sans">{$_("m.ecc39dc539")}</option>
                     <option value="serif">{$_("m.a5c78a86fa")}</option>
                     <option value="mono">{$_("m.216fcddff2")}</option>
+                    {#each visibleLocalFontFamilies as family}
+                      <option value={localFontValue(family)}>{family}</option>
+                    {/each}
                   </select>
                 </div>
                 <div class="col-6 col-sm-3">
@@ -2021,7 +2059,7 @@
                     </option>
                   {/each}
                 </select>
-                <div class="form-text">{$_('settings.workspaceCacheHelp')}</div>
+                <div class="settings-help-note">※ {$_('settings.workspaceCacheHelp')}</div>
               </div>
               <div class="mt-3">
                 <label class="form-label" for="lock-session-minutes">{$_('settings.lockSessionDuration')}</label>
@@ -2039,7 +2077,7 @@
                     </option>
                   {/each}
                 </select>
-                <div class="form-text">{$_('settings.lockSessionHelp')}</div>
+                <div class="settings-help-note">※ {$_('settings.lockSessionHelp')}</div>
               </div>
               </fieldset>
 

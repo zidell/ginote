@@ -4,6 +4,7 @@
   import { _, locale } from 'svelte-i18n';
   import BrailleSpinner from './BrailleSpinner.svelte';
   import { externalLinkTarget } from './external-links.js';
+  import { editorFontStack } from './editor-fonts.js';
   import TagPicker from './TagPicker.svelte';
   import { automaticTitle, linkAtCursor, shortenMiddle } from './notes.js';
   import {
@@ -146,12 +147,7 @@
   let handledRefreshRequest = 0;
   let handledExternalPasteRequest = 0;
 
-  $: fontStack = {
-    system: '-apple-system, BlinkMacSystemFont, "Segoe UI", Pretendard, sans-serif',
-    sans: 'Pretendard, "Noto Sans KR", sans-serif',
-    serif: '"Noto Serif KR", "Batang", serif',
-    mono: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace'
-  }[font] || 'sans-serif';
+  $: fontStack = editorFontStack(font);
   $: viewedAttachment = viewerIndex >= 0 ? attachments[viewerIndex] : null;
   $: displayBody = compressAttachmentLinks(body, repo);
   $: hasAttachmentRefs = parseAttachmentPaths(body).length > 0;
