@@ -2,6 +2,7 @@
   import { onMount, tick } from 'svelte';
   import { createStackRouter } from 'spa-stack-router';
   import { externalLinkTarget } from './lib/external-links.js';
+  import McpGuide from './lib/McpGuide.svelte';
   import NoteEditor from './lib/NoteEditor.svelte';
   import NoteListRow from './lib/NoteListRow.svelte';
   import SetupWizard from './lib/SetupWizard.svelte';
@@ -535,16 +536,6 @@
     return reason?.message || $_("m.285cc7fd9a");
   }
 
-  async function copyMcpText(value, successMessage) {
-    try {
-      await navigator.clipboard.writeText(value);
-      notice = successMessage;
-      error = '';
-    } catch {
-      error = $_("m.da21b2386d");
-    }
-  }
-
   async function connect(showSuccess = true, restoring = false) {
     if (!restoring && appState === 'setup' && rememberToken && !hasConfirmedPatStorage) {
       if (!confirm($_('setup.confirmPatStorage'))) return;
@@ -958,6 +949,11 @@
   }
 
   function handleGlobalKeydown(event) {
+    if (event.key === 'Escape' && helpTopic) {
+      event.preventDefault();
+      closeHelp();
+      return;
+    }
     if (event.key === 'Escape' && selectionMode) {
       event.preventDefault();
       clearIssueSelection();
@@ -1569,6 +1565,25 @@
     router.pop();
   }
 
+  let helpTopic = null;
+
+  function openHelp(topic) {
+    helpTopic = topic;
+  }
+
+  function closeHelp() {
+    helpTopic = null;
+  }
+
+  async function copyMcpText(value, successMessage) {
+    try {
+      await navigator.clipboard.writeText(value);
+      showToast(successMessage);
+    } catch {
+      showToast($_("m.da21b2386d"));
+    }
+  }
+
 </script>
 
 {#if (appState === 'booting' || appState === 'restoring') && topRoute?.screen !== 'settings'}
@@ -1757,69 +1772,6 @@
                 <div class="form-text">{$_('settings.lockSessionHelp')}</div>
               </div>
               </fieldset>
-
-              <details class="pat-guide mcp-guide mb-4">
-                <summary class="d-flex align-items-center justify-content-between gap-3">
-                  <span>
-                    <strong><i class="bi bi-robot me-2" aria-hidden="true"></i>{$_("m.5fe5834eaa")}</strong>
-                    <small class="d-block text-secondary mt-1">{$_("m.5d80d297c5")}</small>
-                  </span>
-                  <span class="guide-chevron" aria-hidden="true">⌄</span>
-                </summary>
-                <div class="pat-guide-body border-top">
-                  <p class="small text-secondary">
-                    {$_("m.e83c891d49")}
-                  </p>
-
-                  <div class="mcp-repository mb-3">
-                    <span class="small text-secondary">{$_("m.4b3f74b117")}</span>
-                    <div class="input-group input-group-sm mt-1">
-                      <input class="form-control font-monospace" value={mcpRepository} readonly aria-label={$_("m.d53b2b9304")} />
-                      <button
-                        type="button"
-                        class="btn btn-outline-secondary"
-                        on:click={() => copyMcpText(mcpRepository, $_("m.f200511c62"))}
-                        disabled={!mcpRepository}
-                      ><i class="bi bi-copy" aria-hidden="true"></i> {$_("m.af74f7c536")}</button>
-                    </div>
-                  </div>
-
-                  <ol class="pat-steps mb-3">
-                    <li>
-                      <strong>{$_("m.3bfe3b4ca9")}</strong>
-                      <span>{$_("m.a361d3f1f3")}</span>
-                    </li>
-                    <li>
-                      <strong>{$_("m.d011f1e8c4")}</strong>
-                      <span>{$_("m.b7aa3105c9")}</span>
-                    </li>
-                    <li>
-                      <strong>{$_("m.7eb30a2712")}</strong>
-                      <span>{$_("m.bbd3fa2b66")}</span>
-                    </li>
-                  </ol>
-
-                  <p class="small text-secondary">
-                    {$_("m.689b609f4f")}
-                    {' '}<code>.issue-note-assets/issues/42/</code>.{' '}
-                    {$_("m.19c4d90df7")}
-                  </p>
-
-                  <label class="form-label small" for="mcp-usage-prompt">{$_("m.2838abde9d")}</label>
-                  <textarea id="mcp-usage-prompt" class="form-control form-control-sm mcp-prompt mb-2" readonly value={mcpUsagePrompt}></textarea>
-                  <button
-                    type="button"
-                    class="btn btn-sm btn-outline-primary w-100 mb-2"
-                    on:click={() => copyMcpText(mcpUsagePrompt, $_("m.bacaacbf86"))}
-                  ><i class="bi bi-copy" aria-hidden="true"></i> {$_("m.81979baa04")}</button>
-                  <a
-                    class="btn btn-sm btn-outline-secondary w-100"
-                    href="https://github.com/github/github-mcp-server"
-                    target={newContextTarget}
-                    rel="noreferrer"
-                  ><i class="bi bi-box-arrow-up-right" aria-hidden="true"></i> {$_("m.6b45c11893")}</a>
-                </div>
-              </details>
 
           </div>
         </div>
@@ -2125,8 +2077,15 @@
             {/if}
           {/each}
         {:else}
-          <div class="detail-empty">
+          <div class="detail-empty detail-empty-guide">
             <p>{$_("m.15147e26a7")}</p>
+            <div class="help-links">
+              <button type="button" class="help-link" on:click={() => openHelp('security')}>{$_('help.buttonSecurity')}</button>
+              <span class="help-sep" aria-hidden="true">|</span>
+              <button type="button" class="help-link" on:click={() => openHelp('mcp')}>{$_('help.buttonMcp')}</button>
+              <span class="help-sep" aria-hidden="true">|</span>
+              <button type="button" class="help-link" on:click={() => openHelp('app')}>{$_('help.buttonApp')}</button>
+            </div>
           </div>
         {/if}
       </section>
@@ -2152,4 +2111,83 @@
       />
     {/key}
   </div>
+{/if}
+
+{#if helpTopic}
+<!-- svelte-ignore a11y_click_events_have_key_events -->
+<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+<main
+  class="setup-shell help-overlay container py-4 py-md-5"
+  on:click={(event) => { if (event.target === event.currentTarget) closeHelp(); }}
+>
+  <section class="setup-card card border-0 shadow-sm mx-auto overflow-hidden">
+    <div class="row g-0">
+      <div class="col-12 bg-white p-4 p-md-5">
+        <div class="d-flex align-items-start justify-content-between gap-3 mb-4">
+          <h2 class="h4 fw-bold mb-0">
+            {#if helpTopic === 'security'}
+              {$_('help.securityTitle')}
+            {:else if helpTopic === 'mcp'}
+              {$_('m.5fe5834eaa')}
+            {:else}
+              {$_('help.appTitle')}
+            {/if}
+          </h2>
+          <button
+            type="button"
+            class="btn btn-sm btn-outline-secondary flex-shrink-0"
+            aria-label={$_("m.bbfa773e5a")}
+            title={$_("m.bbfa773e5a")}
+            on:click={closeHelp}
+          ><i class="bi bi-x-lg" aria-hidden="true"></i></button>
+        </div>
+        {#if helpTopic === 'security'}
+          <p class="small help-text">{$_('help.securityIntro')}</p>
+          <div class="help-diagram">
+            <div>{$_('help.securityDiagramFlow')}</div>
+            <div class="help-diagram-note">{$_('help.securityDiagramNote')}</div>
+          </div>
+          <ul class="help-points small help-text">
+            <li>{$_('help.securityPoint1')}</li>
+            <li>{$_('help.securityPoint2')}</li>
+            <li>{$_('help.securityPoint3')}</li>
+            <li>{$_('help.securityPoint4')}</li>
+            <li>{$_('help.securityPoint5')}</li>
+          </ul>
+          <p class="small help-text">{$_('help.securityOutro')}</p>
+          <a
+            class="btn btn-sm btn-outline-secondary"
+            href="https://github.com/zidell/ginote#readme"
+            target={newContextTarget}
+            rel="noreferrer"
+          ><i class="bi bi-box-arrow-up-right" aria-hidden="true"></i> {$_('help.securityLinkLabel')}</a>
+        {:else if helpTopic === 'mcp'}
+          <p class="small help-text">{$_('help.mcpIntro')}</p>
+          <McpGuide {mcpRepository} {mcpUsagePrompt} onCopy={copyMcpText} {newContextTarget} />
+        {:else}
+          <p class="small help-text">{$_('help.appIntro')}</p>
+          <h3 class="help-section-title">{$_('help.appPwaSectionTitle')}</h3>
+          <ul class="help-points small help-text">
+            <li>{$_('help.appPwaChromeDesktop')}</li>
+            <li>{$_('help.appPwaAndroid')}</li>
+            <li>{$_('help.appPwaIOS')}</li>
+            <li>{$_('help.appPwaMacSafari')}</li>
+          </ul>
+          <p class="small help-text">{$_('help.appPwaNote')}</p>
+          <h3 class="help-section-title">{$_('help.appDesktopSectionTitle')}</h3>
+          <p class="small help-text">{$_('help.appDesktopIntro')}</p>
+          <p class="small help-text mb-1">{$_('help.appDesktopHomebrew')}</p>
+          <pre class="help-code">brew tap zidell/ginote https://github.com/zidell/ginote
+brew install --cask ginote</pre>
+          <a
+            class="btn btn-sm btn-outline-secondary"
+            href="https://github.com/zidell/ginote/releases"
+            target={newContextTarget}
+            rel="noreferrer"
+          ><i class="bi bi-box-arrow-up-right" aria-hidden="true"></i> {$_('help.appDesktopLinkLabel')}</a>
+        {/if}
+      </div>
+    </div>
+  </section>
+</main>
 {/if}
