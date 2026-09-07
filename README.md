@@ -383,7 +383,7 @@ UI 번역은 `svelte-i18n`, `src/lib/i18n.js`, `src/lib/locales/`의 메시지 �
   식별자입니다. 이미 저장된 설정과 초안을 그대로 읽기 위해 유지합니다.
 - 로컬 초안 저장: 편집 중 1초 간격
 - GitHub 자동 저장: 마지막 수정 후 5초
-- 새 노트: `Ctrl+N` 또는 `Cmd+N`
+- 새 노트: 주소에 해시가 없는 목록 루트에서 포커스가 없을 때 `N` (`Ctrl+N`/`Cmd+N`은 Tauri 데스크톱 앱에서만 사용 가능)
 - 워크스페이스 전환: `Ctrl+1`–`Ctrl+9` 또는 `Cmd+1`–`Cmd+9` (워크스페이스 표시 순서)
 - 강제 저장: `Ctrl+S` 또는 `Cmd+S`
 - 이탈 저장: `beforeunload`, `pagehide`, 문서가 숨겨지는 시점에 `keepalive` 요청

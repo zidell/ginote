@@ -135,6 +135,8 @@ code { color: #d8d8d8; }
 .sidebar-tools.is-revealing { transition: transform 180ms ease-out; }
 .sidebar-new-note { padding: .65rem; border-bottom: 1px solid #303030; }
 .sidebar-new-note .btn { --bs-btn-padding-y: .4rem; }
+.sidebar-new-note-shortcut { margin-left: .25rem; color: rgba(255, 255, 255, .58); font-size: 1em; font-weight: 400; }
+.touch-device .workspace-shortcut, .touch-device .sidebar-new-note-shortcut { display: none; }
 .state-tabs { isolation: isolate; display: grid; grid-template-columns: 1fr 1fr; margin-bottom: .5rem; }
 .state-tabs button, .sidebar-search .btn { --bs-btn-color: #ccc; --bs-btn-bg: #252525; --bs-btn-border-color: #474747; --bs-btn-hover-color: #eee; --bs-btn-hover-bg: #303030; --bs-btn-hover-border-color: #555; --bs-btn-active-color: #eee; --bs-btn-active-bg: #383838; --bs-btn-active-border-color: #555; }
 .state-tabs button:first-child { border-radius: 4px 0 0 4px; }

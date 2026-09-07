@@ -125,6 +125,7 @@
   let backgroundRefreshMinutes = BACKGROUND_REFRESH_DEFAULT_MINUTES;
   let lockSessionMinutes = LOCK_SESSION_DEFAULT_MINUTES;
   let workspaceCacheMinutes = WORKSPACE_CACHE_DEFAULT_MINUTES;
+  let touchDevice = false;
   let languagePreference = 'auto';
   let backgroundRefreshTimer;
   let labelBusy = '';
@@ -224,6 +225,10 @@
   }
 
   onMount(() => {
+    const touchMedia = matchMedia('(pointer: coarse)');
+    const updateTouchDevice = () => touchDevice = touchMedia.matches;
+    updateTouchDevice();
+    touchMedia.addEventListener('change', updateTouchDevice);
     sidebarWidth = loadSidebarWidth();
     router.init();
     window.addEventListener('keydown', handleGlobalKeydown);
@@ -333,6 +338,7 @@
       clearTimeout(longPressTimer);
       clearTimeout(suppressIssueClickTimer);
       clearTimeout(toastTimer);
+      touchMedia.removeEventListener('change', updateTouchDevice);
       window.removeEventListener('keydown', handleGlobalKeydown);
       window.removeEventListener('paste', handleGlobalPaste);
       unsubscribe();
@@ -998,6 +1004,23 @@
       // 대상이 있을 때만 브라우저의 Ctrl/Cmd + 숫자 기본 동작(탭 전환)을 막는다.
       event.preventDefault();
       switchWorkspace(workspaceId);
+      return;
+    }
+    if (
+      appState === 'ready'
+      && routeStack.length === 0
+      && !window.location.hash
+      && document.activeElement === document.body
+      && !event.repeat
+      && !event.altKey
+      && !event.ctrlKey
+      && !event.metaKey
+      && !event.shiftKey
+      && !event.isComposing
+      && event.key.toLocaleLowerCase() === 'n'
+    ) {
+      event.preventDefault();
+      newNote();
       return;
     }
     if (
@@ -1843,6 +1866,7 @@
   <div
     class="app-shell"
     class:mobile-detail-active={Boolean(contentRoute)}
+    class:touch-device={touchDevice}
   >
     {#if toastMessage}
       <div class="app-toast" role="status">{toastMessage}</div>
@@ -2015,6 +2039,7 @@
                 disabled={Boolean(pendingNote) || selectionMode}
               >
                 <i class="bi bi-plus-lg" aria-hidden="true"></i> {$_("m.2b7b05c002")}
+                <span class="sidebar-new-note-shortcut" aria-hidden="true">(N)</span>
               </button>
             </div>
             {#if pinnedIssues.length}

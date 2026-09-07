@@ -3,6 +3,7 @@
   import { _ } from 'svelte-i18n';
   import { parseRepositoryAddress } from './repo-address.js';
   import { workspaceDisplayName } from './settings-storage.js';
+  import { shortcutModifierForPlatform } from './shortcut-platform.js';
 
   export let workspaces = [];
   export let activeWorkspaceId = '';
@@ -17,7 +18,7 @@
   let shortcutModifier = '⌃';
 
   onMount(() => {
-    shortcutModifier = /Mac|iPhone|iPad|iPod/.test(navigator.platform) ? '⌘' : '⌃';
+    shortcutModifier = shortcutModifierForPlatform(navigator);
     document.addEventListener('pointerdown', handleOutside);
   });
   onDestroy(() => document.removeEventListener('pointerdown', handleOutside));
