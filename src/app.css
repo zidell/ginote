@@ -166,6 +166,7 @@ code { color: #d8d8d8; }
 .note-list-row.selection-mode { padding-left: 2.75rem; }
 .note-list-row.selected { background: #202b40; box-shadow: inset 3px 0 #3b82f6; }
 .note-list-row.is-archived { opacity: .5; }
+.note-list-row.pending-deletion { opacity: .3; }
 .note-row-checkbox { position: absolute; z-index: 3; top: 50%; left: .85rem; margin: 0; transform: translateY(-50%); }
 .note-row-hit-area { position: absolute; z-index: 1; inset: 0; width: 100%; padding: 0; border: 0; background: transparent; }
 .note-row-hit-area:focus-visible { outline: 1px dashed #6b94dc; outline-offset: -3px; }
