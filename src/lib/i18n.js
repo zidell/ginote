@@ -157,7 +157,7 @@ const workspace = {
 const help = {
   en: {
     buttonSecurity: 'Security guide', buttonMcp: 'MCP guide', buttonApp: 'Install the app', buttonKeyboard: 'Keyboard shortcuts',
-    keyboardTitle: 'Keyboard shortcuts', keyboardIntro: 'Use these shortcuts while the note list is active.', keyboardMove: 'Move through notes', keyboardOpen: 'Open the focused note; press again to start editing', keyboardNew: 'Create a new note', keyboardWorkspace: 'Switch workspace (only in the note list; registered workspaces 1~9)', keyboardEscape: 'Clear the selection, cancel a deletion, or close this guide', keyboardSelect: 'Select the focused note', keyboardRangeSelect: 'Select a range of notes', keyboardTrash: 'Move selected notes to trash', keyboardNote: 'Shortcuts do not run while you are typing in a field.',
+    keyboardTitle: 'Keyboard shortcuts', keyboardIntro: 'Use these shortcuts while the note list is active.', keyboardMove: 'Move through notes', keyboardOpen: 'Open the focused note; press again to start editing', keyboardNew: 'Create a new note', keyboardWorkspaceMenu: 'Open the workspace picker; use ↑/↓ to move and Enter to switch', keyboardWorkspace: 'Switch workspace (only in the note list; registered workspaces 1~9)', keyboardEscape: 'Clear the selection, cancel a deletion, or close this guide', keyboardSelect: 'Select the focused note', keyboardRangeSelect: 'Select a range of notes', keyboardTrash: 'Move selected notes to trash', keyboardNote: 'Shortcuts do not run while you are typing in a field.',
     securityTitle: 'Security overview',
     securityIntro: 'Ginote is a fully static web app. There is no app server that handles sign-in or saves your notes — after the app loads, everything happens directly between your browser and GitHub.',
     securityDiagramFlow: 'Your browser  ←── direct communication ──→  GitHub',
@@ -185,7 +185,7 @@ const help = {
   },
   ko: {
     buttonSecurity: '보안 안내', buttonMcp: 'MCP 안내', buttonApp: '설치 안내', buttonKeyboard: '키보드 안내',
-    keyboardTitle: '키보드 안내', keyboardIntro: '노트 목록이 활성화된 상태에서 다음 단축키를 사용할 수 있습니다.', keyboardMove: '노트 목록에서 이동', keyboardOpen: '선택한 노트 열기 · 한 번 더 누르면 편집 시작', keyboardNew: '새 노트 만들기', keyboardWorkspace: '워크스페이스 전환 (노트 목록에서만 · 등록된 순서의 1~9번만)', keyboardEscape: '선택 해제 · 삭제 취소 · 이 안내 닫기', keyboardSelect: '현재 노트 선택', keyboardRangeSelect: '여러 노트 범위 선택', keyboardTrash: '선택한 노트를 휴지통으로 이동', keyboardNote: '입력창에 내용을 쓰는 동안에는 단축키가 동작하지 않습니다.',
+    keyboardTitle: '키보드 안내', keyboardIntro: '노트 목록이 활성화된 상태에서 다음 단축키를 사용할 수 있습니다.', keyboardMove: '노트 목록에서 이동', keyboardOpen: '선택한 노트 열기 · 한 번 더 누르면 편집 시작', keyboardNew: '새 노트 만들기', keyboardWorkspaceMenu: '워크스페이스 선택창 열기 · ↑/↓로 이동하고 Enter로 전환', keyboardWorkspace: '워크스페이스 전환 (노트 목록에서만 · 등록된 순서의 1~9번만)', keyboardEscape: '선택 해제 · 삭제 취소 · 이 안내 닫기', keyboardSelect: '현재 노트 선택', keyboardRangeSelect: '여러 노트 범위 선택', keyboardTrash: '선택한 노트를 휴지통으로 이동', keyboardNote: '입력창에 내용을 쓰는 동안에는 단축키가 동작하지 않습니다.',
     securityTitle: '보안 안내',
     securityIntro: 'Ginote는 완전히 정적인 웹 앱입니다. 로그인이나 노트 저장을 처리하는 앱 서버가 없으며, 앱을 연 뒤의 모든 통신은 사용자의 브라우저와 GitHub 사이에서 직접 이루어집니다.',
     securityDiagramFlow: '사용자 브라우저  ←── 직접 통신 ──→  GitHub',
@@ -213,7 +213,7 @@ const help = {
   },
   'zh-CN': {
     buttonSecurity: '安全说明', buttonMcp: 'MCP 说明', buttonApp: '安装应用', buttonKeyboard: '键盘快捷键',
-    keyboardTitle: '键盘快捷键', keyboardIntro: '笔记列表处于活动状态时，可使用以下快捷键。', keyboardMove: '在笔记间移动', keyboardOpen: '打开当前笔记；再次按下开始编辑', keyboardNew: '新建笔记', keyboardWorkspace: '切换工作区（仅限笔记列表；已注册工作区的 1~9）', keyboardEscape: '取消选择、取消删除或关闭此说明', keyboardSelect: '选中当前笔记', keyboardRangeSelect: '选择一组笔记', keyboardTrash: '将选中的笔记移至废纸篓', keyboardNote: '在输入框中输入时，快捷键不会生效。',
+    keyboardTitle: '键盘快捷键', keyboardIntro: '笔记列表处于活动状态时，可使用以下快捷键。', keyboardMove: '在笔记间移动', keyboardOpen: '打开当前笔记；再次按下开始编辑', keyboardNew: '新建笔记', keyboardWorkspaceMenu: '打开工作区选择器；使用 ↑/↓ 移动并按 Enter 切换', keyboardWorkspace: '切换工作区（仅限笔记列表；已注册工作区的 1~9）', keyboardEscape: '取消选择、取消删除或关闭此说明', keyboardSelect: '选中当前笔记', keyboardRangeSelect: '选择一组笔记', keyboardTrash: '将选中的笔记移至废纸篓', keyboardNote: '在输入框中输入时，快捷键不会生效。',
     securityTitle: '安全说明',
     securityIntro: 'Ginote 是完全静态的网页应用。没有处理登录或保存笔记的应用服务器，打开应用后的所有通信都直接发生在您的浏览器和 GitHub 之间。',
     securityDiagramFlow: '您的浏览器  ←── 直接通信 ──→  GitHub',
@@ -241,7 +241,7 @@ const help = {
   },
   ja: {
     buttonSecurity: 'セキュリティについて', buttonMcp: 'MCPガイド', buttonApp: 'アプリのインストール', buttonKeyboard: 'キーボードショートカット',
-    keyboardTitle: 'キーボードショートカット', keyboardIntro: 'ノート一覧がアクティブなときに、次のショートカットを使えます。', keyboardMove: 'ノート間を移動', keyboardOpen: '選択中のノートを開く。もう一度押すと編集を開始', keyboardNew: '新しいノートを作成', keyboardWorkspace: 'ワークスペースを切り替え（ノート一覧のみ・登録順の1~9）', keyboardEscape: '選択を解除、削除を取り消す、またはこのガイドを閉じる', keyboardSelect: '選択中のノートを選択', keyboardRangeSelect: 'ノートを範囲選択', keyboardTrash: '選択したノートをゴミ箱へ移動', keyboardNote: '入力欄で入力中はショートカットは動作しません。',
+    keyboardTitle: 'キーボードショートカット', keyboardIntro: 'ノート一覧がアクティブなときに、次のショートカットを使えます。', keyboardMove: 'ノート間を移動', keyboardOpen: '選択中のノートを開く。もう一度押すと編集を開始', keyboardNew: '新しいノートを作成', keyboardWorkspaceMenu: 'ワークスペース選択を開く。↑/↓で移動し、Enterで切り替え', keyboardWorkspace: 'ワークスペースを切り替え（ノート一覧のみ・登録順の1~9）', keyboardEscape: '選択を解除、削除を取り消す、またはこのガイドを閉じる', keyboardSelect: '選択中のノートを選択', keyboardRangeSelect: 'ノートを範囲選択', keyboardTrash: '選択したノートをゴミ箱へ移動', keyboardNote: '入力欄で入力中はショートカットは動作しません。',
     securityTitle: 'セキュリティについて',
     securityIntro: 'Ginoteは完全に静的なWebアプリです。ログインやノートの保存を処理するアプリサーバーは存在せず、アプリを開いた後の通信はすべてこのブラウザとGitHubの間で直接行われます。',
     securityDiagramFlow: 'このブラウザ  ←── 直接通信 ──→  GitHub',
@@ -269,7 +269,7 @@ const help = {
   },
   de: {
     buttonSecurity: 'Sicherheitsübersicht', buttonMcp: 'MCP-Anleitung', buttonApp: 'App installieren', buttonKeyboard: 'Tastenkürzel',
-    keyboardTitle: 'Tastenkürzel', keyboardIntro: 'Bei aktiver Notizliste können Sie folgende Tastenkürzel verwenden.', keyboardMove: 'Zwischen Notizen wechseln', keyboardOpen: 'Fokussierte Notiz öffnen; erneut drücken, um zu bearbeiten', keyboardNew: 'Neue Notiz erstellen', keyboardWorkspace: 'Arbeitsbereich wechseln (nur in der Notizliste; registrierte Arbeitsbereiche 1~9)', keyboardEscape: 'Auswahl aufheben, Löschen abbrechen oder diese Anleitung schließen', keyboardSelect: 'Fokussierte Notiz auswählen', keyboardRangeSelect: 'Mehrere Notizen als Bereich auswählen', keyboardTrash: 'Ausgewählte Notizen in den Papierkorb verschieben', keyboardNote: 'Während der Eingabe in einem Feld funktionieren die Kürzel nicht.',
+    keyboardTitle: 'Tastenkürzel', keyboardIntro: 'Bei aktiver Notizliste können Sie folgende Tastenkürzel verwenden.', keyboardMove: 'Zwischen Notizen wechseln', keyboardOpen: 'Fokussierte Notiz öffnen; erneut drücken, um zu bearbeiten', keyboardNew: 'Neue Notiz erstellen', keyboardWorkspaceMenu: 'Arbeitsbereich-Auswahl öffnen; mit ↑/↓ bewegen und mit Enter wechseln', keyboardWorkspace: 'Arbeitsbereich wechseln (nur in der Notizliste; registrierte Arbeitsbereiche 1~9)', keyboardEscape: 'Auswahl aufheben, Löschen abbrechen oder diese Anleitung schließen', keyboardSelect: 'Fokussierte Notiz auswählen', keyboardRangeSelect: 'Mehrere Notizen als Bereich auswählen', keyboardTrash: 'Ausgewählte Notizen in den Papierkorb verschieben', keyboardNote: 'Während der Eingabe in einem Feld funktionieren die Kürzel nicht.',
     securityTitle: 'Sicherheitsübersicht',
     securityIntro: 'Ginote ist eine vollständig statische Web-App. Es gibt keinen App-Server, der die Anmeldung oder das Speichern von Notizen übernimmt — nach dem Laden der App läuft die gesamte Kommunikation direkt zwischen diesem Browser und GitHub.',
     securityDiagramFlow: 'Dieser Browser  ←── direkte Kommunikation ──→  GitHub',
@@ -297,7 +297,7 @@ const help = {
   },
   fr: {
     buttonSecurity: 'Aperçu de la sécurité', buttonMcp: 'Guide MCP', buttonApp: 'Installer l’application', buttonKeyboard: 'Raccourcis clavier',
-    keyboardTitle: 'Raccourcis clavier', keyboardIntro: 'Utilisez ces raccourcis lorsque la liste des notes est active.', keyboardMove: 'Parcourir les notes', keyboardOpen: 'Ouvrir la note active ; appuyez encore une fois pour modifier', keyboardNew: 'Créer une note', keyboardWorkspace: 'Changer d’espace de travail (uniquement dans la liste ; espaces enregistrés 1~9)', keyboardEscape: 'Annuler la sélection, une suppression ou fermer ce guide', keyboardSelect: 'Sélectionner la note active', keyboardRangeSelect: 'Sélectionner une plage de notes', keyboardTrash: 'Mettre les notes sélectionnées à la corbeille', keyboardNote: 'Les raccourcis ne fonctionnent pas pendant la saisie dans un champ.',
+    keyboardTitle: 'Raccourcis clavier', keyboardIntro: 'Utilisez ces raccourcis lorsque la liste des notes est active.', keyboardMove: 'Parcourir les notes', keyboardOpen: 'Ouvrir la note active ; appuyez encore une fois pour modifier', keyboardNew: 'Créer une note', keyboardWorkspaceMenu: 'Ouvrir le sélecteur d’espace de travail ; utiliser ↑/↓ puis Entrée pour changer', keyboardWorkspace: 'Changer d’espace de travail (uniquement dans la liste ; espaces enregistrés 1~9)', keyboardEscape: 'Annuler la sélection, une suppression ou fermer ce guide', keyboardSelect: 'Sélectionner la note active', keyboardRangeSelect: 'Sélectionner une plage de notes', keyboardTrash: 'Mettre les notes sélectionnées à la corbeille', keyboardNote: 'Les raccourcis ne fonctionnent pas pendant la saisie dans un champ.',
     securityTitle: 'Aperçu de la sécurité',
     securityIntro: 'Ginote est une application web entièrement statique. Il n’existe aucun serveur d’application qui gère la connexion ou l’enregistrement des notes — une fois l’application ouverte, toute la communication se fait directement entre ce navigateur et GitHub.',
     securityDiagramFlow: 'Ce navigateur  ←── communication directe ──→  GitHub',
@@ -325,7 +325,7 @@ const help = {
   },
   it: {
     buttonSecurity: 'Panoramica sulla sicurezza', buttonMcp: 'Guida MCP', buttonApp: "Installa l'app", buttonKeyboard: 'Scorciatoie da tastiera',
-    keyboardTitle: 'Scorciatoie da tastiera', keyboardIntro: 'Puoi usare queste scorciatoie quando è attivo l’elenco delle note.', keyboardMove: 'Spostarsi tra le note', keyboardOpen: 'Aprire la nota attiva; premi di nuovo per iniziare a modificarla', keyboardNew: 'Creare una nuova nota', keyboardWorkspace: 'Cambiare area di lavoro (solo nell’elenco; aree registrate 1~9)', keyboardEscape: 'Deselezionare, annullare l’eliminazione o chiudere questa guida', keyboardSelect: 'Selezionare la nota attiva', keyboardRangeSelect: 'Selezionare un intervallo di note', keyboardTrash: 'Spostare le note selezionate nel cestino', keyboardNote: 'Le scorciatoie non funzionano durante la digitazione in un campo.',
+    keyboardTitle: 'Scorciatoie da tastiera', keyboardIntro: 'Puoi usare queste scorciatoie quando è attivo l’elenco delle note.', keyboardMove: 'Spostarsi tra le note', keyboardOpen: 'Aprire la nota attiva; premi di nuovo per iniziare a modificarla', keyboardNew: 'Creare una nuova nota', keyboardWorkspaceMenu: 'Aprire il selettore dell’area di lavoro; usare ↑/↓ e premere Invio per cambiare', keyboardWorkspace: 'Cambiare area di lavoro (solo nell’elenco; aree registrate 1~9)', keyboardEscape: 'Deselezionare, annullare l’eliminazione o chiudere questa guida', keyboardSelect: 'Selezionare la nota attiva', keyboardRangeSelect: 'Selezionare un intervallo di note', keyboardTrash: 'Spostare le note selezionate nel cestino', keyboardNote: 'Le scorciatoie non funzionano durante la digitazione in un campo.',
     securityTitle: 'Panoramica sulla sicurezza',
     securityIntro: "Ginote è un'app web completamente statica. Non esiste un server dell'app che gestisca l'accesso o il salvataggio delle note: dopo l'apertura dell'app, tutta la comunicazione avviene direttamente tra questo browser e GitHub.",
     securityDiagramFlow: 'Questo browser  ←── comunicazione diretta ──→  GitHub',

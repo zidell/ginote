@@ -124,6 +124,8 @@ code { color: #d8d8d8; }
 .workspace-dropdown-item { display: flex; align-items: center; gap: .25rem; }
 .workspace-dropdown-item button { flex: 1; min-width: 0; display: flex; align-items: center; gap: .6rem; padding: .55rem .6rem; border: 0; border-radius: 4px; color: #ccc; text-align: left; background: transparent; font-size: .8rem; }
 .workspace-dropdown-item button:hover { color: #fff; background: #343b4d; }
+.workspace-dropdown-item.keyboard-focused button { color: #fff; background: #343b4d; }
+.workspace-dropdown-item button:focus-visible { outline: 1px solid #6684bd; outline-offset: -1px; }
 .workspace-active-icon { flex: none; visibility: hidden; color: #7ba2ff; font-size: 1.25rem; }
 .workspace-repo-avatar { width: 32px; height: 32px; flex: none; border-radius: 100%; }
 .workspace-dropdown-item.active .workspace-active-icon { visibility: visible; }

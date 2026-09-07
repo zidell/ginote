@@ -1,5 +1,5 @@
 <script>
-  import { onDestroy, onMount } from 'svelte';
+  import { onDestroy, onMount, tick } from 'svelte';
   import { _ } from 'svelte-i18n';
   import { parseRepositoryAddress } from './repo-address.js';
   import { workspaceDisplayName } from './settings-storage.js';
@@ -14,8 +14,18 @@
   let switcher;
   let toggleButton;
   let dropdownStyle = '';
-  onMount(() => document.addEventListener('pointerdown', handleOutside));
-  onDestroy(() => document.removeEventListener('pointerdown', handleOutside));
+  let highlightedIndex = -1;
+
+  onMount(() => {
+    document.addEventListener('pointerdown', handleOutside);
+    // App.svelte에도 전역 키보드 핸들러가 있으므로 캡처 단계에서 먼저
+    // 드롭다운 키를 처리해 노트 목록의 ↑/↓/Enter 단축키와 충돌하지 않게 한다.
+    window.addEventListener('keydown', handleGlobalKeydown, true);
+  });
+  onDestroy(() => {
+    document.removeEventListener('pointerdown', handleOutside);
+    window.removeEventListener('keydown', handleGlobalKeydown, true);
+  });
 
   function toggle() {
     if (busy || !user) return;
@@ -24,6 +34,8 @@
     if (open) {
       const rect = toggleButton.getBoundingClientRect();
       dropdownStyle = `top: ${rect.bottom + 6}px; left: ${rect.left}px;`;
+      highlightedIndex = activeWorkspaceIndex();
+      focusHighlightedOption();
     }
   }
 
@@ -38,6 +50,76 @@
   function select(workspaceId) {
     close();
     if (workspaceId !== activeWorkspaceId) onSwitch(workspaceId);
+  }
+
+  function activeWorkspaceIndex() {
+    const index = workspaces.findIndex((workspace) => workspace.id === activeWorkspaceId);
+    return index === -1 ? (workspaces.length ? 0 : -1) : index;
+  }
+
+  function focusHighlightedOption() {
+    tick().then(() => {
+      if (!open) return;
+      const options = switcher?.querySelectorAll('[role="option"]');
+      const option = options?.[highlightedIndex];
+      option?.focus();
+    });
+  }
+
+  function moveHighlight(direction) {
+    if (!workspaces.length) return;
+    const currentIndex = highlightedIndex >= 0 ? highlightedIndex : activeWorkspaceIndex();
+    highlightedIndex = Math.max(0, Math.min(workspaces.length - 1, currentIndex + direction));
+    focusHighlightedOption();
+  }
+
+  function isTypingTarget(element) {
+    return element instanceof HTMLInputElement
+      || element instanceof HTMLTextAreaElement
+      || element instanceof HTMLSelectElement
+      || element?.isContentEditable;
+  }
+
+  function isBackquote(event) {
+    return event.key === '`' || event.code === 'Backquote';
+  }
+
+  function handleGlobalKeydown(event) {
+    if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || event.isComposing) return;
+
+    if (isBackquote(event)) {
+      // 입력 중인 백틱은 노트·검색어에 입력할 수 있어야 한다.
+      if (!open && isTypingTarget(document.activeElement)) return;
+      if (busy || !user) return;
+      event.preventDefault();
+      event.stopPropagation();
+      toggle();
+      return;
+    }
+
+    if (!open) return;
+
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      event.stopPropagation();
+      close();
+      return;
+    }
+
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault();
+      event.stopPropagation();
+      moveHighlight(event.key === 'ArrowDown' ? 1 : -1);
+      return;
+    }
+
+    if (event.key === 'Enter') {
+      const workspace = workspaces[highlightedIndex];
+      if (!workspace) return;
+      event.preventDefault();
+      event.stopPropagation();
+      select(workspace.id);
+    }
   }
 
   function workspaceAvatarUrl(workspace) {
@@ -72,10 +154,15 @@
     <div class="workspace-dropdown" style={dropdownStyle}>
       <div class="workspace-dropdown-list" role="listbox" aria-label={$_('workspace.switcherLabel')}>
         {#each workspaces as workspace, index (workspace.id)}
-          <div class="workspace-dropdown-item" class:active={workspace.id === activeWorkspaceId}>
+          <div
+            class="workspace-dropdown-item"
+            class:active={workspace.id === activeWorkspaceId}
+            class:keyboard-focused={index === highlightedIndex}
+          >
             <button
               type="button"
               role="option"
+              tabindex={index === highlightedIndex ? 0 : -1}
               aria-selected={workspace.id === activeWorkspaceId}
               on:click={() => select(workspace.id)}
             >
