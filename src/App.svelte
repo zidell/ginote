@@ -71,6 +71,7 @@
   const SIDEBAR_WIDTH_MIN = 200;
   const SIDEBAR_WIDTH_MAX = 600;
   const SIDEBAR_WIDTH_DEFAULT = 340;
+  const HELP_TOPICS = new Set(['security', 'mcp', 'app']);
   const router = createStackRouter({ mode: 'hashbang', escToBack: true });
   const newContextTarget = externalLinkTarget();
 
@@ -119,6 +120,7 @@
   let error = '';
   let notice = '';
   let routeStack = [];
+  let helpTopic = null;
   let titleMode = 'first-line';
   let listRowFields = { title: true, summary: true, meta: true, tags: true };
   let editorFont = 'system';
@@ -200,6 +202,11 @@
     values: { repo: mcpRepository || 'owner/repository', issueNumber: '{issue number}' }
   });
   $: topRoute = routeStack.at(-1);
+  // 안내 화면도 다른 화면과 마찬가지로 URL 스택의 한 레이어다. 따라서 새로고침,
+  // 공유 URL, 브라우저 뒤로가기 모두 같은 방식으로 동작한다.
+  $: helpTopic = topRoute?.screen === 'help' && HELP_TOPICS.has(topRoute.value)
+    ? topRoute.value
+    : null;
   $: contentRoutes = routeStack.filter((route) => ['note', 'new'].includes(route.screen));
   $: contentRoute = contentRoutes.at(-1);
   $: isNewRoute = contentRoute?.screen === 'new';
@@ -275,8 +282,10 @@
     });
 
     function updateRouteStack(stack) {
-      const wasInSettings = routeStack.at(-1)?.screen === 'settings';
-      const isInSettings = stack.at(-1)?.screen === 'settings';
+      // 설정 위에 안내 레이어를 쌓았다가 닫아도 설정을 떠난 것이 아니므로,
+      // 최상단이 아니라 스택 전체에서 설정 경로의 유무를 비교한다.
+      const wasInSettings = routeStack.some((route) => route.screen === 'settings');
+      const isInSettings = stack.some((route) => route.screen === 'settings');
       const previousLabel = labelFromRoutes(routeStack);
       const nextLabel = labelFromRoutes(stack);
       routeStack = stack;
@@ -1017,11 +1026,6 @@
     if (event.key === 'Escape' && pendingIssueDeletion) {
       event.preventDefault();
       cancelPendingIssueDeletion();
-      return;
-    }
-    if (event.key === 'Escape' && helpTopic) {
-      event.preventDefault();
-      closeHelp();
       return;
     }
     if (event.key === 'Escape' && selectionMode) {
@@ -1989,14 +1993,13 @@
     router.pop();
   }
 
-  let helpTopic = null;
-
   function openHelp(topic) {
-    helpTopic = topic;
+    if (!HELP_TOPICS.has(topic)) return;
+    router.push(`help.${topic}`);
   }
 
   function closeHelp() {
-    helpTopic = null;
+    if (topRoute?.screen === 'help') router.pop();
   }
 
   async function copyMcpText(value, successMessage) {
