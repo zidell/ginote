@@ -1264,10 +1264,12 @@
     const focusedIndex = buttons.indexOf(document.activeElement);
     let targetIndex = focusedIndex;
     if (targetIndex === -1) {
+      // 상세 화면을 나와 DOM 포커스가 body로 돌아가도, 목록에 남은 키보드
+      // 커서 표시를 기준으로 다음 행을 계산한다.
       const keyboardFocusedIndex = buttons.findIndex(
         (button) => button.dataset.issueId === keyboardFocusedIssueId
       );
-      if (selectionMode && keyboardFocusedIndex !== -1) {
+      if (keyboardFocusedIndex !== -1) {
         targetIndex = keyboardFocusedIndex + direction;
       } else {
         const lastOpenedIssueId = lastOpenedIssueIds.get(activeWorkspaceId);
@@ -1535,10 +1537,8 @@
 
   function keyboardDeletionTargets() {
     if (selectedIssues.length) return selectedIssues;
-    if (!isNoteRowButton(document.activeElement)) return [];
-    const focusedIssueId = document.activeElement.dataset.issueId;
     const focusedIssue = [...pinnedIssues, ...unpinnedVisibleIssues]
-      .find((issue) => String(issue.id) === focusedIssueId);
+      .find((issue) => String(issue.id) === keyboardFocusedIssueId);
     return focusedIssue && !focusedIssue.local ? [focusedIssue] : [];
   }
 
