@@ -835,13 +835,6 @@
     if (files.length) uploadFiles(files);
   }
 
-  function handleEditorKeydown(event) {
-    if (!editable || event.key.toLocaleLowerCase() !== 's' || (!event.ctrlKey && !event.metaKey)) return;
-    event.preventDefault();
-    clearTimeout(remoteTimer);
-    saveRemote(true);
-  }
-
   function handleBodyInput(event) {
     body = expandAttachmentLinks(displayBody, repo);
     changed();
@@ -1179,12 +1172,6 @@
       deletingCommentIds.delete(comment.id);
       deletingCommentIds = deletingCommentIds;
     }
-  }
-
-  function handleCommentKeydown(event, comment) {
-    if (!editable || event.key.toLocaleLowerCase() !== 's' || (!event.ctrlKey && !event.metaKey)) return;
-    event.preventDefault();
-    saveComment(comment);
   }
 
   function autosize(node, value) {
@@ -1551,7 +1538,6 @@
         class="inline-title"
         bind:value={title}
         on:input={changed}
-        on:keydown={handleEditorKeydown}
         placeholder={$_("m.768e0c1c69")}
         maxlength="256"
         aria-label={$_("m.45e6c4d69d")}
@@ -1564,7 +1550,6 @@
       class="inline-body"
       bind:value={displayBody}
       on:input={handleBodyInput}
-      on:keydown={handleEditorKeydown}
       on:keyup={updateLinkTooltip}
       on:click={updateLinkTooltip}
       on:select={updateLinkTooltip}
@@ -1606,6 +1591,7 @@
                         data-bs-toggle="dropdown"
                         aria-expanded="false"
                         aria-label={$_("m.02f145f769")}
+                        tabindex="-1"
                       ><i class="bi bi-three-dots" aria-hidden="true"></i></button>
                       <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end">
                         <li>
@@ -1626,7 +1612,6 @@
                 class="note-comment-body"
                 bind:value={comment.body}
                 on:input={() => markCommentDirty(comment)}
-                on:keydown={(event) => handleCommentKeydown(event, comment)}
                 on:blur={() => saveComment(comment)}
                 placeholder={$_("m.ee6540eb88")}
                 readonly={!editable || lockState === 'locked'}

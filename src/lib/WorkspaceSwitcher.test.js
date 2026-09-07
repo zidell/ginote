@@ -43,8 +43,8 @@ describe('WorkspaceSwitcher', () => {
     expect(options[0].getAttribute('aria-selected')).toBe('true');
     expect(options[1].textContent).toContain('zidell/other-project');
     expect(options[1].getAttribute('aria-selected')).toBe('false');
-    expect(options[0].textContent).toMatch(/[⌃⌘] 1/);
-    expect(options[1].textContent).toMatch(/[⌃⌘] 2/);
+    expect(options[0].textContent).toMatch(/1/);
+    expect(options[1].textContent).toMatch(/2/);
   });
 
   it('다른 워크스페이스를 클릭하면 onSwitch를 호출하고 드롭다운을 닫는다', async () => {

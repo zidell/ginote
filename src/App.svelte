@@ -8,7 +8,6 @@
   import SetupWizard from './lib/SetupWizard.svelte';
   import TagSettings from './lib/TagSettings.svelte';
   import WorkspaceList from './lib/WorkspaceList.svelte';
-  import { workspaceIdForShortcut } from './lib/workspace-shortcut.js';
   import WorkspaceSwitcher from './lib/WorkspaceSwitcher.svelte';
   import { tagColorForName } from './lib/colors.js';
   import { _, locale as activeLocale } from 'svelte-i18n';
@@ -1005,16 +1004,32 @@
       clearIssueSelection();
       return;
     }
-    const workspaceId = workspaceIdForShortcut(event, workspaces);
     if (
-      workspaceId
-      && appState === 'ready'
-      && topRoute?.screen !== 'settings'
-      && !workspaceWizardOpen
+      canUseKeyboardListNavigation()
+      && isNoteRowButton(document.activeElement)
+      && !event.altKey
+      && !event.ctrlKey
+      && !event.metaKey
+      && event.shiftKey
+      && ['ArrowDown', 'ArrowUp'].includes(event.key)
     ) {
-      // 대상이 있을 때만 브라우저의 Ctrl/Cmd + 숫자 기본 동작(탭 전환)을 막는다.
       event.preventDefault();
-      switchWorkspace(workspaceId);
+      extendIssueSelection(event.key === 'ArrowDown' ? 1 : -1);
+      return;
+    }
+    if (
+      selectionMode
+      && state === 'open'
+      && isNoteRowButton(document.activeElement)
+      && !event.repeat
+      && !event.altKey
+      && !event.ctrlKey
+      && !event.metaKey
+      && !event.shiftKey
+      && ['Delete', 'Backspace'].includes(event.key)
+    ) {
+      event.preventDefault();
+      moveSelectedIssues();
       return;
     }
     if (
@@ -1060,7 +1075,7 @@
     }
     if (
       canUseListKeyboardShortcuts()
-      && hasNoInteractiveFocus()
+      && isKeyboardEnteredNoteSelection()
       && !event.repeat
       && !event.altKey
       && !event.ctrlKey
@@ -1102,20 +1117,13 @@
       newNote();
       return;
     }
-    if (
-      appState !== 'ready'
-      || topRoute?.screen === 'settings'
-      || event.repeat
-      || event.altKey
-      || event.shiftKey
-      || (!event.ctrlKey && !event.metaKey)
-      || event.key.toLocaleLowerCase() !== 'n'
-    ) return;
-    event.preventDefault();
-    newNote();
   }
 
   function canUseListKeyboardShortcuts() {
+    return !selectionMode && canUseKeyboardListNavigation();
+  }
+
+  function canUseKeyboardListNavigation() {
     const isHomeOrNote = routeStack.length === 0
       || /^#!\/?$/.test(window.location.hash)
       || contentRoute?.screen === 'note'
@@ -1125,15 +1133,18 @@
       && topRoute?.screen !== 'settings'
       && !workspaceWizardOpen
       && !helpTopic
-      && !selectionMode
       && isHomeOrNote
     );
   }
 
   function hasNoInteractiveFocus() {
-    // 버튼을 클릭해 노트를 연 뒤에도 브라우저가 그 버튼을 활성 요소로 남겨둘 수 있다.
-    // 단일 키는 실제 텍스트 입력·편집 중일 때만 막는다.
-    return !isEditableElement(document.activeElement);
+    return document.activeElement === document.body;
+  }
+
+  function isKeyboardEnteredNoteSelection() {
+    return document.activeElement === document.body
+      && Boolean(keyboardFocusedIssueId)
+      && keyboardEnteredIssueId === keyboardFocusedIssueId;
   }
 
   function workspaceNumberFromEvent(event) {
@@ -1175,6 +1186,36 @@
     }
 
     if (targetIndex < 0 || targetIndex >= buttons.length) return;
+    const target = buttons[targetIndex];
+    keyboardFocusedIssueId = target.dataset.issueId || '';
+    keyboardEnteredIssueId = '';
+    target.scrollIntoView({ block: 'nearest' });
+    target.focus({ preventScroll: true });
+  }
+
+  function extendIssueSelection(direction) {
+    const buttons = noteRowButtons();
+    const currentIndex = buttons.indexOf(document.activeElement);
+    const targetIndex = currentIndex + direction;
+    if (currentIndex < 0 || targetIndex < 0 || targetIndex >= buttons.length) return;
+
+    const orderedIssues = [...pinnedIssues, ...unpinnedVisibleIssues];
+    const currentIssueId = buttons[currentIndex].dataset.issueId;
+    if (selectionAnchorId === null) selectionAnchorId = currentIssueId;
+    const anchorIndex = orderedIssues.findIndex((issue) => String(issue.id) === String(selectionAnchorId));
+    if (anchorIndex < 0) {
+      selectionAnchorId = currentIssueId;
+      return;
+    }
+
+    const [start, end] = [anchorIndex, targetIndex].sort((a, b) => a - b);
+    selectedIssueIds = new Set(
+      orderedIssues
+        .slice(start, end + 1)
+        .filter((issue) => !issue.local)
+        .map((issue) => issue.id)
+    );
+
     const target = buttons[targetIndex];
     keyboardFocusedIssueId = target.dataset.issueId || '';
     keyboardEnteredIssueId = '';
