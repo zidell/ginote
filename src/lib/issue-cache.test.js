@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { clearAllCachedIssueLists, getCachedIssueList, invalidateCachedIssueList, setCachedIssueList } from './issue-cache.js';
 
 afterEach(() => {
@@ -27,5 +27,13 @@ describe('issue-cache', () => {
     clearAllCachedIssueLists();
     expect(getCachedIssueList('a')).toBeNull();
     expect(getCachedIssueList('b')).toBeNull();
+  });
+
+  it('지정한 유지 시간이 지난 캐시는 반환하지 않고 지운다', () => {
+    vi.useFakeTimers();
+    setCachedIssueList('a', { issues: [] });
+    vi.advanceTimersByTime(60 * 60 * 1000 + 1);
+    expect(getCachedIssueList('a', 60)).toBeNull();
+    vi.useRealTimers();
   });
 });

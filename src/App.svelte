@@ -8,6 +8,7 @@
   import SetupWizard from './lib/SetupWizard.svelte';
   import TagSettings from './lib/TagSettings.svelte';
   import WorkspaceList from './lib/WorkspaceList.svelte';
+  import { workspaceIdForShortcut } from './lib/workspace-shortcut.js';
   import WorkspaceSwitcher from './lib/WorkspaceSwitcher.svelte';
   import { tagColorForName } from './lib/colors.js';
   import { _, locale as activeLocale } from 'svelte-i18n';
@@ -19,11 +20,14 @@
     BACKGROUND_REFRESH_OPTIONS,
     LOCK_SESSION_DEFAULT_MINUTES,
     LOCK_SESSION_OPTIONS,
+    WORKSPACE_CACHE_DEFAULT_MINUTES,
+    WORKSPACE_CACHE_OPTIONS,
     clampNumber,
     createWorkspaceRecord,
     loadSettingsDocument,
     normalizeBackgroundRefreshMinutes,
     normalizeLockSessionMinutes,
+    normalizeWorkspaceCacheMinutes,
     preferenceSignature,
     renameWorkspace as renameWorkspaceRecord,
     reorderWorkspace,
@@ -120,6 +124,7 @@
   let issuePageSize = 30;
   let backgroundRefreshMinutes = BACKGROUND_REFRESH_DEFAULT_MINUTES;
   let lockSessionMinutes = LOCK_SESSION_DEFAULT_MINUTES;
+  let workspaceCacheMinutes = WORKSPACE_CACHE_DEFAULT_MINUTES;
   let languagePreference = 'auto';
   let backgroundRefreshTimer;
   let labelBusy = '';
@@ -299,6 +304,7 @@
         issuePageSize,
         backgroundRefreshMinutes,
         lockSessionMinutes,
+        workspaceCacheMinutes,
         language: languagePreference
       } = settingsDocument.preferences);
       setAppLocale(languagePreference);
@@ -414,6 +420,7 @@
       issuePageSize,
       backgroundRefreshMinutes,
       lockSessionMinutes,
+      workspaceCacheMinutes,
       language: languagePreference
     };
   }
@@ -574,13 +581,19 @@
     // 나가는 워크스페이스의 목록/필터 상태를 캐시해 다시 돌아왔을 때 즉시 보여준다(stale-while-revalidate).
     setCachedIssueList(activeWorkspaceId, {
       issues, repositoryLabels, issuePage, hasMoreIssues, totalIssues,
-      state, query, appliedQuery, activeLabel
+      state, query, appliedQuery, activeLabel,
+      sidebarScrollTop: sidebarScrollElement?.scrollTop || 0,
+      sidebarToolsOffset,
+      sidebarToolsRevealing
     });
 
     clearIssueSelection();
     selectedIssue = null;
     pendingNote = null;
     pendingAllocation = null;
+    // 이전 워크스페이스 요청의 로딩 표시가 새 목록 위에 남지 않게 초기화한다.
+    loading = false;
+    loadingMore = false;
     state = 'open';
     query = '';
     appliedQuery = '';
@@ -598,10 +611,17 @@
     notice = '';
     saveSettingsDocument({ workspaces, activeWorkspaceId, preferences: currentPreferences() });
 
-    const cached = getCachedIssueList(workspaceId);
+    const cached = getCachedIssueList(workspaceId, workspaceCacheMinutes);
     if (cached) {
-      ({ issues, repositoryLabels, issuePage, hasMoreIssues, totalIssues } = cached);
+      ({ issues, repositoryLabels, issuePage, hasMoreIssues, totalIssues, state, query, appliedQuery, activeLabel } = cached);
       appState = 'ready';
+      await tick();
+      if (sidebarScrollElement) {
+        sidebarScrollElement.scrollTop = cached.sidebarScrollTop || 0;
+        lastSidebarScrollTop = Math.max(0, sidebarScrollElement.scrollTop);
+        sidebarToolsOffset = cached.sidebarToolsOffset || 0;
+        sidebarToolsRevealing = Boolean(cached.sidebarToolsRevealing);
+      }
     } else {
       issues = [];
       repositoryLabels = [];
@@ -712,6 +732,7 @@
 
   async function loadIssues(background = false) {
     if (background && loading) return;
+    const requestedWorkspaceId = activeWorkspaceId;
     const requestedQuery = appliedQuery;
     const requestedState = state;
     const requestedLabel = activeLabel;
@@ -725,6 +746,8 @@
         ? await searchIssuesPage(token, repo, requestedState, requestedTerm, requestedLabel, 1, Date.now(), issuePageSize)
         : await listIssuesPage(token, repo, requestedState, requestedLabel, 1, Date.now(), issuePageSize);
       if (
+        requestedWorkspaceId !== activeWorkspaceId
+        ||
         requestedQuery !== appliedQuery
         || requestedState !== state
         || requestedLabel !== activeLabel
@@ -741,14 +764,15 @@
       if (result.totalCount !== null) totalIssues = result.totalCount;
       applyRoute();
     } catch (reason) {
-      if (!background) error = friendlyError(reason);
+      if (!background && requestedWorkspaceId === activeWorkspaceId) error = friendlyError(reason);
     } finally {
-      if (!background) loading = false;
+      if (!background && requestedWorkspaceId === activeWorkspaceId) loading = false;
     }
   }
 
   async function loadMoreIssues() {
     if (loading || loadingMore || !hasMoreIssues) return;
+    const requestedWorkspaceId = activeWorkspaceId;
     const requestedQuery = appliedQuery;
     const requestedState = state;
     const requestedLabel = activeLabel;
@@ -761,6 +785,8 @@
         ? await searchIssuesPage(token, repo, requestedState, requestedTerm, requestedLabel, nextPage, Date.now(), issuePageSize)
         : await listIssuesPage(token, repo, requestedState, requestedLabel, nextPage, Date.now(), issuePageSize);
       if (
+        requestedWorkspaceId !== activeWorkspaceId
+        ||
         requestedQuery !== appliedQuery
         || requestedState !== state
         || requestedLabel !== activeLabel
@@ -774,7 +800,7 @@
     } catch (reason) {
       error = friendlyError(reason);
     } finally {
-      loadingMore = false;
+      if (requestedWorkspaceId === activeWorkspaceId) loadingMore = false;
     }
   }
 
@@ -847,10 +873,13 @@
   }
 
   async function loadRepositoryLabels() {
+    const requestedWorkspaceId = activeWorkspaceId;
     try {
-      repositoryLabels = await listLabels(token, repo);
+      const labels = await listLabels(token, repo);
+      if (requestedWorkspaceId !== activeWorkspaceId) return;
+      repositoryLabels = labels;
     } catch (reason) {
-      error = friendlyError(reason);
+      if (requestedWorkspaceId === activeWorkspaceId) error = friendlyError(reason);
     }
   }
 
@@ -957,6 +986,18 @@
     if (event.key === 'Escape' && selectionMode) {
       event.preventDefault();
       clearIssueSelection();
+      return;
+    }
+    const workspaceId = workspaceIdForShortcut(event, workspaces);
+    if (
+      workspaceId
+      && appState === 'ready'
+      && topRoute?.screen !== 'settings'
+      && !workspaceWizardOpen
+    ) {
+      // 대상이 있을 때만 브라우저의 Ctrl/Cmd + 숫자 기본 동작(탭 전환)을 막는다.
+      event.preventDefault();
+      switchWorkspace(workspaceId);
       return;
     }
     if (
@@ -1444,6 +1485,7 @@
     issuePageSize = Math.round(clampNumber(issuePageSize, 10, 100, 30));
     backgroundRefreshMinutes = normalizeBackgroundRefreshMinutes(backgroundRefreshMinutes);
     lockSessionMinutes = normalizeLockSessionMinutes(lockSessionMinutes);
+    workspaceCacheMinutes = normalizeWorkspaceCacheMinutes(workspaceCacheMinutes);
     // 그냥 들여다보기만 하고 나온 경우에는 저장도 알림도 하지 않는다.
     if (preferenceSignature(currentPreferences()) === settingsEntrySignature) return;
     persistSettings(repo);
@@ -1752,6 +1794,24 @@
                     </option>
                   {/each}
                 </select>
+              </div>
+              <div class="mt-3">
+                <label class="form-label" for="workspace-cache-minutes">{$_('settings.workspaceCacheDuration')}</label>
+                <select
+                  id="workspace-cache-minutes"
+                  class="form-select"
+                  bind:value={workspaceCacheMinutes}
+                  on:change={announceDeferredApply}
+                >
+                  {#each WORKSPACE_CACHE_OPTIONS as minutes}
+                    <option value={minutes}>
+                      {minutes % 60 === 0
+                        ? `${minutes / 60} ${$_('settings.hours')}`
+                        : `${minutes} ${$_('settings.minutes')}`}
+                    </option>
+                  {/each}
+                </select>
+                <div class="form-text">{$_('settings.workspaceCacheHelp')}</div>
               </div>
               <div class="mt-3">
                 <label class="form-label" for="lock-session-minutes">{$_('settings.lockSessionDuration')}</label>

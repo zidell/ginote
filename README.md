@@ -384,6 +384,7 @@ UI 번역은 `svelte-i18n`, `src/lib/i18n.js`, `src/lib/locales/`의 메시지 �
 - 로컬 초안 저장: 편집 중 1초 간격
 - GitHub 자동 저장: 마지막 수정 후 5초
 - 새 노트: `Ctrl+N` 또는 `Cmd+N`
+- 워크스페이스 전환: `Ctrl+1`–`Ctrl+9` 또는 `Cmd+1`–`Cmd+9` (워크스페이스 표시 순서)
 - 강제 저장: `Ctrl+S` 또는 `Cmd+S`
 - 이탈 저장: `beforeunload`, `pagehide`, 문서가 숨겨지는 시점에 `keepalive` 요청
 
