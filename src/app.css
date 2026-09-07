@@ -29,9 +29,9 @@ button, input, textarea { font: inherit; }
 
 .boot-screen { height: 100%; display: flex; align-items: center; justify-content: center; gap: .75rem; background: #171717; }
 .setup-shell { min-height: 100%; display: grid; align-items: center; background: #111; }
-.settings-overlay { position: fixed; z-index: 1060; inset: 0; width: 100%; max-width: none; height: 100%; min-height: 0; display: block; overflow-y: auto; overscroll-behavior: contain; }
+.settings-overlay { position: fixed; z-index: 1060; inset: 0; width: 100%; max-width: none; height: 100%; min-height: 0; display: flex; overflow-y: auto; overscroll-behavior: contain; }
 .workspace-wizard-overlay { position: fixed; z-index: 1070; inset: 0; height: 100%; overflow-y: auto; overscroll-behavior: contain; }
-.setup-card { width: min(680px, 100%); border: 1px solid #383838 !important; border-radius: 8px; box-shadow: none !important; background: #1d1d1d; }
+.setup-card { width: min(680px, 100%); margin: auto; border: 1px solid #383838 !important; border-radius: 8px; box-shadow: none !important; background: #1d1d1d; }
 .setup-wizard { width: min(600px, 100%); }
 .setup-source-link { position: fixed; z-index: 2; top: 1rem; right: 1.25rem; text-decoration: none; }
 .setup-source-link:hover { color: #ddd !important; text-decoration: underline; }
@@ -54,12 +54,6 @@ button, input, textarea { font: inherit; }
 .brand-mark { width: 3rem; height: 3rem; display: block; border-radius: 5px; }
 .brand-mark-sm { width: 1.75rem; height: 1.75rem; }
 
-.pat-guide { border: 1px solid #3a3a3a; border-radius: 5px; background: #222; overflow: hidden; }
-.pat-guide summary { padding: .85rem 1rem; cursor: pointer; list-style: none; user-select: none; }
-.pat-guide summary::-webkit-details-marker { display: none; }
-.guide-chevron { color: #999; transition: transform 150ms ease; }
-.pat-guide[open] .guide-chevron { transform: rotate(180deg); }
-.pat-guide-body { padding: 1rem; background: #1d1d1d; }
 .pat-steps { padding-left: 1.25rem; }
 .pat-steps li { padding-left: .2rem; margin-bottom: .75rem; }
 .pat-steps span { display: block; color: #999; margin-top: .1rem; font-size: .875rem; }
@@ -90,7 +84,7 @@ button, input, textarea { font: inherit; }
 .tag-settings-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: .4rem; padding: .35rem 0; }
 .tag-settings-row .form-control { min-width: 0; }
 .tag-settings-row .btn { white-space: nowrap; }
-.mcp-guide code, .mcp-guide .font-monospace { color: #d8d8d8; }
+code { color: #d8d8d8; }
 .mcp-prompt { min-height: 8rem; resize: vertical; line-height: 1.55; }
 
 .app-shell { height: 100%; overflow: hidden; background: #171717; }
@@ -185,6 +179,19 @@ button, input, textarea { font: inherit; }
 .list-load-more { display: flex; justify-content: center; padding: .85rem .75rem 1.25rem; }
 .list-load-more .btn { display: inline-flex; align-items: center; gap: .4rem; text-decoration: none; }
 .list-status, .detail-empty { display: flex; align-items: center; justify-content: center; gap: .5rem; height: 100%; padding: 2rem; color: #888; font-size: .85rem; text-align: center; }
+.detail-empty-guide { flex-direction: column; gap: .85rem; }
+.help-links { display: flex; align-items: center; justify-content: center; gap: .6rem; flex-wrap: wrap; }
+.help-link { background: none; border: none; padding: 0; margin: 0; color: #888; font-size: .85rem; text-decoration: underline; cursor: pointer; }
+.help-link:hover, .help-link:focus-visible { color: #bbb; }
+.help-text { color: #eee; }
+.help-sep { color: #555; font-size: .85rem; }
+.help-overlay { position: fixed; z-index: 1065; inset: 0; width: 100%; max-width: none; height: 100%; min-height: 0; display: flex; overflow-y: auto; overscroll-behavior: contain; }
+.help-diagram { margin-bottom: 1rem; padding: .85rem 1rem; border: 1px solid #3a3a3a; border-radius: 6px; background: #222; color: #ccc; font-family: var(--bs-font-monospace); font-size: .8rem; text-align: center; }
+.help-diagram-note { margin-top: .35rem; color: #999; font-size: .75rem; }
+.help-points { padding-left: 1.1rem; }
+.help-points li { margin-bottom: .4rem; }
+.help-section-title { margin: 1rem 0 .5rem; font-size: .95rem; font-weight: 600; color: #e6e6e6; }
+.help-code { padding: .6rem .75rem; background: #222; border: 1px solid #3a3a3a; border-radius: 6px; color: #ddd; font-size: .8rem; white-space: pre-wrap; word-break: break-all; }
 .region-spinner { --bs-spinner-width: 1rem; --bs-spinner-height: 1rem; --bs-spinner-border-width: .14em; }
 .app-toast { position: fixed; z-index: 1100; top: 100px; left: 50%; padding: .55rem .85rem; border: 1px solid #d9b83f; border-radius: 5px; color: #2b2410; background: #f2d35c; box-shadow: 0 6px 18px rgba(0, 0, 0, .35); font-size: .85rem; pointer-events: none; transform: translateX(-50%); }
 .list-api-overlay, .attachment-api-overlay { display: grid; place-items: center; background: rgba(10, 10, 10, .42); }
