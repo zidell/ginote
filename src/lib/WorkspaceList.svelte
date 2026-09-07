@@ -140,7 +140,7 @@
           {:else}
             <p class="workspace-order-panel-hint">
               {$_('workspace.switchToManageTags')}
-              <button type="button" class="btn btn-outline-secondary" on:click={() => onSwitch(workspace.id)}>
+              <button type="button" class="btn btn-sm btn-outline-secondary" on:click={() => onSwitch(workspace.id)}>
                 {$_('workspace.switchAction')}
               </button>
             </p>
