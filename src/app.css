@@ -219,7 +219,8 @@ code { color: #d8d8d8; }
 .braille-spinner { width: 1ch; flex: 0 0 1ch; opacity: 0; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; line-height: 1; text-align: center; }
 .braille-spinner.active { opacity: 1; }
 .editor-notice { flex: none; padding: .55rem .85rem; border-bottom: 1px solid #363636; background: #201b1b; font-size: .8rem; }
-.inline-editor-fields { --editor-gutter: clamp(1rem, 3vw, 2.5rem); position: relative; flex: 1; width: 100%; max-width: var(--editor-max-width, 840px); margin: 0 auto; min-height: 0; display: flex; flex-direction: column; padding-top: var(--editor-gutter); overflow-y: auto; font-family: var(--note-font); }
+.inline-editor-scroll { flex: 1; width: 100%; min-height: 0; overflow-y: auto; }
+.inline-editor-fields { --editor-gutter: clamp(1rem, 3vw, 2.5rem); position: relative; width: 100%; max-width: var(--editor-max-width, 840px); margin: 0 auto; display: flex; flex-direction: column; padding-top: var(--editor-gutter); font-family: var(--note-font); }
 .inline-editor-fields.is-lock-protected { outline: 1px dashed #c7a43a; outline-offset: -3px; box-shadow: inset 0 0 0 3px rgba(199, 164, 58, .05); }
 .inline-editor-fields.is-dragging-files { border-radius: 6px; outline: 2px dashed #5680d8; outline-offset: -.65rem; background: rgba(37, 99, 235, .08); }
 .note-lock-overlay { position: absolute; z-index: 8; inset: 0; display: grid; place-items: center; padding: 1rem; background: rgba(23, 23, 23, .68); }

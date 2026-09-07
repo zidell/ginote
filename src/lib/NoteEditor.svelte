@@ -1432,6 +1432,7 @@
 
   {#if error}<div class="editor-notice text-danger">{error}</div>{/if}
 
+  <div class="inline-editor-scroll">
   <div
     class="inline-editor-fields"
     class:is-lock-protected={lockState !== 'plain'}
@@ -1674,6 +1675,7 @@
         <span>{shortenMiddle(activeLink.url)}</span>
       </a>
     {/if}
+  </div>
   </div>
 
   {#if viewedAttachment}
