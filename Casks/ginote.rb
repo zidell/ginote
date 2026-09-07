@@ -1,6 +1,6 @@
 cask "ginote" do
-  version "0.1.80"
-  sha256 "a365faa747e760ef4df55f48d0a5c4c71680df4d9b6dfded8af145e6e6417150"
+  version "0.1.81"
+  sha256 "5d03204bf57cfa74661afe1e6767abac8be5a7eb97e87e1ef42343c2f08dcf3e"
 
   url "https://github.com/zidell/ginote/releases/download/v#{version}/Ginote_#{version}_universal.dmg"
   name "Ginote"
