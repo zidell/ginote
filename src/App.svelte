@@ -73,7 +73,11 @@
   const SIDEBAR_WIDTH_MAX = 600;
   const SIDEBAR_WIDTH_DEFAULT = 340;
   const HELP_TOPICS = new Set(['security', 'mcp', 'app', 'keyboard']);
-  const router = createStackRouter({ mode: 'hashbang', escToBack: true });
+  // Escape는 열린 UI와 포커스를 먼저 정리한 뒤, 남은 경우에만 아래 전역
+  // 핸들러가 뒤로가기를 수행한다. 라우터의 자동 keyup 뒤로가기를 켜두면
+  // 드롭다운이 keydown에서 닫힌 뒤에도 같은 Escape의 keyup이 라우터에
+  // 도달해 게시물까지 빠져나가 버린다.
+  const router = createStackRouter({ mode: 'hashbang', escToBack: false });
   const newContextTarget = externalLinkTarget();
 
   let token = '';
@@ -1069,17 +1073,49 @@
   }
 
   function handleGlobalKeydown(event) {
+    if (event.key === 'Escape') {
+      // 컴포넌트가 먼저 처리한 Escape(드롭다운 닫기·입력 취소)는
+      // 라우팅까지 이어지지 않게 한다.
+      // Escape의 첫 번째 의미는 항상 현재 포커스를 해제하는 것이다.
+      // 포커스가 드롭다운 안에 있으면 드롭다운도 같은 동작에서 닫는다.
+      const activeElement = document.activeElement;
+      if (activeElement && activeElement !== document.body && activeElement !== document.documentElement) {
+        event.preventDefault();
+        const tagPicker = activeElement.closest?.('.tag-picker');
+        if (tagPicker) {
+          tagPicker.dispatchEvent(new CustomEvent('escape-close'));
+        } else if (activeElement.closest?.('.sidebar-selection-tags')) {
+          closeSelectionTagPanel();
+        }
+        activeElement.blur?.();
+        return;
+      }
+
+      event.preventDefault();
+      if (pendingIssueDeletion) {
+        cancelPendingIssueDeletion();
+        return;
+      }
+      if (selectionTagPanelOpen) {
+        closeSelectionTagPanel();
+        return;
+      }
+
+      const openTagPicker = document.querySelector('.tag-picker > button[aria-expanded="true"]')?.parentElement;
+      if (openTagPicker) {
+        openTagPicker.dispatchEvent(new CustomEvent('escape-close'));
+        return;
+      }
+
+      if (selectionMode) {
+        clearIssueSelection();
+        return;
+      }
+      router.pop();
+      return;
+    }
+
     const workspaceNumber = workspaceNumberFromEvent(event);
-    if (event.key === 'Escape' && pendingIssueDeletion) {
-      event.preventDefault();
-      cancelPendingIssueDeletion();
-      return;
-    }
-    if (event.key === 'Escape' && selectionMode) {
-      event.preventDefault();
-      clearIssueSelection();
-      return;
-    }
     if (
       canUseKeyboardListNavigation()
       && isNoteRowButton(document.activeElement)

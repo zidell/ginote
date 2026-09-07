@@ -231,6 +231,76 @@ describe('NoteEditor 첨부 파일', () => {
   });
 });
 
+describe('NoteEditor 태그', () => {
+  it('이미 붙은 태그를 선택기에서 다시 누르면 제거한다', async () => {
+    const issue = { ...baseIssue, labels: [{ name: 'Work' }] };
+    render(NoteEditor, {
+      token: 't',
+      repo: 'owner/repo',
+      issue,
+      availableLabels: [{ name: 'work' }],
+      ignoreRecoveredDraft: true,
+      autoSaveSeconds: 9999
+    });
+
+    const pickerButton = document.querySelector('.detail-toolbar-actions-desktop .tag-picker > button');
+    await fireEvent.click(pickerButton);
+
+    const option = screen.getByRole('button', { name: '#work' });
+    expect(option.getAttribute('aria-pressed')).toBe('true');
+    await fireEvent.click(option);
+
+    expect(document.querySelector('.editor-tag')).toBeNull();
+  });
+
+  it('인라인 선택기에서 마지막 태그를 빼도 열린 드롭다운은 유지한다', async () => {
+    const issue = { ...baseIssue, labels: [{ name: 'Work' }] };
+    render(NoteEditor, {
+      token: 't',
+      repo: 'owner/repo',
+      issue,
+      availableLabels: [{ name: 'work' }],
+      ignoreRecoveredDraft: true,
+      autoSaveSeconds: 9999
+    });
+
+    await waitFor(() => expect(document.querySelector('.editor-tags .tag-picker > button')).toBeTruthy());
+    const pickerButton = document.querySelector('.editor-tags .tag-picker > button');
+    await fireEvent.click(pickerButton);
+    await fireEvent.click(screen.getByRole('button', { name: '#work' }));
+
+    expect(document.querySelector('.editor-tag')).toBeNull();
+    expect(document.querySelector('.editor-tags')).toBeTruthy();
+    expect(document.querySelector('.editor-tags .tag-dropdown')).toBeTruthy();
+
+    await fireEvent.pointerDown(document.body);
+    expect(document.querySelector('.editor-tags')).toBeNull();
+  });
+
+  it('인라인 태그 검색창에서 Escape를 누르면 포커스와 드롭다운을 함께 닫는다', async () => {
+    const issue = { ...baseIssue, labels: [{ name: 'Work' }] };
+    render(NoteEditor, {
+      token: 't',
+      repo: 'owner/repo',
+      issue,
+      availableLabels: [{ name: 'work' }],
+      ignoreRecoveredDraft: true,
+      autoSaveSeconds: 9999
+    });
+
+    await waitFor(() => expect(document.querySelector('.editor-tags .tag-picker > button')).toBeTruthy());
+    await fireEvent.click(document.querySelector('.editor-tags .tag-picker > button'));
+    const input = document.querySelector('.editor-tags .tag-dropdown input');
+    expect(input).toBeTruthy();
+    input.focus();
+
+    await fireEvent.keyDown(input, { key: 'Escape' });
+
+    expect(document.activeElement).not.toBe(input);
+    expect(document.querySelector('.editor-tags .tag-dropdown')).toBeNull();
+  });
+});
+
 describe('NoteEditor 상단 고정', () => {
   it('고정할 때 부모에 현재 편집 중인 제목과 본문을 전달한다', async () => {
     const onTogglePin = vi.fn();
