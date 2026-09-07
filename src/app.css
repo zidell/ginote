@@ -290,6 +290,9 @@ code { color: #d8d8d8; }
 .tag-dropdown-list { max-height: 240px; margin-top: .3rem; overflow-y: auto; }
 .tag-dropdown-list button { width: 100%; display: flex; align-items: center; gap: .45rem; padding: .4rem .5rem; border: 0; border-radius: 3px; color: #ccc; text-align: left; background: transparent; font-size: .8rem; }
 .tag-dropdown-list button:hover { color: #fff; background: #343b4d; }
+.tag-dropdown-list button.is-selected { color: #fff; background: #303746; }
+.tag-dropdown-list button.is-selected:hover { background: #3b4660; }
+.tag-selected-icon { margin-left: auto; color: #b9ccff; }
 .tag-dropdown-list .create-tag { color: #b9ccff; }
 .tag-dropdown-empty { display: block; padding: .65rem .5rem; color: #777; font-size: .78rem; text-align: center; }
 .inline-title { flex: none; width: auto; margin: 0 var(--editor-gutter) 1rem; padding: 0 0 .75rem; border: 0; border-bottom: 1px solid #3a3a3a; outline: none; color: #eee; background: transparent; font-family: var(--note-font); font-size: calc(var(--note-font-size) * 1.35); font-weight: 650; line-height: 1.3; }

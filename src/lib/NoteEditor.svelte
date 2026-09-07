@@ -1,5 +1,6 @@
 <script>
   import { afterUpdate, onDestroy, onMount, tick } from 'svelte';
+  import Dropdown from 'bootstrap/js/dist/dropdown';
   import { tagColorForName } from './colors.js';
   import { _, locale } from 'svelte-i18n';
   import BrailleSpinner from './BrailleSpinner.svelte';
@@ -140,6 +141,7 @@
   let bodyInput;
   let handledFocusRequest = 0;
   let mobileTagPicker;
+  let inlineTagPickerOpen = false;
   let linkTooltip;
   let activeLink = null;
   let linkTooltipStyle = '';
@@ -211,6 +213,7 @@
     }, 1000);
     window.addEventListener('beforeunload', handlePageExit);
     window.addEventListener('pagehide', handlePageExit);
+    window.addEventListener('keydown', handleMoreToolbarEscape, true);
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
     if ((!issue || justCreated) && editable && !paused) {
@@ -242,6 +245,7 @@
     clearTimeout(lockReuseTimer);
     window.removeEventListener('beforeunload', handlePageExit);
     window.removeEventListener('pagehide', handlePageExit);
+    window.removeEventListener('keydown', handleMoreToolbarEscape, true);
     document.removeEventListener('visibilitychange', handleVisibilityChange);
     if (dirty) saveRemote(false, true);
     Object.values(previewUrls).forEach((url) => URL.revokeObjectURL(url));
@@ -1268,10 +1272,27 @@
     notifyDraftChange();
   }
 
-  function addTag(name) {
-    if (!name || hasLabel(name) || !editable) return;
-    labels = [...labels, name];
+  function toggleTag(name) {
+    if (!name || !editable) return;
+    const normalizedName = name.toLocaleLowerCase();
+    if (hasLabel(name)) {
+      labels = labels.filter((label) => label.toLocaleLowerCase() !== normalizedName);
+    } else {
+      labels = [...labels, name];
+    }
     changed();
+  }
+
+  function handleMoreToolbarEscape(event) {
+    if (event.key !== 'Escape') return;
+    const activeElement = document.activeElement;
+    const toolbar = activeElement?.closest?.('.detail-toolbar-more');
+    if (!toolbar || !toolbar.querySelector('.dropdown-menu.show')) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const toggleButton = toolbar.querySelector('[data-bs-toggle="dropdown"]');
+    if (toggleButton) Dropdown.getOrCreateInstance(toggleButton).hide();
+    activeElement.blur?.();
   }
 
   function prepareReturnToList() {
@@ -1339,7 +1360,7 @@
           toolbar
           {availableLabels}
           selectedLabels={labels}
-          onSelect={addTag}
+          onSelect={toggleTag}
         />
       {/if}
       {#if editable}
@@ -1361,7 +1382,7 @@
           iconOnly
           {availableLabels}
           selectedLabels={labels}
-          onSelect={addTag}
+          onSelect={toggleTag}
         />
         <label
           class="btn btn-outline-secondary detail-toolbar-icon-action"
@@ -1517,7 +1538,7 @@
         {/if}
       </section>
     {/if}
-    {#if labels.length}
+    {#if labels.length || inlineTagPickerOpen}
       <div class="editor-tags">
         {#each labels as label (label)}
           <span class="editor-tag" style={`--tag-color:${tagColor(label)}`}>
@@ -1531,9 +1552,10 @@
         {/each}
         {#if editable}
           <TagPicker
+            bind:open={inlineTagPickerOpen}
             {availableLabels}
             selectedLabels={labels}
-            onSelect={addTag}
+            onSelect={toggleTag}
           />
         {/if}
       </div>

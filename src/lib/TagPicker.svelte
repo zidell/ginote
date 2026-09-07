@@ -10,14 +10,19 @@
   export let toolbar = false;
   export let iconOnly = false;
   export let onSelect = () => {};
+  export let open = false;
 
-  let open = false;
   let search = '';
   let picker;
   let searchInput;
 
-  $: filteredLabels = availableLabels
-    .filter((label) => !hasSelected(label.name))
+  $: pickerLabels = [
+    ...availableLabels,
+    ...selectedLabels
+      .filter((name) => !availableLabels.some((label) => label.name.toLocaleLowerCase() === name.toLocaleLowerCase()))
+      .map((name) => ({ name }))
+  ];
+  $: filteredLabels = pickerLabels
     .filter((label) => label.name.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase()))
     .slice(0, 12);
   $: newTagName = normalizeTagName(search);
@@ -40,6 +45,7 @@
   }
 
   export function close() {
+    if (picker?.contains(document.activeElement)) document.activeElement?.blur?.();
     open = false;
     search = '';
     searchInput?.blur();
@@ -68,6 +74,26 @@
     else if (filteredLabels[0]) select(filteredLabels[0].name);
   }
 
+  function handlePickerEscape(event) {
+    if (!open || event.key !== 'Escape') return;
+    event.preventDefault();
+    event.stopPropagation();
+    close();
+  }
+
+  function captureEscape(node) {
+    node.addEventListener('keydown', handlePickerEscape, true);
+    return {
+      destroy() {
+        node.removeEventListener('keydown', handlePickerEscape, true);
+      }
+    };
+  }
+
+  function handleExternalEscape() {
+    close();
+  }
+
   function handleOutside(event) {
     if (open && !picker?.contains(event.target)) {
       open = false;
@@ -76,7 +102,13 @@
   }
 </script>
 
-<div class="tag-picker" class:toolbar bind:this={picker}>
+<div
+  class="tag-picker"
+  class:toolbar
+  bind:this={picker}
+  use:captureEscape
+  on:escape-close={handleExternalEscape}
+>
   <button
     type="button"
     class:btn={toolbar}
@@ -89,6 +121,7 @@
     aria-expanded={open}
     aria-label={iconOnly ? $_("m.848eed0fbd") : undefined}
     title={iconOnly ? $_("m.848eed0fbd") : undefined}
+    on:keydown={handleKeydown}
     on:click={toggle}
   ><i class={`bi ${toolbar ? 'bi-tags' : 'bi-plus-lg'}`} aria-hidden="true"></i>{#if !iconOnly} {toolbar ? $_("m.848eed0fbd") : $_("m.61cc55aa04")}{/if}</button>
   {#if open}
@@ -97,20 +130,33 @@
         bind:this={searchInput}
         bind:value={search}
         on:keydown={handleKeydown}
-        on:keyup={(event) => event.key === 'Escape' && event.stopPropagation()}
         placeholder={$_("m.eb7b580e41")}
         maxlength="51"
         aria-label={$_("m.eb7b580e41")}
       />
       <div class="tag-dropdown-list" aria-label={$_("m.9e704d11d1")}>
         {#each filteredLabels as label (label.id || label.name)}
-          <button type="button" on:click={() => select(label.name)}>
+          <button
+            type="button"
+            class:is-selected={hasSelected(label.name)}
+            aria-pressed={hasSelected(label.name)}
+            on:keydown={handleKeydown}
+            on:click={() => select(label.name)}
+          >
             <span class="label-dot" style={`--label-color:#${tagColorForName(label.name)}`}></span>
             #{label.name}
+            {#if hasSelected(label.name)}
+              <i class="bi bi-check2 tag-selected-icon" aria-hidden="true"></i>
+            {/if}
           </button>
         {/each}
         {#if canCreate}
-          <button type="button" class="create-tag" on:click={() => select(newTagName)}>
+          <button
+            type="button"
+            class="create-tag"
+            on:keydown={handleKeydown}
+            on:click={() => select(newTagName)}
+          >
             <span class="label-dot" style={`--label-color:#${tagColorForName(newTagName)}`}></span>
             {$_('dynamic.createTag', { values: { name: newTagName } })}
           </button>
