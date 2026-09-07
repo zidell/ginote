@@ -2635,6 +2635,7 @@
             <div><dt><kbd>↑</kbd> <kbd>↓</kbd></dt><dd>{$_('help.keyboardMove')}</dd></div>
             <div><dt><kbd>Enter</kbd></dt><dd>{$_('help.keyboardOpen')}</dd></div>
             <div><dt><kbd>N</kbd></dt><dd>{$_('help.keyboardNew')}</dd></div>
+            <div><dt><kbd>`</kbd></dt><dd>{$_('help.keyboardWorkspaceMenu')}</dd></div>
             <div><dt><kbd>1</kbd>~<kbd>9</kbd></dt><dd>{$_('help.keyboardWorkspace')}</dd></div>
             <div><dt><kbd>Esc</kbd></dt><dd>{$_('help.keyboardEscape')}</dd></div>
             <div><dt><kbd>Space</kbd></dt><dd>{$_('help.keyboardSelect')}</dd></div>
