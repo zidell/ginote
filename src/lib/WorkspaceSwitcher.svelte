@@ -3,7 +3,6 @@
   import { _ } from 'svelte-i18n';
   import { parseRepositoryAddress } from './repo-address.js';
   import { workspaceDisplayName } from './settings-storage.js';
-  import { shortcutModifierForPlatform } from './shortcut-platform.js';
 
   export let workspaces = [];
   export let activeWorkspaceId = '';
@@ -15,12 +14,7 @@
   let switcher;
   let toggleButton;
   let dropdownStyle = '';
-  let shortcutModifier = '⌃';
-
-  onMount(() => {
-    shortcutModifier = shortcutModifierForPlatform(navigator);
-    document.addEventListener('pointerdown', handleOutside);
-  });
+  onMount(() => document.addEventListener('pointerdown', handleOutside));
   onDestroy(() => document.removeEventListener('pointerdown', handleOutside));
 
   function toggle() {
@@ -96,7 +90,7 @@
                 {/if}
               </span>
               {#if index < 9}
-                <kbd class="workspace-shortcut" aria-hidden="true">{shortcutModifier} {index + 1}</kbd>
+                <kbd class="workspace-shortcut" aria-hidden="true">{index + 1}</kbd>
               {/if}
             </button>
           </div>

@@ -195,7 +195,8 @@ describe('NoteEditor 첨부 파일', () => {
     const bodyTextarea = document.querySelector('.inline-body');
     expect(bodyTextarea.value).not.toContain('orphan.png');
 
-    await fireEvent.keyDown(bodyTextarea, { key: 's', ctrlKey: true });
+    await fireEvent.input(bodyTextarea, { target: { value: `${bodyTextarea.value}\n` } });
+    await fireEvent.blur(bodyTextarea);
 
     await waitFor(() => {
       const savedNote = updateIssue.mock.calls.at(-1)[3];
@@ -291,7 +292,7 @@ describe('NoteEditor 빠른 노트 전환 레이스', () => {
 
     const bodyA = document.querySelector('.inline-body');
     await fireEvent.input(bodyA, { target: { value: 'A 노트만의 내용' } });
-    await fireEvent.keyDown(bodyA, { key: 's', ctrlKey: true });
+    await fireEvent.blur(bodyA);
 
     await waitFor(() => expect(updateIssue).toHaveBeenCalled());
     // 저장이 실패했으므로 세션 A의 초안은 localStorage에 남는다.
