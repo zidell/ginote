@@ -132,14 +132,14 @@ code { color: #d8d8d8; }
 .workspace-repo-text { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: .1rem; }
 .workspace-repo-text .workspace-repo-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #fff; font-size: .85rem; font-weight: 700; }
 .workspace-repo-text .workspace-repo-address { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #8a8a8a; font-size: .72rem; }
-.workspace-shortcut { flex: none; margin-left: auto; padding: .1rem .25rem; border: 0; color: #707070; background: transparent; font-family: inherit; font-size: .72rem; font-weight: 500; }
+.workspace-note-count { flex: none; min-width: 1.3rem; margin-left: auto; padding: .1rem .25rem; color: #8a8a8a; background: transparent; font-size: .72rem; font-variant-numeric: tabular-nums; text-align: right; }
 .responsive-toolbar-button { --bs-btn-padding-y: .25rem; --bs-btn-padding-x: .5rem; --bs-btn-font-size: .875rem; }
 .sidebar-tools { --sidebar-tools-offset: 0px; position: sticky; z-index: 4; top: 0; padding: .65rem; border-bottom: 1px solid #363636; background: #191919; transform: translateY(calc(-1 * var(--sidebar-tools-offset))); will-change: transform; }
 .sidebar-tools.is-revealing { transition: transform 180ms ease-out; }
 .sidebar-new-note { padding: .65rem; border-bottom: 1px solid #303030; }
 .sidebar-new-note .btn { --bs-btn-padding-y: .4rem; }
 .sidebar-new-note-shortcut { margin-left: .25rem; color: rgba(255, 255, 255, .58); font-size: 1em; font-weight: 400; }
-.touch-device .workspace-shortcut, .touch-device .sidebar-new-note-shortcut { display: none; }
+.touch-device .sidebar-new-note-shortcut { display: none; }
 .state-tabs { isolation: isolate; display: grid; grid-template-columns: 1fr 1fr; margin-bottom: .5rem; }
 .state-tabs button, .sidebar-search .btn { --bs-btn-color: #ccc; --bs-btn-bg: #252525; --bs-btn-border-color: #474747; --bs-btn-hover-color: #eee; --bs-btn-hover-bg: #303030; --bs-btn-hover-border-color: #555; --bs-btn-active-color: #eee; --bs-btn-active-bg: #383838; --bs-btn-active-border-color: #555; }
 .state-tabs button:first-child { border-radius: 4px 0 0 4px; }

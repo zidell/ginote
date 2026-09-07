@@ -8,6 +8,7 @@
   export let activeWorkspaceId = '';
   export let user = null;
   export let busy = false;
+  export let noteCounts = {};
   export let onSwitch = () => {};
 
   let open = false;
@@ -127,6 +128,12 @@
     return owner ? `https://github.com/${owner}.png?size=64` : '';
   }
 
+  function workspaceNoteCount(workspace) {
+    const rawCount = noteCounts?.[workspace?.id] ?? workspace?.noteCount;
+    const count = Number(rawCount);
+    return Number.isFinite(count) && count >= 0 ? Math.floor(count) : null;
+  }
+
   // 표시명이 없으면 "owner/repo" 전체 대신 저장소명만 제목으로 보여주고, 주소는 항상 아래에 별도 표시한다.
   function workspaceTitle(workspace) {
     const displayName = String(workspace?.displayName || '').trim();
@@ -154,6 +161,7 @@
     <div class="workspace-dropdown" style={dropdownStyle}>
       <div class="workspace-dropdown-list" role="listbox" aria-label={$_('workspace.switcherLabel')}>
         {#each workspaces as workspace, index (workspace.id)}
+          {@const noteCount = workspaceNoteCount(workspace)}
           <div
             class="workspace-dropdown-item"
             class:active={workspace.id === activeWorkspaceId}
@@ -176,8 +184,12 @@
                   <span class="workspace-repo-address">{workspace.repo}</span>
                 {/if}
               </span>
-              {#if index < 9}
-                <kbd class="workspace-shortcut" aria-hidden="true">{index + 1}</kbd>
+              {#if noteCount !== null}
+                <span
+                  class="workspace-note-count"
+                  aria-label={$_('dynamic.noteCount', { values: { count: noteCount } })}
+                  title={$_('dynamic.noteCount', { values: { count: noteCount } })}
+                >{noteCount}</span>
               {/if}
             </button>
           </div>

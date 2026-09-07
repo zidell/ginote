@@ -13,6 +13,7 @@ import {
   reorderWorkspace,
   saveSettingsDocument,
   STORAGE_KEY,
+  truncateMiddle,
   workspaceDisplayName
 } from './settings-storage.js';
 
@@ -148,6 +149,21 @@ describe('workspaceDisplayName', () => {
 
   it('공백만 있는 displayName은 무시하고 저장소 주소로 되돌린다', () => {
     expect(workspaceDisplayName({ repo: 'zidell/ginote', displayName: '   ' })).toBe('zidell/ginote');
+  });
+});
+
+describe('truncateMiddle', () => {
+  it('짧은 이름은 그대로 반환한다', () => {
+    expect(truncateMiddle('개인 노트')).toBe('개인 노트');
+  });
+
+  it('긴 이름은 앞뒤를 남기고 가운데를 ..로 줄인다', () => {
+    expect(truncateMiddle('abcdefghijkl')).toBe('abcd..ijkl');
+    expect(truncateMiddle('개인용노트이름입니다추가')).toBe('개인용노..니다추가');
+  });
+
+  it('유니코드 글자 기준으로 최대 길이를 지킨다', () => {
+    expect(Array.from(truncateMiddle('abcdefghijkl', 8))).toHaveLength(8);
   });
 });
 

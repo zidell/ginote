@@ -1281,6 +1281,15 @@
     mobileTagPicker?.close();
   }
 
+  function requestPinToggle() {
+    const targetIssue = remoteIssue || issue;
+    if (!targetIssue?.number) return;
+    // 새 노트가 정식 이슈로 승격된 직후에는 부모의 목록 스냅샷이 한 틱
+    // 늦을 수 있다. 현재 편집기 상태를 함께 넘겨야 고정 직후 제목이
+    // 초기값인 "새 노트"로 되돌아가지 않는다.
+    onTogglePin({ ...targetIssue, ...draftPayload() });
+  }
+
   async function returnToList() {
     // 라우터의 View Transition 스냅샷보다 앞서 DOM에서도 메뉴를 제거한다.
     prepareReturnToList();
@@ -1404,7 +1413,7 @@
             type="button"
             class="dropdown-item"
             disabled={!pinned && pinDisabled}
-            on:click={() => onTogglePin()}
+            on:click={requestPinToggle}
           >
             <i class={`bi ${pinned ? 'bi-pin-angle-fill' : 'bi-pin-angle'}`} aria-hidden="true"></i>
             {pinned ? '고정 해제' : '상단고정'}

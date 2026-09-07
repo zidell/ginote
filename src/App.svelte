@@ -32,6 +32,7 @@
     renameWorkspace as renameWorkspaceRecord,
     reorderWorkspace,
     saveSettingsDocument,
+    truncateMiddle,
     workspaceDisplayName
   } from './lib/settings-storage.js';
   import {
@@ -81,6 +82,7 @@
   let rememberToken = true;
   let workspaces = [];
   let activeWorkspaceId = '';
+  let workspaceNoteCounts = {};
   let workspaceWizardOpen = false;
   let workspaceWizardKey = 0;
   let workspaceWizardRepo = '';
@@ -190,6 +192,9 @@
     && !selectionTagOptions.some((option) => option.name.toLocaleLowerCase() === selectionNewTagName.toLocaleLowerCase());
   $: if (!selectionMode && selectionTagPanelOpen) closeSelectionTagPanel();
 
+  $: activeWorkspaceName = workspaceDisplayName(
+    workspaces.find((workspace) => workspace.id === activeWorkspaceId)
+  ) || $_("m.70440046a3");
   $: emptyMessage = appliedQuery
     ? $_("m.e9cc6d0e9a")
     : state === 'open'
@@ -217,9 +222,6 @@
     : issues;
   $: pinnedIssueIds = new Set(pinnedIssues.map((issue) => issue.id));
   $: unpinnedVisibleIssues = visibleIssues.filter((issue) => !pinnedIssueIds.has(issue.id));
-  $: displayedIssueCount = pendingNote && state === 'open' && (!appliedQuery || queryIsLabelFilter) && pendingMatchesLabel
-    ? Math.max(totalIssues, pendingNote.countBaseline + 1)
-    : totalIssues;
   $: sidebarLabelSuggestions = repositoryLabels.filter((label) =>
     label.name.toLocaleLowerCase().includes(query.trim().replace(/^#/, '').toLocaleLowerCase())
   );
@@ -388,8 +390,7 @@
     }
 
     if (route?.screen === 'note') {
-      const issueNumber = Number(route.value);
-      selectedIssue = issues.find((issue) => issue.number === issueNumber) || null;
+      selectedIssue = issueForRoute(route);
       if (selectedIssue) {
         lastOpenedIssueIds.set(activeWorkspaceId, selectedIssue.id);
         synchronizeKeyboardFocusWithDetail(selectedIssue);
@@ -409,7 +410,12 @@
   function issueForRoute(route) {
     if (route.screen === 'new') return null;
     const issueNumber = Number(route.value);
-    return issues.find((issue) => issue.number === issueNumber) || null;
+    // 고정 노트는 현재 페이지에 없거나 검색/필터 결과에서 빠져도 별도
+    // 스냅샷으로 목록에 남는다. 그런 노트를 눌렀을 때도 같은 편집기를 열어야
+    // 하므로 일반 목록 다음에 고정 목록을 fallback으로 사용한다.
+    return issues.find((issue) => issue.number === issueNumber)
+      || pinnedIssues.find((issue) => issue.number === issueNumber)
+      || null;
   }
 
   function synchronizeKeyboardFocusWithDetail(issue) {
@@ -611,6 +617,32 @@
     }
   }
 
+  function isUnfilteredNoteView(stateValue = state, queryValue = appliedQuery, labelValue = activeLabel) {
+    return stateValue === 'open' && !String(queryValue || '').trim() && !labelValue;
+  }
+
+  function setWorkspaceNoteCount(workspaceId, count) {
+    const numericCount = Number(count);
+    if (!workspaceId || !Number.isFinite(numericCount) || numericCount < 0) return;
+    workspaceNoteCounts = {
+      ...workspaceNoteCounts,
+      [workspaceId]: Math.floor(numericCount)
+    };
+  }
+
+  function adjustWorkspaceNoteCount(workspaceId, delta) {
+    const currentCount = workspaceNoteCounts[workspaceId];
+    if (!Number.isFinite(currentCount)) return;
+    setWorkspaceNoteCount(workspaceId, currentCount + delta);
+  }
+
+  function removeWorkspaceNoteCount(workspaceId) {
+    if (!workspaceId || !(workspaceId in workspaceNoteCounts)) return;
+    const nextCounts = { ...workspaceNoteCounts };
+    delete nextCounts[workspaceId];
+    workspaceNoteCounts = nextCounts;
+  }
+
   async function switchWorkspace(workspaceId) {
     if (!workspaceId || workspaceId === activeWorkspaceId) return;
     const target = workspaces.find((workspace) => workspace.id === workspaceId);
@@ -620,6 +652,7 @@
     setCachedIssueList(activeWorkspaceId, {
       issues, repositoryLabels, issuePage, hasMoreIssues, totalIssues,
       state, query, appliedQuery, activeLabel,
+      noteCount: workspaceNoteCounts[activeWorkspaceId],
       openNoteSegment: contentRoute?.screen === 'note' ? contentRoute.segment : '',
       sidebarScrollTop: sidebarScrollElement?.scrollTop || 0,
       sidebarToolsOffset,
@@ -654,6 +687,7 @@
     const cached = getCachedIssueList(workspaceId, workspaceCacheMinutes);
     if (cached) {
       ({ issues, repositoryLabels, issuePage, hasMoreIssues, totalIssues, state, query, appliedQuery, activeLabel } = cached);
+      setWorkspaceNoteCount(workspaceId, cached.noteCount);
       appState = 'ready';
       // 유효 기간 안의 캐시라면 그 워크스페이스에서 마지막으로 열던 노트도 되돌린다.
       router.navigate(cached.openNoteSegment ? `/${cached.openNoteSegment}` : '/');
@@ -731,6 +765,7 @@
   function forgetWorkspace(workspaceId) {
     workspaces = workspaces.filter((workspace) => workspace.id !== workspaceId);
     invalidateCachedIssueList(workspaceId);
+    removeWorkspaceNoteCount(workspaceId);
     saveSettingsDocument({ workspaces, activeWorkspaceId, preferences: currentPreferences() });
     if (activeWorkspaceId !== workspaceId) return;
     const next = workspaces[0];
@@ -803,8 +838,14 @@
         issuePage = 1;
         hasMoreIssues = result.hasMore;
       }
+      syncPinnedIssueSnapshots(result.items);
       reconcileIssueSelection(issues);
-      if (result.totalCount !== null) totalIssues = result.totalCount;
+      if (result.totalCount !== null) {
+        totalIssues = result.totalCount;
+        if (isUnfilteredNoteView(requestedState, requestedQuery, requestedLabel)) {
+          setWorkspaceNoteCount(requestedWorkspaceId, result.totalCount);
+        }
+      }
       applyRoute();
     } catch (reason) {
       if (!background && requestedWorkspaceId === activeWorkspaceId) error = friendlyError(reason);
@@ -836,9 +877,15 @@
       ) return;
       const knownIds = new Set(issues.map((issue) => issue.id));
       issues = [...issues, ...result.items.filter((issue) => !knownIds.has(issue.id))];
+      syncPinnedIssueSnapshots(result.items);
       issuePage = nextPage;
       hasMoreIssues = result.hasMore;
-      if (result.totalCount !== null) totalIssues = result.totalCount;
+      if (result.totalCount !== null) {
+        totalIssues = result.totalCount;
+        if (isUnfilteredNoteView(requestedState, requestedQuery, requestedLabel)) {
+          setWorkspaceNoteCount(requestedWorkspaceId, result.totalCount);
+        }
+      }
       applyRoute();
     } catch (reason) {
       error = friendlyError(reason);
@@ -1663,10 +1710,7 @@
   function noteSaved(savedIssue, localDraft = null) {
     const displayedIssue = localDraft ? { ...savedIssue, ...localDraft } : savedIssue;
     issues = issues.map((issue) => issue.id === savedIssue.id ? displayedIssue : issue);
-    if (pinnedIssueIds.has(savedIssue.id)) {
-      pinnedIssues = replacePinnedNoteSnapshot(pinnedIssues, displayedIssue);
-      savePinnedNotes(activeWorkspaceId, pinnedIssues);
-    }
+    syncPinnedIssueSnapshot(displayedIssue);
     const savedIssueIsActive = contentRoute?.screen === 'note'
       && Number(contentRoute.value) === savedIssue.number;
     if (savedIssueIsActive) selectedIssue = displayedIssue;
@@ -1677,10 +1721,7 @@
 
   function noteRefreshed(refreshedIssue) {
     issues = issues.map((issue) => issue.id === refreshedIssue.id ? refreshedIssue : issue);
-    if (pinnedIssueIds.has(refreshedIssue.id)) {
-      pinnedIssues = replacePinnedNoteSnapshot(pinnedIssues, refreshedIssue);
-      savePinnedNotes(activeWorkspaceId, pinnedIssues);
-    }
+    syncPinnedIssueSnapshot(refreshedIssue);
     const refreshedIssueIsActive = contentRoute?.screen === 'note'
       && Number(contentRoute.value) === refreshedIssue.number;
     if (refreshedIssueIsActive) selectedIssue = refreshedIssue;
@@ -1689,6 +1730,29 @@
   function togglePin(issue) {
     if (!issue || issue.local) return;
     pinnedIssues = togglePinnedNote(pinnedIssues, issue);
+    savePinnedNotes(activeWorkspaceId, pinnedIssues);
+  }
+
+  function syncPinnedIssueSnapshot(issue, persist = true) {
+    if (!issue || !pinnedIssues.some((item) => item.id === issue.id)) return;
+    const nextPinnedIssues = replacePinnedNoteSnapshot(pinnedIssues, issue);
+    if (nextPinnedIssues === pinnedIssues) return;
+    pinnedIssues = nextPinnedIssues;
+    if (persist) savePinnedNotes(activeWorkspaceId, pinnedIssues);
+  }
+
+  function syncPinnedIssueSnapshots(nextIssues) {
+    if (!pinnedIssues.length || !nextIssues?.length) return;
+    const latestById = new Map(nextIssues.map((issue) => [issue.id, issue]));
+    let changed = false;
+    const nextPinnedIssues = pinnedIssues.map((pinnedIssue) => {
+      const latestIssue = latestById.get(pinnedIssue.id);
+      if (!latestIssue) return pinnedIssue;
+      changed = true;
+      return latestIssue;
+    });
+    if (!changed) return;
+    pinnedIssues = nextPinnedIssues;
     savePinnedNotes(activeWorkspaceId, pinnedIssues);
   }
 
@@ -1702,6 +1766,7 @@
     state = 'open';
     issues = [savedIssue, ...issues.filter((issue) => issue.id !== savedIssue.id)];
     totalIssues = Math.max(totalIssues, (pendingNote?.countBaseline ?? totalIssues) + 1);
+    adjustWorkspaceNoteCount(activeWorkspaceId, 1);
     pendingNote = null;
     pendingAllocation = null;
     if (newNoteIsActive) {
@@ -1741,8 +1806,12 @@
       return;
     }
 
-    issues = issues.map((issue) => issue.id === sourceIssue.id ? { ...issue, ...draft } : issue);
-    if (selectedIssue?.id === sourceIssue.id) selectedIssue = { ...selectedIssue, ...draft };
+    const updatedIssue = { ...sourceIssue, ...draft };
+    issues = issues.map((issue) => issue.id === sourceIssue.id ? updatedIssue : issue);
+    // 타이핑마다 본문 전체를 localStorage에 다시 쓰지는 않는다. 화면의 고정
+    // 행은 즉시 갱신하되, 저장 성공/새로고침 시점에 영속 스냅샷을 갱신한다.
+    syncPinnedIssueSnapshot(updatedIssue, false);
+    if (selectedIssue?.id === sourceIssue.id) selectedIssue = updatedIssue;
   }
 
   function mergeRepositoryLabels(nextLabels) {
@@ -1952,12 +2021,21 @@
     ) return;
 
     error = '';
+    const requestedWorkspaceId = activeWorkspaceId;
+    const noteCountDelta = nextState === 'open' ? 1 : -1;
     const removedIndex = issues.findIndex((item) => item.id === issue.id);
+    const pinnedIndex = pinnedIssues.findIndex((item) => item.id === issue.id);
+    const removedPinnedIssue = pinnedIndex >= 0 ? pinnedIssues[pinnedIndex] : null;
     const wasSelected = selectedIssue?.id === issue.id;
 
     // 휴지통 이동/복원은 목록에서 즉시 반영하고, GitHub 요청은 뒤에서 처리한다.
     issues = issues.filter((item) => item.id !== issue.id);
+    if (removedPinnedIssue) {
+      pinnedIssues = pinnedIssues.filter((item) => item.id !== issue.id);
+      savePinnedNotes(activeWorkspaceId, pinnedIssues);
+    }
     totalIssues = Math.max(0, totalIssues - 1);
+    adjustWorkspaceNoteCount(requestedWorkspaceId, noteCountDelta);
     if (wasSelected) {
       selectedIssue = null;
       if (router.getDepth()) router.popTo(0);
@@ -1975,6 +2053,16 @@
           issues = [...issues.slice(0, insertionIndex), issue, ...issues.slice(insertionIndex)];
           totalIssues += 1;
         }
+        if (removedPinnedIssue && !pinnedIssues.some((item) => item.id === issue.id)) {
+          const insertionIndex = Math.min(pinnedIndex, pinnedIssues.length);
+          pinnedIssues = [
+            ...pinnedIssues.slice(0, insertionIndex),
+            removedPinnedIssue,
+            ...pinnedIssues.slice(insertionIndex)
+          ];
+          savePinnedNotes(activeWorkspaceId, pinnedIssues);
+        }
+        adjustWorkspaceNoteCount(requestedWorkspaceId, -noteCountDelta);
         error = friendlyError(reason);
       });
   }
@@ -2257,12 +2345,12 @@
               {workspaces}
               {activeWorkspaceId}
               {user}
+              noteCounts={workspaceNoteCounts}
               busy={appState === 'connecting' || appState === 'restoring'}
               onSwitch={switchWorkspace}
             />
             <div class="sidebar-heading-title">
-              <h1>{state === 'open' ? $_("m.70440046a3") : $_("m.e3bf62bb7f")}</h1>
-              <span>{$_('dynamic.noteCount', { values: { count: displayedIssueCount } })}</span>
+              <h1 title={activeWorkspaceName}>{truncateMiddle(activeWorkspaceName)}</h1>
             </div>
           </div>
           <button
