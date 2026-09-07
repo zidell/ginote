@@ -14,8 +14,12 @@
   let switcher;
   let toggleButton;
   let dropdownStyle = '';
+  let shortcutModifier = '⌃';
 
-  onMount(() => document.addEventListener('pointerdown', handleOutside));
+  onMount(() => {
+    shortcutModifier = /Mac|iPhone|iPad|iPod/.test(navigator.platform) ? '⌘' : '⌃';
+    document.addEventListener('pointerdown', handleOutside);
+  });
   onDestroy(() => document.removeEventListener('pointerdown', handleOutside));
 
   function toggle() {
@@ -72,7 +76,7 @@
   {#if open}
     <div class="workspace-dropdown" style={dropdownStyle}>
       <div class="workspace-dropdown-list" role="listbox" aria-label={$_('workspace.switcherLabel')}>
-        {#each workspaces as workspace (workspace.id)}
+        {#each workspaces as workspace, index (workspace.id)}
           <div class="workspace-dropdown-item" class:active={workspace.id === activeWorkspaceId}>
             <button
               type="button"
@@ -90,6 +94,9 @@
                   <span class="workspace-repo-address">{workspace.repo}</span>
                 {/if}
               </span>
+              {#if index < 9}
+                <kbd class="workspace-shortcut" aria-hidden="true">{shortcutModifier} {index + 1}</kbd>
+              {/if}
             </button>
           </div>
         {/each}

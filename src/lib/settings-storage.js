@@ -5,6 +5,8 @@ export const BACKGROUND_REFRESH_DEFAULT_MINUTES = 60;
 export const BACKGROUND_REFRESH_OPTIONS = [0, 5, 15, 30, 60, 180];
 export const LOCK_SESSION_DEFAULT_MINUTES = 60;
 export const LOCK_SESSION_OPTIONS = [5, 15, 30, 60, 180, 480, 720, 1440];
+export const WORKSPACE_CACHE_DEFAULT_MINUTES = 60;
+export const WORKSPACE_CACHE_OPTIONS = [5, 15, 30, 60, 180, 360, 720, 1440];
 
 export function clampNumber(value, minimum, maximum, fallback) {
   const number = Number(value);
@@ -20,6 +22,11 @@ export function normalizeBackgroundRefreshMinutes(value) {
 export function normalizeLockSessionMinutes(value) {
   const minutes = Number(value);
   return LOCK_SESSION_OPTIONS.includes(minutes) ? minutes : LOCK_SESSION_DEFAULT_MINUTES;
+}
+
+export function normalizeWorkspaceCacheMinutes(value) {
+  const minutes = Number(value);
+  return WORKSPACE_CACHE_OPTIONS.includes(minutes) ? minutes : WORKSPACE_CACHE_DEFAULT_MINUTES;
 }
 
 export function normalizeListRowFields(raw) {
@@ -45,6 +52,7 @@ export function normalizePreferences(raw) {
     issuePageSize: clampNumber(raw?.issuePageSize, 10, 100, 30),
     backgroundRefreshMinutes: normalizeBackgroundRefreshMinutes(raw?.backgroundRefreshMinutes),
     lockSessionMinutes: normalizeLockSessionMinutes(raw?.lockSessionMinutes),
+    workspaceCacheMinutes: normalizeWorkspaceCacheMinutes(raw?.workspaceCacheMinutes),
     language: LOCALE_OPTIONS.some((option) => option.value === savedLanguage) ? savedLanguage : 'auto'
   };
 }
@@ -61,6 +69,7 @@ export function preferenceSignature(preferences) {
     preferences.issuePageSize,
     preferences.backgroundRefreshMinutes,
     preferences.lockSessionMinutes,
+    preferences.workspaceCacheMinutes,
     preferences.language
   ]);
 }
