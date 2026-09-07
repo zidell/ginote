@@ -6,14 +6,19 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 env:
   RELEASE_VERSION: 0.1.${{ github.run_number }}
 
 jobs:
+  # Publishing is intentionally restricted to the canonical repository. Forks
+  # may run CI, but must not create releases or update distribution channels.
   prepare-release:
     name: Prepare draft release
+    if: github.repository == 'zidell/ginote'
+    permissions:
+      contents: write
     runs-on: ubuntu-22.04
     outputs:
       release_id: ${{ steps.release.outputs.release_id }}
@@ -49,6 +54,9 @@ jobs:
 
   release:
     needs: prepare-release
+    if: github.repository == 'zidell/ginote'
+    permissions:
+      contents: write
     strategy:
       fail-fast: false
       matrix:
@@ -137,6 +145,9 @@ jobs:
   publish-release:
     name: Publish desktop release
     needs: [prepare-release, release]
+    if: github.repository == 'zidell/ginote'
+    permissions:
+      contents: write
     runs-on: ubuntu-22.04
     steps:
       - name: Publish completed release
@@ -151,6 +162,9 @@ jobs:
   prune-releases:
     name: Keep the latest 20 releases
     needs: publish-release
+    if: github.repository == 'zidell/ginote'
+    permissions:
+      contents: write
     runs-on: ubuntu-22.04
     steps:
       - name: Delete older releases and tags
@@ -167,6 +181,9 @@ jobs:
   update-cask:
     name: Update Homebrew cask
     needs: publish-release
+    if: github.repository == 'zidell/ginote'
+    permissions:
+      contents: write
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5

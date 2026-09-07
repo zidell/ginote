@@ -241,9 +241,10 @@ brew tap zidell/ginote https://github.com/zidell/ginote
 brew install --cask ginote
 ```
 
-`Casks/ginote.rb`는 릴리스 워크플로의 `update-cask` 작업이 매 릴리스마다
-최신 macOS universal dmg의 버전과 sha256으로 자동 갱신하며, main에 직접
-커밋됩니다.
+`Casks/ginote.rb`는 원본 `zidell/ginote` 저장소에서만 실행되는 릴리스
+워크플로의 `update-cask` 작업이 매 릴리스마다 최신 macOS universal dmg의
+버전과 sha256으로 자동 갱신하며, main에 직접 커밋됩니다. 포크에서는 CI만
+실행하며 릴리스, Homebrew, 그리고 향후 배포 채널 갱신 작업은 수행하지 않습니다.
 
 ## 빌드
 
