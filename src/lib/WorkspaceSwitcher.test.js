@@ -43,8 +43,24 @@ describe('WorkspaceSwitcher', () => {
     expect(options[0].getAttribute('aria-selected')).toBe('true');
     expect(options[1].textContent).toContain('zidell/other-project');
     expect(options[1].getAttribute('aria-selected')).toBe('false');
-    expect(options[0].textContent).toMatch(/1/);
-    expect(options[1].textContent).toMatch(/2/);
+    expect(options[0].querySelector('.workspace-shortcut')).toBeNull();
+    expect(options[1].querySelector('.workspace-note-count')).toBeNull();
+  });
+
+  it('알고 있는 워크스페이스별 노트 수를 우측에 표시한다', async () => {
+    render(WorkspaceSwitcher, {
+      workspaces: workspaces(),
+      activeWorkspaceId: 'a',
+      noteCounts: { a: 12, b: 0 },
+      user: { login: 'zidell', avatar_url: 'https://example.com/a.png' }
+    });
+
+    await fireEvent.click(screen.getByRole('button', { name: 'Switch workspace' }));
+
+    const options = within(screen.getByRole('listbox')).getAllByRole('option');
+    expect(options[0].querySelector('.workspace-note-count')?.textContent).toBe('12');
+    expect(options[1].querySelector('.workspace-note-count')?.textContent).toBe('0');
+    expect(options[0].querySelector('.workspace-shortcut')).toBeNull();
   });
 
   it('다른 워크스페이스를 클릭하면 onSwitch를 호출하고 드롭다운을 닫는다', async () => {

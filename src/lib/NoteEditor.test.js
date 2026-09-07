@@ -231,6 +231,30 @@ describe('NoteEditor 첨부 파일', () => {
   });
 });
 
+describe('NoteEditor 상단 고정', () => {
+  it('고정할 때 부모에 현재 편집 중인 제목과 본문을 전달한다', async () => {
+    const onTogglePin = vi.fn();
+    render(NoteEditor, {
+      token: 't',
+      repo: 'owner/repo',
+      issue: baseIssue,
+      titleMode: 'separate',
+      onTogglePin
+    });
+
+    const titleInput = document.querySelector('.inline-title');
+    await fireEvent.input(titleInput, { target: { value: '고정 직전 제목' } });
+    const pinButton = [...document.querySelectorAll('.dropdown-item')]
+      .find((button) => button.textContent.includes('상단고정'));
+    await fireEvent.click(pinButton);
+
+    expect(onTogglePin).toHaveBeenCalledWith(expect.objectContaining({
+      title: '고정 직전 제목',
+      body: baseIssue.body
+    }));
+  });
+});
+
 describe('NoteEditor 빠른 노트 전환 레이스', () => {
   function deferred() {
     let resolve;

@@ -89,6 +89,19 @@ export function workspaceDisplayName(workspace) {
   return String(workspace?.displayName || '').trim() || workspace?.repo || '';
 }
 
+export function truncateMiddle(value, maxLength = 10) {
+  const text = String(value ?? '');
+  const limit = Math.max(4, Math.floor(Number(maxLength) || 10));
+  const characters = Array.from(text);
+  if (characters.length <= limit) return text;
+
+  const marker = '..';
+  const visibleLength = limit - marker.length;
+  const headLength = Math.ceil(visibleLength / 2);
+  const tailLength = visibleLength - headLength;
+  return `${characters.slice(0, headLength).join('')}${marker}${characters.slice(-tailLength).join('')}`;
+}
+
 export function renameWorkspace(workspaces, workspaceId, displayName) {
   const trimmed = String(displayName || '').trim();
   return workspaces.map((workspace) =>
