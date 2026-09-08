@@ -6,6 +6,7 @@
   import BrailleSpinner from './BrailleSpinner.svelte';
   import { externalLinkTarget } from './external-links.js';
   import { editorFontStack } from './editor-fonts.js';
+  import { MAX_ISSUE_BODY_LENGTH, MAX_ISSUE_COMMENT_LENGTH } from './github-limits.js';
   import TagPicker from './TagPicker.svelte';
   import { automaticTitle, linkAtCursor, shortenMiddle } from './notes.js';
   import {
@@ -1631,6 +1632,7 @@
       on:blur={handleBodyBlur}
       on:paste={handlePaste}
       placeholder={titleMode === 'first-line' ? $_("m.fd0b5408d9") : $_("m.5f35b29acf")}
+      maxlength={MAX_ISSUE_BODY_LENGTH}
       aria-label={$_("m.6aa90334da")}
       autocomplete="off"
       autocorrect="off"
@@ -1689,6 +1691,7 @@
                 on:keydown={handleEditorKeydown}
                 on:blur={() => saveComment(comment)}
                 placeholder={$_("m.ee6540eb88")}
+                maxlength={MAX_ISSUE_COMMENT_LENGTH}
                 readonly={!editable || lockState === 'locked'}
                 use:autosize={comment.body}
               ></textarea>
