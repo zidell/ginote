@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/sv
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import NoteEditor from './NoteEditor.svelte';
 import { composeAttachmentLink } from './attachments.js';
+import { MAX_ISSUE_BODY_LENGTH, MAX_ISSUE_COMMENT_LENGTH } from './github-limits.js';
 import { setAppLocale } from './i18n.js';
 
 vi.mock('./github.js', () => ({
@@ -87,6 +88,17 @@ afterEach(() => {
 });
 
 describe('NoteEditor 코멘트 블록', () => {
+  it('본문과 댓글에 GitHub API 여유를 둔 입력 길이를 적용한다', async () => {
+    render(NoteEditor, { token: 't', repo: 'owner/repo', issue: baseIssue });
+
+    await waitFor(() => expect(screen.getByText('octocat')).toBeTruthy());
+
+    expect(document.querySelector('.inline-body').maxLength).toBe(MAX_ISSUE_BODY_LENGTH);
+    expect(document.querySelector('.note-comment-body').maxLength).toBe(MAX_ISSUE_COMMENT_LENGTH);
+    expect(MAX_ISSUE_BODY_LENGTH).toBe(58_982);
+    expect(MAX_ISSUE_COMMENT_LENGTH).toBe(58_982);
+  });
+
   it('본문 아래 독립된 블록으로 가져온 댓글을 보여준다', async () => {
     render(NoteEditor, { token: 't', repo: 'owner/repo', issue: baseIssue });
 
