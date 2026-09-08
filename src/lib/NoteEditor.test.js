@@ -20,7 +20,15 @@ vi.mock('./github.js', () => ({
   deleteAttachment: vi.fn(async () => null),
   deleteIssueComment: vi.fn(async () => null),
   downloadAttachment: vi.fn(),
-  getIssue: vi.fn(),
+  getIssue: vi.fn(async (token, repo, issueNumber) => ({
+    number: issueNumber,
+    title: '노트 제목',
+    body: '노트 본문',
+    labels: [],
+    state: 'open',
+    comments: 1,
+    updated_at: '2026-09-01T00:00:00Z'
+  })),
   listIssueAttachmentFiles: vi.fn(async () => []),
   listIssueComments: vi.fn(async () => [{
     id: 1,
@@ -36,6 +44,7 @@ vi.mock('./github.js', () => ({
     title: note.title,
     body: note.body,
     labels: (note.labels || []).map((name) => ({ name })),
+    state: note.state || 'open',
     comments: 0,
     updated_at: '2026-09-06T00:00:00Z'
   })),
@@ -62,6 +71,7 @@ const {
   createIssueComment,
   deleteAttachment,
   deleteIssueComment,
+  getIssue,
   listIssueAttachmentFiles,
   updateIssue,
   updateIssueComment
@@ -85,9 +95,65 @@ beforeAll(() => {
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
+  vi.unstubAllGlobals();
 });
 
 describe('NoteEditor 코멘트 블록', () => {
+  it('휴지통에서 연 닫힌 이슈는 본문을 읽기 전용으로 둔다', () => {
+    render(NoteEditor, { token: 't', repo: 'owner/repo', issue: baseIssue, archived: true });
+
+    expect(document.querySelector('.inline-body').readOnly).toBe(true);
+  });
+
+  it('저장 전에 다른 디바이스에서 닫힌 이슈를 감지하면 아니오일 때 로컬 변경을 버린다', async () => {
+    const closedIssue = { ...baseIssue, state: 'closed', body: '휴지통에 있는 원격 본문' };
+    const onRefreshed = vi.fn();
+    getIssue.mockResolvedValueOnce(closedIssue);
+    vi.stubGlobal('confirm', vi.fn(() => false));
+
+    render(NoteEditor, {
+      token: 't',
+      repo: 'owner/repo',
+      issue: baseIssue,
+      onRefreshed,
+      autoSaveSeconds: 9999
+    });
+
+    const bodyTextarea = document.querySelector('.inline-body');
+    await fireEvent.input(bodyTextarea, { target: { value: '이 디바이스의 수정' } });
+    await fireEvent.blur(bodyTextarea);
+
+    await waitFor(() => expect(getIssue).toHaveBeenCalledWith('t', 'owner/repo', 5));
+    expect(updateIssue).not.toHaveBeenCalled();
+    expect(bodyTextarea.value).toBe(closedIssue.body);
+    expect(onRefreshed).toHaveBeenCalledWith(closedIssue);
+  });
+
+  it('저장 전에 다른 디바이스에서 닫힌 이슈를 감지하면 예일 때 복원과 수정을 함께 반영한다', async () => {
+    getIssue.mockResolvedValueOnce({ ...baseIssue, state: 'closed' });
+    vi.stubGlobal('confirm', vi.fn(() => true));
+
+    render(NoteEditor, {
+      token: 't',
+      repo: 'owner/repo',
+      issue: baseIssue,
+      autoSaveSeconds: 9999
+    });
+
+    const bodyTextarea = document.querySelector('.inline-body');
+    await fireEvent.input(bodyTextarea, { target: { value: '복원하면서 저장할 본문' } });
+    await fireEvent.blur(bodyTextarea);
+
+    await waitFor(() => expect(updateIssue).toHaveBeenCalled());
+    expect(updateIssue).toHaveBeenLastCalledWith(
+      't',
+      'owner/repo',
+      5,
+      expect.objectContaining({ body: '복원하면서 저장할 본문', state: 'open' }),
+      expect.any(Object)
+    );
+  });
+
   it('본문과 댓글에 GitHub API 여유를 둔 입력 길이를 적용한다', async () => {
     render(NoteEditor, { token: 't', repo: 'owner/repo', issue: baseIssue });
 

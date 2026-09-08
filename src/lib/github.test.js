@@ -225,6 +225,24 @@ describe('GitHub API client', () => {
     expect(updateOptions.keepalive).toBe(true);
   });
 
+  it('이슈를 복원하면서 수정할 때만 open 상태를 함께 전송한다', async () => {
+    fetch.mockResolvedValueOnce(jsonResponse({ id: 1, number: 31, state: 'open' }));
+
+    await updateIssue('token', 'owner/repo', 31, {
+      title: '제목',
+      body: '본문',
+      labels: ['개인'],
+      state: 'open'
+    });
+
+    expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({
+      title: '제목',
+      body: '본문',
+      labels: ['개인'],
+      state: 'open'
+    });
+  });
+
   it('라벨만 교체할 때 제목·본문을 함께 보내지 않는다', async () => {
     fetch.mockResolvedValueOnce(jsonResponse({ id: 1, number: 31, labels: [{ name: '개인' }] }));
 

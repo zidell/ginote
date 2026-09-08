@@ -170,10 +170,16 @@ export function createIssue(token, repoInput, note, requestOptions = {}) {
 
 export function updateIssue(token, repoInput, issueNumber, note, requestOptions = {}) {
   const repo = normalizeRepo(repoInput);
+  const payload = {
+    title: note.title,
+    body: note.body,
+    labels: note.labels || []
+  };
+  if (note.state !== undefined) payload.state = note.state;
   return request(`/repos/${repo}/issues/${issueNumber}`, token, {
     ...requestOptions,
     method: 'PATCH',
-    body: JSON.stringify({ title: note.title, body: note.body, labels: note.labels || [] })
+    body: JSON.stringify(payload)
   });
 }
 
