@@ -121,7 +121,9 @@
     body: issue.body || '',
     labels: (issue.labels || []).map((label) => label.name)
   }) : '';
+  let activeSavingSignature = '';
   let forceSaveQueued = false;
+  let forceSaveAllowPaused = false;
   let saveFailed = false;
   let draggingFiles = false;
   let reconciledIssueNumber = null;
@@ -294,6 +296,20 @@
       return;
     }
     saveRemote(false, true, requestOptions);
+  }
+
+  function saveFocusedChangesNow(target) {
+    const commentElement = target?.closest?.('.note-comment-body');
+    if (commentElement) {
+      const comment = comments.find((item) => `comment-body-${item.id}` === commentElement.id);
+      if (comment) saveComment(comment, true);
+      return;
+    }
+
+    if (target === bodyInput || target?.closest?.('.inline-title')) {
+      clearTimeout(remoteTimer);
+      saveRemote(true, true);
+    }
   }
 
   function saveKeepaliveSnapshot(requestOptions) {
@@ -558,8 +574,10 @@
   async function saveRemote(force = false, allowPaused = false, requestOptions = {}) {
     if (archived) return;
     if (saving) {
-      if (force) {
+      const hasNewerContent = noteSignature(currentNote()) !== activeSavingSignature;
+      if (force && hasNewerContent) {
         forceSaveQueued = true;
+        forceSaveAllowPaused = forceSaveAllowPaused || allowPaused;
       }
       return;
     }
@@ -581,6 +599,7 @@
     }
 
     const savingRevision = revision;
+    activeSavingSignature = signature;
     saving = true;
     saveFailed = false;
     error = '';
@@ -635,10 +654,13 @@
       if (!destroyed) scheduleRemoteSave(15000);
     } finally {
       saving = false;
+      activeSavingSignature = '';
       if (forceSaveQueued && !destroyed) {
+        const queuedAllowPaused = forceSaveAllowPaused;
         forceSaveQueued = false;
+        forceSaveAllowPaused = false;
         clearTimeout(remoteTimer);
-        saveRemote(true);
+        saveRemote(true, queuedAllowPaused);
       }
     }
   }
@@ -1097,17 +1119,19 @@
     commentSaveFailedIds.delete(comment.id);
   }
 
-  async function saveComment(comment) {
+  async function saveComment(comment, force = false) {
     if (!editable || lockState === 'locked') return;
+    if (savingCommentIds.has(comment.id)) return;
     const trimmedBody = comment.body.trim();
     if (comment.isNew && !trimmedBody) {
       discardNewComment(comment);
       return;
     }
-    if (!dirtyCommentIds.has(comment.id)) return;
+    if (!force && !dirtyCommentIds.has(comment.id)) return;
     comment.body = trimmedBody;
     savingCommentIds.add(comment.id);
     savingCommentIds = savingCommentIds;
+    let savedSuccessfully = false;
     try {
       const remoteBody = lockState === 'unlocked'
         ? await encryptLockedBody(trimmedBody, activeLockPin, issue?.number || remoteIssue?.number)
@@ -1115,17 +1139,19 @@
       const saved = comment.isNew
         ? await createIssueComment(token, repo, remoteIssue.number, remoteBody)
         : await updateIssueComment(token, repo, comment.id, remoteBody);
-      dirtyCommentIds.delete(comment.id);
+      savedSuccessfully = true;
+      const hasNewerChanges = comment.body.trim() !== trimmedBody;
       if (comment.isNew) {
         const index = comments.findIndex((item) => item.id === comment.id);
         if (index >= 0) {
-          comments[index] = { ...saved, body: trimmedBody };
+          comments[index] = { ...saved, body: hasNewerChanges ? comment.body : trimmedBody };
           comments = comments;
         }
       } else {
         comment.author = saved.author || comment.author;
         comment.updatedAt = saved.updatedAt;
       }
+      if (!hasNewerChanges) dirtyCommentIds.delete(comment.id);
     } catch (reason) {
       commentSaveFailedIds.add(comment.id);
       error = reason?.message || $_("m.ab5becbd3a");
@@ -1134,6 +1160,10 @@
       savingCommentIds = savingCommentIds;
       commentSaveFailedIds = commentSaveFailedIds;
       dirtyCommentIds = dirtyCommentIds;
+      if (savedSuccessfully && dirtyCommentIds.has(comment.id) && !destroyed) {
+        const latestComment = comments.find((item) => item.id === comment.id);
+        if (latestComment) saveComment(latestComment);
+      }
     }
   }
 
@@ -1293,6 +1323,21 @@
     const toggleButton = toolbar.querySelector('[data-bs-toggle="dropdown"]');
     if (toggleButton) Dropdown.getOrCreateInstance(toggleButton).hide();
     activeElement.blur?.();
+  }
+
+  function handleEditorKeydown(event) {
+    const key = event.key?.toLocaleLowerCase();
+    if (
+      event.altKey
+      || event.shiftKey
+      || (!event.ctrlKey && !event.metaKey)
+      || (key !== 's' && event.code !== 'KeyS')
+    ) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    if (event.repeat) return;
+    saveFocusedChangesNow(event.currentTarget);
   }
 
   function prepareReturnToList() {
@@ -1569,6 +1614,7 @@
         maxlength="256"
         aria-label={$_("m.45e6c4d69d")}
         readonly={!editable || lockState === 'locked'}
+        on:keydown={handleEditorKeydown}
         on:blur={() => flushRemoteSave()}
       />
     {/if}
@@ -1581,6 +1627,7 @@
       on:click={updateLinkTooltip}
       on:select={updateLinkTooltip}
       on:scroll={hideLinkTooltip}
+      on:keydown={handleEditorKeydown}
       on:blur={handleBodyBlur}
       on:paste={handlePaste}
       placeholder={titleMode === 'first-line' ? $_("m.fd0b5408d9") : $_("m.5f35b29acf")}
@@ -1606,7 +1653,7 @@
                 <span class="note-comment-date">{formatDateTime(comment.updatedAt || comment.createdAt)}</span>
                 <div class="note-comment-side">
                   {#if savingCommentIds.has(comment.id)}
-                    <span class="note-comment-status">{$_("m.369c534df3")}</span>
+                    <BrailleSpinner active />
                   {:else if commentSaveFailedIds.has(comment.id)}
                     <span class="note-comment-status note-comment-status-failed">{$_("m.0a44446762")}</span>
                   {/if}
@@ -1639,6 +1686,7 @@
                 class="note-comment-body"
                 bind:value={comment.body}
                 on:input={() => markCommentDirty(comment)}
+                on:keydown={handleEditorKeydown}
                 on:blur={() => saveComment(comment)}
                 placeholder={$_("m.ee6540eb88")}
                 readonly={!editable || lockState === 'locked'}
