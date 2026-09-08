@@ -1751,6 +1751,10 @@
   }
 
   function noteSaved(savedIssue, localDraft = null) {
+    if (state === 'open' && savedIssue.state === 'closed') {
+      removeClosedIssueFromOpenView(savedIssue);
+      return;
+    }
     const displayedIssue = localDraft ? { ...savedIssue, ...localDraft } : savedIssue;
     issues = issues.map((issue) => issue.id === savedIssue.id ? displayedIssue : issue);
     syncPinnedIssueSnapshot(displayedIssue);
@@ -1763,11 +1767,34 @@
   }
 
   function noteRefreshed(refreshedIssue) {
+    if (state === 'open' && refreshedIssue.state === 'closed') {
+      removeClosedIssueFromOpenView(refreshedIssue);
+      return;
+    }
     issues = issues.map((issue) => issue.id === refreshedIssue.id ? refreshedIssue : issue);
     syncPinnedIssueSnapshot(refreshedIssue);
     const refreshedIssueIsActive = contentRoute?.screen === 'note'
       && Number(contentRoute.value) === refreshedIssue.number;
     if (refreshedIssueIsActive) selectedIssue = refreshedIssue;
+  }
+
+  function removeClosedIssueFromOpenView(closedIssue) {
+    const removedFromIssues = issues.some((issue) => issue.id === closedIssue.id);
+    const removedPinnedIndex = pinnedIssues.findIndex((issue) => issue.id === closedIssue.id);
+    if (!removedFromIssues && removedPinnedIndex < 0) return;
+
+    issues = issues.filter((issue) => issue.id !== closedIssue.id);
+    if (removedPinnedIndex >= 0) {
+      pinnedIssues = pinnedIssues.filter((issue) => issue.id !== closedIssue.id);
+      savePinnedNotes(activeWorkspaceId, pinnedIssues);
+    }
+    totalIssues = Math.max(0, totalIssues - 1);
+    adjustWorkspaceNoteCount(activeWorkspaceId, -1);
+
+    if (selectedIssue?.id === closedIssue.id) {
+      selectedIssue = null;
+      if (router.getDepth()) router.popTo(0);
+    }
   }
 
   function togglePin(issue) {
@@ -2781,6 +2808,7 @@
             <div><dt><kbd>↑</kbd> <kbd>↓</kbd></dt><dd>{$_('help.keyboardMove')}</dd></div>
             <div><dt><kbd>Enter</kbd></dt><dd>{$_('help.keyboardOpen')}</dd></div>
             <div><dt><kbd>N</kbd></dt><dd>{$_('help.keyboardNew')}</dd></div>
+            <div><dt><kbd>Ctrl</kbd>/<kbd>Cmd</kbd> + <kbd>R</kbd></dt><dd>{$_('help.keyboardRefresh')}</dd></div>
             <div><dt><kbd>`</kbd></dt><dd>{$_('help.keyboardWorkspaceMenu')}</dd></div>
             <div><dt><kbd>1</kbd>~<kbd>9</kbd></dt><dd>{$_('help.keyboardWorkspace')}</dd></div>
             <div><dt><kbd>Esc</kbd></dt><dd>{$_('help.keyboardEscape')}</dd></div>

@@ -314,14 +314,10 @@
   }
 
   function saveKeepaliveSnapshot(requestOptions) {
-    const targetIssue = issue || remoteIssue;
-    const note = currentNote();
-    if (!targetIssue?.number || !note.title) return;
-    noteForRemote(note).then((remoteNote) => (
-      updateIssue(token, repo, targetIssue.number, remoteNote, requestOptions)
-    )).catch(() => {
-      // 종료 중 요청이 실패해도 동기 저장된 로컬 초안으로 다음 실행 때 복구한다.
-    });
+    // 이미 진행 중인 저장의 최신 본문을 직접 PATCH하면, 닫힘 상태를 확인하는
+    // 일반 저장 경로를 우회하게 된다. 현재 저장이 끝난 뒤 같은 경로로 한 번 더
+    // 저장하도록 큐에 넣어, 닫힌 이슈를 실수로 수정하지 않게 한다.
+    saveRemote(true, true, requestOptions);
   }
 
   function handleVisibilityChange() {
@@ -386,6 +382,14 @@
       body: note.body,
       labels: note.labels
     });
+  }
+
+  function notePayloadFromIssue(remote) {
+    return {
+      title: remote?.title || '',
+      body: remote?.body || '',
+      labels: (remote?.labels || []).map((label) => label.name)
+    };
   }
 
   function withRevivedAttachmentLinks(bodyText) {
@@ -572,6 +576,90 @@
     return remoteIssue;
   }
 
+  async function applyRemoteIssue(refreshed) {
+    remoteIssue = refreshed;
+    const refreshedLocked = isLockedTitle(refreshed.title);
+    title = removeLockFromTitle(refreshed.title || '');
+    encryptedBody = refreshedLocked ? refreshed.body || '' : '';
+    body = refreshed.body || '';
+    lockState = refreshedLocked ? 'locked' : 'plain';
+    activeLockPin = '';
+    labels = (refreshed.labels || []).map((label) => label.name);
+    if (refreshedLocked && lockPin) await revealLockedNote(lockPin, true);
+    dirty = false;
+    revision += 1;
+    lastRemoteSignature = noteSignature(currentNote());
+    removeLocalDraft();
+    reconciledIssueNumber = null;
+  }
+
+  async function discardLocalChanges(refreshed) {
+    clearTimeout(remoteTimer);
+    forceSaveQueued = false;
+    forceSaveAllowPaused = false;
+    await applyRemoteIssue(refreshed);
+    saveFailed = false;
+    error = '';
+    onRefreshed(refreshed);
+  }
+
+  async function prepareExistingIssueSave(targetIssue) {
+    if (!targetIssue?.number) return { targetIssue, reopen: false };
+
+    const latestIssue = await getIssue(token, repo, targetIssue.number);
+    if (destroyed) return { cancelled: true };
+    if (!latestIssue) return { targetIssue, reopen: false };
+
+    remoteIssue = latestIssue;
+    if (latestIssue.state !== 'closed') {
+      return { targetIssue: latestIssue, reopen: false, previousIssue: latestIssue };
+    }
+
+    const shouldReopen = confirm($_('dynamic.closedIssueSaveConfirm', {
+      values: { title: latestIssue.title || targetIssue.title || title }
+    }));
+    if (!shouldReopen) {
+      await discardLocalChanges(latestIssue);
+      return { cancelled: true };
+    }
+    return { targetIssue: latestIssue, reopen: true, previousIssue: latestIssue };
+  }
+
+  async function resolveLateClosedSave(saved, previousIssue, remoteNote, requestOptions) {
+    if (saved?.state !== 'closed') return { saved, cancelled: false };
+
+    const shouldReopen = confirm($_('dynamic.closedIssueSaveConfirm', {
+      values: { title: saved.title || previousIssue?.title || title }
+    }));
+    if (shouldReopen) {
+      const reopened = await updateIssue(token, repo, saved.number, {
+        ...remoteNote,
+        state: 'open'
+      }, requestOptions);
+      return { saved: reopened, cancelled: false };
+    }
+
+    // 드물게 GET과 PATCH 사이에 다른 디바이스가 닫을 수 있다. 이미 본문이
+    // 반영된 응답이라면 직전에 읽은 원격 내용을 다시 써서 '아니오'를 실제
+    // 폐기로 만든다. 응답 본문이 달라졌다면 다른 수정이 섞였을 수 있으므로
+    // 무리하게 롤백하지 않고 현재 원격 내용을 그대로 다시 읽는다.
+    let discarded = saved;
+    if (
+      previousIssue
+      && noteSignature(notePayloadFromIssue(saved)) === noteSignature(remoteNote)
+    ) {
+      discarded = await updateIssue(
+        token,
+        repo,
+        saved.number,
+        notePayloadFromIssue(previousIssue),
+        requestOptions
+      );
+    }
+    await discardLocalChanges({ ...discarded, state: 'closed' });
+    return { saved: discarded, cancelled: true };
+  }
+
   async function saveRemote(force = false, allowPaused = false, requestOptions = {}) {
     if (archived) return;
     if (saving) {
@@ -606,6 +694,18 @@
     error = '';
 
     try {
+      let targetIssue = issue || await resolveRemoteIssue();
+      let reopenRequested = false;
+      let previousIssue = null;
+      if (targetIssue?.number && issue && !destroyed) {
+        const prepared = await prepareExistingIssueSave(targetIssue);
+        if (prepared.cancelled) return;
+        targetIssue = prepared.targetIssue;
+        reopenRequested = prepared.reopen;
+        previousIssue = prepared.previousIssue;
+      }
+      if (destroyed && issue) return;
+
       const knownNames = new Set(availableLabels.map((label) => label.name.toLocaleLowerCase()));
       const missingNames = labels.filter((name) => !knownNames.has(name.toLocaleLowerCase()));
       const createdLabels = await Promise.all(
@@ -615,13 +715,29 @@
         availableLabels = [...availableLabels, ...createdLabels];
         onLabelsAvailable(createdLabels);
       }
-      if (destroyed) return;
+      if (destroyed && issue) return;
 
-      const targetIssue = issue || await resolveRemoteIssue();
       const remoteNote = await noteForRemote(note);
-      const saved = targetIssue
-        ? await updateIssue(token, repo, targetIssue.number, remoteNote, requestOptions)
+      let saved = targetIssue
+        ? await updateIssue(
+          token,
+          repo,
+          targetIssue.number,
+          reopenRequested ? { ...remoteNote, state: 'open' } : remoteNote,
+          requestOptions
+        )
         : await createIssue(token, repo, remoteNote, requestOptions);
+
+      if (targetIssue && !reopenRequested) {
+        const lateResolution = await resolveLateClosedSave(
+          saved,
+          previousIssue,
+          remoteNote,
+          requestOptions
+        );
+        if (lateResolution.cancelled) return;
+        saved = lateResolution.saved;
+      }
 
       // 이 시점에 컴포넌트가 이미 파괴됐다면(예: 새 노트가 번호를 받아
       // note.{번호}로 리마운트됨) 요청 자체는 이미 서버에 반영됐으므로 되돌리지
@@ -729,22 +845,8 @@
         lastRemoteSignature = refreshedSignature;
         return;
       }
-      remoteIssue = refreshed;
-      const refreshedLocked = isLockedTitle(refreshed.title);
-      title = removeLockFromTitle(refreshed.title || '');
-      encryptedBody = refreshedLocked ? refreshed.body || '' : '';
-      body = refreshed.body || '';
-      lockState = refreshedLocked ? 'locked' : 'plain';
-      activeLockPin = '';
-      labels = (refreshed.labels || []).map((label) => label.name);
-      if (refreshedLocked && lockPin) await revealLockedNote(lockPin, true);
-      dirty = false;
-      revision += 1;
-      lastRemoteSignature = noteSignature(currentNote());
-      removeLocalDraft();
+      await applyRemoteIssue(refreshed);
       onRefreshed(refreshed);
-
-      reconciledIssueNumber = null;
     } catch (reason) {
       if (background) return;
       error = reason?.message || $_("m.a129ed8520");
