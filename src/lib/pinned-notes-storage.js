@@ -1,5 +1,5 @@
 export const PINNED_NOTES_STORAGE_KEY = 'issue-note.pinned-notes.v1';
-export const MAX_PINNED_NOTES = 10;
+export const MAX_PINNED_NOTES = 30;
 
 function loadDocument() {
   try {

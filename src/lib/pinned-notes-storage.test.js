@@ -25,6 +25,10 @@ afterEach(() => {
 });
 
 describe('loadPinnedNotes / savePinnedNotes', () => {
+  it('최대 30개의 pin을 허용한다', () => {
+    expect(MAX_PINNED_NOTES).toBe(30);
+  });
+
   it('워크스페이스가 없으면 빈 배열을 반환한다', () => {
     expect(loadPinnedNotes('')).toEqual([]);
   });
