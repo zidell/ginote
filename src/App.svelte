@@ -10,7 +10,13 @@
   import WorkspaceList from './lib/WorkspaceList.svelte';
   import WorkspaceSwitcher from './lib/WorkspaceSwitcher.svelte';
   import { tagColorForName } from './lib/colors.js';
-  import { localFontFamily, localFontValue } from './lib/editor-fonts.js';
+  import {
+    CODING_FONT_OPTIONS,
+    isWebFont,
+    loadWebFont,
+    localFontFamily,
+    localFontValue
+  } from './lib/editor-fonts.js';
   import { _, locale as activeLocale } from 'svelte-i18n';
   import { LOCALE_OPTIONS, setAppLocale } from './lib/i18n.js';
   import { normalizeTagName } from './lib/notes.js';
@@ -338,6 +344,7 @@
         language: languagePreference
       } = settingsDocument.preferences);
       setAppLocale(languagePreference);
+      if (isWebFont(editorFont)) void loadWebFont(editorFont);
       const activeWorkspace = workspaces.find((workspace) => workspace.id === activeWorkspaceId);
       if (activeWorkspace) {
         repo = activeWorkspace.repo;
@@ -1967,6 +1974,12 @@
     showToast($_("m.be71371eed"));
   }
 
+  function handleEditorFontChange(event) {
+    announceDeferredApply();
+    const selectedFont = event.currentTarget?.value || editorFont;
+    if (isWebFont(selectedFont)) void loadWebFont(selectedFont);
+  }
+
   async function loadLocalFonts() {
     if (localFontLoadState === 'loading') return;
     if (typeof window.queryLocalFonts !== 'function') {
@@ -2256,15 +2269,24 @@
                     class="form-select"
                     bind:value={editorFont}
                     on:focus={loadLocalFonts}
-                    on:change={announceDeferredApply}
+                    on:change={handleEditorFontChange}
                   >
                     <option value="system">{$_("m.9d8d380806")}</option>
                     <option value="sans">{$_("m.ecc39dc539")}</option>
                     <option value="serif">{$_("m.a5c78a86fa")}</option>
                     <option value="mono">{$_("m.216fcddff2")}</option>
-                    {#each visibleLocalFontFamilies as family}
-                      <option value={localFontValue(family)}>{family}</option>
-                    {/each}
+                    {#if visibleLocalFontFamilies.length}
+                      <optgroup label="Local Fonts">
+                        {#each visibleLocalFontFamilies as family}
+                          <option value={localFontValue(family)}>{family}</option>
+                        {/each}
+                      </optgroup>
+                    {/if}
+                    <optgroup label="Coding Fonts">
+                      {#each CODING_FONT_OPTIONS as option (option.value)}
+                        <option value={option.value}>{option.label}</option>
+                      {/each}
+                    </optgroup>
                   </select>
                 </div>
                 <div class="col-6 col-sm-3">
