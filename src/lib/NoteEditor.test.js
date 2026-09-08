@@ -119,6 +119,189 @@ describe('NoteEditor 코멘트 블록', () => {
     expect(updateIssueComment).not.toHaveBeenCalled();
   });
 
+  it('본문에서 Ctrl+S를 누르면 대기 상태에서도 기본 동작을 막고 즉시 저장한다', async () => {
+    localStorage.clear();
+    render(NoteEditor, {
+      token: 't',
+      repo: 'owner/repo',
+      issue: baseIssue,
+      paused: true,
+      autoSaveSeconds: 9999
+    });
+
+    const bodyTextarea = document.querySelector('.inline-body');
+    await fireEvent.input(bodyTextarea, { target: { value: 'Ctrl+S로 저장한 본문' } });
+
+    const event = new KeyboardEvent('keydown', {
+      key: 's',
+      code: 'KeyS',
+      ctrlKey: true,
+      bubbles: true,
+      cancelable: true
+    });
+    bodyTextarea.dispatchEvent(event);
+
+    expect(event.defaultPrevented).toBe(true);
+    await waitFor(() => expect(updateIssue).toHaveBeenCalledWith(
+      't',
+      'owner/repo',
+      5,
+      expect.objectContaining({ body: 'Ctrl+S로 저장한 본문' }),
+      expect.any(Object)
+    ));
+  });
+
+  it('댓글에서 Cmd+S를 누르면 기본 동작을 막고 즉시 저장한다', async () => {
+    render(NoteEditor, {
+      token: 't',
+      repo: 'owner/repo',
+      issue: baseIssue,
+      paused: true,
+      autoSaveSeconds: 9999
+    });
+
+    await waitFor(() => expect(screen.getByText('octocat')).toBeTruthy());
+    const commentBody = document.querySelector('.note-comment-body');
+    await fireEvent.input(commentBody, { target: { value: 'Cmd+S로 저장한 댓글' } });
+
+    const event = new KeyboardEvent('keydown', {
+      key: 's',
+      code: 'KeyS',
+      metaKey: true,
+      bubbles: true,
+      cancelable: true
+    });
+    commentBody.dispatchEvent(event);
+
+    expect(event.defaultPrevented).toBe(true);
+    await waitFor(() => expect(updateIssueComment).toHaveBeenCalledWith(
+      't',
+      'owner/repo',
+      1,
+      'Cmd+S로 저장한 댓글'
+    ));
+  });
+
+  it('변경사항이 없어도 본문에서 Ctrl+S를 누르면 현재 본문을 강제 저장한다', async () => {
+    localStorage.clear();
+    render(NoteEditor, {
+      token: 't',
+      repo: 'owner/repo',
+      issue: baseIssue,
+      autoSaveSeconds: 9999
+    });
+
+    const bodyTextarea = document.querySelector('.inline-body');
+    const event = new KeyboardEvent('keydown', {
+      key: 's',
+      code: 'KeyS',
+      ctrlKey: true,
+      bubbles: true,
+      cancelable: true
+    });
+    bodyTextarea.dispatchEvent(event);
+
+    await waitFor(() => expect(updateIssue).toHaveBeenCalledWith(
+      't',
+      'owner/repo',
+      5,
+      expect.objectContaining({ body: baseIssue.body }),
+      expect.any(Object)
+    ));
+  });
+
+  it('변경사항이 없어도 댓글에서 Cmd+S를 누르면 현재 댓글을 강제 저장한다', async () => {
+    render(NoteEditor, { token: 't', repo: 'owner/repo', issue: baseIssue, autoSaveSeconds: 9999 });
+
+    await waitFor(() => expect(screen.getByText('octocat')).toBeTruthy());
+    const commentBody = document.querySelector('.note-comment-body');
+    const event = new KeyboardEvent('keydown', {
+      key: 's',
+      code: 'KeyS',
+      metaKey: true,
+      bubbles: true,
+      cancelable: true
+    });
+    commentBody.dispatchEvent(event);
+
+    await waitFor(() => expect(updateIssueComment).toHaveBeenCalledWith(
+      't',
+      'owner/repo',
+      1,
+      '댓글 내용'
+    ));
+  });
+
+  it('본문 저장 요청이 이미 진행 중이면 같은 내용의 Ctrl+S는 중복 요청하지 않는다', async () => {
+    localStorage.clear();
+    let release;
+    const inFlight = new Promise((resolve) => { release = resolve; });
+    updateIssue.mockImplementationOnce(async (token, repo, issueNumber, note) => {
+      await inFlight;
+      return {
+        number: issueNumber,
+        title: note.title,
+        body: note.body,
+        labels: (note.labels || []).map((name) => ({ name })),
+        comments: 0,
+        updated_at: '2026-09-06T00:00:00Z'
+      };
+    });
+
+    render(NoteEditor, {
+      token: 't',
+      repo: 'owner/repo',
+      issue: baseIssue,
+      autoSaveSeconds: 9999
+    });
+
+    const bodyTextarea = document.querySelector('.inline-body');
+    await fireEvent.input(bodyTextarea, { target: { value: '진행 중인 저장' } });
+    const shortcut = () => bodyTextarea.dispatchEvent(new KeyboardEvent('keydown', {
+      key: 's',
+      code: 'KeyS',
+      ctrlKey: true,
+      bubbles: true,
+      cancelable: true
+    }));
+
+    shortcut();
+    await waitFor(() => expect(updateIssue).toHaveBeenCalledTimes(1));
+    shortcut();
+    expect(updateIssue).toHaveBeenCalledTimes(1);
+
+    release();
+    await waitFor(() => expect(document.querySelector('.save-status.is-visible')).toBeNull());
+  });
+
+  it('본문과 댓글이 모두 변경돼도 현재 포커스가 있는 항목만 저장한다', async () => {
+    localStorage.clear();
+    render(NoteEditor, {
+      token: 't',
+      repo: 'owner/repo',
+      issue: baseIssue,
+      autoSaveSeconds: 9999
+    });
+
+    await waitFor(() => expect(screen.getByText('octocat')).toBeTruthy());
+    const bodyTextarea = document.querySelector('.inline-body');
+    const commentBody = document.querySelector('.note-comment-body');
+    await fireEvent.input(bodyTextarea, { target: { value: '본문만 먼저 저장' } });
+    await fireEvent.input(commentBody, { target: { value: '댓글은 아직 저장하지 않음' } });
+
+    const event = new KeyboardEvent('keydown', {
+      key: 's',
+      code: 'KeyS',
+      ctrlKey: true,
+      bubbles: true,
+      cancelable: true
+    });
+    bodyTextarea.dispatchEvent(event);
+
+    await waitFor(() => expect(updateIssue).toHaveBeenCalled());
+    expect(updateIssueComment).not.toHaveBeenCalled();
+  });
+
   it('댓글 추가 버튼으로 새 댓글을 만들고 입력 후 저장한다', async () => {
     render(NoteEditor, { token: 't', repo: 'owner/repo', issue: baseIssue });
 
