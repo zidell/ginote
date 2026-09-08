@@ -6,7 +6,9 @@ Ginote는 GitHub의 Issues(이슈)를 개인 노트처럼 쓰는 간단하고 �
 노트는 별도 앱 서버나 데이터베이스가 아니라, 사용자가 고른 GitHub 저장소에
 저장됩니다. 앱을 연 뒤에는 브라우저가 GitHub와 직접 통신합니다.
 
-**서비스 주소(누구나 바로 사용 가능):** [note.gitools.net](https://note.gitools.net)
+**서비스 주소(누구나 바로 사용 가능):**
+
+[https://note.gitools.net](https://note.gitools.net)
 
 ## 주요 특징
 
