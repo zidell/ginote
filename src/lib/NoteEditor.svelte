@@ -1520,6 +1520,8 @@
     if (key === 'g' || event.code === 'KeyG') return 'g';
     if (key === 'm' || event.code === 'KeyM') return 'm';
     if (key === 'l' || event.code === 'KeyL') return 'l';
+    if (key === 'r' || event.code === 'KeyR') return 'r';
+    if (key === 's' || event.code === 'KeyS') return 's';
     if (event.key === 'Delete' || event.code === 'Delete') return 'delete';
     return '';
   }
@@ -1552,6 +1554,8 @@
   function canUseNoteShortcut(key) {
     if (key === 'm') return previewMode || canPreview;
     if (key === 'l') return editable;
+    if (key === 'r') return Boolean((issue || remoteIssue)?.number);
+    if (key === 's') return editable && lockState !== 'locked' && !saving;
     if (key === 't') return editable && lockState !== 'locked';
     if (key === 'a') {
       return editable
@@ -1573,6 +1577,15 @@
     }
     if (key === 'l') {
       void (lockState === 'plain' ? requestLock() : removeLock());
+      return true;
+    }
+    if (key === 'r') {
+      location.reload();
+      return true;
+    }
+    if (key === 's') {
+      clearTimeout(remoteTimer);
+      void saveRemote(true, true);
       return true;
     }
     if (key === 't') {

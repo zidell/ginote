@@ -524,6 +524,40 @@ describe('NoteEditor 마크다운 프리뷰와 단축키', () => {
     expect(scroll.scrollTop).toBe(225);
   });
 
+  it('포커스가 없을 때 R로 앱 전체를 새로고침한다', async () => {
+    const reload = vi.fn();
+    vi.stubGlobal('location', { reload });
+    render(NoteEditor, { token: 't', repo: 'owner/repo', issue: baseIssue });
+
+    const event = dispatchShortcut('r', 'KeyR');
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(reload).toHaveBeenCalledTimes(1);
+  });
+
+  it('포커스가 없을 때 S로 현재 노트를 저장한다', async () => {
+    localStorage.clear();
+    render(NoteEditor, {
+      token: 't',
+      repo: 'owner/repo',
+      issue: baseIssue,
+      autoSaveSeconds: 9999
+    });
+
+    const bodyTextarea = document.querySelector('.inline-body');
+    await fireEvent.input(bodyTextarea, { target: { value: '포커스 없이 저장한 본문' } });
+    const event = dispatchShortcut('s', 'KeyS');
+
+    expect(event.defaultPrevented).toBe(true);
+    await waitFor(() => expect(updateIssue).toHaveBeenCalledWith(
+      't',
+      'owner/repo',
+      5,
+      expect.objectContaining({ body: '포커스 없이 저장한 본문' }),
+      expect.any(Object)
+    ));
+  });
+
   it('포커스가 없을 때 t, a, p, l, Delete, g 단축키를 툴바 동작에 연결한다', async () => {
     const onTogglePin = vi.fn();
     const onMove = vi.fn();
