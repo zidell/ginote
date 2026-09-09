@@ -1531,6 +1531,7 @@
     return !activeElement
       || activeElement === document.body
       || activeElement === document.documentElement
+      || activeElement instanceof HTMLButtonElement
       || activeElement === editorScroll
       || activeElement?.classList?.contains('markdown-preview');
   }
