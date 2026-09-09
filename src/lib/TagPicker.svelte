@@ -11,6 +11,7 @@
   export let toolbar = false;
   export let iconOnly = false;
   export let shortcut = '';
+  export let shortcutEnabled = true;
   export let onSelect = () => {};
   export let open = false;
 
@@ -132,11 +133,11 @@
     aria-haspopup="listbox"
     aria-expanded={open}
     aria-keyshortcuts={toolbar ? 'T' : undefined}
-    aria-label={iconOnly ? `${$_("m.848eed0fbd")}${shortcut ? ` (${shortcut})` : ''}` : undefined}
-    title={iconOnly ? `${$_("m.848eed0fbd")}${shortcut ? ` (${shortcut})` : ''}` : undefined}
+    aria-label={iconOnly ? `${$_("m.848eed0fbd")}${shortcut ? ` ${shortcut}` : ''}` : undefined}
+    title={iconOnly ? `${$_("m.848eed0fbd")}${shortcut ? ` ${shortcut}` : ''}` : undefined}
     on:keydown={handleKeydown}
     on:click={toggle}
-  ><i class={`bi ${toolbar ? 'bi-tags' : 'bi-plus-lg'}`} aria-hidden="true"></i>{#if !iconOnly} {toolbar ? $_("m.848eed0fbd") : $_("m.61cc55aa04")}{#if shortcut} ({shortcut}){/if}{/if}</button>
+  ><i class={`bi ${toolbar ? 'bi-tags' : 'bi-plus-lg'}`} aria-hidden="true"></i>{#if !iconOnly} {toolbar ? $_("m.848eed0fbd") : $_("m.61cc55aa04")}{/if}{#if shortcut}<span class="shortcut-hint"><span class="shortcut-key" class:is-available={shortcutEnabled}>{shortcut}</span></span>{/if}</button>
   {#if open}
     <div class="tag-dropdown">
       <input

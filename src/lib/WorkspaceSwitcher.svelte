@@ -2,7 +2,7 @@
   import { onDestroy, onMount, tick } from 'svelte';
   import { _ } from 'svelte-i18n';
   import { parseRepositoryAddress } from './repo-address.js';
-  import { workspaceDisplayName } from './settings-storage.js';
+  import { truncateMiddle, workspaceDisplayName } from './settings-storage.js';
 
   export let workspaces = [];
   export let activeWorkspaceId = '';
@@ -16,6 +16,10 @@
   let toggleButton;
   let dropdownStyle = '';
   let highlightedIndex = -1;
+
+  $: activeWorkspace = workspaces.find((workspace) => workspace.id === activeWorkspaceId);
+  $: activeWorkspaceName = workspaceDisplayName(activeWorkspace);
+  $: activeWorkspaceLabel = truncateMiddle(activeWorkspaceName);
 
   onMount(() => {
     document.addEventListener('pointerdown', handleOutside);
@@ -149,6 +153,7 @@
     class="sidebar-profile"
     aria-haspopup="listbox"
     aria-expanded={open}
+    aria-keyshortcuts="Backquote"
     aria-label={$_('workspace.switcherLabel')}
     disabled={busy || !user}
     on:click={toggle}
@@ -156,6 +161,8 @@
     {#if user}
       <img class="avatar" src={user.avatar_url} alt={user.login} />
     {/if}
+    <span class="sidebar-profile-name" title={activeWorkspaceName}>{activeWorkspaceLabel}</span>
+    <span class="shortcut-hint sidebar-profile-shortcut" aria-hidden="true"><span class="shortcut-key" class:is-available={!busy && Boolean(user)}>&#96;</span></span>
   </button>
   {#if open}
     <div class="workspace-dropdown" style={dropdownStyle}>

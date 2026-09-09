@@ -442,7 +442,7 @@ describe('NoteEditor 마크다운 프리뷰와 단축키', () => {
     });
 
     await fireEvent.click(document.querySelector('.detail-toolbar-more > button'));
-    await fireEvent.click(screen.getByText('MD viewer (M)'));
+    await fireEvent.click(screen.getByRole('button', { name: 'MD viewer M' }));
 
     await waitFor(() => expect(document.querySelector('.markdown-preview')).toBeTruthy());
     expect(document.querySelector('.markdown-preview h1').textContent).toBe('제목');
@@ -463,7 +463,7 @@ describe('NoteEditor 마크다운 프리뷰와 단축키', () => {
     render(NoteEditor, { token: 't', repo: 'owner/repo', issue: baseIssue });
 
     await fireEvent.click(document.querySelector('.detail-toolbar-more > button'));
-    await fireEvent.click(screen.getByText('MD viewer (M)'));
+    await fireEvent.click(screen.getByRole('button', { name: 'MD viewer M' }));
 
     await waitFor(() => expect(document.querySelector('.note-comment-body-preview strong')).toBeTruthy());
     expect(document.querySelector('.note-comment-body-preview').innerHTML).not.toContain('<script');
