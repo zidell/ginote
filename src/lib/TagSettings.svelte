@@ -1,6 +1,7 @@
 <script>
   import { tick } from 'svelte';
   import { tagColorForName } from './colors.js';
+  import { visibleLabels as filterVisibleLabels } from './pin-label.js';
   import { _ } from 'svelte-i18n';
 
   export let labels = [];
@@ -12,6 +13,8 @@
   let drafts = {};
   let newName = '';
   let newNameInput;
+
+  $: manageableLabels = filterVisibleLabels(labels);
 
   function draftValue(name) {
     return drafts[name] ?? name;
@@ -73,9 +76,9 @@
       <i class="bi bi-plus-lg" aria-hidden="true"></i> {$_("m.61cc55aa04")}
     </button>
   </div>
-  {#if labels.length}
+  {#if manageableLabels.length}
     <div class="tag-settings-list">
-      {#each labels as label (label.id || label.name)}
+      {#each manageableLabels as label (label.id || label.name)}
         <div class="tag-settings-row">
           <span class="label-dot" style={`--label-color:#${tagColorForName(label.name)}`}></span>
           <input

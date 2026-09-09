@@ -2,6 +2,7 @@
   import { onDestroy, onMount } from 'svelte';
   import { tagColorForName } from './colors.js';
   import { normalizeTagName } from './notes.js';
+  import { isPinLabel } from './pin-label.js';
   import { _ } from 'svelte-i18n';
 
   export let availableLabels = [];
@@ -17,10 +18,12 @@
   let picker;
   let searchInput;
 
+  $: visibleAvailableLabels = availableLabels.filter((label) => !isPinLabel(label));
+  $: visibleSelectedLabels = selectedLabels.filter((name) => !isPinLabel(name));
   $: pickerLabels = [
-    ...availableLabels,
-    ...selectedLabels
-      .filter((name) => !availableLabels.some((label) => label.name.toLocaleLowerCase() === name.toLocaleLowerCase()))
+    ...visibleAvailableLabels,
+    ...visibleSelectedLabels
+      .filter((name) => !visibleAvailableLabels.some((label) => label.name.toLocaleLowerCase() === name.toLocaleLowerCase()))
       .map((name) => ({ name }))
   ];
   $: filteredLabels = pickerLabels
@@ -28,14 +31,15 @@
     .slice(0, 12);
   $: newTagName = normalizeTagName(search);
   $: canCreate = Boolean(newTagName)
+    && !isPinLabel(newTagName)
     && !hasSelected(newTagName)
-    && !availableLabels.some((label) => label.name.toLocaleLowerCase() === newTagName.toLocaleLowerCase());
+    && !visibleAvailableLabels.some((label) => label.name.toLocaleLowerCase() === newTagName.toLocaleLowerCase());
 
   onMount(() => document.addEventListener('pointerdown', handleOutside));
   onDestroy(() => document.removeEventListener('pointerdown', handleOutside));
 
   function hasSelected(name) {
-    return selectedLabels.some((label) => label.toLocaleLowerCase() === name.toLocaleLowerCase());
+    return visibleSelectedLabels.some((label) => label.toLocaleLowerCase() === name.toLocaleLowerCase());
   }
 
   function toggle() {

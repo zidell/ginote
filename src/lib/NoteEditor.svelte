@@ -27,6 +27,7 @@
     normalizeLockPin,
     removeLockFromTitle
   } from './note-lock.js';
+  import { isPinLabel, PIN_LABEL_NAME, visibleLabelNames, visibleLabels as filterVisibleLabels } from './pin-label.js';
   import {
     createIssue,
     createIssueComment,
@@ -161,6 +162,10 @@
   let handledExternalPasteRequest = 0;
 
   $: fontStack = editorFontStack(font);
+  $: displayedLabels = visibleLabelNames(labels);
+  $: visibleAvailableLabels = filterVisibleLabels(availableLabels);
+  $: desiredPinned = pinned || Boolean(issue?.labels?.some((label) => isPinLabel(label)));
+  $: if (mounted && remoteIssue?.number) syncPinLabelToParent();
   $: viewedAttachment = viewerIndex >= 0 ? attachments[viewerIndex] : null;
   $: displayBody = compressAttachmentLinks(body, repo);
   $: previewBody = expandAttachmentLinks(body, repo);
@@ -716,8 +721,8 @@
       }
       if (destroyed && issue) return;
 
-      const knownNames = new Set(availableLabels.map((label) => label.name.toLocaleLowerCase()));
-      const missingNames = labels.filter((name) => !knownNames.has(name.toLocaleLowerCase()));
+      const knownNames = new Set(visibleAvailableLabels.map((label) => label.name.toLocaleLowerCase()));
+      const missingNames = labels.filter((name) => !isPinLabel(name) && !knownNames.has(name.toLocaleLowerCase()));
       const createdLabels = await Promise.all(
         missingNames.map((name) => createLabel(token, repo, name, requestOptions))
       );
@@ -1375,6 +1380,14 @@
     return labels.some((label) => label.toLocaleLowerCase() === name.toLocaleLowerCase());
   }
 
+  function syncPinLabelToParent() {
+    const editorHasPinLabel = labels.some((name) => isPinLabel(name));
+    if (desiredPinned === editorHasPinLabel) return;
+    labels = desiredPinned
+      ? [...labels, PIN_LABEL_NAME]
+      : labels.filter((name) => !isPinLabel(name));
+  }
+
   function tagColor(name) {
     return `#${tagColorForName(name)}`;
   }
@@ -1557,7 +1570,7 @@
       return true;
     }
     if (key === 'p') {
-      if (!remoteIssue?.number || readOnly || (!pinned && pinDisabled)) return false;
+      if (!remoteIssue?.number || readOnly || pinDisabled) return false;
       requestPinToggle();
       return true;
     }
@@ -1692,8 +1705,8 @@
           bind:this={toolbarTagPicker}
           toolbar
           shortcut="T"
-          {availableLabels}
-          selectedLabels={labels}
+          availableLabels={visibleAvailableLabels}
+          selectedLabels={displayedLabels}
           onSelect={toggleTag}
         />
       {/if}
@@ -1715,8 +1728,8 @@
           toolbar
           iconOnly
           shortcut="T"
-          {availableLabels}
-          selectedLabels={labels}
+          availableLabels={visibleAvailableLabels}
+          selectedLabels={displayedLabels}
           onSelect={toggleTag}
         />
         <label
@@ -1783,7 +1796,7 @@
             type="button"
             class="dropdown-item"
             aria-keyshortcuts="P"
-            disabled={!pinned && pinDisabled}
+            disabled={pinDisabled}
             on:click={requestPinToggle}
           >
             <i class={`bi ${pinned ? 'bi-pin-angle-fill' : 'bi-pin-angle'}`} aria-hidden="true"></i>
@@ -1896,9 +1909,9 @@
         {/if}
       </section>
     {/if}
-    {#if labels.length || inlineTagPickerOpen}
+    {#if displayedLabels.length || inlineTagPickerOpen}
       <div class="editor-tags">
-        {#each labels as label (label)}
+        {#each displayedLabels as label (label)}
           <span class="editor-tag" style={`--tag-color:${tagColor(label)}`}>
             #{label}
             {#if editable && !previewMode}
@@ -1911,8 +1924,8 @@
         {#if editable && !previewMode}
           <TagPicker
             bind:open={inlineTagPickerOpen}
-            {availableLabels}
-            selectedLabels={labels}
+            availableLabels={visibleAvailableLabels}
+            selectedLabels={displayedLabels}
             onSelect={toggleTag}
           />
         {/if}

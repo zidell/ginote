@@ -26,6 +26,18 @@ describe('TagPicker', () => {
     expect(onSelect).toHaveBeenCalledWith('work');
   });
 
+  it('pin 시스템 라벨은 태그 선택기에서 숨긴다', async () => {
+    render(TagPicker, {
+      availableLabels: [{ name: 'work' }, { name: 'ginote:pin' }],
+      selectedLabels: ['ginote:pin']
+    });
+
+    await fireEvent.click(screen.getByRole('button', { name: 'Add' }));
+
+    expect(screen.getByRole('button', { name: '#work' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: '#ginote:pin' })).toBeNull();
+  });
+
   it('Escape는 검색창이 제거되기 전에 전역 뒤로 가기로 전파되지 않는다', async () => {
     const onWindowKeyup = vi.fn();
     window.addEventListener('keyup', onWindowKeyup);
