@@ -2009,7 +2009,10 @@
                 </div>
               </div>
               {#if previewMode}
-                <div class="note-comment-body note-comment-body-preview">{comment.body}</div>
+                <MarkdownViewer
+                  className="note-comment-body-preview"
+                  source={comment.body}
+                />
               {:else}
                 <textarea
                   id={`comment-body-${comment.id}`}

@@ -4,6 +4,7 @@
 
   export let source = '';
   export let emptyLabel = '';
+  export let className = '';
 
   const dispatch = createEventDispatcher();
   let root;
@@ -52,7 +53,7 @@
   }
 </script>
 
-<div class="markdown-preview" bind:this={root} tabindex="-1" role="document">
+<div class={`markdown-preview${className ? ` ${className}` : ''}`} bind:this={root} tabindex="-1" role="document">
   {#if rendered}
     {@html rendered}
   {:else if emptyLabel}
