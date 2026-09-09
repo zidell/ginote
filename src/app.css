@@ -323,7 +323,7 @@ code { color: #d8d8d8; }
 .markdown-preview th, .markdown-preview td { padding: .4rem .55rem; border: 1px solid #454545; text-align: left; vertical-align: top; }
 .markdown-preview th { color: #eee; background: #292929; }
 .markdown-preview input[type="checkbox"] { margin-right: .4em; accent-color: #5680d8; }
-.note-comment-body-preview { min-height: 1.6em; white-space: pre-wrap; }
+.markdown-preview.note-comment-body-preview { min-height: 1.6em; padding: 0; font-size: calc(var(--note-font-size) * .92); }
 .note-comments-section { flex: none; display: flex; flex-direction: column; margin: .75rem var(--editor-gutter) 0; padding: .9rem 0 var(--editor-gutter); border-top: 1px solid #303030; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
 .note-comments-loading { display: flex; justify-content: center; padding: .5rem 0; }
 .note-comment-item { display: flex; flex-direction: column; gap: .3rem; padding: .7rem 0; }

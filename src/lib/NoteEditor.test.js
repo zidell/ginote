@@ -72,6 +72,7 @@ const {
   deleteAttachment,
   deleteIssueComment,
   getIssue,
+  listIssueComments,
   listIssueAttachmentFiles,
   updateIssue,
   updateIssueComment
@@ -447,6 +448,25 @@ describe('NoteEditor 마크다운 프리뷰와 단축키', () => {
     expect(document.querySelector('.markdown-preview h1').textContent).toBe('제목');
     expect(document.querySelector('.markdown-preview strong').textContent).toBe('강조');
     expect(document.querySelector('.markdown-preview').innerHTML).not.toContain('<script');
+  });
+
+  it('MD뷰어에서 코멘트도 Markdown으로 안전하게 렌더링한다', async () => {
+    listIssueComments.mockResolvedValueOnce([{
+      id: 7,
+      body: '**댓글 강조**\n\n<script>alert(1)</script>',
+      author: 'octocat',
+      avatarUrl: '',
+      createdAt: '2026-09-01T00:00:00Z',
+      updatedAt: '2026-09-01T00:00:00Z',
+      url: ''
+    }]);
+    render(NoteEditor, { token: 't', repo: 'owner/repo', issue: baseIssue });
+
+    await fireEvent.click(document.querySelector('.detail-toolbar-more > button'));
+    await fireEvent.click(screen.getByText('MD viewer (M)'));
+
+    await waitFor(() => expect(document.querySelector('.note-comment-body-preview strong')).toBeTruthy());
+    expect(document.querySelector('.note-comment-body-preview').innerHTML).not.toContain('<script');
   });
 
   it('포커스가 없을 때 M으로 열고 같은 키나 Escape로 닫는다', async () => {
