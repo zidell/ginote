@@ -1474,7 +1474,7 @@
 
   function syncKeyboardShortcutClass() {
     keyboardShortcutFocusFrame = 0;
-    document.body?.classList.toggle('keyboard-shortcuts-ready', !document.querySelector('textarea:focus'));
+    document.body?.classList.toggle('keyboard-shortcuts-ready', hasNoInteractiveFocus());
   }
 
   function scheduleKeyboardShortcutClass() {

@@ -5,7 +5,7 @@ export const THEME_DEFAULT = 'dark';
 export const THEME_OPTIONS = ['dark', 'light'];
 export const THEME_META_COLORS = {
   dark: '#171717',
-  light: '#f5f7fb'
+  light: '#fff'
 };
 export const BACKGROUND_REFRESH_DEFAULT_MINUTES = 60;
 export const BACKGROUND_REFRESH_OPTIONS = [0, 5, 15, 30, 60, 180];
