@@ -498,6 +498,17 @@ describe('NoteEditor 마크다운 프리뷰와 단축키', () => {
     expect(document.querySelector('.markdown-preview')).toBeNull();
   });
 
+  it('버튼에 포커스가 있어도 단일 키 단축키를 처리한다', async () => {
+    render(NoteEditor, { token: 't', repo: 'owner/repo', issue: baseIssue });
+
+    const toolbarButton = document.querySelector('.detail-toolbar-more > button');
+    toolbarButton.focus();
+    const event = dispatchShortcut('m', 'KeyM');
+
+    expect(event.defaultPrevented).toBe(true);
+    await waitFor(() => expect(document.querySelector('.markdown-preview')).toBeTruthy());
+  });
+
   it('프리뷰 전환 전후에 스크롤 진행률을 서로 변환한다', async () => {
     render(NoteEditor, {
       token: 't',
