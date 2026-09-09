@@ -54,11 +54,6 @@
     setCachedIssueList
   } from './lib/issue-cache.js';
   import {
-    clearPinnedNotes,
-    loadPinnedNotes,
-    savePinnedNotes,
-  } from './lib/pinned-notes-storage.js';
-  import {
     addIssueLabel,
     createIssue,
     createLabel,
@@ -113,7 +108,6 @@
   let repository = null;
   let issues = [];
   let pinnedIssues = [];
-  let legacyPinnedIssues = [];
   let repositoryLabels = [];
   let selectedIssue = null;
   let keyboardFocusedIssueId = '';
@@ -341,8 +335,6 @@
     if (settingsDocument) {
       workspaces = settingsDocument.workspaces;
       activeWorkspaceId = settingsDocument.activeWorkspaceId;
-      legacyPinnedIssues = loadPinnedNotes(activeWorkspaceId);
-      pinnedIssues = legacyPinnedIssues;
       ({
         titleMode,
         listRowFields,
@@ -612,9 +604,9 @@
     return reason?.message || $_("m.285cc7fd9a");
   }
 
-  function mergePinnedIssueLists(remotePins, fallbackPins = legacyPinnedIssues) {
+  function mergePinnedIssueLists(remotePins) {
     const seen = new Set();
-    return [...remotePins, ...fallbackPins].filter((issue) => {
+    return remotePins.filter((issue) => {
       const key = String(issue?.id ?? issue?.number ?? '');
       if (!key || seen.has(key)) return false;
       seen.add(key);
@@ -707,50 +699,11 @@
       pinnedIssues = pinnedIssues.filter((item) => !samePinIssue(item, mutation.issue));
     }
 
-    const currentLegacy = legacyPinnedIssues.find((item) => samePinIssue(item, mutation.issue));
-    if (mutation.wasLegacyPinned) {
-      const restored = restoreIssue(currentLegacy || mutation.previousLegacyIssue);
-      legacyPinnedIssues = currentLegacy
-        ? legacyPinnedIssues.map((item) => samePinIssue(item, mutation.issue) ? restored : item)
-        : [restored, ...legacyPinnedIssues];
-      savePinnedNotes(activeWorkspaceId, legacyPinnedIssues);
-    } else if (currentLegacy) {
-      legacyPinnedIssues = legacyPinnedIssues.filter((item) => !samePinIssue(item, mutation.issue));
-      if (legacyPinnedIssues.length) savePinnedNotes(activeWorkspaceId, legacyPinnedIssues);
-      else clearPinnedNotes(activeWorkspaceId);
-    }
   }
 
   function invalidatePendingPinMutation() {
     pendingPinMutation = null;
     pinBusyIssueNumber = null;
-  }
-
-  async function migrateLegacyPinnedNotes(migrationToken, migrationRepo, workspaceId) {
-    if (!workspaceId || !legacyPinnedIssues.length) return null;
-    const targets = legacyPinnedIssues.filter((issue) => Number.isInteger(Number(issue?.number)));
-    if (!targets.length) {
-      clearPinnedNotes(workspaceId);
-      legacyPinnedIssues = [];
-      return null;
-    }
-
-    try {
-      await createLabel(migrationToken, migrationRepo, PIN_LABEL_NAME);
-      for (const issue of targets) {
-        try {
-          await addIssueLabel(migrationToken, migrationRepo, issue.number, PIN_LABEL_NAME);
-        } catch (reason) {
-          // 이미 삭제된 이슈의 오래된 로컬 pin은 마이그레이션 대상에서 버린다.
-          if (reason?.status !== 404) throw reason;
-        }
-      }
-      clearPinnedNotes(workspaceId);
-      if (workspaceId === activeWorkspaceId) legacyPinnedIssues = [];
-      return null;
-    } catch (reason) {
-      return reason;
-    }
   }
 
   async function connect(showSuccess = true, restoring = false) {
@@ -773,9 +726,7 @@
       persistSettings(result.repo);
       restartBackgroundRefreshTimer();
       if (showSuccess) notice = $_("m.2273eb0763");
-      const migrationError = await migrateLegacyPinnedNotes(requestedToken, result.repo, activeWorkspaceId);
       await Promise.all([loadIssues(), loadRepositoryLabels()]);
-      if (migrationError && activeWorkspaceId) error = friendlyError(migrationError);
       appState = 'ready';
       applyRoute();
       pruneExpiredAttachments();
@@ -819,7 +770,7 @@
 
     // 나가는 워크스페이스의 목록/필터 상태를 캐시해 다시 돌아왔을 때 즉시 보여준다(stale-while-revalidate).
     setCachedIssueList(activeWorkspaceId, {
-      issues, pinnedIssues, repositoryLabels, issuePage, hasMoreIssues, totalIssues,
+      issues, repositoryLabels, issuePage, hasMoreIssues, totalIssues,
       state, query, appliedQuery, activeLabel,
       noteCount: workspaceNoteCounts[activeWorkspaceId],
       openNoteSegment: contentRoute?.screen === 'note' ? contentRoute.segment : '',
@@ -843,8 +794,7 @@
     activeLabel = '';
 
     activeWorkspaceId = workspaceId;
-    legacyPinnedIssues = loadPinnedNotes(workspaceId);
-    pinnedIssues = legacyPinnedIssues;
+    pinnedIssues = [];
     token = target.token;
     repo = target.repo;
     rememberToken = target.rememberToken;
@@ -857,7 +807,6 @@
     const cached = getCachedIssueList(workspaceId, workspaceCacheMinutes);
     if (cached) {
       ({ issues, repositoryLabels, issuePage, hasMoreIssues, totalIssues, state, query, appliedQuery, activeLabel } = cached);
-      pinnedIssues = cached.pinnedIssues || pinnedIssues;
       setWorkspaceNoteCount(workspaceId, cached.noteCount);
       appState = 'ready';
       // 유효 기간 안의 캐시라면 그 워크스페이스에서 마지막으로 열던 노트도 되돌린다.
@@ -871,7 +820,7 @@
       }
     } else {
       issues = [];
-      pinnedIssues = legacyPinnedIssues;
+      pinnedIssues = [];
       repositoryLabels = [];
       // 이미 인증된 워크스페이스로 전환하는 것뿐이므로, 최초 설정용 스텝바이스텝
       // 마법사(appState 'connecting') 대신 부팅 시 자동 재연결과 같은 가벼운
@@ -887,9 +836,7 @@
       appState = 'ready';
       restartBackgroundRefreshTimer();
       // 캐시로 이미 목록을 보여준 상태라면 로딩 스피너 없이 조용히 갱신한다.
-      const migrationError = await migrateLegacyPinnedNotes(token, repo, workspaceId);
       await Promise.all([loadIssues(Boolean(cached)), loadRepositoryLabels()]);
-      if (migrationError && workspaceId === activeWorkspaceId) error = friendlyError(migrationError);
       applyRoute();
       pruneExpiredAttachments();
     } catch (reason) {
@@ -940,7 +887,6 @@
     if (activeWorkspaceId === workspaceId) invalidatePendingPinMutation();
     workspaces = workspaces.filter((workspace) => workspace.id !== workspaceId);
     invalidateCachedIssueList(workspaceId);
-    clearPinnedNotes(workspaceId);
     removeWorkspaceNoteCount(workspaceId);
     saveSettingsDocument({ workspaces, activeWorkspaceId, preferences: currentPreferences() });
     if (activeWorkspaceId !== workspaceId) return;
@@ -957,7 +903,6 @@
     repository = null;
     issues = [];
     pinnedIssues = [];
-    legacyPinnedIssues = [];
     totalIssues = 0;
     repositoryLabels = [];
     pendingNote = null;
@@ -1996,23 +1941,6 @@
     }
   }
 
-  function syncLegacyPinnedIssue(issue) {
-    if (!legacyPinnedIssues.length || !issue) return;
-    const index = legacyPinnedIssues.findIndex((item) => samePinIssue(item, issue));
-    if (hasPinLabel(issue)) {
-      const next = index >= 0
-        ? legacyPinnedIssues.map((item) => samePinIssue(item, issue) ? issue : item)
-        : [issue, ...legacyPinnedIssues];
-      legacyPinnedIssues = next;
-      savePinnedNotes(activeWorkspaceId, next);
-    } else if (index >= 0) {
-      const next = legacyPinnedIssues.filter((item) => !samePinIssue(item, issue));
-      legacyPinnedIssues = next;
-      if (next.length) savePinnedNotes(activeWorkspaceId, next);
-      else clearPinnedNotes(activeWorkspaceId);
-    }
-  }
-
   function syncPinnedIssue(issue) {
     if (!issue) return;
     const pendingPin = pendingPinMutationFor(activeWorkspaceId, token, repo);
@@ -2025,7 +1953,6 @@
     } else if (index >= 0) {
       pinnedIssues = pinnedIssues.filter((item) => !samePinIssue(item, syncedIssue));
     }
-    syncLegacyPinnedIssue(syncedIssue);
     return syncedIssue;
   }
 
@@ -2044,8 +1971,6 @@
       desiredPinned: !currentlyPinned,
       wasPinned: currentlyPinned,
       previousPinnedIssue: pinnedIssues.find((item) => samePinIssue(item, issue)) || null,
-      wasLegacyPinned: legacyPinnedIssues.some((item) => samePinIssue(item, issue)),
-      previousLegacyIssue: legacyPinnedIssues.find((item) => samePinIssue(item, issue)) || null,
       shouldCreatePinLabel: !repositoryLabels.some((label) => isPinLabel(label))
     };
     mutation.optimisticIssue = withPinState(issue, mutation.desiredPinned);
