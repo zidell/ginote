@@ -191,6 +191,21 @@ export function setIssueLabels(token, repoInput, issueNumber, labels) {
   });
 }
 
+export function addIssueLabel(token, repoInput, issueNumber, label) {
+  const repo = normalizeRepo(repoInput);
+  return request(`/repos/${repo}/issues/${issueNumber}/labels`, token, {
+    method: 'POST',
+    body: JSON.stringify({ labels: [label] })
+  });
+}
+
+export function removeIssueLabel(token, repoInput, issueNumber, label) {
+  const repo = normalizeRepo(repoInput);
+  return request(`/repos/${repo}/issues/${issueNumber}/labels/${encodeURIComponent(label)}`, token, {
+    method: 'DELETE'
+  });
+}
+
 export async function listLabels(token, repoInput) {
   const repo = normalizeRepo(repoInput);
   return request(`/repos/${repo}/labels?per_page=100`, token);

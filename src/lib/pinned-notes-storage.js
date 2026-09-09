@@ -1,5 +1,4 @@
 export const PINNED_NOTES_STORAGE_KEY = 'issue-note.pinned-notes.v1';
-export const MAX_PINNED_NOTES = 30;
 
 function loadDocument() {
   try {
@@ -14,25 +13,21 @@ export function loadPinnedNotes(workspaceId) {
   if (!workspaceId) return [];
   const document = loadDocument();
   const entries = document[workspaceId];
-  return Array.isArray(entries) ? entries.slice(0, MAX_PINNED_NOTES) : [];
+  return Array.isArray(entries) ? entries : [];
 }
 
 export function savePinnedNotes(workspaceId, pinnedIssues) {
   if (!workspaceId) return;
   const document = loadDocument();
-  document[workspaceId] = pinnedIssues.slice(0, MAX_PINNED_NOTES);
+  document[workspaceId] = pinnedIssues;
   localStorage.setItem(PINNED_NOTES_STORAGE_KEY, JSON.stringify(document));
 }
 
-export function togglePinnedNote(pinnedIssues, issue) {
-  if (pinnedIssues.some((item) => item.id === issue.id)) {
-    return pinnedIssues.filter((item) => item.id !== issue.id);
-  }
-  if (pinnedIssues.length >= MAX_PINNED_NOTES) return pinnedIssues;
-  return [issue, ...pinnedIssues];
-}
-
-export function replacePinnedNoteSnapshot(pinnedIssues, issue) {
-  if (!pinnedIssues.some((item) => item.id === issue.id)) return pinnedIssues;
-  return pinnedIssues.map((item) => (item.id === issue.id ? issue : item));
+export function clearPinnedNotes(workspaceId) {
+  if (!workspaceId) return;
+  const document = loadDocument();
+  if (!(workspaceId in document)) return;
+  delete document[workspaceId];
+  if (Object.keys(document).length) localStorage.setItem(PINNED_NOTES_STORAGE_KEY, JSON.stringify(document));
+  else localStorage.removeItem(PINNED_NOTES_STORAGE_KEY);
 }

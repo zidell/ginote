@@ -3,6 +3,7 @@
   import { tagColorForName } from './colors.js';
   import { markdownToPlainText } from './notes.js';
   import { isLockedTitle, removeLockFromTitle } from './note-lock.js';
+  import { visibleLabels as filterVisibleLabels } from './pin-label.js';
   import { _, locale as activeLocale } from 'svelte-i18n';
 
   export let issue;
@@ -26,6 +27,8 @@
   function labelColor(label) {
     return tagColorForName(label?.name);
   }
+
+  $: renderedLabels = filterVisibleLabels(issue.labels || []);
 
   function excerpt(body, title = '') {
     const plainBody = markdownToPlainText(body);
@@ -93,9 +96,9 @@
       </span>
     {/if}
   </div>
-  {#if listRowFields.tags && issue.labels?.length}
+  {#if listRowFields.tags && renderedLabels.length}
     <div class="note-row-labels">
-      {#each issue.labels as label (label.id || label.name)}
+      {#each renderedLabels as label (label.id || label.name)}
         <span style={`--tag-color:#${labelColor(label)}`}>#{label.name}</span>
       {/each}
     </div>

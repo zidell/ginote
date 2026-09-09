@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { setAppLocale } from './i18n.js';
 import {
+  addIssueLabel,
   createIssue,
   createIssueComment,
   createLabel,
@@ -13,6 +14,7 @@ import {
   listIssues,
   listIssuesPage,
   purgeIssueAttachments,
+  removeIssueLabel,
   renameLabel,
   searchIssues,
   searchIssuesPage,
@@ -256,6 +258,33 @@ describe('GitHub API client', () => {
     expect(url).toBe('https://api.github.com/repos/owner/repo/issues/31');
     expect(options.method).toBe('PATCH');
     expect(JSON.parse(options.body)).toEqual({ labels: ['개인'] });
+  });
+
+  it('이슈에 라벨 하나를 추가한다', async () => {
+    fetch.mockResolvedValueOnce(jsonResponse([{ name: 'ginote:pin' }]));
+
+    await expect(addIssueLabel('token', 'owner/repo', 31, 'ginote:pin')).resolves.toEqual([
+      { name: 'ginote:pin' }
+    ]);
+
+    const [url, options] = fetch.mock.calls[0];
+    expect(url).toBe('https://api.github.com/repos/owner/repo/issues/31/labels');
+    expect(options.method).toBe('POST');
+    expect(JSON.parse(options.body)).toEqual({ labels: ['ginote:pin'] });
+  });
+
+  it('이슈에서 라벨 하나를 삭제한다', async () => {
+    fetch.mockResolvedValueOnce(jsonResponse([{ name: 'work' }]));
+
+    await expect(removeIssueLabel('token', 'owner/repo', 31, 'ginote:pin')).resolves.toEqual([
+      { name: 'work' }
+    ]);
+
+    const [url, options] = fetch.mock.calls[0];
+    expect(url).toBe(
+      'https://api.github.com/repos/owner/repo/issues/31/labels/ginote%3Apin'
+    );
+    expect(options.method).toBe('DELETE');
   });
 
   it('GitHub 오류의 상태와 API 한도 정보를 유지한다', async () => {

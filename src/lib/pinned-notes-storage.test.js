@@ -1,10 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  clearPinnedNotes,
   loadPinnedNotes,
-  MAX_PINNED_NOTES,
-  replacePinnedNoteSnapshot,
   savePinnedNotes,
-  togglePinnedNote
 } from './pinned-notes-storage.js';
 
 function createMemoryStorage() {
@@ -25,10 +23,6 @@ afterEach(() => {
 });
 
 describe('loadPinnedNotes / savePinnedNotes', () => {
-  it('최대 30개의 pin을 허용한다', () => {
-    expect(MAX_PINNED_NOTES).toBe(30);
-  });
-
   it('워크스페이스가 없으면 빈 배열을 반환한다', () => {
     expect(loadPinnedNotes('')).toEqual([]);
   });
@@ -44,43 +38,19 @@ describe('loadPinnedNotes / savePinnedNotes', () => {
     expect(loadPinnedNotes('workspace-2')).toEqual([{ id: 2 }]);
   });
 
-  it('최대 개수를 넘겨 저장해도 불러올 때 컷한다', () => {
-    const many = Array.from({ length: MAX_PINNED_NOTES + 5 }, (_, index) => ({ id: index }));
+  it('기존 저장소의 pin을 개수 제한 없이 불러온다', () => {
+    const many = Array.from({ length: 105 }, (_, index) => ({ id: index }));
     savePinnedNotes('workspace-1', many);
-    expect(loadPinnedNotes('workspace-1')).toHaveLength(MAX_PINNED_NOTES);
-  });
-});
-
-describe('togglePinnedNote', () => {
-  it('없으면 맨 앞에 추가한다', () => {
-    const result = togglePinnedNote([{ id: 1 }], { id: 2 });
-    expect(result).toEqual([{ id: 2 }, { id: 1 }]);
+    expect(loadPinnedNotes('workspace-1')).toHaveLength(105);
   });
 
-  it('이미 있으면 제거한다', () => {
-    const result = togglePinnedNote([{ id: 1 }, { id: 2 }], { id: 1 });
-    expect(result).toEqual([{ id: 2 }]);
-  });
+  it('워크스페이스의 이전 pin 저장소를 지운다', () => {
+    savePinnedNotes('workspace-1', [{ id: 1 }]);
+    savePinnedNotes('workspace-2', [{ id: 2 }]);
 
-  it('최대치에 도달하면 새 항목을 무시하고 원본을 그대로 반환한다', () => {
-    const full = Array.from({ length: MAX_PINNED_NOTES }, (_, index) => ({ id: index }));
-    const result = togglePinnedNote(full, { id: 'new' });
-    expect(result).toBe(full);
-  });
-});
+    clearPinnedNotes('workspace-1');
 
-describe('replacePinnedNoteSnapshot', () => {
-  it('id가 일치하는 항목만 최신 데이터로 교체한다', () => {
-    const result = replacePinnedNoteSnapshot(
-      [{ id: 1, title: 'old' }, { id: 2, title: 'other' }],
-      { id: 1, title: 'new' }
-    );
-    expect(result).toEqual([{ id: 1, title: 'new' }, { id: 2, title: 'other' }]);
-  });
-
-  it('일치하는 항목이 없으면 원본을 그대로 반환한다', () => {
-    const original = [{ id: 1, title: 'old' }];
-    const result = replacePinnedNoteSnapshot(original, { id: 99, title: 'new' });
-    expect(result).toBe(original);
+    expect(loadPinnedNotes('workspace-1')).toEqual([]);
+    expect(loadPinnedNotes('workspace-2')).toEqual([{ id: 2 }]);
   });
 });

@@ -632,6 +632,31 @@ describe('NoteEditor 첨부 파일', () => {
 });
 
 describe('NoteEditor 태그', () => {
+  it('pin 시스템 라벨은 숨기고 저장할 때는 보존한다', async () => {
+    const issue = {
+      ...baseIssue,
+      labels: [{ name: 'work' }, { name: 'ginote:pin' }]
+    };
+    render(NoteEditor, {
+      token: 't',
+      repo: 'owner/repo',
+      issue,
+      availableLabels: [{ name: 'work' }, { name: 'ginote:pin' }],
+      pinned: true,
+      autoSaveSeconds: 9999
+    });
+
+    expect(screen.getByText('#work')).toBeTruthy();
+    expect(screen.queryByText('#ginote:pin')).toBeNull();
+
+    await fireEvent.input(document.querySelector('.inline-body'), { target: { value: '수정한 본문' } });
+    await fireEvent.blur(document.querySelector('.inline-body'));
+    await waitFor(() => expect(updateIssue).toHaveBeenCalled());
+
+    const savedNote = updateIssue.mock.calls.at(-1)[3];
+    expect(savedNote.labels).toContain('ginote:pin');
+  });
+
   it('이미 붙은 태그를 선택기에서 다시 누르면 제거한다', async () => {
     const issue = { ...baseIssue, labels: [{ name: 'Work' }] };
     render(NoteEditor, {

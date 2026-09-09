@@ -20,6 +20,13 @@
   import { _, locale as activeLocale } from 'svelte-i18n';
   import { LOCALE_OPTIONS, setAppLocale } from './lib/i18n.js';
   import { normalizeTagName } from './lib/notes.js';
+  import {
+    hasPinLabel,
+    isPinLabel,
+    PIN_LABEL_NAME,
+    visibleLabels as filterVisibleLabels,
+    withPinState
+  } from './lib/pin-label.js';
   import { makePatCreationUrl, normalizeToken, parseRepositoryAddress } from './lib/repo-address.js';
   import {
     BACKGROUND_REFRESH_DEFAULT_MINUTES,
@@ -47,18 +54,18 @@
     setCachedIssueList
   } from './lib/issue-cache.js';
   import {
+    clearPinnedNotes,
     loadPinnedNotes,
-    MAX_PINNED_NOTES,
-    replacePinnedNoteSnapshot,
     savePinnedNotes,
-    togglePinnedNote
   } from './lib/pinned-notes-storage.js';
   import {
+    addIssueLabel,
     createIssue,
     createLabel,
     listExpiredClosedIssues,
     listIssuesPage,
     listLabels,
+    removeIssueLabel,
     removeLabel,
     renameLabel,
     purgeIssueAttachments,
@@ -78,6 +85,7 @@
   const SIDEBAR_WIDTH_MIN = 200;
   const SIDEBAR_WIDTH_MAX = 600;
   const SIDEBAR_WIDTH_DEFAULT = 340;
+  const PINNED_ISSUE_PAGE_SIZE = 100;
   const HELP_TOPICS = new Set(['security', 'mcp', 'app', 'keyboard']);
   // Escape는 열린 UI와 포커스를 먼저 정리한 뒤, 남은 경우에만 아래 전역
   // 핸들러가 뒤로가기를 수행한다. 라우터의 자동 keyup 뒤로가기를 켜두면
@@ -105,6 +113,7 @@
   let repository = null;
   let issues = [];
   let pinnedIssues = [];
+  let legacyPinnedIssues = [];
   let repositoryLabels = [];
   let selectedIssue = null;
   let keyboardFocusedIssueId = '';
@@ -160,6 +169,9 @@
   let toastSequence = 0;
   let pendingIssueDeletion = null;
   let pendingIssueDeletionTimer;
+  let pinBusyIssueNumber = null;
+  let pendingPinMutation = null;
+  let nextPinMutationId = 0;
   let sidebarWidth = SIDEBAR_WIDTH_DEFAULT;
   let sidebarResizing = false;
   let sidebarScrollElement;
@@ -193,7 +205,7 @@
   $: pendingIssueDeletionIds = new Set(pendingIssueDeletion?.map((issue) => issue.id) ?? []);
   $: selectionTagCounts = countSelectionTags(selectedIssues);
   $: selectionTagOptions = buildSelectionTagOptions(
-    repositoryLabels,
+    visibleRepositoryLabels,
     selectionTagCounts,
     selectionTagSearch
   );
@@ -232,7 +244,8 @@
     : issues;
   $: pinnedIssueIds = new Set(pinnedIssues.map((issue) => issue.id));
   $: unpinnedVisibleIssues = visibleIssues.filter((issue) => !pinnedIssueIds.has(issue.id));
-  $: sidebarLabelSuggestions = repositoryLabels.filter((label) =>
+  $: visibleRepositoryLabels = filterVisibleLabels(repositoryLabels);
+  $: sidebarLabelSuggestions = visibleRepositoryLabels.filter((label) =>
     label.name.toLocaleLowerCase().includes(query.trim().replace(/^#/, '').toLocaleLowerCase())
   );
   $: if (sidebarScrollElement && sidebarToolsElement && !sidebarToolsInitialized && !sidebarToolsInitializing) {
@@ -328,7 +341,8 @@
     if (settingsDocument) {
       workspaces = settingsDocument.workspaces;
       activeWorkspaceId = settingsDocument.activeWorkspaceId;
-      pinnedIssues = loadPinnedNotes(activeWorkspaceId);
+      legacyPinnedIssues = loadPinnedNotes(activeWorkspaceId);
+      pinnedIssues = legacyPinnedIssues;
       ({
         titleMode,
         listRowFields,
@@ -422,8 +436,8 @@
     if (route.screen === 'new') return null;
     const issueNumber = Number(route.value);
     // 고정 노트는 현재 페이지에 없거나 검색/필터 결과에서 빠져도 별도
-    // 스냅샷으로 목록에 남는다. 그런 노트를 눌렀을 때도 같은 편집기를 열어야
-    // 하므로 일반 목록 다음에 고정 목록을 fallback으로 사용한다.
+    // 라벨 조회 결과로 목록에 남는다. 그런 노트를 눌렀을 때도 같은 편집기를
+    // 열어야 하므로 일반 목록 다음에 고정 목록을 fallback으로 사용한다.
     return issues.find((issue) => issue.number === issueNumber)
       || pinnedIssues.find((issue) => issue.number === issueNumber)
       || null;
@@ -598,6 +612,147 @@
     return reason?.message || $_("m.285cc7fd9a");
   }
 
+  function mergePinnedIssueLists(remotePins, fallbackPins = legacyPinnedIssues) {
+    const seen = new Set();
+    return [...remotePins, ...fallbackPins].filter((issue) => {
+      const key = String(issue?.id ?? issue?.number ?? '');
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }
+
+  function samePinIssue(left, right) {
+    if (!left || !right) return false;
+    if (left.id != null && right.id != null) return String(left.id) === String(right.id);
+    return left.number != null && right.number != null
+      && Number(left.number) === Number(right.number);
+  }
+
+  function pinMutationMatchesContext(mutation, workspaceId = activeWorkspaceId, requestedToken = token, requestedRepo = repo) {
+    return Boolean(
+      mutation
+      && pendingPinMutation?.id === mutation.id
+      && mutation.workspaceId === workspaceId
+      && mutation.token === requestedToken
+      && mutation.repo === requestedRepo
+    );
+  }
+
+  function pendingPinMutationFor(workspaceId, requestedToken, requestedRepo) {
+    return pinMutationMatchesContext(
+      pendingPinMutation,
+      workspaceId,
+      requestedToken,
+      requestedRepo
+    )
+      ? pendingPinMutation
+      : null;
+  }
+
+  function applyPendingPinToIssue(issue, mutation) {
+    return mutation && samePinIssue(issue, mutation.issue)
+      ? withPinState(issue, mutation.desiredPinned)
+      : issue;
+  }
+
+  function applyPendingPinToList(pinList, mutation) {
+    if (!mutation) return pinList;
+    const existing = pinList.find((issue) => samePinIssue(issue, mutation.issue));
+    const withoutTarget = pinList.filter((issue) => !samePinIssue(issue, mutation.issue));
+    if (!mutation.desiredPinned) return withoutTarget;
+    return [
+      withPinState(existing || mutation.optimisticIssue, true),
+      ...withoutTarget
+    ];
+  }
+
+  function currentIssueForPinMutation(mutation) {
+    return [
+      selectedIssue,
+      ...issues,
+      ...pinnedIssues
+    ].find((issue) => samePinIssue(issue, mutation.issue)) || mutation.optimisticIssue;
+  }
+
+  function applyPinIssue(issue) {
+    if (!issue) return;
+    const syncedIssue = syncPinnedIssue(issue);
+    issues = issues.map((item) => samePinIssue(item, issue) ? syncedIssue : item);
+    if (samePinIssue(selectedIssue, issue)) selectedIssue = syncedIssue;
+  }
+
+  function restorePinMutation(mutation) {
+    if (!pinMutationMatchesContext(mutation)) return;
+    const currentIssue = currentIssueForPinMutation(mutation);
+    const restoreIssue = (source) => withPinState(
+      source || currentIssue || mutation.issue,
+      mutation.wasPinned
+    );
+
+    issues = issues.map((item) => samePinIssue(item, mutation.issue)
+      ? restoreIssue(item)
+      : item);
+    if (samePinIssue(selectedIssue, mutation.issue)) {
+      selectedIssue = restoreIssue(selectedIssue);
+    }
+
+    const currentPinned = pinnedIssues.find((item) => samePinIssue(item, mutation.issue));
+    if (mutation.wasPinned) {
+      const restored = restoreIssue(currentPinned || mutation.previousPinnedIssue);
+      pinnedIssues = currentPinned
+        ? pinnedIssues.map((item) => samePinIssue(item, mutation.issue) ? restored : item)
+        : [restored, ...pinnedIssues];
+    } else {
+      pinnedIssues = pinnedIssues.filter((item) => !samePinIssue(item, mutation.issue));
+    }
+
+    const currentLegacy = legacyPinnedIssues.find((item) => samePinIssue(item, mutation.issue));
+    if (mutation.wasLegacyPinned) {
+      const restored = restoreIssue(currentLegacy || mutation.previousLegacyIssue);
+      legacyPinnedIssues = currentLegacy
+        ? legacyPinnedIssues.map((item) => samePinIssue(item, mutation.issue) ? restored : item)
+        : [restored, ...legacyPinnedIssues];
+      savePinnedNotes(activeWorkspaceId, legacyPinnedIssues);
+    } else if (currentLegacy) {
+      legacyPinnedIssues = legacyPinnedIssues.filter((item) => !samePinIssue(item, mutation.issue));
+      if (legacyPinnedIssues.length) savePinnedNotes(activeWorkspaceId, legacyPinnedIssues);
+      else clearPinnedNotes(activeWorkspaceId);
+    }
+  }
+
+  function invalidatePendingPinMutation() {
+    pendingPinMutation = null;
+    pinBusyIssueNumber = null;
+  }
+
+  async function migrateLegacyPinnedNotes(migrationToken, migrationRepo, workspaceId) {
+    if (!workspaceId || !legacyPinnedIssues.length) return null;
+    const targets = legacyPinnedIssues.filter((issue) => Number.isInteger(Number(issue?.number)));
+    if (!targets.length) {
+      clearPinnedNotes(workspaceId);
+      legacyPinnedIssues = [];
+      return null;
+    }
+
+    try {
+      await createLabel(migrationToken, migrationRepo, PIN_LABEL_NAME);
+      for (const issue of targets) {
+        try {
+          await addIssueLabel(migrationToken, migrationRepo, issue.number, PIN_LABEL_NAME);
+        } catch (reason) {
+          // 이미 삭제된 이슈의 오래된 로컬 pin은 마이그레이션 대상에서 버린다.
+          if (reason?.status !== 404) throw reason;
+        }
+      }
+      clearPinnedNotes(workspaceId);
+      if (workspaceId === activeWorkspaceId) legacyPinnedIssues = [];
+      return null;
+    } catch (reason) {
+      return reason;
+    }
+  }
+
   async function connect(showSuccess = true, restoring = false) {
     if (!restoring && appState === 'setup' && rememberToken && !hasConfirmedPatStorage) {
       if (!confirm($_('setup.confirmPatStorage'))) return;
@@ -618,7 +773,9 @@
       persistSettings(result.repo);
       restartBackgroundRefreshTimer();
       if (showSuccess) notice = $_("m.2273eb0763");
+      const migrationError = await migrateLegacyPinnedNotes(requestedToken, result.repo, activeWorkspaceId);
       await Promise.all([loadIssues(), loadRepositoryLabels()]);
+      if (migrationError && activeWorkspaceId) error = friendlyError(migrationError);
       appState = 'ready';
       applyRoute();
       pruneExpiredAttachments();
@@ -658,10 +815,11 @@
     if (!workspaceId || workspaceId === activeWorkspaceId) return;
     const target = workspaces.find((workspace) => workspace.id === workspaceId);
     if (!target) return;
+    invalidatePendingPinMutation();
 
     // 나가는 워크스페이스의 목록/필터 상태를 캐시해 다시 돌아왔을 때 즉시 보여준다(stale-while-revalidate).
     setCachedIssueList(activeWorkspaceId, {
-      issues, repositoryLabels, issuePage, hasMoreIssues, totalIssues,
+      issues, pinnedIssues, repositoryLabels, issuePage, hasMoreIssues, totalIssues,
       state, query, appliedQuery, activeLabel,
       noteCount: workspaceNoteCounts[activeWorkspaceId],
       openNoteSegment: contentRoute?.screen === 'note' ? contentRoute.segment : '',
@@ -685,7 +843,8 @@
     activeLabel = '';
 
     activeWorkspaceId = workspaceId;
-    pinnedIssues = loadPinnedNotes(workspaceId);
+    legacyPinnedIssues = loadPinnedNotes(workspaceId);
+    pinnedIssues = legacyPinnedIssues;
     token = target.token;
     repo = target.repo;
     rememberToken = target.rememberToken;
@@ -698,6 +857,7 @@
     const cached = getCachedIssueList(workspaceId, workspaceCacheMinutes);
     if (cached) {
       ({ issues, repositoryLabels, issuePage, hasMoreIssues, totalIssues, state, query, appliedQuery, activeLabel } = cached);
+      pinnedIssues = cached.pinnedIssues || pinnedIssues;
       setWorkspaceNoteCount(workspaceId, cached.noteCount);
       appState = 'ready';
       // 유효 기간 안의 캐시라면 그 워크스페이스에서 마지막으로 열던 노트도 되돌린다.
@@ -711,6 +871,7 @@
       }
     } else {
       issues = [];
+      pinnedIssues = legacyPinnedIssues;
       repositoryLabels = [];
       // 이미 인증된 워크스페이스로 전환하는 것뿐이므로, 최초 설정용 스텝바이스텝
       // 마법사(appState 'connecting') 대신 부팅 시 자동 재연결과 같은 가벼운
@@ -726,7 +887,9 @@
       appState = 'ready';
       restartBackgroundRefreshTimer();
       // 캐시로 이미 목록을 보여준 상태라면 로딩 스피너 없이 조용히 갱신한다.
+      const migrationError = await migrateLegacyPinnedNotes(token, repo, workspaceId);
       await Promise.all([loadIssues(Boolean(cached)), loadRepositoryLabels()]);
+      if (migrationError && workspaceId === activeWorkspaceId) error = friendlyError(migrationError);
       applyRoute();
       pruneExpiredAttachments();
     } catch (reason) {
@@ -774,8 +937,10 @@
   }
 
   function forgetWorkspace(workspaceId) {
+    if (activeWorkspaceId === workspaceId) invalidatePendingPinMutation();
     workspaces = workspaces.filter((workspace) => workspace.id !== workspaceId);
     invalidateCachedIssueList(workspaceId);
+    clearPinnedNotes(workspaceId);
     removeWorkspaceNoteCount(workspaceId);
     saveSettingsDocument({ workspaces, activeWorkspaceId, preferences: currentPreferences() });
     if (activeWorkspaceId !== workspaceId) return;
@@ -792,6 +957,7 @@
     repository = null;
     issues = [];
     pinnedIssues = [];
+    legacyPinnedIssues = [];
     totalIssues = 0;
     repositoryLabels = [];
     pendingNote = null;
@@ -822,6 +988,8 @@
   async function loadIssues(background = false) {
     if (background && loading) return;
     const requestedWorkspaceId = activeWorkspaceId;
+    const requestedToken = token;
+    const requestedRepo = repo;
     const requestedQuery = appliedQuery;
     const requestedState = state;
     const requestedLabel = activeLabel;
@@ -831,25 +999,46 @@
       loading = true;
     }
     try {
-      const result = requestedTerm.trim()
-        ? await searchIssuesPage(token, repo, requestedState, requestedTerm, requestedLabel, 1, Date.now(), issuePageSize)
-        : await listIssuesPage(token, repo, requestedState, requestedLabel, 1, Date.now(), issuePageSize);
+      const [result, pinnedResult] = await Promise.all([
+        requestedTerm.trim()
+          ? searchIssuesPage(requestedToken, requestedRepo, requestedState, requestedTerm, requestedLabel, 1, Date.now(), issuePageSize)
+          : listIssuesPage(requestedToken, requestedRepo, requestedState, requestedLabel, 1, Date.now(), issuePageSize),
+        listIssuesPage(
+          requestedToken,
+          requestedRepo,
+          requestedState,
+          PIN_LABEL_NAME,
+          1,
+          Date.now(),
+          PINNED_ISSUE_PAGE_SIZE
+        )
+      ]);
       if (
         requestedWorkspaceId !== activeWorkspaceId
-        ||
-        requestedQuery !== appliedQuery
+        || requestedToken !== token
+        || requestedRepo !== repo
+        || requestedQuery !== appliedQuery
         || requestedState !== state
         || requestedLabel !== activeLabel
       ) return;
+      const pendingPin = pendingPinMutationFor(
+        requestedWorkspaceId,
+        requestedToken,
+        requestedRepo
+      );
+      const resultItems = result.items.map((issue) => applyPendingPinToIssue(issue, pendingPin));
       if (background && issuePage > 1) {
-        const refreshedIds = new Set(result.items.map((issue) => issue.id));
-        issues = [...result.items, ...issues.filter((issue) => !refreshedIds.has(issue.id))];
+        const refreshedIds = new Set(resultItems.map((issue) => issue.id));
+        issues = [...resultItems, ...issues.filter((issue) => !refreshedIds.has(issue.id))];
       } else {
-        issues = result.items;
+        issues = resultItems;
         issuePage = 1;
         hasMoreIssues = result.hasMore;
       }
-      syncPinnedIssueSnapshots(result.items);
+      pinnedIssues = applyPendingPinToList(
+        mergePinnedIssueLists(pinnedResult.items),
+        pendingPin
+      );
       reconcileIssueSelection(issues);
       if (result.totalCount !== null) {
         totalIssues = result.totalCount;
@@ -868,6 +1057,8 @@
   async function loadMoreIssues() {
     if (loading || loadingMore || !hasMoreIssues) return;
     const requestedWorkspaceId = activeWorkspaceId;
+    const requestedToken = token;
+    const requestedRepo = repo;
     const requestedQuery = appliedQuery;
     const requestedState = state;
     const requestedLabel = activeLabel;
@@ -877,18 +1068,24 @@
     error = '';
     try {
       const result = requestedTerm.trim()
-        ? await searchIssuesPage(token, repo, requestedState, requestedTerm, requestedLabel, nextPage, Date.now(), issuePageSize)
-        : await listIssuesPage(token, repo, requestedState, requestedLabel, nextPage, Date.now(), issuePageSize);
+        ? await searchIssuesPage(requestedToken, requestedRepo, requestedState, requestedTerm, requestedLabel, nextPage, Date.now(), issuePageSize)
+        : await listIssuesPage(requestedToken, requestedRepo, requestedState, requestedLabel, nextPage, Date.now(), issuePageSize);
       if (
         requestedWorkspaceId !== activeWorkspaceId
-        ||
-        requestedQuery !== appliedQuery
+        || requestedToken !== token
+        || requestedRepo !== repo
+        || requestedQuery !== appliedQuery
         || requestedState !== state
         || requestedLabel !== activeLabel
       ) return;
+      const pendingPin = pendingPinMutationFor(
+        requestedWorkspaceId,
+        requestedToken,
+        requestedRepo
+      );
+      const resultItems = result.items.map((issue) => applyPendingPinToIssue(issue, pendingPin));
       const knownIds = new Set(issues.map((issue) => issue.id));
-      issues = [...issues, ...result.items.filter((issue) => !knownIds.has(issue.id))];
-      syncPinnedIssueSnapshots(result.items);
+      issues = [...issues, ...resultItems.filter((issue) => !knownIds.has(issue.id))];
       issuePage = nextPage;
       hasMoreIssues = result.hasMore;
       if (result.totalCount !== null) {
@@ -922,7 +1119,7 @@
 
     const tagQuery = normalizedQuery.match(/^#(.+)$/)?.[1]?.trim();
     if (tagQuery) {
-      const exactLabel = repositoryLabels.find(
+      const exactLabel = visibleRepositoryLabels.find(
         (label) => label.name.toLocaleLowerCase() === tagQuery.toLocaleLowerCase()
       );
       if (exactLabel) {
@@ -1671,6 +1868,7 @@
     const counts = new Map();
     for (const issue of issues) {
       for (const label of issue.labels || []) {
+        if (isPinLabel(label)) continue;
         const key = label.name.toLocaleLowerCase();
         counts.set(key, (counts.get(key) || 0) + 1);
       }
@@ -1710,7 +1908,7 @@
   async function applySelectionTag(name, mode) {
     // 새 태그 이름만 정규화 대상이라, 공백이 들어간 기존 라벨 이름은 그대로 쓴다.
     const tagName = String(name || '').trim();
-    if (!tagName || selectionTagBusy) return;
+    if (!tagName || isPinLabel(tagName) || selectionTagBusy) return;
     const targets = selectedIssues.filter(
       (issue) => Boolean(hasIssueLabel(issue, tagName)) === (mode === 'remove')
     );
@@ -1731,9 +1929,11 @@
           : currentNames.filter((label) => label.toLocaleLowerCase() !== tagName.toLocaleLowerCase());
         const saved = await setIssueLabels(token, repo, issue.number, nextNames);
         const savedLabels = saved.labels || [];
+        const updatedIssue = { ...issue, labels: savedLabels };
+        const displayedIssue = syncPinnedIssue(updatedIssue);
         refreshed[issue.number] = ++issueRefreshSequence;
-        issues = issues.map((item) => item.id === issue.id ? { ...item, labels: savedLabels } : item);
-        if (selectedIssue?.id === issue.id) selectedIssue = { ...selectedIssue, labels: savedLabels };
+        issues = issues.map((item) => item.id === issue.id ? displayedIssue : item);
+        if (selectedIssue?.id === issue.id) selectedIssue = displayedIssue;
       }
     } catch (reason) {
       error = friendlyError(reason);
@@ -1755,9 +1955,9 @@
       removeClosedIssueFromOpenView(savedIssue);
       return;
     }
-    const displayedIssue = localDraft ? { ...savedIssue, ...localDraft } : savedIssue;
+    const savedDisplayedIssue = localDraft ? { ...savedIssue, ...localDraft } : savedIssue;
+    const displayedIssue = syncPinnedIssue(savedDisplayedIssue);
     issues = issues.map((issue) => issue.id === savedIssue.id ? displayedIssue : issue);
-    syncPinnedIssueSnapshot(displayedIssue);
     const savedIssueIsActive = contentRoute?.screen === 'note'
       && Number(contentRoute.value) === savedIssue.number;
     if (savedIssueIsActive) selectedIssue = displayedIssue;
@@ -1771,11 +1971,11 @@
       removeClosedIssueFromOpenView(refreshedIssue);
       return;
     }
-    issues = issues.map((issue) => issue.id === refreshedIssue.id ? refreshedIssue : issue);
-    syncPinnedIssueSnapshot(refreshedIssue);
+    const displayedIssue = syncPinnedIssue(refreshedIssue);
+    issues = issues.map((issue) => issue.id === refreshedIssue.id ? displayedIssue : issue);
     const refreshedIssueIsActive = contentRoute?.screen === 'note'
       && Number(contentRoute.value) === refreshedIssue.number;
-    if (refreshedIssueIsActive) selectedIssue = refreshedIssue;
+    if (refreshedIssueIsActive) selectedIssue = displayedIssue;
   }
 
   function removeClosedIssueFromOpenView(closedIssue) {
@@ -1786,7 +1986,6 @@
     issues = issues.filter((issue) => issue.id !== closedIssue.id);
     if (removedPinnedIndex >= 0) {
       pinnedIssues = pinnedIssues.filter((issue) => issue.id !== closedIssue.id);
-      savePinnedNotes(activeWorkspaceId, pinnedIssues);
     }
     totalIssues = Math.max(0, totalIssues - 1);
     adjustWorkspaceNoteCount(activeWorkspaceId, -1);
@@ -1797,33 +1996,110 @@
     }
   }
 
-  function togglePin(issue) {
-    if (!issue || issue.local) return;
-    pinnedIssues = togglePinnedNote(pinnedIssues, issue);
-    savePinnedNotes(activeWorkspaceId, pinnedIssues);
+  function syncLegacyPinnedIssue(issue) {
+    if (!legacyPinnedIssues.length || !issue) return;
+    const index = legacyPinnedIssues.findIndex((item) => samePinIssue(item, issue));
+    if (hasPinLabel(issue)) {
+      const next = index >= 0
+        ? legacyPinnedIssues.map((item) => samePinIssue(item, issue) ? issue : item)
+        : [issue, ...legacyPinnedIssues];
+      legacyPinnedIssues = next;
+      savePinnedNotes(activeWorkspaceId, next);
+    } else if (index >= 0) {
+      const next = legacyPinnedIssues.filter((item) => !samePinIssue(item, issue));
+      legacyPinnedIssues = next;
+      if (next.length) savePinnedNotes(activeWorkspaceId, next);
+      else clearPinnedNotes(activeWorkspaceId);
+    }
   }
 
-  function syncPinnedIssueSnapshot(issue, persist = true) {
-    if (!issue || !pinnedIssues.some((item) => item.id === issue.id)) return;
-    const nextPinnedIssues = replacePinnedNoteSnapshot(pinnedIssues, issue);
-    if (nextPinnedIssues === pinnedIssues) return;
-    pinnedIssues = nextPinnedIssues;
-    if (persist) savePinnedNotes(activeWorkspaceId, pinnedIssues);
+  function syncPinnedIssue(issue) {
+    if (!issue) return;
+    const pendingPin = pendingPinMutationFor(activeWorkspaceId, token, repo);
+    const syncedIssue = applyPendingPinToIssue(issue, pendingPin);
+    const index = pinnedIssues.findIndex((item) => samePinIssue(item, syncedIssue));
+    if (hasPinLabel(syncedIssue)) {
+      pinnedIssues = index >= 0
+        ? pinnedIssues.map((item) => samePinIssue(item, syncedIssue) ? syncedIssue : item)
+        : [syncedIssue, ...pinnedIssues];
+    } else if (index >= 0) {
+      pinnedIssues = pinnedIssues.filter((item) => !samePinIssue(item, syncedIssue));
+    }
+    syncLegacyPinnedIssue(syncedIssue);
+    return syncedIssue;
   }
 
-  function syncPinnedIssueSnapshots(nextIssues) {
-    if (!pinnedIssues.length || !nextIssues?.length) return;
-    const latestById = new Map(nextIssues.map((issue) => [issue.id, issue]));
-    let changed = false;
-    const nextPinnedIssues = pinnedIssues.map((pinnedIssue) => {
-      const latestIssue = latestById.get(pinnedIssue.id);
-      if (!latestIssue) return pinnedIssue;
-      changed = true;
-      return latestIssue;
-    });
-    if (!changed) return;
-    pinnedIssues = nextPinnedIssues;
-    savePinnedNotes(activeWorkspaceId, pinnedIssues);
+  async function togglePin(issue) {
+    if (!issue?.number || issue.local || pinBusyIssueNumber !== null) return;
+    const currentlyPinned = pinnedIssues.some((item) => samePinIssue(item, issue)) || hasPinLabel(issue);
+    const requestedWorkspaceId = activeWorkspaceId;
+    const requestedToken = token;
+    const requestedRepo = repo;
+    const mutation = {
+      id: ++nextPinMutationId,
+      workspaceId: requestedWorkspaceId,
+      token: requestedToken,
+      repo: requestedRepo,
+      issue,
+      desiredPinned: !currentlyPinned,
+      wasPinned: currentlyPinned,
+      previousPinnedIssue: pinnedIssues.find((item) => samePinIssue(item, issue)) || null,
+      wasLegacyPinned: legacyPinnedIssues.some((item) => samePinIssue(item, issue)),
+      previousLegacyIssue: legacyPinnedIssues.find((item) => samePinIssue(item, issue)) || null,
+      shouldCreatePinLabel: !repositoryLabels.some((label) => isPinLabel(label))
+    };
+    mutation.optimisticIssue = withPinState(issue, mutation.desiredPinned);
+    pendingPinMutation = mutation;
+    pinBusyIssueNumber = issue.number;
+    error = '';
+    // 서버 응답을 기다리지 않고 먼저 화면과 편집기 양쪽의 이슈 모델을 바꾼다.
+    applyPinIssue(mutation.optimisticIssue);
+    try {
+      let savedLabels;
+      if (currentlyPinned) {
+        try {
+          savedLabels = await removeIssueLabel(
+            requestedToken,
+            requestedRepo,
+            issue.number,
+            PIN_LABEL_NAME
+          );
+        } catch (reason) {
+          // 다른 디바이스에서 먼저 해제한 경우도 최종 상태는 "해제"다.
+          if (reason?.status !== 404) throw reason;
+          savedLabels = mutation.optimisticIssue.labels;
+        }
+      } else {
+        if (mutation.shouldCreatePinLabel) {
+          const createdLabel = await createLabel(requestedToken, requestedRepo, PIN_LABEL_NAME);
+          if (pinMutationMatchesContext(mutation)) mergeRepositoryLabels([createdLabel]);
+        }
+        savedLabels = await addIssueLabel(
+          requestedToken,
+          requestedRepo,
+          issue.number,
+          PIN_LABEL_NAME
+        );
+      }
+      if (!pinMutationMatchesContext(mutation)) return;
+      const currentIssue = currentIssueForPinMutation(mutation);
+      const updatedIssue = {
+        ...currentIssue,
+        labels: Array.isArray(savedLabels)
+          ? savedLabels
+          : mutation.optimisticIssue.labels
+      };
+      applyPinIssue(updatedIssue);
+    } catch (reason) {
+      if (!pinMutationMatchesContext(mutation)) return;
+      restorePinMutation(mutation);
+      error = friendlyError(reason);
+    } finally {
+      if (pendingPinMutation?.id === mutation.id) {
+        pendingPinMutation = null;
+        pinBusyIssueNumber = null;
+      }
+    }
   }
 
   function noteCreated(savedIssue) {
@@ -1877,11 +2153,9 @@
     }
 
     const updatedIssue = { ...sourceIssue, ...draft };
-    issues = issues.map((issue) => issue.id === sourceIssue.id ? updatedIssue : issue);
-    // 타이핑마다 본문 전체를 localStorage에 다시 쓰지는 않는다. 화면의 고정
-    // 행은 즉시 갱신하되, 저장 성공/새로고침 시점에 영속 스냅샷을 갱신한다.
-    syncPinnedIssueSnapshot(updatedIssue, false);
-    if (selectedIssue?.id === sourceIssue.id) selectedIssue = updatedIssue;
+    const displayedIssue = syncPinnedIssue(updatedIssue);
+    issues = issues.map((issue) => issue.id === sourceIssue.id ? displayedIssue : issue);
+    if (selectedIssue?.id === sourceIssue.id) selectedIssue = displayedIssue;
   }
 
   function mergeRepositoryLabels(nextLabels) {
@@ -1931,9 +2205,9 @@
   }
 
   async function renameRepositoryLabel(label, nextName) {
-    if (labelBusy) return false;
+    if (labelBusy || isPinLabel(label)) return false;
     const normalizedName = Array.from(nextName.trim()).slice(0, 50).join('');
-    if (!normalizedName) {
+    if (!normalizedName || isPinLabel(normalizedName)) {
       error = $_('dynamic.tagNameRequired', { values: { name: label.name } });
       return false;
     }
@@ -1947,6 +2221,7 @@
         .map((item) => item.name === label.name ? savedLabel : item)
         .sort((a, b) => a.name.localeCompare(b.name, $activeLocale));
       issues = issues.map((issue) => replaceLabelInIssue(issue, label.name, savedLabel.name));
+      pinnedIssues = pinnedIssues.map((issue) => replaceLabelInIssue(issue, label.name, savedLabel.name));
       pendingNote = replaceLabelInIssue(pendingNote, label.name, savedLabel.name);
       selectedIssue = replaceLabelInIssue(selectedIssue, label.name, savedLabel.name);
       updateDraftLabels(connectedRepo, label.name, savedLabel.name);
@@ -2036,7 +2311,7 @@
   async function createRepositoryLabel(name) {
     if (labelBusy) return;
     const normalizedName = Array.from(name.trim()).slice(0, 50).join('');
-    if (!normalizedName) return;
+    if (!normalizedName || isPinLabel(normalizedName)) return;
     labelBusy = normalizedName;
     error = '';
     try {
@@ -2052,7 +2327,7 @@
   }
 
   async function deleteRepositoryLabel(label) {
-    if (labelBusy) return;
+    if (labelBusy || isPinLabel(label)) return;
     if (!confirm($_('dynamic.deleteTagConfirm', { values: { name: label.name } }))) return;
     labelBusy = label.name;
     error = '';
@@ -2061,6 +2336,7 @@
       await removeLabel(token, connectedRepo, label.name);
       repositoryLabels = repositoryLabels.filter((item) => item.name !== label.name);
       issues = issues.map((issue) => replaceLabelInIssue(issue, label.name));
+      pinnedIssues = pinnedIssues.map((issue) => replaceLabelInIssue(issue, label.name));
       pendingNote = replaceLabelInIssue(pendingNote, label.name);
       selectedIssue = replaceLabelInIssue(selectedIssue, label.name);
       updateDraftLabels(connectedRepo, label.name);
@@ -2108,7 +2384,6 @@
     issues = issues.filter((item) => item.id !== issue.id);
     if (removedPinnedIssue) {
       pinnedIssues = pinnedIssues.filter((item) => item.id !== issue.id);
-      savePinnedNotes(activeWorkspaceId, pinnedIssues);
     }
     totalIssues = Math.max(0, totalIssues - 1);
     adjustWorkspaceNoteCount(requestedWorkspaceId, noteCountDelta);
@@ -2119,6 +2394,9 @@
 
     void setIssueState(token, repo, issue.number, nextState)
       .then(() => {
+        if (nextState === 'open' && hasPinLabel(issue)) {
+          syncPinnedIssue({ ...issue, state: 'open' });
+        }
         notice = nextState === 'closed'
           ? ''
           : $_("m.a480a954e7");
@@ -2136,7 +2414,6 @@
             removedPinnedIssue,
             ...pinnedIssues.slice(insertionIndex)
           ];
-          savePinnedNotes(activeWorkspaceId, pinnedIssues);
         }
         adjustWorkspaceNoteCount(requestedWorkspaceId, -noteCountDelta);
         error = friendlyError(reason);
@@ -2238,7 +2515,7 @@
                   onSwitch={switchWorkspace}
                   onRename={renameWorkspace}
                   onAddWorkspace={openAddWorkspaceWizard}
-                  tagLabels={repositoryLabels}
+                  tagLabels={visibleRepositoryLabels}
                   tagBusy={labelBusy}
                   onCreateTag={createRepositoryLabel}
                   onRenameTag={renameRepositoryLabel}
@@ -2692,11 +2969,11 @@
               currentUserLogin={user?.login || ''}
               paused={topRoute?.screen === 'settings' || route !== contentRoute || selectionMode}
               readOnly={selectionMode}
-              availableLabels={repositoryLabels}
+              availableLabels={visibleRepositoryLabels}
               {labelMutation}
-              pinned={Boolean(routeIssue) && pinnedIssueIds.has(routeIssue.id)}
-              pinDisabled={pinnedIssues.length >= MAX_PINNED_NOTES}
-              onTogglePin={() => togglePin(routeIssue)}
+              pinned={Boolean(routeIssue) && (pinnedIssueIds.has(routeIssue.id) || hasPinLabel(routeIssue))}
+              pinDisabled={pinBusyIssueNumber !== null}
+              onTogglePin={(nextIssue) => togglePin(nextIssue || routeIssue)}
               onSaved={noteSaved}
               onRefreshed={noteRefreshed}
               onRefreshStateChange={(active) => noteRefreshStateChanged(routeIssue?.number, active)}
