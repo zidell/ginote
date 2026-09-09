@@ -33,13 +33,17 @@
     BACKGROUND_REFRESH_OPTIONS,
     LOCK_SESSION_DEFAULT_MINUTES,
     LOCK_SESSION_OPTIONS,
+    THEME_DEFAULT,
+    THEME_OPTIONS,
     WORKSPACE_CACHE_DEFAULT_MINUTES,
     WORKSPACE_CACHE_OPTIONS,
+    applyTheme,
     clampNumber,
     createWorkspaceRecord,
     loadSettingsDocument,
     normalizeBackgroundRefreshMinutes,
     normalizeLockSessionMinutes,
+    normalizeTheme,
     normalizeWorkspaceCacheMinutes,
     preferenceSignature,
     renameWorkspace as renameWorkspaceRecord,
@@ -149,6 +153,7 @@
   let lockSessionMinutes = LOCK_SESSION_DEFAULT_MINUTES;
   let workspaceCacheMinutes = WORKSPACE_CACHE_DEFAULT_MINUTES;
   let touchDevice = false;
+  let themePreference = THEME_DEFAULT;
   let languagePreference = 'auto';
   let backgroundRefreshTimer;
   let labelBusy = '';
@@ -349,8 +354,10 @@
         backgroundRefreshMinutes,
         lockSessionMinutes,
         workspaceCacheMinutes,
+        theme: themePreference,
         language: languagePreference
       } = settingsDocument.preferences);
+      applyTheme(themePreference);
       setAppLocale(languagePreference);
       if (isWebFont(editorFont)) void loadWebFont(editorFont);
       const activeWorkspace = workspaces.find((workspace) => workspace.id === activeWorkspaceId);
@@ -478,6 +485,7 @@
 
   function currentPreferences() {
     return {
+      theme: themePreference,
       titleMode,
       listRowFields,
       editorFont,
@@ -2201,6 +2209,8 @@
   // 환경설정은 화면을 벗어날 때(닫기·뒤로) 한 번에 확정한다.
   function applySettingsChanges() {
     if (appState !== 'ready') return;
+    themePreference = normalizeTheme(themePreference);
+    applyTheme(themePreference);
     editorFontSize = Math.round(clampNumber(editorFontSize, 12, 32, 17));
     editorLineHeight = clampNumber(editorLineHeight, 1.2, 2.5, 1.8);
     editorMaxWidth = Math.round(clampNumber(editorMaxWidth, 480, 1600, 840));
@@ -2223,6 +2233,11 @@
 
   function announceDeferredApply() {
     showToast($_("m.be71371eed"));
+  }
+
+  function handleThemeChange() {
+    themePreference = applyTheme(themePreference);
+    announceDeferredApply();
   }
 
   function handleEditorFontChange(event) {
@@ -2475,6 +2490,19 @@
 
             <fieldset class="editor-settings mb-4">
               <legend>{$_("m.cf8e8136d8")}</legend>
+              <div class="mb-3">
+                <label class="form-label" for="theme">{$_('settings.theme')}</label>
+                <select
+                  id="theme"
+                  class="form-select"
+                  bind:value={themePreference}
+                  on:change={handleThemeChange}
+                >
+                  {#each THEME_OPTIONS as option}
+                    <option value={option}>{$_(`settings.theme${option === 'dark' ? 'Dark' : 'Light'}`)}</option>
+                  {/each}
+                </select>
+              </div>
               <div class="mb-3">
                 <label class="form-label" for="language">{$_('settings.language')}</label>
                 <select
