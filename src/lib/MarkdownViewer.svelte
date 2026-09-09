@@ -5,10 +5,13 @@
   export let source = '';
   export let emptyLabel = '';
   export let className = '';
+  export let imageSources = {};
 
   const dispatch = createEventDispatcher();
   let root;
   let trackedImages = [];
+  let resizeFrame = 0;
+  let settleFrame = 0;
 
   $: rendered = renderMarkdown(source);
 
@@ -22,10 +25,13 @@
 
   afterUpdate(() => {
     refreshImageListeners();
-    dispatch('contentresize', { pendingImages: pendingImageCount() });
+    scheduleContentResize();
   });
 
-  onDestroy(() => removeImageListeners());
+  onDestroy(() => {
+    removeImageListeners();
+    cancelContentResize();
+  });
 
   function pendingImageCount() {
     return trackedImages.filter((image) => !image.complete).length;
@@ -33,7 +39,14 @@
 
   function refreshImageListeners() {
     removeImageListeners();
-    if (root) trackedImages.push(...root.querySelectorAll('img'));
+    if (root) {
+      root.querySelectorAll('img').forEach((image) => {
+        const originalSource = image.dataset.markdownSource || image.getAttribute('src') || '';
+        image.dataset.markdownSource = originalSource;
+        image.setAttribute('src', imageSources[originalSource] || originalSource);
+        trackedImages.push(image);
+      });
+    }
     trackedImages.forEach((image) => {
       image.addEventListener('load', handleImageSettled);
       image.addEventListener('error', handleImageSettled);
@@ -49,7 +62,25 @@
   }
 
   function handleImageSettled() {
-    dispatch('contentresize', { pendingImages: pendingImageCount() });
+    scheduleContentResize();
+  }
+
+  function cancelContentResize() {
+    if (resizeFrame) cancelAnimationFrame(resizeFrame);
+    if (settleFrame) cancelAnimationFrame(settleFrame);
+    resizeFrame = 0;
+    settleFrame = 0;
+  }
+
+  function scheduleContentResize() {
+    cancelContentResize();
+    resizeFrame = requestAnimationFrame(() => {
+      resizeFrame = 0;
+      settleFrame = requestAnimationFrame(() => {
+        settleFrame = 0;
+        dispatch('contentresize', { pendingImages: pendingImageCount() });
+      });
+    });
   }
 </script>
 

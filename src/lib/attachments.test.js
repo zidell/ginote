@@ -20,7 +20,7 @@ describe('attachment link 본문 삽입', () => {
   it('이미지는 미리보기 이미지 링크로 만든다', () => {
     const link = composeAttachmentLink('owner/private-notes', imageAttachment);
 
-    expect(link).toContain('![여행 사진 \\[1\\].png]');
+    expect(link).toContain('![](');
     expect(link).toContain('owner/private-notes/raw/HEAD/');
     expect(link).toContain('%EC%97%AC%ED%96%89%20%EC%82%AC%EC%A7%84.png');
   });
@@ -32,7 +32,8 @@ describe('attachment link 본문 삽입', () => {
       type: 'application/pdf'
     });
 
-    expect(link).toContain('[📎 plan.pdf](');
+    expect(link).toContain('[](');
+    expect(link).not.toContain('plan.pdf](');
     expect(link).not.toContain('![plan.pdf](');
   });
 
