@@ -138,9 +138,9 @@ code { color: #d8d8d8; }
 .sidebar-tools { --sidebar-tools-offset: 0px; position: sticky; z-index: 4; top: 0; padding: .65rem; border-bottom: 1px solid #363636; background: #191919; transform: translateY(calc(-1 * var(--sidebar-tools-offset))); will-change: transform; }
 .sidebar-tools.is-revealing { transition: transform 180ms ease-out; }
 .sidebar-new-note { padding: .65rem; border-bottom: 1px solid #303030; }
-.sidebar-new-note .btn { --bs-btn-padding-y: .4rem; }
+.sidebar-new-note .btn { --bs-btn-padding-y: .4rem; display: flex; align-items: center; justify-content: center; gap: .25rem; }
 .shortcut-hint { margin-left: 0; display: inline-flex; align-items: center; color: rgba(255, 255, 255, .58); font-size: .85em; font-weight: 600; line-height: 1; vertical-align: middle; white-space: nowrap; transition: color 120ms ease; }
-.shortcut-key { color: inherit; line-height: 1; }
+.shortcut-key { color: inherit; line-height: 1; text-transform: uppercase; }
 body.keyboard-shortcuts-ready .shortcut-key.is-available { color: #f59e0b; }
 .sidebar-new-note-shortcut { font-size: .9em; font-weight: 400; }
 .touch-device .sidebar-new-note-shortcut { display: none; }
@@ -222,6 +222,7 @@ body.keyboard-shortcuts-ready .shortcut-key.is-available { color: #f59e0b; }
 .detail-toolbar-start, .detail-toolbar-actions { min-width: 0; display: flex; align-items: center; gap: .5rem; }
 .detail-toolbar-start { white-space: nowrap; }
 .detail-toolbar-actions { justify-content: flex-end; gap: .5rem; }
+.detail-toolbar-attachment { display: inline-flex; align-items: center; gap: .35rem; }
 .detail-toolbar-start .btn { display: inline-grid; place-items: center; min-width: 42px; }
 .detail-toolbar-actions-mobile { display: none; }
 .detail-toolbar-more { display: block; }
