@@ -43,24 +43,25 @@ describe('WorkspaceSwitcher', () => {
     expect(options[0].getAttribute('aria-selected')).toBe('true');
     expect(options[1].textContent).toContain('zidell/other-project');
     expect(options[1].getAttribute('aria-selected')).toBe('false');
-    expect(options[0].querySelector('.workspace-shortcut')).toBeNull();
-    expect(options[1].querySelector('.workspace-note-count')).toBeNull();
+    expect(options[0].querySelector('.workspace-shortcut')?.textContent).toBe('1');
+    expect(options[1].querySelector('.workspace-shortcut')?.textContent).toBe('2');
+    expect(options[0].querySelector('.workspace-note-count')).toBeNull();
   });
 
-  it('알고 있는 워크스페이스별 노트 수를 우측에 표시한다', async () => {
+  it('워크스페이스 이슈 수 대신 우측에 순번을 표시한다', async () => {
     render(WorkspaceSwitcher, {
-      workspaces: workspaces(),
+      workspaces: workspaces().map((workspace, index) => ({ ...workspace, noteCount: index ? 0 : 12 })),
       activeWorkspaceId: 'a',
-      noteCounts: { a: 12, b: 0 },
       user: { login: 'zidell', avatar_url: 'https://example.com/a.png' }
     });
 
     await fireEvent.click(screen.getByRole('button', { name: 'Switch workspace' }));
 
     const options = within(screen.getByRole('listbox')).getAllByRole('option');
-    expect(options[0].querySelector('.workspace-note-count')?.textContent).toBe('12');
-    expect(options[1].querySelector('.workspace-note-count')?.textContent).toBe('0');
-    expect(options[0].querySelector('.workspace-shortcut')).toBeNull();
+    expect(options[0].querySelector('.workspace-shortcut')?.textContent).toBe('1');
+    expect(options[1].querySelector('.workspace-shortcut')?.textContent).toBe('2');
+    expect(options[0].querySelector('.workspace-note-count')).toBeNull();
+    expect(options[1].querySelector('.workspace-note-count')).toBeNull();
   });
 
   it('다른 워크스페이스를 클릭하면 onSwitch를 호출하고 드롭다운을 닫는다', async () => {
@@ -111,6 +112,22 @@ describe('WorkspaceSwitcher', () => {
     await fireEvent.keyDown(window, { key: 'ArrowDown', code: 'ArrowDown' });
     expect(document.activeElement).toBe(options[1]);
     await fireEvent.keyDown(window, { key: 'Enter', code: 'Enter' });
+
+    expect(onSwitch).toHaveBeenCalledWith('b');
+    expect(screen.queryByRole('listbox')).toBeNull();
+  });
+
+  it('백틱으로 연 뒤 숫자로 해당 순번 워크스페이스를 전환한다', async () => {
+    const onSwitch = vi.fn();
+    render(WorkspaceSwitcher, {
+      workspaces: workspaces(),
+      activeWorkspaceId: 'a',
+      user: { login: 'zidell', avatar_url: 'https://example.com/a.png' },
+      onSwitch
+    });
+
+    await fireEvent.keyDown(window, { key: '`', code: 'Backquote' });
+    await fireEvent.keyDown(window, { key: '2', code: 'Digit2' });
 
     expect(onSwitch).toHaveBeenCalledWith('b');
     expect(screen.queryByRole('listbox')).toBeNull();

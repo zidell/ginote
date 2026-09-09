@@ -2684,7 +2684,6 @@
               {workspaces}
               {activeWorkspaceId}
               {user}
-              noteCounts={workspaceNoteCounts}
               busy={appState === 'connecting' || appState === 'restoring'}
               onSwitch={switchWorkspace}
             />
