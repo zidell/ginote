@@ -527,8 +527,11 @@ html.mode-light .note-row-labels { opacity: 1; }
 .viewer-next { right: .75rem; }
 .editor-tags { flex: none; min-height: 28px; display: flex; align-items: center; flex-wrap: wrap; gap: .35rem; margin: 0 var(--editor-gutter) .8rem; }
 .editor-tag { display: inline-flex; align-items: center; gap: .2rem; padding: .18rem .4rem; border: 1px solid color-mix(in srgb, var(--tag-color) 52%, var(--ui-tag-border-mix)); border-radius: 4px; color: color-mix(in srgb, var(--tag-color) 55%, var(--ui-tag-text-mix)); background: color-mix(in srgb, var(--tag-color) 22%, var(--ui-tag-bg-mix)); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: .75rem; }
-.editor-tag button { padding: 0; border: 0; color: inherit; background: transparent; line-height: 1; opacity: .72; }
-.editor-tag button:hover { opacity: 1; }
+.editor-tag-link, .editor-tag-remove { padding: 0; border: 0; color: inherit; background: transparent; font: inherit; }
+.editor-tag-link { cursor: pointer; line-height: inherit; }
+.editor-tag-link:hover { text-decoration: underline; }
+.editor-tag-remove { line-height: 1; opacity: .72; }
+.editor-tag-remove:hover { opacity: 1; }
 .tag-picker { position: relative; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
 .tag-picker.toolbar > button { display: inline-flex; align-items: center; gap: .35rem; }
 .tag-picker.toolbar > button.tag-picker-icon-only { gap: .2rem; }
@@ -541,7 +544,7 @@ html.mode-light .note-row-labels { opacity: 1; }
 .tag-dropdown > input:focus { border-color: var(--ui-accent); }
 .tag-dropdown-list { max-height: 240px; margin-top: .3rem; overflow-y: auto; }
 .tag-dropdown-list button { width: 100%; display: flex; align-items: center; gap: .45rem; padding: .4rem .5rem; border: 0; border-radius: 3px; color: var(--ui-text-tertiary); text-align: left; background: transparent; font-size: .8rem; }
-.tag-dropdown-list button:hover { color: var(--ui-text-emphasis); background: var(--ui-bg-hover); }
+.tag-dropdown-list button:hover, .tag-dropdown-list button.keyboard-focused { color: var(--ui-text-emphasis); background: var(--ui-bg-hover); }
 .tag-dropdown-list button.is-selected { color: var(--ui-text-emphasis); background: var(--ui-bg-selected-muted); }
 .tag-dropdown-list button.is-selected:hover { background: var(--ui-bg-selected-hover); }
 .tag-selected-icon { margin-left: auto; color: var(--ui-text-accent); }

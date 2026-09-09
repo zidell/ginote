@@ -73,6 +73,7 @@
   export let onRefreshed = () => {};
   export let onRefreshStateChange = () => {};
   export let onLabelsAvailable = () => {};
+  export let onTagSelect = () => {};
   export let onMove = () => {};
   export let onBack = () => {};
   export let pinned = false;
@@ -2273,11 +2274,18 @@
       <div class="editor-tags">
         {#each displayedLabels as label (label)}
           <span class="editor-tag" style={`--tag-color:${tagColor(label)}`}>
-            #{label}
+            <button
+              type="button"
+              class="editor-tag-link"
+              on:click={() => onTagSelect(label)}
+            >#{label}</button>
             {#if editable && !previewMode}
-              <button type="button" on:click={() => removeTag(label)} aria-label={$_('dynamic.removeTag', { values: { name: label } })}>
-                <i class="bi bi-x" aria-hidden="true"></i>
-              </button>
+              <button
+                type="button"
+                class="editor-tag-remove"
+                on:click|stopPropagation={() => removeTag(label)}
+                aria-label={$_('dynamic.removeTag', { values: { name: label } })}
+              ><i class="bi bi-x" aria-hidden="true"></i></button>
             {/if}
           </span>
         {/each}

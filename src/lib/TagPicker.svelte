@@ -18,6 +18,7 @@
   let search = '';
   let picker;
   let searchInput;
+  let highlightedIndex = -1;
 
   $: visibleAvailableLabels = availableLabels.filter((label) => !isPinLabel(label));
   $: visibleSelectedLabels = selectedLabels.filter((name) => !isPinLabel(name));
@@ -35,6 +36,8 @@
     && !isPinLabel(newTagName)
     && !hasSelected(newTagName)
     && !visibleAvailableLabels.some((label) => label.name.toLocaleLowerCase() === newTagName.toLocaleLowerCase());
+  $: suggestionCount = filteredLabels.length + (canCreate ? 1 : 0);
+  $: if (highlightedIndex >= suggestionCount) highlightedIndex = suggestionCount - 1;
 
   onMount(() => document.addEventListener('pointerdown', handleOutside));
   onDestroy(() => document.removeEventListener('pointerdown', handleOutside));
@@ -47,6 +50,7 @@
     if (disabled) return;
     open = !open;
     search = '';
+    highlightedIndex = -1;
     if (open) requestAnimationFrame(() => searchInput?.focus());
   }
 
@@ -54,6 +58,7 @@
     if (disabled) return;
     open = true;
     search = '';
+    highlightedIndex = -1;
     requestAnimationFrame(() => searchInput?.focus());
   }
 
@@ -61,13 +66,32 @@
     if (picker?.contains(document.activeElement)) document.activeElement?.blur?.();
     open = false;
     search = '';
+    highlightedIndex = -1;
     searchInput?.blur();
   }
 
   function select(name) {
     onSelect(name);
     search = '';
+    highlightedIndex = -1;
     requestAnimationFrame(() => searchInput?.focus());
+  }
+
+  function moveHighlight(direction) {
+    if (!suggestionCount) return;
+    highlightedIndex = direction > 0
+      ? (highlightedIndex + 1) % suggestionCount
+      : highlightedIndex <= 0
+        ? suggestionCount - 1
+        : highlightedIndex - 1;
+  }
+
+  function highlightedSuggestion() {
+    if (highlightedIndex < 0) return null;
+    if (highlightedIndex < filteredLabels.length) return filteredLabels[highlightedIndex];
+    return canCreate && highlightedIndex === filteredLabels.length
+      ? { name: newTagName }
+      : null;
   }
 
   function handleKeydown(event) {
@@ -77,8 +101,21 @@
       close();
       return;
     }
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      if (!open || event.target !== searchInput) return;
+      event.preventDefault();
+      event.stopPropagation();
+      moveHighlight(event.key === 'ArrowDown' ? 1 : -1);
+      return;
+    }
     if (event.key !== 'Enter') return;
     event.preventDefault();
+    event.stopPropagation();
+    const highlighted = highlightedSuggestion();
+    if (highlighted) {
+      select(highlighted.name);
+      return;
+    }
     const exact = filteredLabels.find(
       (label) => label.name.toLocaleLowerCase() === search.trim().toLocaleLowerCase()
     );
@@ -111,6 +148,7 @@
     if (open && !picker?.contains(event.target)) {
       open = false;
       search = '';
+      highlightedIndex = -1;
     }
   }
 </script>
@@ -143,16 +181,18 @@
       <input
         bind:this={searchInput}
         bind:value={search}
+        on:input={() => highlightedIndex = -1}
         on:keydown={handleKeydown}
         placeholder={$_("m.eb7b580e41")}
         maxlength="51"
         aria-label={$_("m.eb7b580e41")}
       />
       <div class="tag-dropdown-list" aria-label={$_("m.9e704d11d1")}>
-        {#each filteredLabels as label (label.id || label.name)}
+        {#each filteredLabels as label, index (label.id || label.name)}
           <button
             type="button"
             class:is-selected={hasSelected(label.name)}
+            class:keyboard-focused={index === highlightedIndex}
             aria-pressed={hasSelected(label.name)}
             on:keydown={handleKeydown}
             on:click={() => select(label.name)}
@@ -168,6 +208,7 @@
           <button
             type="button"
             class="create-tag"
+            class:keyboard-focused={highlightedIndex === filteredLabels.length}
             on:keydown={handleKeydown}
             on:click={() => select(newTagName)}
           >

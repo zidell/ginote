@@ -1,4 +1,5 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/svelte';
+import { tick } from 'svelte';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import TagPicker from './TagPicker.svelte';
 import { setAppLocale } from './i18n.js';
@@ -89,5 +90,31 @@ describe('TagPicker', () => {
 
     expect(screen.queryByRole('textbox')).toBeNull();
     expect(document.activeElement).not.toBe(button);
+  });
+
+  it('검색 중 위아래 키로 현재 표시된 제안을 순환 선택하고 Enter로 적용한다', async () => {
+    const onSelect = vi.fn();
+    render(TagPicker, {
+      availableLabels: [{ name: 'idea' }, { name: 'later' }, { name: 'theme' }],
+      onSelect
+    });
+
+    await fireEvent.click(screen.getByRole('button', { name: 'Add' }));
+    const input = screen.getByRole('textbox');
+    await fireEvent.input(input, { target: { value: 'e' } });
+
+    const arrowDown = new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true });
+    input.dispatchEvent(arrowDown);
+    expect(arrowDown.defaultPrevented).toBe(true);
+    await tick();
+    expect(screen.getByRole('button', { name: '#idea' }).classList.contains('keyboard-focused')).toBe(true);
+
+    await fireEvent.keyDown(input, { key: 'ArrowDown' });
+    expect(screen.getByRole('button', { name: '#later' }).classList.contains('keyboard-focused')).toBe(true);
+    await fireEvent.keyDown(input, { key: 'ArrowUp' });
+    expect(screen.getByRole('button', { name: '#idea' }).classList.contains('keyboard-focused')).toBe(true);
+
+    await fireEvent.keyDown(input, { key: 'Enter' });
+    expect(onSelect).toHaveBeenCalledWith('idea');
   });
 });
