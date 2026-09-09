@@ -1549,38 +1549,48 @@
     return Boolean(picker);
   }
 
+  function canUseNoteShortcut(key) {
+    if (key === 'm') return previewMode || canPreview;
+    if (key === 'l') return editable;
+    if (key === 't') return editable && lockState !== 'locked';
+    if (key === 'a') {
+      return editable
+        && lockState !== 'locked'
+        && Boolean(fileInput)
+        && !fileInput.disabled;
+    }
+    if (key === 'p') return Boolean(remoteIssue?.number) && !readOnly && !pinDisabled;
+    if (key === 'g') return Boolean(remoteIssue?.html_url) && Boolean(issueLinkElement);
+    if (key === 'delete') return Boolean(remoteIssue?.number) && !readOnly && !archived;
+    return false;
+  }
+
   function handleNoteShortcut(key) {
+    if (!canUseNoteShortcut(key)) return false;
     if (key === 'm') {
-      if (!previewMode && !canPreview) return false;
       void setMarkdownPreview(!previewMode);
       return true;
     }
     if (key === 'l') {
-      if (!editable) return false;
       void (lockState === 'plain' ? requestLock() : removeLock());
       return true;
     }
     if (key === 't') {
-      if (!editable || lockState === 'locked') return false;
       return openToolbarTagPicker();
     }
     if (key === 'a') {
-      if (!editable || lockState === 'locked' || !fileInput || fileInput.disabled) return false;
       fileInput.click();
       return true;
     }
     if (key === 'p') {
-      if (!remoteIssue?.number || readOnly || pinDisabled) return false;
       requestPinToggle();
       return true;
     }
     if (key === 'g') {
-      if (!remoteIssue?.html_url || !issueLinkElement) return false;
       issueLinkElement.click();
       return true;
     }
     if (key === 'delete') {
-      if (!remoteIssue?.number || readOnly || archived) return false;
       onMove(remoteIssue);
       return true;
     }
@@ -1705,6 +1715,7 @@
           bind:this={toolbarTagPicker}
           toolbar
           shortcut="T"
+          shortcutEnabled={canUseNoteShortcut('t')}
           availableLabels={visibleAvailableLabels}
           selectedLabels={displayedLabels}
           onSelect={toggleTag}
@@ -1717,7 +1728,7 @@
           for={`inline-attachment-${editorId}`}
         >
           <i class="bi bi-paperclip" aria-hidden="true"></i>
-          {uploading ? $_('dynamic.uploading', { values: { count: uploading } }) : $_("m.1afff0157c")} (A)
+          {uploading ? $_('dynamic.uploading', { values: { count: uploading } }) : $_("m.1afff0157c")} <span class="shortcut-hint"><span class="shortcut-key" class:is-available={canUseNoteShortcut('a')}>A</span></span>
         </label>
       {/if}
     </div>
@@ -1728,6 +1739,7 @@
           toolbar
           iconOnly
           shortcut="T"
+          shortcutEnabled={canUseNoteShortcut('t')}
           availableLabels={visibleAvailableLabels}
           selectedLabels={displayedLabels}
           onSelect={toggleTag}
@@ -1736,8 +1748,8 @@
           class="btn btn-outline-secondary detail-toolbar-icon-action"
           class:disabled={uploadBatchActive || attachments.length >= MAX_ATTACHMENTS}
           for={`inline-attachment-${editorId}`}
-          aria-label={`${uploading ? $_('dynamic.uploading', { values: { count: uploading } }) : $_("m.1afff0157c")} (A)`}
-          title={`${uploading ? $_('dynamic.uploading', { values: { count: uploading } }) : $_("m.1afff0157c")} (A)`}
+          aria-label={`${uploading ? $_('dynamic.uploading', { values: { count: uploading } }) : $_("m.1afff0157c")} A`}
+          title={`${uploading ? $_('dynamic.uploading', { values: { count: uploading } }) : $_("m.1afff0157c")} A`}
         >
           <i class="bi bi-paperclip" aria-hidden="true"></i>
         </label>
@@ -1761,7 +1773,7 @@
             on:click={() => setMarkdownPreview()}
           >
             <i class={`bi ${previewMode ? 'bi-eye-slash' : 'bi-eye'}`} aria-hidden="true"></i>
-            {$_("m.1e0f7e5b67")} (M)
+            {$_("m.1e0f7e5b67")} <span class="shortcut-hint"><span class="shortcut-key" class:is-available={canUseNoteShortcut('m')}>M</span></span>
           </button>
         {/if}
         <div class="detail-toolbar-mobile-actions">
@@ -1773,7 +1785,7 @@
               on:click={() => onMove(remoteIssue)}
             >
               <i class={`bi ${archived ? 'bi-arrow-counterclockwise' : 'bi-trash3'}`} aria-hidden="true"></i>
-              {archived ? $_("m.3cbe6d6b9a") : $_("m.f6fdbe48dc")} (Delete)
+              {archived ? $_("m.3cbe6d6b9a") : $_("m.f6fdbe48dc")} <span class="shortcut-hint"><span class="shortcut-key" class:is-available={canUseNoteShortcut('delete')}>Delete</span></span>
             </button>
           {/if}
         </div>
@@ -1788,7 +1800,7 @@
             on:click={() => lockState === 'plain' ? requestLock() : removeLock()}
           >
             <i class={`bi ${lockState === 'plain' ? 'bi-lock' : 'bi-unlock'}`} aria-hidden="true"></i>
-            {lockState === 'plain' ? '잠금' : lockState === 'locked' ? '잠금 열기' : '잠금 풀기'} (L)
+            {lockState === 'plain' ? '잠금' : lockState === 'locked' ? '잠금 열기' : '잠금 풀기'} <span class="shortcut-hint"><span class="shortcut-key" class:is-available={canUseNoteShortcut('l')}>L</span></span>
           </button>
         {/if}
         {#if remoteIssue}
@@ -1800,7 +1812,7 @@
             on:click={requestPinToggle}
           >
             <i class={`bi ${pinned ? 'bi-pin-angle-fill' : 'bi-pin-angle'}`} aria-hidden="true"></i>
-            {pinned ? '고정 해제' : '상단고정'} (P)
+            {pinned ? '고정 해제' : '상단고정'} <span class="shortcut-hint"><span class="shortcut-key" class:is-available={canUseNoteShortcut('p')}>P</span></span>
           </button>
         {/if}
         {#if remoteIssue}
@@ -1812,7 +1824,7 @@
               on:click={() => onMove(remoteIssue)}
             >
               <i class={`bi ${archived ? 'bi-arrow-counterclockwise' : 'bi-trash3'}`} aria-hidden="true"></i>
-              {archived ? $_("m.3cbe6d6b9a") : $_("m.f6fdbe48dc")} (Delete)
+              {archived ? $_("m.3cbe6d6b9a") : $_("m.f6fdbe48dc")} <span class="shortcut-hint"><span class="shortcut-key" class:is-available={canUseNoteShortcut('delete')}>Delete</span></span>
             </button>
           {/if}
           <a
@@ -1823,7 +1835,7 @@
             target={newContextTarget}
             rel="noreferrer"
           >
-            <i class="bi bi-github" aria-hidden="true"></i> {$_('dynamic.viewOnGitHub')} (G)
+            <i class="bi bi-github" aria-hidden="true"></i> {$_('dynamic.viewOnGitHub')} <span class="shortcut-hint"><span class="shortcut-key" class:is-available={canUseNoteShortcut('g')}>G</span></span>
           </a>
           <div class="dropdown-divider"></div>
           <div class="dropdown-header detail-toolbar-timestamps">

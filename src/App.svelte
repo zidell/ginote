@@ -45,7 +45,6 @@
     renameWorkspace as renameWorkspaceRecord,
     reorderWorkspace,
     saveSettingsDocument,
-    truncateMiddle,
     workspaceDisplayName
   } from './lib/settings-storage.js';
   import {
@@ -193,6 +192,7 @@
   let longPressStart = null;
   let suppressIssueClickId = null;
   let suppressIssueClickTimer;
+  let keyboardShortcutFocusFrame;
 
   $: selectionMode = selectedIssueIds.size > 0;
   $: selectedIssues = visibleIssues.filter((issue) => !issue.local && selectedIssueIds.has(issue.id));
@@ -208,9 +208,6 @@
     && !selectionTagOptions.some((option) => option.name.toLocaleLowerCase() === selectionNewTagName.toLocaleLowerCase());
   $: if (!selectionMode && selectionTagPanelOpen) closeSelectionTagPanel();
 
-  $: activeWorkspaceName = workspaceDisplayName(
-    workspaces.find((workspace) => workspace.id === activeWorkspaceId)
-  ) || $_("m.70440046a3");
   $: emptyMessage = appliedQuery
     ? $_("m.e9cc6d0e9a")
     : state === 'open'
@@ -269,6 +266,11 @@
     router.init();
     window.addEventListener('keydown', handleGlobalKeydown);
     window.addEventListener('paste', handleGlobalPaste);
+    document.addEventListener('focusin', scheduleKeyboardShortcutClass);
+    document.addEventListener('focusout', scheduleKeyboardShortcutClass);
+    window.addEventListener('focus', scheduleKeyboardShortcutClass);
+    window.addEventListener('blur', clearKeyboardShortcutClass);
+    scheduleKeyboardShortcutClass();
     const unsubscribe = router.subscribe((stack) => {
       const targetSignature = stack.map((route) => route.segment).join('/');
       if (targetSignature === pendingRouteTransition) return;
@@ -380,6 +382,11 @@
       touchMedia.removeEventListener('change', updateTouchDevice);
       window.removeEventListener('keydown', handleGlobalKeydown);
       window.removeEventListener('paste', handleGlobalPaste);
+      document.removeEventListener('focusin', scheduleKeyboardShortcutClass);
+      document.removeEventListener('focusout', scheduleKeyboardShortcutClass);
+      window.removeEventListener('focus', scheduleKeyboardShortcutClass);
+      window.removeEventListener('blur', clearKeyboardShortcutClass);
+      clearKeyboardShortcutClass();
       unsubscribe();
       router.destroy();
     };
@@ -1453,7 +1460,24 @@
       activeElement instanceof HTMLInputElement
       || activeElement instanceof HTMLTextAreaElement
       || activeElement instanceof HTMLSelectElement
+      || Boolean(activeElement?.isContentEditable)
     );
+  }
+
+  function syncKeyboardShortcutClass() {
+    keyboardShortcutFocusFrame = 0;
+    document.body?.classList.toggle('keyboard-shortcuts-ready', !document.querySelector('textarea:focus'));
+  }
+
+  function scheduleKeyboardShortcutClass() {
+    if (keyboardShortcutFocusFrame) cancelAnimationFrame(keyboardShortcutFocusFrame);
+    keyboardShortcutFocusFrame = requestAnimationFrame(syncKeyboardShortcutClass);
+  }
+
+  function clearKeyboardShortcutClass() {
+    if (keyboardShortcutFocusFrame) cancelAnimationFrame(keyboardShortcutFocusFrame);
+    keyboardShortcutFocusFrame = 0;
+    document.body?.classList.remove('keyboard-shortcuts-ready');
   }
 
   function isKeyboardEnteredNoteSelection() {
@@ -2636,9 +2660,6 @@
               busy={appState === 'connecting' || appState === 'restoring'}
               onSwitch={switchWorkspace}
             />
-            <div class="sidebar-heading-title">
-              <h1 title={activeWorkspaceName}>{truncateMiddle(activeWorkspaceName)}</h1>
-            </div>
           </div>
           <button
             class="btn btn-outline-secondary responsive-toolbar-button sidebar-settings-button"
@@ -2785,7 +2806,7 @@
                 disabled={Boolean(pendingNote) || selectionMode}
               >
                 <i class="bi bi-plus-lg" aria-hidden="true"></i> {$_("m.2b7b05c002")}
-                <span class="sidebar-new-note-shortcut" aria-hidden="true">(N)</span>
+                <span class="shortcut-hint sidebar-new-note-shortcut" aria-hidden="true"><span class="shortcut-key" class:is-available={canUseListKeyboardShortcuts() && !selectionMode && !pendingNote}>N</span></span>
               </button>
             </div>
             {#if pinnedIssues.length}
