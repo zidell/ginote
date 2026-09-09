@@ -1776,7 +1776,7 @@
         aria-expanded="false"
         aria-label={$_("m.a9b795bbb6")}
       ><i class="bi bi-three-dots-vertical" aria-hidden="true"></i></button>
-      <div class="dropdown-menu dropdown-menu-dark dropdown-menu-end">
+      <div class="dropdown-menu dropdown-menu-end">
         {#if canPreview || previewMode}
           <button
             type="button"
@@ -2032,7 +2032,7 @@
                         aria-label={$_("m.02f145f769")}
                         tabindex="-1"
                       ><i class="bi bi-three-dots" aria-hidden="true"></i></button>
-                      <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end">
+                      <ul class="dropdown-menu dropdown-menu-end">
                         <li>
                           <button
                             type="button"

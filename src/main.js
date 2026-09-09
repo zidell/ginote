@@ -6,6 +6,10 @@ import { openUrl } from '@tauri-apps/plugin-opener';
 import { mount } from 'svelte';
 import App from './App.svelte';
 import { normalizeLocale, translate } from './lib/i18n.js';
+import { applyTheme, loadSettingsDocument } from './lib/settings-storage.js';
+
+// 첫 페인트 전에 저장된 테마를 적용해 다크모드 화면이 잠깐 번쩍이는 현상을 막는다.
+applyTheme(loadSettingsDocument()?.preferences?.theme);
 
 document.documentElement.lang = normalizeLocale(navigator.language);
 document.querySelector('meta[name="description"]')?.setAttribute(

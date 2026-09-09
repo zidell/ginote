@@ -122,7 +122,7 @@
               aria-label={$_('workspace.moreActions')}
               title={$_('workspace.moreActions')}
             ><i class="bi bi-three-dots" aria-hidden="true"></i></button>
-            <div class="dropdown-menu dropdown-menu-dark dropdown-menu-end">
+            <div class="dropdown-menu dropdown-menu-end">
               <button type="button" class="dropdown-item" on:click={() => startRename(workspace)}>
                 <i class="bi bi-pencil" aria-hidden="true"></i> {$_('workspace.rename')}
               </button>

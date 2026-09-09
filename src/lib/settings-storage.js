@@ -1,6 +1,12 @@
 import { LOCALE_OPTIONS } from './i18n.js';
 
 export const STORAGE_KEY = 'issue-note.settings.v1';
+export const THEME_DEFAULT = 'dark';
+export const THEME_OPTIONS = ['dark', 'light'];
+export const THEME_META_COLORS = {
+  dark: '#171717',
+  light: '#f5f7fb'
+};
 export const BACKGROUND_REFRESH_DEFAULT_MINUTES = 60;
 export const BACKGROUND_REFRESH_OPTIONS = [0, 5, 15, 30, 60, 180];
 export const LOCK_SESSION_DEFAULT_MINUTES = 60;
@@ -29,6 +35,24 @@ export function normalizeWorkspaceCacheMinutes(value) {
   return WORKSPACE_CACHE_OPTIONS.includes(minutes) ? minutes : WORKSPACE_CACHE_DEFAULT_MINUTES;
 }
 
+export function normalizeTheme(value) {
+  return THEME_OPTIONS.includes(value) ? value : THEME_DEFAULT;
+}
+
+export function applyTheme(value) {
+  const theme = normalizeTheme(value);
+  const documentElement = globalThis.document?.documentElement;
+  if (!documentElement) return theme;
+
+  documentElement.classList.toggle('mode-dark', theme === 'dark');
+  documentElement.classList.toggle('mode-light', theme === 'light');
+  documentElement.setAttribute('data-bs-theme', theme);
+  globalThis.document
+    .querySelector('meta[name="theme-color"]')
+    ?.setAttribute('content', THEME_META_COLORS[theme]);
+  return theme;
+}
+
 export function normalizeListRowFields(raw) {
   const source = raw && typeof raw === 'object' ? raw : {};
   return {
@@ -42,6 +66,7 @@ export function normalizeListRowFields(raw) {
 export function normalizePreferences(raw) {
   const savedLanguage = raw?.language || 'auto';
   return {
+    theme: normalizeTheme(raw?.theme),
     titleMode: raw?.titleMode || 'first-line',
     listRowFields: normalizeListRowFields(raw?.listRowFields),
     editorFont: raw?.editorFont || 'system',
@@ -59,6 +84,7 @@ export function normalizePreferences(raw) {
 
 export function preferenceSignature(preferences) {
   return JSON.stringify([
+    preferences.theme,
     preferences.titleMode,
     preferences.listRowFields,
     preferences.editorFont,

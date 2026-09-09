@@ -13,6 +13,8 @@ import {
   reorderWorkspace,
   saveSettingsDocument,
   STORAGE_KEY,
+  applyTheme,
+  normalizeTheme,
   truncateMiddle,
   workspaceDisplayName
 } from './settings-storage.js';
@@ -58,9 +60,31 @@ describe('시간 설정 정규화', () => {
   });
 });
 
+describe('테마 설정', () => {
+  it('지원하는 테마만 허용하고 기본값은 다크모드로 둔다', () => {
+    expect(normalizeTheme()).toBe('dark');
+    expect(normalizeTheme('dark')).toBe('dark');
+    expect(normalizeTheme('light')).toBe('light');
+    expect(normalizeTheme('system')).toBe('dark');
+  });
+
+  it('HTML 루트에 테마 모드를 적용한다', () => {
+    document.documentElement.className = 'mode-dark';
+    expect(applyTheme('light')).toBe('light');
+    expect(document.documentElement.classList.contains('mode-light')).toBe(true);
+    expect(document.documentElement.classList.contains('mode-dark')).toBe(false);
+    expect(document.documentElement.dataset.bsTheme).toBe('light');
+    expect(applyTheme('invalid')).toBe('dark');
+    expect(document.documentElement.classList.contains('mode-dark')).toBe(true);
+    expect(document.documentElement.classList.contains('mode-light')).toBe(false);
+    expect(document.documentElement.dataset.bsTheme).toBe('dark');
+  });
+});
+
 describe('normalizePreferences', () => {
   it('값이 없으면 전부 기본값을 채운다', () => {
     expect(normalizePreferences(undefined)).toEqual({
+      theme: 'dark',
       titleMode: 'first-line',
       listRowFields: { title: true, summary: true, meta: true, tags: true },
       editorFont: 'system',
