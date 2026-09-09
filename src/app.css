@@ -92,7 +92,6 @@ html.mode-dark {
 
   --ui-shadow: rgba(0, 0, 0, .35);
   --ui-shadow-strong: rgba(0, 0, 0, .4);
-  --ui-focus-wash: rgba(122, 122, 122, .1);
   --ui-focus-ring: rgba(37, 99, 235, .15);
   --ui-quote-wash: rgba(82, 98, 126, .1);
   --ui-api-mask: rgba(10, 10, 10, .42);
@@ -221,7 +220,6 @@ html.mode-light {
 
   --ui-shadow: rgba(15, 23, 42, .16);
   --ui-shadow-strong: rgba(15, 23, 42, .22);
-  --ui-focus-wash: rgba(37, 99, 235, .06);
   --ui-focus-ring: rgba(37, 99, 235, .18);
   --ui-quote-wash: rgba(59, 130, 246, .08);
   --ui-api-mask: rgba(255, 255, 255, .58);
@@ -473,7 +471,6 @@ html.mode-light .note-row-labels { opacity: 1; }
 .detail-toolbar-more > .btn { min-width: 42px; }
 .detail-toolbar-mobile-actions, .detail-toolbar-mobile-divider { display: none; }
 .detail-toolbar-more .dropdown-item.detail-toolbar-desktop-delete { display: none; }
-.note-detail:has(textarea:focus) .detail-toolbar { background-color: var(--ui-focus-wash); }
 .detail-toolbar-timestamps { display: grid; gap: .2rem; padding: .45rem 1rem .55rem; color: var(--ui-text-timestamp); font-size: .75rem; line-height: 1.35; white-space: nowrap; }
 .detail-toolbar-more .dropdown-item { display: flex; align-items: center; gap: .55rem; font-size: .9em; }
 .detail-toolbar-start .mobile-back { display: none; white-space: nowrap; }
@@ -484,7 +481,6 @@ html.mode-light .note-row-labels { opacity: 1; }
 .braille-spinner.active { opacity: 1; }
 .editor-notice { flex: none; padding: .55rem .85rem; border-bottom: 1px solid var(--ui-border-divider); background: var(--ui-bg-error); font-size: .8rem; }
 .inline-editor-scroll { flex: 1; width: 100%; min-height: 0; overflow-y: auto; outline: none; }
-.inline-editor-scroll:has(textarea:focus) { background-color: var(--ui-focus-wash); }
 .inline-editor-fields { --editor-gutter: clamp(1rem, 3vw, 2.5rem); position: relative; width: 100%; max-width: var(--editor-max-width, 840px); margin: 0 auto; display: flex; flex-direction: column; padding-top: var(--editor-gutter); font-family: var(--note-font); }
 .inline-editor-fields.is-dragging-files { border-radius: 6px; outline: 2px dashed var(--ui-focus); outline-offset: -.65rem; background: var(--ui-drag-wash); }
 .note-lock-overlay { position: absolute; z-index: 8; inset: 0; display: grid; place-items: center; padding: 1rem; background: var(--ui-lock-mask); }
