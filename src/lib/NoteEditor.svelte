@@ -7,6 +7,7 @@
   import { externalLinkTarget } from './external-links.js';
   import { editorFontStack } from './editor-fonts.js';
   import { MAX_ISSUE_BODY_LENGTH, MAX_ISSUE_COMMENT_LENGTH } from './github-limits.js';
+  import MarkdownViewer from './MarkdownViewer.svelte';
   import TagPicker from './TagPicker.svelte';
   import { automaticTitle, linkAtCursor, shortenMiddle } from './notes.js';
   import {
@@ -115,6 +116,10 @@
   let previewUrls = {};
   let viewerIndex = -1;
   let viewerElement;
+  let editorScroll;
+  let markdownViewer;
+  let pendingPreviewScrollPosition = null;
+  let previewMode = false;
   let appliedLabelMutation = 0;
   let revision = 0;
   let lastRemoteSignature = issue ? noteSignature({
@@ -142,6 +147,9 @@
   let remoteTimer;
   let fileInput;
   let bodyInput;
+  let toolbarTagPicker;
+  let moreToolbarElement;
+  let issueLinkElement;
   let handledFocusRequest = 0;
   let mobileTagPicker;
   let inlineTagPickerOpen = false;
@@ -155,8 +163,10 @@
   $: fontStack = editorFontStack(font);
   $: viewedAttachment = viewerIndex >= 0 ? attachments[viewerIndex] : null;
   $: displayBody = compressAttachmentLinks(body, repo);
+  $: previewBody = expandAttachmentLinks(body, repo);
   $: hasAttachmentRefs = parseAttachmentPaths(body).length > 0;
   $: editable = !archived && !readOnly;
+  $: canPreview = lockState !== 'locked' && !lockPanelMode;
   $: compactStatus = !editable
     ? $_("m.601dcc1c87")
     : saveFailed
@@ -1416,7 +1426,180 @@
     changed();
   }
 
+  function capturePreviewScrollPosition() {
+    if (!editorScroll) return { ratio: 0 };
+    const maxScrollTop = Math.max(0, editorScroll.scrollHeight - editorScroll.clientHeight);
+    return {
+      ratio: maxScrollTop > 0
+        ? Math.min(1, Math.max(0, editorScroll.scrollTop / maxScrollTop))
+        : 0
+    };
+  }
+
+  function restorePreviewScrollPosition(position = pendingPreviewScrollPosition) {
+    if (!editorScroll || !position) return;
+    const maxScrollTop = Math.max(0, editorScroll.scrollHeight - editorScroll.clientHeight);
+    editorScroll.scrollTop = maxScrollTop * position.ratio;
+  }
+
+  function focusWithoutScrolling(node) {
+    if (!node) return;
+    try {
+      node.focus({ preventScroll: true });
+    } catch {
+      node.focus();
+    }
+  }
+
+  async function setMarkdownPreview(next = !previewMode) {
+    if (next === previewMode || (next && !canPreview)) return;
+
+    pendingPreviewScrollPosition = capturePreviewScrollPosition();
+    toolbarTagPicker?.close?.();
+    mobileTagPicker?.close?.();
+    inlineTagPickerOpen = false;
+    hideMoreToolbarDropdown();
+    previewMode = next;
+    await tick();
+    restorePreviewScrollPosition();
+    if (next) markdownViewer?.focus?.();
+    else focusWithoutScrolling(editorScroll);
+    requestAnimationFrame(() => {
+      restorePreviewScrollPosition();
+      if (!pendingPreviewScrollPosition) return;
+      // MarkdownViewer keeps this anchor alive until all images have either
+      // loaded or failed. This second frame handles the no-image case.
+      if (!next) pendingPreviewScrollPosition = null;
+    });
+  }
+
+  function handlePreviewContentResize(event) {
+    if (!pendingPreviewScrollPosition) return;
+    restorePreviewScrollPosition();
+    if (!event.detail?.pendingImages) {
+      requestAnimationFrame(() => {
+        restorePreviewScrollPosition();
+        pendingPreviewScrollPosition = null;
+      });
+    }
+  }
+
+  function hideMoreToolbarDropdown() {
+    const toggleButton = moreToolbarElement?.querySelector('[data-bs-toggle="dropdown"]');
+    if (toggleButton) Dropdown.getOrCreateInstance(toggleButton).hide();
+  }
+
+  function isShortcutWithoutModifiers(event) {
+    return !event.repeat
+      && !event.altKey
+      && !event.ctrlKey
+      && !event.metaKey
+      && !event.shiftKey
+      && !event.isComposing;
+  }
+
+  function shortcutKey(event) {
+    if (!isShortcutWithoutModifiers(event)) return '';
+    const key = event.key?.toLocaleLowerCase();
+    if (key === 't' || event.code === 'KeyT') return 't';
+    if (key === 'a' || event.code === 'KeyA') return 'a';
+    if (key === 'p' || event.code === 'KeyP') return 'p';
+    if (key === 'g' || event.code === 'KeyG') return 'g';
+    if (key === 'm' || event.code === 'KeyM') return 'm';
+    if (key === 'l' || event.code === 'KeyL') return 'l';
+    if (event.key === 'Delete' || event.code === 'Delete') return 'delete';
+    return '';
+  }
+
+  function hasNoInteractiveFocus() {
+    const activeElement = document.activeElement;
+    return !activeElement
+      || activeElement === document.body
+      || activeElement === document.documentElement
+      || activeElement === editorScroll
+      || activeElement?.classList?.contains('markdown-preview');
+  }
+
+  function hasTextEditingFocus() {
+    const activeElement = document.activeElement;
+    return activeElement instanceof HTMLInputElement
+      || activeElement instanceof HTMLTextAreaElement
+      || activeElement instanceof HTMLSelectElement
+      || Boolean(activeElement?.isContentEditable);
+  }
+
+  function openToolbarTagPicker() {
+    const picker = window.matchMedia?.('(max-width: 991.98px)').matches
+      ? mobileTagPicker || toolbarTagPicker
+      : toolbarTagPicker || mobileTagPicker;
+    picker?.openPicker?.();
+    return Boolean(picker);
+  }
+
+  function handleNoteShortcut(key) {
+    if (key === 'm') {
+      if (!previewMode && !canPreview) return false;
+      void setMarkdownPreview(!previewMode);
+      return true;
+    }
+    if (key === 'l') {
+      if (!editable) return false;
+      void (lockState === 'plain' ? requestLock() : removeLock());
+      return true;
+    }
+    if (key === 't') {
+      if (!editable || lockState === 'locked') return false;
+      return openToolbarTagPicker();
+    }
+    if (key === 'a') {
+      if (!editable || lockState === 'locked' || !fileInput || fileInput.disabled) return false;
+      fileInput.click();
+      return true;
+    }
+    if (key === 'p') {
+      if (!remoteIssue?.number || readOnly || (!pinned && pinDisabled)) return false;
+      requestPinToggle();
+      return true;
+    }
+    if (key === 'g') {
+      if (!remoteIssue?.html_url || !issueLinkElement) return false;
+      issueLinkElement.click();
+      return true;
+    }
+    if (key === 'delete') {
+      if (!remoteIssue?.number || readOnly || archived) return false;
+      onMove(remoteIssue);
+      return true;
+    }
+    return false;
+  }
+
   function handleMoreToolbarEscape(event) {
+    if (paused) return;
+
+    if (viewerIndex < 0 && previewMode && event.key === 'Escape' && !hasTextEditingFocus()) {
+      event.preventDefault();
+      event.stopPropagation();
+      void setMarkdownPreview(false);
+      return;
+    }
+
+    const key = shortcutKey(event);
+    if (viewerIndex < 0 && previewMode && key === 'm' && hasNoInteractiveFocus()) {
+      event.preventDefault();
+      event.stopPropagation();
+      void setMarkdownPreview(false);
+      return;
+    }
+
+    if (viewerIndex < 0 && key && hasNoInteractiveFocus()) {
+      if (handleNoteShortcut(key)) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+      return;
+    }
+
     if (event.key !== 'Escape') return;
     const activeElement = document.activeElement;
     const toolbar = activeElement?.closest?.('.detail-toolbar-more');
@@ -1497,6 +1680,7 @@
         class="visually-hidden"
         type="file"
         id={`inline-attachment-${editorId}`}
+        aria-keyshortcuts="A"
         multiple
         disabled={uploadBatchActive || attachments.length >= MAX_ATTACHMENTS}
         on:change={(event) => uploadFiles(event.currentTarget.files)}
@@ -1505,7 +1689,9 @@
     <div class="detail-toolbar-actions detail-toolbar-actions-desktop">
       {#if editable}
         <TagPicker
+          bind:this={toolbarTagPicker}
           toolbar
+          shortcut="T"
           {availableLabels}
           selectedLabels={labels}
           onSelect={toggleTag}
@@ -1518,7 +1704,7 @@
           for={`inline-attachment-${editorId}`}
         >
           <i class="bi bi-paperclip" aria-hidden="true"></i>
-          {uploading ? $_('dynamic.uploading', { values: { count: uploading } }) : $_("m.1afff0157c")}
+          {uploading ? $_('dynamic.uploading', { values: { count: uploading } }) : $_("m.1afff0157c")} (A)
         </label>
       {/if}
     </div>
@@ -1528,6 +1714,7 @@
           bind:this={mobileTagPicker}
           toolbar
           iconOnly
+          shortcut="T"
           {availableLabels}
           selectedLabels={labels}
           onSelect={toggleTag}
@@ -1536,14 +1723,14 @@
           class="btn btn-outline-secondary detail-toolbar-icon-action"
           class:disabled={uploadBatchActive || attachments.length >= MAX_ATTACHMENTS}
           for={`inline-attachment-${editorId}`}
-          aria-label={uploading ? $_('dynamic.uploading', { values: { count: uploading } }) : $_("m.1afff0157c")}
-          title={uploading ? $_('dynamic.uploading', { values: { count: uploading } }) : $_("m.1afff0157c")}
+          aria-label={`${uploading ? $_('dynamic.uploading', { values: { count: uploading } }) : $_("m.1afff0157c")} (A)`}
+          title={`${uploading ? $_('dynamic.uploading', { values: { count: uploading } }) : $_("m.1afff0157c")} (A)`}
         >
           <i class="bi bi-paperclip" aria-hidden="true"></i>
         </label>
       {/if}
     </div>
-    <div class="dropdown detail-toolbar-more">
+    <div class="dropdown detail-toolbar-more" bind:this={moreToolbarElement}>
       <button
         class="btn btn-outline-secondary responsive-toolbar-button"
         type="button"
@@ -1552,15 +1739,28 @@
         aria-label={$_("m.a9b795bbb6")}
       ><i class="bi bi-three-dots-vertical" aria-hidden="true"></i></button>
       <div class="dropdown-menu dropdown-menu-dark dropdown-menu-end">
+        {#if canPreview || previewMode}
+          <button
+            type="button"
+            class="dropdown-item"
+            aria-pressed={previewMode}
+            aria-keyshortcuts="M"
+            on:click={() => setMarkdownPreview()}
+          >
+            <i class={`bi ${previewMode ? 'bi-eye-slash' : 'bi-eye'}`} aria-hidden="true"></i>
+            {$_("m.1e0f7e5b67")} (M)
+          </button>
+        {/if}
         <div class="detail-toolbar-mobile-actions">
           {#if remoteIssue && !readOnly}
             <button
               type="button"
               class="dropdown-item"
+              aria-keyshortcuts="Delete"
               on:click={() => onMove(remoteIssue)}
             >
               <i class={`bi ${archived ? 'bi-arrow-counterclockwise' : 'bi-trash3'}`} aria-hidden="true"></i>
-              {archived ? $_("m.3cbe6d6b9a") : $_("m.f6fdbe48dc")}
+              {archived ? $_("m.3cbe6d6b9a") : $_("m.f6fdbe48dc")} (Delete)
             </button>
           {/if}
         </div>
@@ -1571,21 +1771,23 @@
           <button
             type="button"
             class="dropdown-item"
+            aria-keyshortcuts="L"
             on:click={() => lockState === 'plain' ? requestLock() : removeLock()}
           >
             <i class={`bi ${lockState === 'plain' ? 'bi-lock' : 'bi-unlock'}`} aria-hidden="true"></i>
-            {lockState === 'plain' ? '잠금' : lockState === 'locked' ? '잠금 열기' : '잠금 풀기'}
+            {lockState === 'plain' ? '잠금' : lockState === 'locked' ? '잠금 열기' : '잠금 풀기'} (L)
           </button>
         {/if}
         {#if remoteIssue}
           <button
             type="button"
             class="dropdown-item"
+            aria-keyshortcuts="P"
             disabled={!pinned && pinDisabled}
             on:click={requestPinToggle}
           >
             <i class={`bi ${pinned ? 'bi-pin-angle-fill' : 'bi-pin-angle'}`} aria-hidden="true"></i>
-            {pinned ? '고정 해제' : '상단고정'}
+            {pinned ? '고정 해제' : '상단고정'} (P)
           </button>
         {/if}
         {#if remoteIssue}
@@ -1593,14 +1795,22 @@
             <button
               type="button"
               class="dropdown-item detail-toolbar-desktop-delete"
+              aria-keyshortcuts="Delete"
               on:click={() => onMove(remoteIssue)}
             >
               <i class={`bi ${archived ? 'bi-arrow-counterclockwise' : 'bi-trash3'}`} aria-hidden="true"></i>
-              {archived ? $_("m.3cbe6d6b9a") : $_("m.f6fdbe48dc")}
+              {archived ? $_("m.3cbe6d6b9a") : $_("m.f6fdbe48dc")} (Delete)
             </button>
           {/if}
-          <a class="dropdown-item" href={remoteIssue.html_url} target={newContextTarget} rel="noreferrer">
-            <i class="bi bi-github" aria-hidden="true"></i> {$_('dynamic.viewOnGitHub')}
+          <a
+            bind:this={issueLinkElement}
+            class="dropdown-item"
+            aria-keyshortcuts="G"
+            href={remoteIssue.html_url}
+            target={newContextTarget}
+            rel="noreferrer"
+          >
+            <i class="bi bi-github" aria-hidden="true"></i> {$_('dynamic.viewOnGitHub')} (G)
           </a>
           <div class="dropdown-divider"></div>
           <div class="dropdown-header detail-toolbar-timestamps">
@@ -1614,7 +1824,7 @@
 
   {#if error}<div class="editor-notice text-danger">{error}</div>{/if}
 
-  <div class="inline-editor-scroll" use:focusBodyFromOuterGutter>
+  <div class="inline-editor-scroll" bind:this={editorScroll} tabindex="-1" use:focusBodyFromOuterGutter>
   <div
     class="inline-editor-fields"
     class:is-lock-protected={lockState !== 'plain'}
@@ -1651,7 +1861,7 @@
                 {/if}
                 <span class="attachment-name" title={attachment.name}>{attachment.name}</span>
               </button>
-              {#if editable}
+              {#if editable && !previewMode}
                 <button
                   type="button"
                   class="attachment-delete"
@@ -1667,7 +1877,7 @@
               {/if}
             </div>
           {/each}
-          {#if editable && attachments.length < MAX_ATTACHMENTS}
+          {#if editable && !previewMode && attachments.length < MAX_ATTACHMENTS}
             <label
               class="attachment-add-tile"
               class:disabled={uploadBatchActive}
@@ -1691,14 +1901,14 @@
         {#each labels as label (label)}
           <span class="editor-tag" style={`--tag-color:${tagColor(label)}`}>
             #{label}
-            {#if editable}
+            {#if editable && !previewMode}
               <button type="button" on:click={() => removeTag(label)} aria-label={$_('dynamic.removeTag', { values: { name: label } })}>
                 <i class="bi bi-x" aria-hidden="true"></i>
               </button>
             {/if}
           </span>
         {/each}
-        {#if editable}
+        {#if editable && !previewMode}
           <TagPicker
             bind:open={inlineTagPickerOpen}
             {availableLabels}
@@ -1709,40 +1919,53 @@
       </div>
     {/if}
     {#if titleMode === 'separate'}
-      <input
-        class="inline-title"
-        bind:value={title}
-        on:input={changed}
-        placeholder={$_("m.768e0c1c69")}
-        maxlength="256"
-        aria-label={$_("m.45e6c4d69d")}
-        readonly={!editable || lockState === 'locked'}
-        on:keydown={handleEditorKeydown}
-        on:blur={() => flushRemoteSave()}
-      />
+      {#if previewMode}
+        {#if title.trim()}<h1 class="markdown-preview-title">{title}</h1>{/if}
+      {:else}
+        <input
+          class="inline-title"
+          bind:value={title}
+          on:input={changed}
+          placeholder={$_("m.768e0c1c69")}
+          maxlength="256"
+          aria-label={$_("m.45e6c4d69d")}
+          readonly={!editable || lockState === 'locked'}
+          on:keydown={handleEditorKeydown}
+          on:blur={() => flushRemoteSave()}
+        />
+      {/if}
     {/if}
-    <textarea
-      bind:this={bodyInput}
-      class="inline-body"
-      bind:value={displayBody}
-      on:input={handleBodyInput}
-      on:keyup={updateLinkTooltip}
-      on:click={updateLinkTooltip}
-      on:select={updateLinkTooltip}
-      on:scroll={hideLinkTooltip}
-      on:keydown={handleEditorKeydown}
-      on:blur={handleBodyBlur}
-      on:paste={handlePaste}
-      placeholder={titleMode === 'first-line' ? $_("m.fd0b5408d9") : $_("m.5f35b29acf")}
-      maxlength={MAX_ISSUE_BODY_LENGTH}
-      aria-label={$_("m.6aa90334da")}
-      autocomplete="off"
-      autocorrect="off"
-      autocapitalize="none"
-      spellcheck="false"
-      readonly={!editable || lockState === 'locked'}
-      use:autosize={displayBody}
-    ></textarea>
+    {#if previewMode}
+      <MarkdownViewer
+        bind:this={markdownViewer}
+        source={previewBody}
+        emptyLabel={$_("m.0c3fd88e60")}
+        on:contentresize={handlePreviewContentResize}
+      />
+    {:else}
+      <textarea
+        bind:this={bodyInput}
+        class="inline-body"
+        bind:value={displayBody}
+        on:input={handleBodyInput}
+        on:keyup={updateLinkTooltip}
+        on:click={updateLinkTooltip}
+        on:select={updateLinkTooltip}
+        on:scroll={hideLinkTooltip}
+        on:keydown={handleEditorKeydown}
+        on:blur={handleBodyBlur}
+        on:paste={handlePaste}
+        placeholder={titleMode === 'first-line' ? $_("m.fd0b5408d9") : $_("m.5f35b29acf")}
+        maxlength={MAX_ISSUE_BODY_LENGTH}
+        aria-label={$_("m.6aa90334da")}
+        autocomplete="off"
+        autocorrect="off"
+        autocapitalize="none"
+        spellcheck="false"
+        readonly={!editable || lockState === 'locked'}
+        use:autosize={displayBody}
+      ></textarea>
+    {/if}
     {#if loadingComments || comments.length || (editable && lockState !== 'locked' && remoteIssue?.number)}
       <section class="note-comments-section">
         {#if loadingComments && !comments.length}
@@ -1761,7 +1984,7 @@
                   {:else if commentSaveFailedIds.has(comment.id)}
                     <span class="note-comment-status note-comment-status-failed">{$_("m.0a44446762")}</span>
                   {/if}
-                  {#if editable && lockState !== 'locked'}
+                  {#if editable && lockState !== 'locked' && !previewMode}
                     <div class="dropdown">
                       <button
                         type="button"
@@ -1785,22 +2008,26 @@
                   {/if}
                 </div>
               </div>
-              <textarea
-                id={`comment-body-${comment.id}`}
-                class="note-comment-body"
-                bind:value={comment.body}
-                on:input={() => markCommentDirty(comment)}
-                on:keydown={handleEditorKeydown}
-                on:blur={() => saveComment(comment)}
-                placeholder={$_("m.ee6540eb88")}
-                maxlength={MAX_ISSUE_COMMENT_LENGTH}
-                readonly={!editable || lockState === 'locked'}
-                use:autosize={comment.body}
-              ></textarea>
+              {#if previewMode}
+                <div class="note-comment-body note-comment-body-preview">{comment.body}</div>
+              {:else}
+                <textarea
+                  id={`comment-body-${comment.id}`}
+                  class="note-comment-body"
+                  bind:value={comment.body}
+                  on:input={() => markCommentDirty(comment)}
+                  on:keydown={handleEditorKeydown}
+                  on:blur={() => saveComment(comment)}
+                  placeholder={$_("m.ee6540eb88")}
+                  maxlength={MAX_ISSUE_COMMENT_LENGTH}
+                  readonly={!editable || lockState === 'locked'}
+                  use:autosize={comment.body}
+                ></textarea>
+              {/if}
             </div>
           {/each}
         {/if}
-        {#if editable && lockState !== 'locked' && remoteIssue?.number}
+        {#if editable && lockState !== 'locked' && remoteIssue?.number && !previewMode}
           <button type="button" class="note-comment-add" on:click={addComment}>
             <i class="bi bi-plus-lg" aria-hidden="true"></i> {$_("m.7d3764e42e")}
           </button>

@@ -421,6 +421,125 @@ describe('NoteEditor 코멘트 블록', () => {
   });
 });
 
+describe('NoteEditor 마크다운 프리뷰와 단축키', () => {
+  function dispatchShortcut(key, code = '') {
+    const event = new KeyboardEvent('keydown', {
+      key,
+      code,
+      bubbles: true,
+      cancelable: true
+    });
+    window.dispatchEvent(event);
+    return event;
+  }
+
+  it('더보기 메뉴의 MD뷰어로 안전하게 렌더링한다', async () => {
+    render(NoteEditor, {
+      token: 't',
+      repo: 'owner/repo',
+      issue: { ...baseIssue, body: '# 제목\n\n**강조**\n\n<script>alert(1)</script>' }
+    });
+
+    await fireEvent.click(document.querySelector('.detail-toolbar-more > button'));
+    await fireEvent.click(screen.getByText('MD viewer (M)'));
+
+    await waitFor(() => expect(document.querySelector('.markdown-preview')).toBeTruthy());
+    expect(document.querySelector('.markdown-preview h1').textContent).toBe('제목');
+    expect(document.querySelector('.markdown-preview strong').textContent).toBe('강조');
+    expect(document.querySelector('.markdown-preview').innerHTML).not.toContain('<script');
+  });
+
+  it('포커스가 없을 때 M으로 열고 같은 키나 Escape로 닫는다', async () => {
+    render(NoteEditor, { token: 't', repo: 'owner/repo', issue: baseIssue });
+
+    const openEvent = dispatchShortcut('m', 'KeyM');
+    expect(openEvent.defaultPrevented).toBe(true);
+    await waitFor(() => expect(document.querySelector('.markdown-preview')).toBeTruthy());
+
+    const toggleEvent = dispatchShortcut('m', 'KeyM');
+    expect(toggleEvent.defaultPrevented).toBe(true);
+    await waitFor(() => expect(document.querySelector('.markdown-preview')).toBeNull());
+
+    dispatchShortcut('m', 'KeyM');
+    await waitFor(() => expect(document.querySelector('.markdown-preview')).toBeTruthy());
+    const escapeEvent = dispatchShortcut('Escape');
+    expect(escapeEvent.defaultPrevented).toBe(true);
+    await waitFor(() => expect(document.querySelector('.markdown-preview')).toBeNull());
+  });
+
+  it('본문에 포커스가 있으면 M을 입력 단축키로 가로채지 않는다', async () => {
+    render(NoteEditor, { token: 't', repo: 'owner/repo', issue: baseIssue });
+
+    const body = document.querySelector('.inline-body');
+    body.focus();
+    const event = dispatchShortcut('m', 'KeyM');
+
+    expect(event.defaultPrevented).toBe(false);
+    expect(document.querySelector('.markdown-preview')).toBeNull();
+  });
+
+  it('프리뷰 전환 전후에 스크롤 진행률을 서로 변환한다', async () => {
+    render(NoteEditor, {
+      token: 't',
+      repo: 'owner/repo',
+      issue: { ...baseIssue, body: '# 제목\n\n본문' }
+    });
+
+    const scroll = document.querySelector('.inline-editor-scroll');
+    Object.defineProperty(scroll, 'clientHeight', { configurable: true, value: 100 });
+    Object.defineProperty(scroll, 'scrollHeight', {
+      configurable: true,
+      get: () => document.querySelector('.markdown-preview') ? 500 : 1000
+    });
+    scroll.scrollTop = 450;
+
+    dispatchShortcut('m', 'KeyM');
+    await waitFor(() => expect(document.querySelector('.markdown-preview')).toBeTruthy());
+    expect(scroll.scrollTop).toBe(200);
+
+    scroll.scrollTop = 100;
+    dispatchShortcut('m', 'KeyM');
+    await waitFor(() => expect(document.querySelector('.markdown-preview')).toBeNull());
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    expect(scroll.scrollTop).toBe(225);
+  });
+
+  it('포커스가 없을 때 t, a, p, l, Delete, g 단축키를 툴바 동작에 연결한다', async () => {
+    const onTogglePin = vi.fn();
+    const onMove = vi.fn();
+    const issue = { ...baseIssue, html_url: 'https://github.com/owner/repo/issues/5' };
+    render(NoteEditor, {
+      token: 't',
+      repo: 'owner/repo',
+      issue,
+      availableLabels: [{ name: 'work' }],
+      onTogglePin,
+      onMove
+    });
+
+    const fileInput = document.querySelector('#inline-attachment-note');
+    const clickSpy = vi.spyOn(fileInput, 'click');
+    const issueLink = [...document.querySelectorAll('.detail-toolbar-more a')]
+      .find((link) => link.href === issue.html_url);
+    const issueLinkSpy = vi.spyOn(issueLink, 'click');
+
+    dispatchShortcut('t', 'KeyT');
+    await waitFor(() => expect(document.querySelector('.tag-dropdown input')).toBeTruthy());
+    document.activeElement.blur();
+    dispatchShortcut('a', 'KeyA');
+    dispatchShortcut('p', 'KeyP');
+    dispatchShortcut('l', 'KeyL');
+    dispatchShortcut('Delete', 'Delete');
+    dispatchShortcut('g', 'KeyG');
+
+    expect(clickSpy).toHaveBeenCalledTimes(1);
+    expect(onTogglePin).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(document.querySelector('.note-lock-panel')).toBeTruthy());
+    expect(onMove).toHaveBeenCalledWith(issue);
+    expect(issueLinkSpy).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe('NoteEditor 첨부 파일', () => {
   it('파일을 업로드하면 본문에 링크를 끼워 넣고 저장한다', async () => {
     render(NoteEditor, { token: 't', repo: 'owner/repo', issue: baseIssue });

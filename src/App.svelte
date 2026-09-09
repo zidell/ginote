@@ -2815,6 +2815,7 @@
             <div><dt><kbd>Space</kbd></dt><dd>{$_('help.keyboardSelect')}</dd></div>
             <div><dt><kbd>Shift</kbd> + <kbd>↑</kbd> <kbd>↓</kbd></dt><dd>{$_('help.keyboardRangeSelect')}</dd></div>
             <div><dt><kbd>Delete</kbd> / <kbd>Backspace</kbd></dt><dd>{$_('help.keyboardTrash')}</dd></div>
+            <div><dt><kbd>T</kbd> <kbd>A</kbd> <kbd>P</kbd> <kbd>L</kbd> <kbd>Delete</kbd> <kbd>G</kbd> <kbd>M</kbd></dt><dd>{$_('help.keyboardNoteActions')}</dd></div>
           </dl>
           <p class="small help-text mb-0">{$_('help.keyboardNote')}</p>
         {:else}
