@@ -454,7 +454,7 @@ html.mode-light .note-row-labels { opacity: 1; }
 @media (max-width: 420px) { .keyboard-shortcuts > div { grid-template-columns: 1fr; gap: .2rem; } }
 .region-spinner { --bs-spinner-width: 1rem; --bs-spinner-height: 1rem; --bs-spinner-border-width: .14em; }
 .app-toast { position: fixed; z-index: 1100; top: 100px; left: 50%; padding: .55rem .85rem; border: 1px solid var(--ui-toast-border); border-radius: 5px; color: var(--ui-toast-text); background: var(--ui-toast-bg); box-shadow: 0 6px 18px var(--ui-shadow); font-size: .85rem; pointer-events: none; transform: translateX(-50%); }
-.list-api-overlay, .attachment-api-overlay { display: grid; place-items: center; background: var(--ui-api-mask); }
+.list-api-overlay { display: grid; place-items: center; background: var(--ui-api-mask); }
 .list-api-overlay { position: absolute; z-index: 5; inset: 0; pointer-events: none; }
 
 .note-detail { position: relative; min-width: 0; height: 100%; overflow: hidden; background: var(--ui-bg-app); }
@@ -495,13 +495,18 @@ html.mode-light .note-row-labels { opacity: 1; }
 .editor-link-tooltip { position: fixed; z-index: 1070; display: flex; align-items: center; gap: .45rem; overflow: hidden; padding: .45rem .65rem; border: 1px solid var(--ui-border-tooltip); border-radius: 5px; color: var(--ui-text-link-soft); background: var(--ui-bg-selected); box-shadow: 0 6px 18px var(--ui-shadow); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: .78rem; line-height: 1.25; text-decoration: none; }
 .editor-link-tooltip:hover, .editor-link-tooltip:focus-visible { color: var(--ui-text-emphasis); border-color: var(--ui-border-focus); background: var(--ui-bg-tooltip-hover); }
 .editor-link-tooltip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.attachment-section { position: relative; flex: none; min-height: 96px; margin: 0 var(--editor-gutter) .75rem; padding-bottom: .75rem; border-bottom: 1px solid var(--ui-border-list); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
-.attachment-section.is-loading > .attachment-list { opacity: .48; }
-.attachment-api-overlay { position: absolute; z-index: 3; inset: 0 0 .75rem; pointer-events: none; }
+.attachment-section { flex: none; min-height: 96px; margin: 0 var(--editor-gutter) .75rem; padding-bottom: .75rem; border-bottom: 1px solid var(--ui-border-list); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
 .attachment-list { display: flex; gap: .5rem; overflow-x: auto; }
-.attachment-list-loading { display: flex; align-items: center; height: 96px; }
+.attachment-list-loading { display: flex; align-items: center; justify-content: center; height: 96px; }
 .attachment-item, .attachment-add-tile { width: 116px; height: 96px; flex: 0 0 116px; border: 1px solid var(--ui-border); border-radius: 5px; overflow: hidden; background: var(--ui-bg-panel); }
 .attachment-item { position: relative; }
+.attachment-item.is-loading { opacity: .72; }
+.attachment-item.is-pending-delete .attachment-open { opacity: .32; }
+.attachment-pending-delete { position: absolute; z-index: 2; inset: 0; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: .3rem; padding: .35rem; color: var(--ui-text-body); background: var(--ui-button-mask); font-size: .7rem; text-align: center; }
+.attachment-spinner { display: inline-flex; align-items: center; justify-content: center; min-width: 1rem; min-height: 1rem; font-size: 1rem; line-height: 1; }
+.attachment-spinner .braille-spinner { width: 1ch; flex: none; font-size: inherit; }
+.attachment-cancel-delete { padding: .15rem .45rem; border: 1px solid var(--ui-border-strong); border-radius: 3px; color: var(--ui-text-heading); background: var(--ui-bg-raised); font-size: .72rem; }
+.attachment-cancel-delete:hover { color: var(--ui-text-emphasis); border-color: var(--ui-border-focus); }
 .attachment-open { width: 100%; height: 100%; display: block; padding: 0; border: 0; color: var(--ui-text-icon); text-align: left; background: transparent; }
 .attachment-open img, .attachment-loading, .attachment-file-icon { width: 100%; height: 68px; display: grid; place-items: center; object-fit: cover; color: var(--ui-text-faint); background: var(--ui-bg-media); font-size: .65rem; }
 .attachment-name { display: block; overflow: hidden; padding: .3rem .4rem; font-size: .68rem; text-overflow: ellipsis; white-space: nowrap; }

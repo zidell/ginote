@@ -10,6 +10,7 @@
   import MarkdownViewer from './MarkdownViewer.svelte';
   import TagPicker from './TagPicker.svelte';
   import { automaticTitle, linkAtCursor, shortenMiddle } from './notes.js';
+  import { loadPendingWork, pendingWorkScope, updatePendingWork } from './pending-work.js';
   import {
     composeAttachmentLink,
     compressAttachmentLinks,
@@ -84,6 +85,7 @@
 
   const DRAFTS_KEY = 'issue-note.drafts.v1';
   const MAX_ATTACHMENTS = 30;
+  const ATTACHMENT_DELETE_DELAY_MS = 5000;
   // 아직 번호가 없는 새 노트는 initialDraft.id(세션마다 고유)로 구분해야, 저장 도중
   // 리마운트되며 남겨진 이전 세션의 초안이 이후의 다른 새 노트에 잘못 복구되지 않는다.
   // 새로고침 직후처럼 initialDraft가 없을 때만 공용 'new' 키로 복구를 시도한다.
@@ -114,6 +116,12 @@
   let uploading = 0;
   let uploadBatchActive = false;
   let deletingPath = '';
+  let pendingAttachmentDeletes = new Map();
+  let attachmentDeleteTimers = new Map();
+  let pendingWorkFlushPromise = null;
+  let saveIdleResolvers = [];
+  let commentSaveIdleResolvers = [];
+  let recoveredPendingWork = false;
   let previewUrls = {};
   let viewerIndex = -1;
   let viewerElement;
@@ -139,6 +147,7 @@
   let comments = [];
   let loadingComments = Number(remoteIssue?.comments || 0) > 0;
   let commentsIssueNumber = null;
+  let commentsLoaded = false;
   let savingCommentIds = new Set();
   let commentSaveFailedIds = new Set();
   let dirtyCommentIds = new Set();
@@ -178,12 +187,18 @@
       ? $_("m.0a44446762")
       : '';
   $: showSaveStatus = !editable || saveFailed || saving;
+  $: hasPendingWork = dirty
+    || pendingAttachmentDeletes.size > 0
+    || dirtyCommentIds.size > 0
+    || saving
+    || savingCommentIds.size > 0;
   $: if (remoteIssue?.number && lockState !== 'locked' && reconciledIssueNumber !== remoteIssue.number) {
     reconciledIssueNumber = remoteIssue.number;
     reconcileIssueAttachments(remoteIssue.number);
   }
   $: if (remoteIssue?.number && commentsIssueNumber !== remoteIssue.number) {
     commentsIssueNumber = remoteIssue.number;
+    commentsLoaded = false;
     loadIssueComments(remoteIssue.number);
   }
   $: if (labelMutation?.id && labelMutation.id !== appliedLabelMutation) {
@@ -208,6 +223,7 @@
 
   onMount(() => {
     const recovered = !editable || ignoreRecoveredDraft ? null : readDraft();
+    restorePendingWork();
     if (recovered) {
       title = recovered.title;
       body = recovered.body;
@@ -223,6 +239,9 @@
     if (lockState === 'locked') {
       if (lockPin) reuseLockPin(lockPin);
       else openLockPanel('unlock');
+    }
+    if (recoveredPendingWork) {
+      void flushPendingWork({ reason: 'recovery', allowPaused: true });
     }
     handleBackgroundRefreshRequest();
 
@@ -252,7 +271,7 @@
   afterUpdate(() => {
     const becamePaused = paused && !wasPaused;
     wasPaused = paused;
-    if (becamePaused && dirty) flushRemoteSave();
+    if (becamePaused && hasPendingWork) flushPendingWork({ reason: 'pause', allowPaused: true });
   });
 
   onDestroy(() => {
@@ -260,12 +279,14 @@
     if (dirty) persistLocalDraft();
     clearInterval(localTimer);
     clearTimeout(remoteTimer);
+    clearAttachmentDeleteTimers();
     clearTimeout(lockReuseTimer);
     window.removeEventListener('beforeunload', handlePageExit);
     window.removeEventListener('pagehide', handlePageExit);
     window.removeEventListener('keydown', handleMoreToolbarEscape, true);
     document.removeEventListener('visibilitychange', handleVisibilityChange);
-    if (dirty) saveRemote(false, true);
+    persistPendingWork();
+    if (hasPendingWork) void flushPendingWork({ reason: 'destroy', allowPaused: true, requestOptions: { keepalive: true } });
     Object.values(previewUrls).forEach((url) => URL.revokeObjectURL(url));
     previewUrls = {};
   });
@@ -279,39 +300,304 @@
   }
 
   function readDraft() {
-    return draftStore()[repo]?.[draftId] || null;
+    const pendingDraft = loadPendingWork(repo, issue?.number || remoteIssue?.number)?.noteDraft;
+    return pendingDraft || draftStore()[repo]?.[draftId] || null;
   }
 
   function persistLocalDraft() {
-    if (!dirty) return;
+    if (!dirty) {
+      persistPendingWork();
+      return;
+    }
     if (lockState !== 'plain') {
       removeLocalDraft();
       return;
     }
     const store = draftStore();
     store[repo] ||= {};
-    store[repo][draftId] = { title, body, labels, savedAt: Date.now() };
+    const draft = { title, body, labels, savedAt: Date.now() };
+    store[repo][draftId] = draft;
     localStorage.setItem(DRAFTS_KEY, JSON.stringify(store));
+    if (issue?.number || remoteIssue?.number) {
+      updatePendingWork(repo, issue?.number || remoteIssue?.number, { noteDraft: draft });
+    }
   }
 
   function removeLocalDraft() {
     const store = draftStore();
-    if (!store[repo]) return;
-    delete store[repo][draftId];
-    if (!Object.keys(store[repo]).length) delete store[repo];
-    localStorage.setItem(DRAFTS_KEY, JSON.stringify(store));
+    if (store[repo]) {
+      delete store[repo][draftId];
+      if (!Object.keys(store[repo]).length) delete store[repo];
+      localStorage.setItem(DRAFTS_KEY, JSON.stringify(store));
+    }
+    if (issue?.number || remoteIssue?.number) {
+      updatePendingWork(repo, issue?.number || remoteIssue?.number, { noteDraft: null });
+    }
+  }
+
+  function pendingWorkRecord() {
+    const issueNumber = issue?.number || remoteIssue?.number;
+    const scope = pendingWorkScope(repo, issueNumber);
+    if (!scope) return null;
+    return loadPendingWork(repo, issueNumber);
+  }
+
+  function pendingAttachmentRecords() {
+    return [...pendingAttachmentDeletes.values()].map(({ attachment, expiresAt }) => ({
+      attachment,
+      expiresAt
+    }));
+  }
+
+  function pendingCommentRecords() {
+    if (lockState !== 'plain') return [];
+    return comments
+      .filter((comment) => dirtyCommentIds.has(comment.id))
+      .map((comment) => ({
+        id: comment.id,
+        body: comment.body,
+        author: comment.author,
+        avatarUrl: comment.avatarUrl,
+        createdAt: comment.createdAt,
+        updatedAt: comment.updatedAt,
+        isNew: Boolean(comment.isNew)
+      }));
+  }
+
+  function persistPendingWork() {
+    const issueNumber = issue?.number || remoteIssue?.number;
+    if (!issueNumber) return;
+    const previous = pendingWorkRecord();
+    updatePendingWork(repo, issueNumber, {
+      attachmentDeletes: pendingAttachmentRecords(),
+      // 댓글 GET이 끝나기 전에는 아직 컴포넌트가 어떤 댓글을 알고 있는지
+      // 모르므로, 복구 큐의 댓글 초안을 빈 배열로 덮어쓰지 않는다.
+      commentDrafts: commentsLoaded
+        ? pendingCommentRecords()
+        : previous?.commentDrafts || []
+    });
+  }
+
+  function restorePendingWork() {
+    const record = pendingWorkRecord();
+    const restored = Array.isArray(record?.attachmentDeletes)
+      ? record.attachmentDeletes.filter((item) => item?.attachment?.path)
+      : [];
+    if (restored.length) {
+      pendingAttachmentDeletes = new Map(
+        restored.map(({ attachment, expiresAt }) => [attachment.path, {
+          attachment,
+          expiresAt: Number(expiresAt) || Date.now()
+        }])
+      );
+    }
+    recoveredPendingWork = Boolean(record?.noteDraft)
+      || restored.length > 0
+      || Boolean(record?.commentDrafts?.length);
+  }
+
+  function restorePendingComments(nextComments) {
+    const drafts = pendingWorkRecord()?.commentDrafts;
+    if (!Array.isArray(drafts) || !drafts.length || lockState !== 'plain') return nextComments;
+
+    const merged = [...nextComments];
+    for (const draft of drafts) {
+      const index = merged.findIndex((comment) => comment.id === draft.id);
+      if (index >= 0) merged[index] = { ...merged[index], body: draft.body };
+      else if (draft.isNew) merged.push(draft);
+      dirtyCommentIds.add(draft.id);
+    }
+    dirtyCommentIds = dirtyCommentIds;
+    return merged;
+  }
+
+  function clearAttachmentDeleteTimers() {
+    for (const timer of attachmentDeleteTimers.values()) clearTimeout(timer);
+    attachmentDeleteTimers = new Map();
+  }
+
+  function resolveSaveIdle() {
+    if (saving) return;
+    const resolvers = saveIdleResolvers;
+    saveIdleResolvers = [];
+    resolvers.forEach((resolve) => resolve());
+  }
+
+  function waitForSaveIdle() {
+    if (!saving) return Promise.resolve();
+    return new Promise((resolve) => saveIdleResolvers.push(resolve));
+  }
+
+  function resolveCommentSaveIdle() {
+    if (savingCommentIds.size) return;
+    const resolvers = commentSaveIdleResolvers;
+    commentSaveIdleResolvers = [];
+    resolvers.forEach((resolve) => resolve());
+  }
+
+  function waitForCommentSaves() {
+    if (!savingCommentIds.size) return Promise.resolve();
+    return new Promise((resolve) => commentSaveIdleResolvers.push(resolve));
+  }
+
+  function attachmentWorkEntries(paths = null) {
+    const requestedPaths = paths ? new Set(paths) : null;
+    return [...pendingAttachmentDeletes.entries()]
+      .filter(([path]) => !requestedPaths || requestedPaths.has(path))
+      .map(([path, entry]) => ({ path, ...entry }));
+  }
+
+  function scheduleAttachmentDeleteCommit(path, expiresAt) {
+    const existingTimer = attachmentDeleteTimers.get(path);
+    if (existingTimer) clearTimeout(existingTimer);
+    const delay = Math.max(0, expiresAt - Date.now());
+    const timer = setTimeout(() => {
+      attachmentDeleteTimers.delete(path);
+      void flushPendingWork({
+        reason: 'attachment-timeout',
+        attachmentPaths: [path]
+      });
+    }, delay);
+    attachmentDeleteTimers = new Map(attachmentDeleteTimers).set(path, timer);
+  }
+
+  function removeAttachmentFromView(attachment) {
+    orphanedAttachments = orphanedAttachments.filter((item) => item.path !== attachment.path);
+    if (previewUrls[attachment.path]) URL.revokeObjectURL(previewUrls[attachment.path]);
+    const nextPreviewUrls = { ...previewUrls };
+    delete nextPreviewUrls[attachment.path];
+    previewUrls = nextPreviewUrls;
+    const removedIndex = attachments.findIndex((item) => item.path === attachment.path);
+    replaceAttachments(attachments.filter((item) => item.path !== attachment.path));
+    if (viewerIndex === removedIndex) closeViewer();
+    else if (viewerIndex > removedIndex) viewerIndex -= 1;
+  }
+
+  async function flushPendingWork({
+    reason = 'manual',
+    allowPaused = true,
+    requestOptions = {},
+    attachmentPaths = null,
+    force = false,
+    includeAttachments = true,
+    includeComments = true
+  } = {}) {
+    if (pendingWorkFlushPromise) {
+      await pendingWorkFlushPromise;
+      const hasRequestedWork = includeAttachments && (attachmentPaths
+        ? attachmentPaths.some((path) => pendingAttachmentDeletes.has(path))
+        : pendingAttachmentDeletes.size > 0);
+      const hasRequestedComments = includeComments && dirtyCommentIds.size > 0;
+      if (hasRequestedWork || force || dirty || hasRequestedComments) {
+        return flushPendingWork({
+          reason,
+          allowPaused,
+          requestOptions,
+          attachmentPaths,
+          force,
+          includeAttachments,
+          includeComments
+        });
+      }
+      return true;
+    }
+
+    const run = (async () => {
+      const entries = includeAttachments ? attachmentWorkEntries(attachmentPaths) : [];
+      let failed = false;
+
+      for (const { path } of entries) {
+        const timer = attachmentDeleteTimers.get(path);
+        if (timer) clearTimeout(timer);
+      }
+
+      if (entries.length) {
+        let nextBody = body;
+        for (const { attachment } of entries) {
+          nextBody = removeAttachmentLink(
+            nextBody,
+            composeAttachmentLink(repo, attachment)
+          );
+        }
+        if (nextBody !== body) {
+          body = nextBody;
+          changed();
+          clearTimeout(remoteTimer);
+        }
+      }
+
+      await waitForSaveIdle();
+      if (dirty || force) {
+        const saveSucceeded = await saveRemote(force, allowPaused, requestOptions);
+        await waitForSaveIdle();
+        if (saveFailed || !saveSucceeded) return false;
+      }
+
+      for (const { path, attachment } of entries) {
+        if (!pendingAttachmentDeletes.has(path)) continue;
+        deletingPath = path;
+        try {
+          await deleteAttachment(token, repo, attachment);
+          const nextPending = new Map(pendingAttachmentDeletes);
+          nextPending.delete(path);
+          pendingAttachmentDeletes = nextPending;
+          removeAttachmentFromView(attachment);
+          persistPendingWork();
+        } catch (deleteReason) {
+          if (deleteReason?.status === 404) {
+            const nextPending = new Map(pendingAttachmentDeletes);
+            nextPending.delete(path);
+            pendingAttachmentDeletes = nextPending;
+            removeAttachmentFromView(attachment);
+            persistPendingWork();
+          } else {
+            failed = true;
+            error = deleteReason?.message || $_("m.f8a2b33cc2");
+          }
+        } finally {
+          deletingPath = '';
+        }
+      }
+
+      persistPendingWork();
+      if (failed && !destroyed) scheduleRemoteSave(15000);
+      if (includeComments) {
+        await waitForCommentSaves();
+        const dirtyComments = [...dirtyCommentIds]
+          .map((id) => comments.find((comment) => comment.id === id))
+          .filter(Boolean);
+        if (dirtyComments.length) {
+          await Promise.all(dirtyComments.map((comment) => saveComment(comment, true)));
+          await waitForCommentSaves();
+        }
+      }
+
+      if (failed) return false;
+      return (!includeAttachments || !pendingAttachmentDeletes.size)
+        && !dirty
+        && (!includeComments || !dirtyCommentIds.size);
+    })();
+
+    pendingWorkFlushPromise = run;
+    try {
+      return await run;
+    } finally {
+      if (pendingWorkFlushPromise === run) pendingWorkFlushPromise = null;
+    }
   }
 
   function flushRemoteSave(requestOptions = {}) {
-    if (!dirty || archived) return;
+    if (!hasPendingWork || archived) return;
     persistLocalDraft();
     if (refreshing) return;
     clearTimeout(remoteTimer);
-    if (saving && requestOptions.keepalive) {
-      saveKeepaliveSnapshot(requestOptions);
-      return;
-    }
-    saveRemote(false, true, requestOptions);
+    return flushPendingWork({
+      reason: 'save',
+      allowPaused: true,
+      requestOptions,
+      includeAttachments: false,
+      includeComments: false
+    });
   }
 
   function saveFocusedChangesNow(target) {
@@ -324,23 +610,32 @@
 
     if (target === bodyInput || target?.closest?.('.inline-title')) {
       clearTimeout(remoteTimer);
-      saveRemote(true, true);
+      void flushPendingWork({
+        reason: 'shortcut',
+        allowPaused: true,
+        force: true,
+        includeComments: false
+      });
     }
   }
 
-  function saveKeepaliveSnapshot(requestOptions) {
-    // 이미 진행 중인 저장의 최신 본문을 직접 PATCH하면, 닫힘 상태를 확인하는
-    // 일반 저장 경로를 우회하게 된다. 현재 저장이 끝난 뒤 같은 경로로 한 번 더
-    // 저장하도록 큐에 넣어, 닫힌 이슈를 실수로 수정하지 않게 한다.
-    saveRemote(true, true, requestOptions);
-  }
-
   function handleVisibilityChange() {
-    if (document.visibilityState === 'hidden') flushRemoteSave();
+    if (document.visibilityState === 'hidden') {
+      void flushPendingWork({
+        reason: 'visibility',
+        allowPaused: true,
+        includeAttachments: false
+      });
+    }
   }
 
   function handlePageExit() {
-    flushRemoteSave({ keepalive: true });
+    persistLocalDraft();
+    void flushPendingWork({
+      reason: 'page-exit',
+      allowPaused: true,
+      requestOptions: { keepalive: true }
+    });
   }
 
   function changed() {
@@ -374,7 +669,7 @@
 
   function scheduleRemoteSave(delay = autoSaveSeconds * 1000) {
     clearTimeout(remoteTimer);
-    remoteTimer = setTimeout(() => saveRemote(), delay);
+    remoteTimer = setTimeout(() => flushRemoteSave(), delay);
   }
 
   function currentNote() {
@@ -510,7 +805,7 @@
     removeLocalDraft();
     changed();
     clearTimeout(remoteTimer);
-    await saveRemote(true);
+    await flushPendingWork({ reason: 'lock', allowPaused: true, force: true });
   }
 
   async function revealLockedNote(pin, automatic = false) {
@@ -557,7 +852,7 @@
     try {
       if (dirty && activeLockPin) {
         clearTimeout(remoteTimer);
-        await saveRemote(true, true);
+        await flushPendingWork({ reason: 'lock-session-expiry', allowPaused: true, force: true });
       }
     } finally {
       activeLockPin = '';
@@ -580,7 +875,7 @@
     activeLockPin = '';
     changed();
     clearTimeout(remoteTimer);
-    await saveRemote(true);
+    await flushPendingWork({ reason: 'unlock', allowPaused: true, force: true });
   }
 
   async function resolveRemoteIssue() {
@@ -676,30 +971,30 @@
   }
 
   async function saveRemote(force = false, allowPaused = false, requestOptions = {}) {
-    if (archived) return;
+    if (archived) return false;
     if (saving) {
       const hasNewerContent = noteSignature(currentNote()) !== activeSavingSignature;
       if (force && hasNewerContent) {
         forceSaveQueued = true;
         forceSaveAllowPaused = forceSaveAllowPaused || allowPaused;
       }
-      return;
+      return false;
     }
-    if (!force && !dirty) return;
+    if (!force && !dirty) return true;
     if (paused && !allowPaused) {
       if (!force) scheduleRemoteSave();
-      return;
+      return false;
     }
     persistLocalDraft();
     const note = currentNote();
     if (!note.title) {
-      return;
+      return false;
     }
     const signature = noteSignature(note);
     if (!force && signature === lastRemoteSignature) {
       dirty = false;
       removeLocalDraft();
-      return;
+      return true;
     }
 
     const savingRevision = revision;
@@ -707,6 +1002,7 @@
     saving = true;
     saveFailed = false;
     error = '';
+    let saveSucceeded = false;
 
     try {
       let targetIssue = issue || await resolveRemoteIssue();
@@ -714,12 +1010,12 @@
       let previousIssue = null;
       if (targetIssue?.number && issue && !destroyed) {
         const prepared = await prepareExistingIssueSave(targetIssue);
-        if (prepared.cancelled) return;
+        if (prepared.cancelled) return false;
         targetIssue = prepared.targetIssue;
         reopenRequested = prepared.reopen;
         previousIssue = prepared.previousIssue;
       }
-      if (destroyed && issue) return;
+      if (destroyed && issue) return false;
 
       const knownNames = new Set(visibleAvailableLabels.map((label) => label.name.toLocaleLowerCase()));
       const missingNames = labels.filter((name) => !isPinLabel(name) && !knownNames.has(name.toLocaleLowerCase()));
@@ -730,7 +1026,7 @@
         availableLabels = [...availableLabels, ...createdLabels];
         onLabelsAvailable(createdLabels);
       }
-      if (destroyed && issue) return;
+      if (destroyed && issue) return false;
 
       const remoteNote = await noteForRemote(note);
       let saved = targetIssue
@@ -742,6 +1038,7 @@
           requestOptions
         )
         : await createIssue(token, repo, remoteNote, requestOptions);
+      saveSucceeded = true;
 
       if (targetIssue && !reopenRequested) {
         const lateResolution = await resolveLateClosedSave(
@@ -750,7 +1047,7 @@
           remoteNote,
           requestOptions
         );
-        if (lateResolution.cancelled) return;
+        if (lateResolution.cancelled) return false;
         saved = lateResolution.saved;
       }
 
@@ -760,7 +1057,7 @@
       // 다음 저장을 예약하는 일은 막는다. 그러지 않으면 부모의 noteCreated()가
       // 두 번 실행되거나, 새로 마운트된 인스턴스와 무관하게 낡은 내용이 나중에
       // 덮어쓸 수 있다.
-      if (destroyed) return;
+      if (destroyed) return saveSucceeded;
 
       remoteIssue = saved;
       if (lockState !== 'plain') encryptedBody = saved.body || encryptedBody;
@@ -792,15 +1089,16 @@
         forceSaveQueued = false;
         forceSaveAllowPaused = false;
         clearTimeout(remoteTimer);
-        saveRemote(true, queuedAllowPaused);
-      }
+        void saveRemote(true, queuedAllowPaused);
+      } else resolveSaveIdle();
     }
+    return saveSucceeded;
   }
 
   function handleBackgroundRefreshRequest() {
     if (refreshRequest <= handledRefreshRequest) return;
     handledRefreshRequest = refreshRequest;
-    if (!dirty && !saving) refreshIssue(true);
+    if (!hasPendingWork && !saving) refreshIssue(true);
     else onRefreshStateChange(false);
   }
 
@@ -818,12 +1116,17 @@
       if (background) onRefreshStateChange(false);
       return;
     }
-    if (background && dirty) {
+    if (background && hasPendingWork) {
       onRefreshStateChange(false);
       return;
     }
     if (!background && dirty && !confirm($_("m.37533033a1"))) {
       return;
+    }
+
+    if (!background && pendingAttachmentDeletes.size) {
+      const flushed = await flushPendingWork({ reason: 'refresh', allowPaused: true, force: true });
+      if (!flushed) return;
     }
 
     const hadDirtyChanges = dirty;
@@ -928,7 +1231,7 @@
       body = insertAttachmentLinks(body, links, insertionPoint);
       changed();
       clearTimeout(remoteTimer);
-      await saveRemote(true);
+      await flushPendingWork({ reason: 'attachment-upload', allowPaused: true, force: true });
     }
     reconciledIssueNumber = null;
     if (limitReached && !error) {
@@ -1108,41 +1411,39 @@
     }
   }
 
-  async function removeAttachment(attachment) {
-    if (!editable || deletingPath) return;
-    if (!confirm($_('dynamic.deleteAttachmentConfirm', { values: { name: attachment.name } }))) return;
-    deletingPath = attachment.path;
+  function removeAttachment(attachment) {
+    if (!editable || deletingPath || pendingAttachmentDeletes.has(attachment.path)) return;
+    const expiresAt = Date.now() + ATTACHMENT_DELETE_DELAY_MS;
+    pendingAttachmentDeletes = new Map(pendingAttachmentDeletes).set(attachment.path, {
+      attachment: { ...attachment },
+      expiresAt
+    });
     error = '';
-    let fileDeleted = false;
-    try {
-      try {
-        await deleteAttachment(token, repo, attachment);
-      } catch (reason) {
-        if (reason?.status !== 404) throw reason;
-      }
-      fileDeleted = true;
-      orphanedAttachments = orphanedAttachments.filter((item) => item.path !== attachment.path);
-      const link = composeAttachmentLink(repo, attachment);
-      if (body.includes(link)) {
-        body = removeAttachmentLink(body, link);
-        changed();
-        clearTimeout(remoteTimer);
-        await saveRemote(true);
-      }
-      if (previewUrls[attachment.path]) URL.revokeObjectURL(previewUrls[attachment.path]);
-      const nextPreviewUrls = { ...previewUrls };
-      delete nextPreviewUrls[attachment.path];
-      previewUrls = nextPreviewUrls;
-      const removedIndex = attachments.findIndex((item) => item.path === attachment.path);
-      replaceAttachments(attachments.filter((item) => item.path !== attachment.path));
-      if (viewerIndex === removedIndex) closeViewer();
-      else if (viewerIndex > removedIndex) viewerIndex -= 1;
-    } catch (reason) {
-      error = reason?.message || $_("m.f8a2b33cc2");
-    } finally {
-      deletingPath = '';
-      if (fileDeleted) reconciledIssueNumber = null;
+    persistPendingWork();
+    scheduleAttachmentDeleteCommit(attachment.path, expiresAt);
+  }
+
+  function cancelAttachmentDeletion(attachment) {
+    const entry = pendingAttachmentDeletes.get(attachment.path);
+    if (!entry || deletingPath === attachment.path) return;
+    const timer = attachmentDeleteTimers.get(attachment.path);
+    if (timer) clearTimeout(timer);
+    const nextTimers = new Map(attachmentDeleteTimers);
+    nextTimers.delete(attachment.path);
+    attachmentDeleteTimers = nextTimers;
+
+    const nextPending = new Map(pendingAttachmentDeletes);
+    nextPending.delete(attachment.path);
+    pendingAttachmentDeletes = nextPending;
+    error = '';
+    const link = composeAttachmentLink(repo, entry.attachment);
+    if (!body.includes(link)) {
+      body = insertAttachmentLinks(body, [link]);
+      changed();
+      clearTimeout(remoteTimer);
+      void flushPendingWork({ reason: 'attachment-cancel' });
     }
+    persistPendingWork();
   }
 
   function inferredAttachmentName(file) {
@@ -1210,13 +1511,17 @@
   }
 
   async function loadIssueComments(issueNumber) {
+    commentsLoaded = false;
     loadingComments = Number(remoteIssue?.comments || 0) > 0;
     try {
       const nextComments = await listIssueComments(token, repo, issueNumber);
       if (destroyed || remoteIssue?.number !== issueNumber) return;
-      comments = lockState === 'unlocked'
+      const decryptedComments = lockState === 'unlocked'
         ? await decryptCommentBodies(nextComments, activeLockPin, issue?.number || remoteIssue?.number)
         : nextComments;
+      comments = restorePendingComments(decryptedComments);
+      commentsLoaded = true;
+      if (dirtyCommentIds.size) void flushPendingWork({ reason: 'comment-recovery', allowPaused: true });
     } catch (reason) {
       if (!destroyed) error = reason?.message || $_("m.ab5becbd3a");
     } finally {
@@ -1229,12 +1534,14 @@
     commentSaveFailedIds = commentSaveFailedIds;
     dirtyCommentIds.add(comment.id);
     dirtyCommentIds = dirtyCommentIds;
+    persistPendingWork();
   }
 
   function discardNewComment(comment) {
     comments = comments.filter((item) => item.id !== comment.id);
     dirtyCommentIds.delete(comment.id);
     commentSaveFailedIds.delete(comment.id);
+    persistPendingWork();
   }
 
   async function saveComment(comment, force = false) {
@@ -1278,10 +1585,12 @@
       savingCommentIds = savingCommentIds;
       commentSaveFailedIds = commentSaveFailedIds;
       dirtyCommentIds = dirtyCommentIds;
+      persistPendingWork();
       if (savedSuccessfully && dirtyCommentIds.has(comment.id) && !destroyed) {
         const latestComment = comments.find((item) => item.id === comment.id);
         if (latestComment) saveComment(latestComment);
       }
+      resolveCommentSaveIdle();
     }
   }
 
@@ -1337,7 +1646,7 @@
     body = insertAttachmentLinks(body, [composeAttachmentLink(repo, attachment)]);
     changed();
     clearTimeout(remoteTimer);
-    saveRemote(true);
+    void flushPendingWork({ reason: 'attachment-link', allowPaused: true, force: true });
   }
 
   function openViewer(index) {
@@ -1586,7 +1895,7 @@
     }
     if (key === 's') {
       clearTimeout(remoteTimer);
-      void saveRemote(true, true);
+      void flushPendingWork({ reason: 'shortcut', allowPaused: true, force: true });
       return true;
     }
     if (key === 't') {
@@ -1682,6 +1991,7 @@
   async function returnToList() {
     // 라우터의 View Transition 스냅샷보다 앞서 DOM에서도 메뉴를 제거한다.
     prepareReturnToList();
+    await flushPendingWork({ reason: 'back', allowPaused: true });
     await tick();
     onBack();
   }
@@ -1878,18 +2188,28 @@
     {#if attachments.length || uploading || deletingPath || (attachmentsLoading && hasAttachmentRefs)}
       <section
         class="attachment-section"
-        class:is-loading={Boolean(uploading || deletingPath)}
       >
-        {#if !attachments.length && attachmentsLoading}
+        {#if !attachments.length && attachmentsLoading && !uploading && !deletingPath}
           <div class="attachment-list-loading">
-            <BrailleSpinner active />
+            <span class="attachment-spinner"><BrailleSpinner active /></span>
           </div>
         {:else}
         <div class="attachment-list">
           {#each attachments as attachment, index (attachment.path)}
-            <div class="attachment-item">
-              <button type="button" class="attachment-open" on:click={() => openViewer(index)}>
-                {#if isImage(attachment)}
+            <div
+              class="attachment-item"
+              class:is-loading={deletingPath === attachment.path}
+              class:is-pending-delete={pendingAttachmentDeletes.has(attachment.path)}
+            >
+              <button
+                type="button"
+                class="attachment-open"
+                disabled={Boolean(deletingPath) || pendingAttachmentDeletes.has(attachment.path)}
+                on:click={() => openViewer(index)}
+              >
+                {#if deletingPath === attachment.path}
+                  <span class="attachment-loading"><span class="attachment-spinner"><BrailleSpinner active /></span></span>
+                {:else if isImage(attachment)}
                   {#if previewUrls[attachment.path]}
                     <img src={previewUrls[attachment.path]} alt="" />
                   {:else}
@@ -1900,7 +2220,19 @@
                 {/if}
                 <span class="attachment-name" title={attachment.name}>{attachment.name}</span>
               </button>
-              {#if editable && !previewMode}
+              {#if pendingAttachmentDeletes.has(attachment.path)}
+                <div class="attachment-pending-delete" role="status">
+                  <span class="attachment-spinner"><BrailleSpinner active /></span>
+                  <span>{$_('dynamic.attachmentDeleting')}</span>
+                  {#if deletingPath !== attachment.path && editable && !previewMode}
+                    <button
+                      type="button"
+                      class="attachment-cancel-delete"
+                      on:click|stopPropagation={() => cancelAttachmentDeletion(attachment)}
+                    >{$_('setup.cancel')}</button>
+                  {/if}
+                </div>
+              {:else if editable && !previewMode}
                 <button
                   type="button"
                   class="attachment-delete"
@@ -1908,14 +2240,21 @@
                   on:click={() => removeAttachment(attachment)}
                   aria-label={$_('dynamic.deleteAttachment', { values: { name: attachment.name } })}
                 >
-                  <i
-                    class={`bi ${deletingPath === attachment.path ? 'bi-hourglass-split' : 'bi-x-lg'}`}
-                    aria-hidden="true"
-                  ></i>
+                  <i class="bi bi-x-lg" aria-hidden="true"></i>
                 </button>
               {/if}
             </div>
           {/each}
+          {#if uploading}
+            <div
+              class="attachment-item attachment-uploading"
+              role="status"
+              aria-label={$_('dynamic.uploading', { values: { count: uploading } })}
+            >
+              <span class="attachment-loading"><span class="attachment-spinner"><BrailleSpinner active /></span></span>
+              <span class="attachment-name">{$_('dynamic.uploading', { values: { count: uploading } })}</span>
+            </div>
+          {/if}
           {#if editable && !previewMode && attachments.length < MAX_ATTACHMENTS}
             <label
               class="attachment-add-tile"
@@ -1927,11 +2266,6 @@
             </label>
           {/if}
         </div>
-        {/if}
-        {#if uploading || deletingPath}
-          <div class="attachment-api-overlay" aria-label={$_("m.f4ea49bc96")}>
-            <span class="spinner-border spinner-border-sm region-spinner" aria-hidden="true"></span>
-          </div>
         {/if}
       </section>
     {/if}

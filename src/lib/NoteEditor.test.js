@@ -198,6 +198,38 @@ describe('NoteEditor 코멘트 블록', () => {
     expect(updateIssueComment).not.toHaveBeenCalled();
   });
 
+  it('노트를 떠날 때 본문과 댓글에 남은 저장 작업을 함께 flush한다', async () => {
+    localStorage.clear();
+    render(NoteEditor, {
+      token: 't',
+      repo: 'owner/repo',
+      issue: baseIssue,
+      autoSaveSeconds: 9999
+    });
+
+    await waitFor(() => expect(screen.getByText('octocat')).toBeTruthy());
+    const bodyTextarea = document.querySelector('.inline-body');
+    const commentBody = document.querySelector('.note-comment-body');
+    await fireEvent.input(bodyTextarea, { target: { value: '이탈 전 본문' } });
+    await fireEvent.input(commentBody, { target: { value: '이탈 전 댓글' } });
+
+    window.dispatchEvent(new Event('pagehide'));
+
+    await waitFor(() => expect(updateIssue).toHaveBeenCalledWith(
+      't',
+      'owner/repo',
+      5,
+      expect.objectContaining({ body: '이탈 전 본문' }),
+      expect.any(Object)
+    ));
+    await waitFor(() => expect(updateIssueComment).toHaveBeenCalledWith(
+      't',
+      'owner/repo',
+      1,
+      '이탈 전 댓글'
+    ));
+  });
+
   it('본문에서 Ctrl+S를 누르면 대기 상태에서도 기본 동작을 막고 즉시 저장한다', async () => {
     localStorage.clear();
     render(NoteEditor, {
@@ -650,29 +682,57 @@ describe('NoteEditor 첨부 파일', () => {
     expect(bodyTextarea.value).not.toContain('orphan.png');
   });
 
-  it('첨부를 삭제하면 파일을 지우고 본문에서도 링크를 제거해 저장한다', async () => {
+  it('첨부를 삭제 예약하고 5초 뒤 파일과 본문 링크를 함께 삭제한다', async () => {
     const attachment = { name: 'linked.png', type: 'image/png', path: '.issue-note-assets/issues/5/linked.png', sha: 'sha-1', size: 10 };
     listIssueAttachmentFiles.mockResolvedValueOnce([
       { name: attachment.name, path: attachment.path, sha: attachment.sha, size: attachment.size, url: '' }
     ]);
     const link = composeAttachmentLink('owner/repo', attachment);
     const issue = { ...baseIssue, body: `노트 본문\n\n${link}` };
-    vi.stubGlobal('confirm', vi.fn(() => true));
-
     render(NoteEditor, { token: 't', repo: 'owner/repo', issue });
     await waitFor(() => expect(document.querySelector('.attachment-item')).toBeTruthy());
 
-    await fireEvent.click(document.querySelector('.attachment-delete'));
+    vi.useFakeTimers();
+    try {
+      await fireEvent.click(document.querySelector('.attachment-delete'));
 
-    await waitFor(() => expect(deleteAttachment).toHaveBeenCalledWith(
-      't', 'owner/repo', expect.objectContaining({ path: attachment.path })
-    ));
-    await waitFor(() => {
-      const savedNote = updateIssue.mock.calls.at(-1)[3];
-      expect(savedNote.body).not.toContain(link);
+      expect(deleteAttachment).not.toHaveBeenCalled();
+      expect(document.querySelector('.attachment-pending-delete').textContent).toContain('Deleting…');
+      expect(document.querySelector('.attachment-pending-delete .attachment-spinner')).toBeTruthy();
+
+      await vi.advanceTimersByTimeAsync(5000);
+
+      await waitFor(() => expect(deleteAttachment).toHaveBeenCalledWith(
+        't', 'owner/repo', expect.objectContaining({ path: attachment.path })
+      ));
+      await waitFor(() => {
+        const savedNote = updateIssue.mock.calls.at(-1)[3];
+        expect(savedNote.body).not.toContain(link);
+      });
+      await waitFor(() => expect(document.querySelector('.attachment-item')).toBeNull());
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('첨부 삭제 예약은 5초 안에 취소할 수 있다', async () => {
+    const attachment = { name: 'cancel.png', type: 'image/png', path: '.issue-note-assets/issues/5/cancel.png', sha: 'sha-cancel', size: 10 };
+    listIssueAttachmentFiles.mockResolvedValueOnce([
+      { name: attachment.name, path: attachment.path, sha: attachment.sha, size: attachment.size, url: '' }
+    ]);
+
+    render(NoteEditor, {
+      token: 't',
+      repo: 'owner/repo',
+      issue: { ...baseIssue, body: `노트 본문\n\n${composeAttachmentLink('owner/repo', attachment)}` }
     });
-    await waitFor(() => expect(document.querySelector('.attachment-item')).toBeNull());
-    vi.unstubAllGlobals();
+    await waitFor(() => expect(document.querySelector('.attachment-item')).toBeTruthy());
+
+    await fireEvent.click(document.querySelector('.attachment-delete'));
+    await fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    expect(document.querySelector('.attachment-pending-delete')).toBeNull();
+    expect(deleteAttachment).not.toHaveBeenCalled();
   });
 });
 
