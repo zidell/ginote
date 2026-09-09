@@ -12,6 +12,7 @@
   import { automaticTitle, linkAtCursor, shortenMiddle } from './notes.js';
   import { loadPendingWork, pendingWorkScope, updatePendingWork } from './pending-work.js';
   import {
+    attachmentRawUrl,
     composeAttachmentLink,
     compressAttachmentLinks,
     expandAttachmentLinks,
@@ -129,6 +130,7 @@
   let editorScroll;
   let markdownViewer;
   let pendingPreviewScrollPosition = null;
+  let previewScrollRestoreFrame = 0;
   let previewMode = false;
   let appliedLabelMutation = 0;
   let revision = 0;
@@ -178,7 +180,13 @@
   $: if (mounted && remoteIssue?.number) syncPinLabelToParent();
   $: viewedAttachment = viewerIndex >= 0 ? attachments[viewerIndex] : null;
   $: displayBody = compressAttachmentLinks(body, repo);
-  $: previewBody = expandAttachmentLinks(body, repo);
+  $: previewBody = expandAttachmentLinks(displayBody, repo);
+  $: previewImageSources = Object.fromEntries(
+    attachments
+      .filter(isImage)
+      .map((attachment) => [attachmentRawUrl(repo, attachment.path), previewUrls[attachment.path]])
+      .filter(([, source]) => source)
+  );
   $: hasAttachmentRefs = parseAttachmentPaths(body).length > 0;
   $: editable = !archived && !readOnly;
   $: canPreview = lockState !== 'locked' && !lockPanelMode;
@@ -277,6 +285,7 @@
 
   onDestroy(() => {
     destroyed = true;
+    cancelPreviewScrollRestore();
     if (dirty) persistLocalDraft();
     clearInterval(localTimer);
     clearTimeout(remoteTimer);
@@ -711,12 +720,12 @@
   }
 
   async function noteForRemote(note) {
-    if (lockState === 'plain') return { ...note, body: withRevivedAttachmentLinks(note.body) };
+    const remoteBody = expandAttachmentLinks(withRevivedAttachmentLinks(note.body), repo);
+    if (lockState === 'plain') return { ...note, body: remoteBody };
     if (lockState === 'locked') {
       return { ...note, title: addLockToTitle(note.title), body: encryptedBody };
     }
     if (!activeLockPin) throw new Error('잠금 세션이 만료되었습니다.');
-    const remoteBody = withRevivedAttachmentLinks(note.body);
     encryptedBody = await encryptLockedBody(remoteBody, activeLockPin, issue?.number || remoteIssue?.number);
     return { ...note, title: addLockToTitle(note.title), body: encryptedBody };
   }
@@ -1280,7 +1289,7 @@
   }
 
   function handleBodyInput(event) {
-    body = expandAttachmentLinks(displayBody, repo);
+    body = expandAttachmentLinks(event.currentTarget.value, repo);
     changed();
     updateLinkTooltip(event);
   }
@@ -1777,6 +1786,7 @@
   async function setMarkdownPreview(next = !previewMode) {
     if (next === previewMode || (next && !canPreview)) return;
 
+    cancelPreviewScrollRestore();
     pendingPreviewScrollPosition = capturePreviewScrollPosition();
     toolbarTagPicker?.close?.();
     mobileTagPicker?.close?.();
@@ -1784,27 +1794,31 @@
     hideMoreToolbarDropdown();
     previewMode = next;
     await tick();
-    restorePreviewScrollPosition();
     if (next) markdownViewer?.focus?.();
-    else focusWithoutScrolling(editorScroll);
-    requestAnimationFrame(() => {
+    else {
       restorePreviewScrollPosition();
-      if (!pendingPreviewScrollPosition) return;
-      // MarkdownViewer keeps this anchor alive until all images have either
-      // loaded or failed. This second frame handles the no-image case.
-      if (!next) pendingPreviewScrollPosition = null;
-    });
+      pendingPreviewScrollPosition = null;
+      focusWithoutScrolling(editorScroll);
+    }
   }
 
   function handlePreviewContentResize(event) {
     if (!pendingPreviewScrollPosition) return;
-    restorePreviewScrollPosition();
-    if (!event.detail?.pendingImages) {
-      requestAnimationFrame(() => {
-        restorePreviewScrollPosition();
-        pendingPreviewScrollPosition = null;
-      });
-    }
+    cancelPreviewScrollRestore();
+    if (event.detail?.pendingImages) return;
+
+    const position = pendingPreviewScrollPosition;
+    previewScrollRestoreFrame = requestAnimationFrame(() => {
+      previewScrollRestoreFrame = 0;
+      if (pendingPreviewScrollPosition !== position || !previewMode) return;
+      restorePreviewScrollPosition(position);
+      pendingPreviewScrollPosition = null;
+    });
+  }
+
+  function cancelPreviewScrollRestore() {
+    if (previewScrollRestoreFrame) cancelAnimationFrame(previewScrollRestoreFrame);
+    previewScrollRestoreFrame = 0;
   }
 
   function hideMoreToolbarDropdown() {
@@ -2320,6 +2334,7 @@
       <MarkdownViewer
         bind:this={markdownViewer}
         source={previewBody}
+        imageSources={previewImageSources}
         emptyLabel={$_("m.0c3fd88e60")}
         on:contentresize={handlePreviewContentResize}
       />

@@ -71,6 +71,7 @@ const {
   createIssueComment,
   deleteAttachment,
   deleteIssueComment,
+  downloadAttachment,
   getIssue,
   listIssueComments,
   listIssueAttachmentFiles,
@@ -482,6 +483,44 @@ describe('NoteEditor 마크다운 프리뷰와 단축키', () => {
     expect(document.querySelector('.markdown-preview').innerHTML).not.toContain('<script');
   });
 
+  it('MD뷰어에서는 편집기용 {repo} 첨부 주소를 실제 URL로 복원한다', async () => {
+    const path = '.issue-note-assets/issues/5/photo.png';
+    render(NoteEditor, {
+      token: 't',
+      repo: 'owner/repo',
+      issue: { ...baseIssue, body: `![]({repo}/${path})` }
+    });
+
+    await fireEvent.click(document.querySelector('.detail-toolbar-more > button'));
+    await fireEvent.click(screen.getByRole('button', { name: 'MD viewer M' }));
+
+    await waitFor(() => expect(document.querySelector('.markdown-preview img')).toBeTruthy());
+    expect(document.querySelector('.markdown-preview img').getAttribute('src'))
+      .toBe(`https://github.com/owner/repo/raw/HEAD/${path}`);
+  });
+
+  it('private 저장소 첨부 이미지는 인증된 미리보기 URL로 렌더링한다', async () => {
+    const attachment = {
+      name: 'photo.png',
+      path: '.issue-note-assets/issues/5/photo.png',
+      sha: 'sha-photo',
+      size: 10,
+      url: ''
+    };
+    listIssueAttachmentFiles.mockResolvedValueOnce([attachment]);
+    downloadAttachment.mockResolvedValueOnce(new Blob(['image'], { type: 'image/png' }));
+    const issue = { ...baseIssue, body: composeAttachmentLink('owner/repo', { ...attachment, type: 'image/png' }) };
+    render(NoteEditor, { token: 't', repo: 'owner/repo', issue });
+
+    await waitFor(() => expect(downloadAttachment).toHaveBeenCalledWith(
+      't', 'owner/repo', expect.objectContaining({ path: attachment.path })
+    ));
+    dispatchShortcut('m', 'KeyM');
+
+    await waitFor(() => expect(document.querySelector('.markdown-preview img')).toBeTruthy());
+    expect(document.querySelector('.markdown-preview img').getAttribute('src')).toBe('blob:mock');
+  });
+
   it('MD뷰어에서 코멘트도 Markdown으로 안전하게 렌더링한다', async () => {
     listIssueComments.mockResolvedValueOnce([{
       id: 7,
@@ -558,6 +597,7 @@ describe('NoteEditor 마크다운 프리뷰와 단축키', () => {
 
     dispatchShortcut('m', 'KeyM');
     await waitFor(() => expect(document.querySelector('.markdown-preview')).toBeTruthy());
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(resolve))));
     expect(scroll.scrollTop).toBe(200);
 
     scroll.scrollTop = 100;
@@ -565,6 +605,51 @@ describe('NoteEditor 마크다운 프리뷰와 단축키', () => {
     await waitFor(() => expect(document.querySelector('.markdown-preview')).toBeNull());
     await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
     expect(scroll.scrollTop).toBe(225);
+  });
+
+  it('프리뷰 진입 시 모든 이미지가 렌더된 뒤 최종 높이로 스크롤을 맞춘다', async () => {
+    let imageReady = [false, false];
+    render(NoteEditor, {
+      token: 't',
+      repo: 'owner/repo',
+      issue: {
+        ...baseIssue,
+        body: '![](https://example.com/first.png)\n\n![](https://example.com/second.png)'
+      }
+    });
+
+    const scroll = document.querySelector('.inline-editor-scroll');
+    Object.defineProperty(scroll, 'clientHeight', { configurable: true, value: 100 });
+    Object.defineProperty(scroll, 'scrollHeight', {
+      configurable: true,
+      get: () => document.querySelector('.markdown-preview')
+        ? (imageReady.every(Boolean) ? 900 : 500)
+        : 1000
+    });
+    scroll.scrollTop = 450;
+
+    dispatchShortcut('m', 'KeyM');
+    await waitFor(() => expect(document.querySelectorAll('.markdown-preview img').length).toBe(2));
+    const images = [...document.querySelectorAll('.markdown-preview img')];
+    images.forEach((image, index) => {
+      Object.defineProperty(image, 'complete', {
+        configurable: true,
+        get: () => imageReady[index]
+      });
+    });
+
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    expect(scroll.scrollTop).toBe(450);
+
+    imageReady[0] = true;
+    images[0].dispatchEvent(new Event('load'));
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    expect(scroll.scrollTop).toBe(450);
+
+    imageReady[1] = true;
+    images[1].dispatchEvent(new Event('load'));
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    expect(scroll.scrollTop).toBe(400);
   });
 
   it('포커스가 없을 때 R로 앱 전체를 새로고침한다', async () => {

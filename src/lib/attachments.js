@@ -1,7 +1,3 @@
-function markdownText(value) {
-  return String(value).replace(/\s+/g, ' ').replace(/[\\[\]]/g, '\\$&');
-}
-
 function encodedPath(value) {
   return value.split('/').map(encodeURIComponent).join('/');
 }
@@ -12,9 +8,12 @@ function isImage(attachment) {
 }
 
 export function composeAttachmentLink(repo, attachment) {
-  const fileUrl = `https://github.com/${repo}/raw/HEAD/${encodedPath(attachment.path)}`;
-  const label = markdownText(attachment.name);
-  return isImage(attachment) ? `![${label}](${fileUrl})` : `[📎 ${label}](${fileUrl})`;
+  const fileUrl = attachmentRawUrl(repo, attachment.path);
+  return isImage(attachment) ? `![](${fileUrl})` : `[](${fileUrl})`;
+}
+
+export function attachmentRawUrl(repo, path) {
+  return `https://github.com/${repo}/raw/HEAD/${encodedPath(path)}`;
 }
 
 const RAW_ATTACHMENT_LINK = /!?\[(?:\\.|[^\]\n])*\]\(https:\/\/github\.com\/[^/)\s]+\/[^/)\s]+\/raw\/HEAD\/([^)\s]+)\)/g;
