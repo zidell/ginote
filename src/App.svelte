@@ -2954,6 +2954,7 @@
               onDraftChange={(draft) => noteDraftChanged(routeIssue, draft)}
               onExternalPasteHandled={externalPasteHandled}
               onLabelsAvailable={mergeRepositoryLabels}
+              onTagSelect={openLabel}
               onMove={(issue) => moveIssue(issue, state === 'open' ? 'closed' : 'open')}
               onBack={() => router.pop()}
             />

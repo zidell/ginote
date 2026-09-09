@@ -783,6 +783,58 @@ describe('NoteEditor 태그', () => {
     expect(document.querySelector('.editor-tag')).toBeNull();
   });
 
+  it('본문 상단의 태그를 누르면 해당 태그를 검색하고 X 버튼으로 제거한다', async () => {
+    const issue = { ...baseIssue, labels: [{ name: 'work' }] };
+    const onTagSelect = vi.fn();
+    render(NoteEditor, {
+      token: 't',
+      repo: 'owner/repo',
+      issue,
+      availableLabels: [{ name: 'work' }],
+      onTagSelect,
+      ignoreRecoveredDraft: true,
+      autoSaveSeconds: 9999
+    });
+
+    const tag = document.querySelector('.editor-tag');
+    const tagLink = screen.getByRole('button', { name: '#work' });
+    const removeButton = screen.getByRole('button', { name: 'Remove tag work' });
+    expect(removeButton.querySelector('i.bi-x')).toBeTruthy();
+
+    await fireEvent.click(tagLink);
+    expect(onTagSelect).toHaveBeenCalledWith('work');
+    expect(document.querySelector('.editor-tag')).toBe(tag);
+
+    await fireEvent.click(removeButton);
+
+    expect(document.querySelector('.editor-tag')).toBeNull();
+  });
+
+  it('MD뷰어에서는 본문 상단 태그를 읽기 전용으로 보여준다', async () => {
+    const issue = { ...baseIssue, labels: [{ name: 'work' }] };
+    const onTagSelect = vi.fn();
+    render(NoteEditor, {
+      token: 't',
+      repo: 'owner/repo',
+      issue,
+      availableLabels: [{ name: 'work' }],
+      onTagSelect,
+      ignoreRecoveredDraft: true,
+      autoSaveSeconds: 9999
+    });
+
+    await fireEvent.click(document.querySelector('.detail-toolbar-more > button'));
+    await fireEvent.click(screen.getByRole('button', { name: 'MD viewer M' }));
+    await waitFor(() => expect(document.querySelector('.markdown-preview')).toBeTruthy());
+
+    const tag = document.querySelector('.editor-tags .editor-tag');
+    expect(tag.tagName).toBe('SPAN');
+    expect(tag.querySelector('.editor-tag-remove')).toBeNull();
+    await fireEvent.click(screen.getByRole('button', { name: '#work' }));
+    expect(onTagSelect).toHaveBeenCalledWith('work');
+    expect(document.querySelector('.editor-tags .editor-tag')).toBe(tag);
+  });
+
   it('인라인 선택기에서 마지막 태그를 빼도 열린 드롭다운은 유지한다', async () => {
     const issue = { ...baseIssue, labels: [{ name: 'Work' }] };
     render(NoteEditor, {
