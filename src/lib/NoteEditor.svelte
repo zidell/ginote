@@ -1723,7 +1723,7 @@
       {/if}
       {#if editable}
         <label
-          class="btn btn-sm btn-outline-secondary"
+          class="btn btn-sm btn-outline-secondary detail-toolbar-attachment"
           class:disabled={uploadBatchActive || attachments.length >= MAX_ATTACHMENTS}
           for={`inline-attachment-${editorId}`}
         >
