@@ -550,7 +550,7 @@ html.mode-light .note-row-labels { opacity: 1; }
 .inline-title::placeholder, .inline-body::placeholder { color: var(--ui-text-placeholder); }
 .inline-body { flex: none; width: 100%; min-height: 300px; padding: 0 var(--editor-gutter) var(--editor-gutter); resize: none; overflow: hidden; border: 0; outline: none; color: var(--ui-text-body); background: transparent; font-family: var(--note-font); font-size: var(--note-font-size); line-height: var(--note-line-height); }
 .inline-title[readonly], .inline-body[readonly] { cursor: default; }
-.markdown-preview { flex: none; width: 100%; padding: 0 var(--editor-gutter) var(--editor-gutter); overflow-wrap: anywhere; outline: none; color: var(--ui-text-body); font-family: var(--note-font); font-size: var(--note-font-size); line-height: var(--note-line-height); }
+.markdown-preview { flex: none; width: 100%; min-height: 300px; padding: 0 var(--editor-gutter) var(--editor-gutter); overflow-wrap: anywhere; outline: none; color: var(--ui-text-body); font-family: var(--note-font); font-size: var(--note-font-size); line-height: var(--note-line-height); }
 .markdown-preview-empty { margin: 0; color: var(--ui-text-faint); }
 .markdown-preview-title { flex: none; margin: 0 var(--editor-gutter) 1rem; padding: 0 0 .75rem; border-bottom: 1px solid var(--ui-border-section); color: var(--ui-text-heading); font-family: var(--note-font); font-size: calc(var(--note-font-size) * 1.35); font-weight: 650; line-height: 1.3; overflow-wrap: anywhere; }
 .markdown-preview > :first-child { margin-top: 0; }
