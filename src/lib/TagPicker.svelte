@@ -9,6 +9,7 @@
   export let disabled = false;
   export let toolbar = false;
   export let iconOnly = false;
+  export let shortcut = '';
   export let onSelect = () => {};
   export let open = false;
 
@@ -42,6 +43,13 @@
     open = !open;
     search = '';
     if (open) requestAnimationFrame(() => searchInput?.focus());
+  }
+
+  export function openPicker() {
+    if (disabled) return;
+    open = true;
+    search = '';
+    requestAnimationFrame(() => searchInput?.focus());
   }
 
   export function close() {
@@ -119,11 +127,12 @@
     {disabled}
     aria-haspopup="listbox"
     aria-expanded={open}
-    aria-label={iconOnly ? $_("m.848eed0fbd") : undefined}
-    title={iconOnly ? $_("m.848eed0fbd") : undefined}
+    aria-keyshortcuts={toolbar ? 'T' : undefined}
+    aria-label={iconOnly ? `${$_("m.848eed0fbd")}${shortcut ? ` (${shortcut})` : ''}` : undefined}
+    title={iconOnly ? `${$_("m.848eed0fbd")}${shortcut ? ` (${shortcut})` : ''}` : undefined}
     on:keydown={handleKeydown}
     on:click={toggle}
-  ><i class={`bi ${toolbar ? 'bi-tags' : 'bi-plus-lg'}`} aria-hidden="true"></i>{#if !iconOnly} {toolbar ? $_("m.848eed0fbd") : $_("m.61cc55aa04")}{/if}</button>
+  ><i class={`bi ${toolbar ? 'bi-tags' : 'bi-plus-lg'}`} aria-hidden="true"></i>{#if !iconOnly} {toolbar ? $_("m.848eed0fbd") : $_("m.61cc55aa04")}{#if shortcut} ({shortcut}){/if}{/if}</button>
   {#if open}
     <div class="tag-dropdown">
       <input

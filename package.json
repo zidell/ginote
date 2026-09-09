@@ -20,6 +20,8 @@
     "@tauri-apps/plugin-opener": "^2.5.5",
     "bootstrap": "^5.3.8",
     "bootstrap-icons": "^1.13.1",
+    "dompurify": "^3.4.15",
+    "marked": "^18.0.12",
     "spa-stack-router": "^0.1.0",
     "svelte": "^5.38.7",
     "svelte-i18n": "^4.0.1"
