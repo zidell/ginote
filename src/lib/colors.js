@@ -21,5 +21,5 @@ export function tagColorForName(value) {
   for (const character of String(value || '').normalize('NFC')) {
     hash = (Math.imul(hash, 31) + character.codePointAt(0)) >>> 0;
   }
-  return hslToHex(hash % 360, 64, 72);
+  return hslToHex(hash % 360, 64, 58);
 }

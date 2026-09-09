@@ -1,3 +1,12 @@
+:root {
+  --ui-accent: #2563eb;
+  --ui-accent-hover: #1d4ed8;
+  --ui-accent-bright: #3b82f6;
+  --ui-accent-shortcut: #f59e0b;
+  --ui-focus: #5680d8;
+  --ui-drag-wash: rgba(37, 99, 235, .08);
+}
+
 :root,
 html.mode-dark {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Pretendard, sans-serif;
@@ -54,12 +63,6 @@ html.mode-dark {
   --ui-text-inline-code: #e8d7a4;
   --ui-text-danger: #ef9a9a;
 
-  --ui-accent: #2563eb;
-  --ui-accent-hover: #1d4ed8;
-  --ui-accent-bright: #3b82f6;
-  --ui-accent-shortcut: #f59e0b;
-  --ui-shortcut-on-primary: #f59e0b;
-  --ui-focus: #5680d8;
   --ui-focus-dark: #1448a3;
   --ui-danger: #e05252;
   --ui-warning: #c7a43a;
@@ -89,10 +92,8 @@ html.mode-dark {
 
   --ui-shadow: rgba(0, 0, 0, .35);
   --ui-shadow-strong: rgba(0, 0, 0, .4);
-  --ui-shortcut: rgba(255, 255, 255, .58);
   --ui-focus-wash: rgba(122, 122, 122, .1);
   --ui-focus-ring: rgba(37, 99, 235, .15);
-  --ui-drag-wash: rgba(37, 99, 235, .08);
   --ui-quote-wash: rgba(82, 98, 126, .1);
   --ui-api-mask: rgba(10, 10, 10, .42);
   --ui-lock-mask: rgba(23, 23, 23, .68);
@@ -144,7 +145,7 @@ html.mode-light {
   color-scheme: light;
 
   --ui-bg-app: #fff;
-  --ui-bg-shell: #eef2f7;
+  --ui-bg-shell: #fff;
   --ui-bg-card: #fff;
   --ui-bg-sidebar: #f8fafc;
   --ui-bg-list: #fff;
@@ -191,12 +192,6 @@ html.mode-light {
   --ui-text-inline-code: #92400e;
   --ui-text-danger: #dc2626;
 
-  --ui-accent: #2563eb;
-  --ui-accent-hover: #1d4ed8;
-  --ui-accent-bright: #3b82f6;
-  --ui-accent-shortcut: #b45309;
-  --ui-shortcut-on-primary: #f59e0b;
-  --ui-focus: #5680d8;
   --ui-focus-dark: #2563eb;
   --ui-danger: #dc2626;
   --ui-warning: #b45309;
@@ -226,10 +221,8 @@ html.mode-light {
 
   --ui-shadow: rgba(15, 23, 42, .16);
   --ui-shadow-strong: rgba(15, 23, 42, .22);
-  --ui-shortcut: rgba(15, 23, 42, .62);
   --ui-focus-wash: rgba(37, 99, 235, .06);
   --ui-focus-ring: rgba(37, 99, 235, .18);
-  --ui-drag-wash: rgba(37, 99, 235, .08);
   --ui-quote-wash: rgba(59, 130, 246, .08);
   --ui-api-mask: rgba(255, 255, 255, .58);
   --ui-lock-mask: rgba(255, 255, 255, .74);
@@ -245,7 +238,7 @@ html.mode-light {
   --ui-bg-comment-hover: #eef4ff;
 
   --bs-body-color-rgb: 31, 41, 55;
-  --bs-body-bg-rgb: 245, 247, 251;
+  --bs-body-bg-rgb: 255, 255, 255;
   --bs-emphasis-color-rgb: 15, 23, 42;
   --bs-secondary-color-rgb: 100, 116, 139;
   --bs-tertiary-color-rgb: 100, 116, 139;
@@ -387,10 +380,10 @@ code { color: var(--ui-text-code); }
 .sidebar-tools.is-revealing { transition: transform 180ms ease-out; }
 .sidebar-new-note { padding: .65rem; border-bottom: 1px solid var(--ui-border-list); }
 .sidebar-new-note .btn { --bs-btn-padding-y: .4rem; display: flex; align-items: center; justify-content: center; gap: .25rem; }
-.shortcut-hint { margin-left: 0; display: inline-flex; align-items: center; color: var(--ui-shortcut); font-size: .85em; font-weight: 600; line-height: 1; vertical-align: middle; white-space: nowrap; transition: color 120ms ease; }
+.shortcut-hint { margin-left: 0; display: inline-flex; align-items: center; opacity: .6; font-size: .85em; font-weight: 600; line-height: 1; vertical-align: middle; white-space: nowrap; transition: color 120ms ease, opacity 120ms ease; }
 .shortcut-key { color: inherit; line-height: 1; text-transform: uppercase; }
+body.keyboard-shortcuts-ready .shortcut-hint:has(.shortcut-key.is-available) { opacity: 1; }
 body.keyboard-shortcuts-ready .shortcut-key.is-available { color: var(--ui-accent-shortcut); }
-.sidebar-new-note .btn .shortcut-key.is-available { color: var(--ui-shortcut-on-primary); }
 .sidebar-new-note-shortcut { font-size: .9em; font-weight: 400; }
 .touch-device .sidebar-new-note-shortcut { display: none; }
 .state-tabs { isolation: isolate; display: grid; grid-template-columns: 1fr 1fr; margin-bottom: .5rem; }
@@ -427,12 +420,12 @@ body.keyboard-shortcuts-ready .shortcut-key.is-available { color: var(--ui-accen
 .note-row-hit-area:focus-visible { outline: 1px solid var(--ui-focus-dark); outline-offset: -1px; }
 .note-row-content { position: relative; z-index: 0; pointer-events: none; }
 .note-row-title, .note-row-preview, .note-row-meta { display: block; }
-.note-row-title { overflow: hidden; margin-bottom: .2rem; color: var(--ui-text-title); font-size: .92rem; text-overflow: ellipsis; white-space: nowrap; }
+.note-row-title { overflow: hidden; margin-bottom: .2rem; color: var(--ui-text-title); font-size: .92rem; font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
 .note-row-pin { margin-right: .3rem; color: var(--ui-danger); font-size: .78rem; }
 .note-row-lock { margin-right: .3rem; color: var(--ui-warning); font-size: .78rem; }
 .note-row-preview { overflow: hidden; margin-bottom: .25rem; color: var(--ui-text-icon); font-size: .8rem; text-overflow: ellipsis; white-space: nowrap; }
 .note-row-meta, .reader-meta { color: var(--ui-text-faint); font-size: .72rem; }
-.note-row-labels { position: relative; z-index: 2; display: flex; flex-wrap: wrap; gap: .25rem; opacity: .6; pointer-events: none; }
+.note-row-labels { position: relative; z-index: 2; display: flex; flex-wrap: wrap; gap: .25rem; opacity: .8; pointer-events: none; }
 html.mode-light .note-row-labels { opacity: 1; }
 .note-row-labels span { padding: .08rem .12rem; color: var(--tag-color); font-size: .68rem; }
 .note-row-refresh-spinner { position: absolute; z-index: 3; top: 50%; right: .85rem; color: var(--ui-text-icon); opacity: .8; pointer-events: none; transform: translateY(-50%); }
