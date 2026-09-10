@@ -645,6 +645,12 @@ describe('NoteEditor 마크다운 프리뷰와 단축키', () => {
     expect(document.querySelector('.markdown-preview h1').textContent).toBe('제목');
     expect(document.querySelector('.markdown-preview strong').textContent).toBe('강조');
     expect(document.querySelector('.markdown-preview').innerHTML).not.toContain('<script');
+    const closeButton = screen.getByRole('button', { name: 'Close (M)' });
+    expect(closeButton).toBeTruthy();
+    expect(closeButton.querySelector('.shortcut-key').classList.contains('is-available')).toBe(true);
+    expect(document.querySelector('.detail-toolbar-actions-desktop')).toBeNull();
+    expect(document.querySelector('.detail-toolbar-actions-mobile')).toBeNull();
+    expect(document.querySelector('.note-content').classList.contains('markdown-preview-mode')).toBe(true);
   });
 
   it('MD뷰어에서는 편집기용 {repo} 첨부 주소를 실제 URL로 복원한다', async () => {
@@ -720,6 +726,18 @@ describe('NoteEditor 마크다운 프리뷰와 단축키', () => {
     const escapeEvent = dispatchShortcut('Escape');
     expect(escapeEvent.defaultPrevented).toBe(true);
     await waitFor(() => expect(document.querySelector('.markdown-preview')).toBeNull());
+  });
+
+  it('상단 중앙의 닫기 (M) 버튼으로 MD뷰어를 닫는다', async () => {
+    render(NoteEditor, { token: 't', repo: 'owner/repo', issue: baseIssue });
+
+    dispatchShortcut('m', 'KeyM');
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Close (M)' })).toBeTruthy());
+
+    await fireEvent.click(screen.getByRole('button', { name: 'Close (M)' }));
+
+    await waitFor(() => expect(document.querySelector('.markdown-preview')).toBeNull());
+    expect(document.querySelector('.note-content').classList.contains('markdown-preview-mode')).toBe(false);
   });
 
   it('본문에 포커스가 있으면 M을 입력 단축키로 가로채지 않는다', async () => {

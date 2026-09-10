@@ -460,10 +460,13 @@ html.mode-light .note-row-labels { opacity: 1; }
 .note-detail { position: relative; min-width: 0; height: 100%; overflow: hidden; background: var(--ui-bg-app); }
 .note-detail-layer { position: absolute; inset: 0; visibility: hidden; pointer-events: none; }
 .note-detail-layer.active { visibility: visible; pointer-events: auto; }
-.detail-toolbar { min-height: 46px; display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding: .4375rem .85rem; border-bottom: 1px solid var(--ui-border-divider); color: var(--ui-text-subtle); font-size: .8rem; }
+.detail-toolbar { position: relative; min-height: 46px; display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding: .4375rem .85rem; border-bottom: 1px solid var(--ui-border-divider); color: var(--ui-text-subtle); font-size: .8rem; }
 .detail-toolbar-start, .detail-toolbar-actions { min-width: 0; display: flex; align-items: center; gap: .5rem; }
 .detail-toolbar-start { white-space: nowrap; }
 .detail-toolbar-actions { justify-content: flex-end; gap: .5rem; }
+.detail-toolbar-center { position: absolute; top: 50%; left: 50%; display: flex; align-items: center; justify-content: center; transform: translate(-50%, -50%); }
+.markdown-preview-close { display: inline-flex; align-items: center; gap: .35rem; white-space: nowrap; }
+.markdown-preview-shortcut .shortcut-key.is-available { color: var(--ui-accent-shortcut); }
 .detail-toolbar-attachment { display: inline-flex; align-items: center; gap: .35rem; }
 .detail-toolbar-start .btn { display: inline-grid; place-items: center; min-width: 42px; }
 .detail-toolbar-actions-mobile { display: none; }
@@ -479,6 +482,7 @@ html.mode-light .note-row-labels { opacity: 1; }
 .braille-spinner.active { opacity: 1; }
 .editor-notice { flex: none; padding: .55rem .85rem; border-bottom: 1px solid var(--ui-border-divider); background: var(--ui-bg-error); font-size: .8rem; }
 .inline-editor-scroll { flex: 1; width: 100%; min-height: 0; overflow-y: auto; overscroll-behavior: contain; overflow-anchor: none; outline: none; }
+.note-content.markdown-preview-mode { background: rgba(122, 122, 122, 0.1); }
 .inline-editor-fields { --editor-gutter: clamp(1rem, 3vw, 2.5rem); position: relative; width: 100%; max-width: var(--editor-max-width, 840px); margin: 0 auto; display: flex; flex-direction: column; padding-top: var(--editor-gutter); font-family: var(--note-font); }
 .inline-editor-fields.is-dragging-files { border-radius: 6px; outline: 2px dashed var(--ui-focus); outline-offset: -.65rem; background: var(--ui-drag-wash); }
 .note-lock-overlay { position: absolute; z-index: 8; inset: 0; display: grid; place-items: center; padding: 1rem; background: var(--ui-lock-mask); }

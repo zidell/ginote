@@ -2350,8 +2350,23 @@
         on:change={(event) => uploadFiles(event.currentTarget.files)}
       />
     {/if}
-    <div class="detail-toolbar-actions detail-toolbar-actions-desktop">
-      {#if editable}
+    {#if previewMode}
+      <div class="detail-toolbar-center">
+        <button
+          type="button"
+          class="btn btn-sm btn-outline-secondary markdown-preview-close"
+          aria-label={`${$_("m.bbfa773e5a")} (M)`}
+          aria-keyshortcuts="M"
+          on:click={() => setMarkdownPreview(false)}
+        >
+          <i class="bi bi-x-lg" aria-hidden="true"></i>
+          {$_("m.bbfa773e5a")}
+          <span class="shortcut-hint markdown-preview-shortcut">(<span class="shortcut-key" class:is-available={canUseNoteShortcut('m')}>M</span>)</span>
+        </button>
+      </div>
+    {/if}
+    {#if editable && !previewMode}
+      <div class="detail-toolbar-actions detail-toolbar-actions-desktop">
         <TagPicker
           bind:this={toolbarTagPicker}
           toolbar
@@ -2361,8 +2376,6 @@
           selectedLabels={displayedLabels}
           onSelect={toggleTag}
         />
-      {/if}
-      {#if editable}
         <label
           class="btn btn-sm btn-outline-secondary detail-toolbar-attachment"
           class:disabled={uploadBatchActive || attachments.length >= MAX_ATTACHMENTS}
@@ -2371,10 +2384,8 @@
           <i class="bi bi-paperclip" aria-hidden="true"></i>
           {uploading ? $_('dynamic.uploading', { values: { count: uploading } }) : $_("m.1afff0157c")} <span class="shortcut-hint"><span class="shortcut-key" class:is-available={canUseNoteShortcut('a')}>A</span></span>
         </label>
-      {/if}
-    </div>
-    <div class="detail-toolbar-actions detail-toolbar-actions-mobile">
-      {#if editable}
+      </div>
+      <div class="detail-toolbar-actions detail-toolbar-actions-mobile">
         <TagPicker
           bind:this={mobileTagPicker}
           toolbar
@@ -2394,8 +2405,8 @@
         >
           <i class="bi bi-paperclip" aria-hidden="true"></i>
         </label>
-      {/if}
-    </div>
+      </div>
+    {/if}
     <div class="dropdown detail-toolbar-more" bind:this={moreToolbarElement}>
       <button
         class="btn btn-outline-secondary responsive-toolbar-button"
@@ -2405,7 +2416,7 @@
         aria-label={$_("m.a9b795bbb6")}
       ><i class="bi bi-three-dots-vertical" aria-hidden="true"></i></button>
       <div class="dropdown-menu dropdown-menu-end">
-        {#if canPreview || previewMode}
+        {#if canPreview && !previewMode}
           <button
             type="button"
             class="dropdown-item"
@@ -2562,7 +2573,13 @@
     </div>
   {/if}
 
-  <div class="inline-editor-scroll" bind:this={editorScroll} tabindex="-1" use:focusBodyFromOuterGutter>
+  <div
+    class="inline-editor-scroll note-content"
+    class:markdown-preview-mode={previewMode}
+    bind:this={editorScroll}
+    tabindex="-1"
+    use:focusBodyFromOuterGutter
+  >
   <div
     class="inline-editor-fields"
     class:is-lock-protected={lockState !== 'plain'}
