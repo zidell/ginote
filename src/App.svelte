@@ -76,7 +76,7 @@
   const ATTACHMENT_PRUNE_STORAGE_KEY = 'issue-note.attachment-prune.v1';
   const SIDEBAR_WIDTH_STORAGE_KEY = 'issue-note.sidebar-width.v1';
   const LONG_PRESS_MS = 500;
-  const KEYBOARD_DELETE_DELAY_MS = 3000;
+  const DELETE_DELAY_MS = 3000;
   const LONG_PRESS_MOVE_TOLERANCE_PX = 10;
   const ATTACHMENT_PRUNE_INTERVAL_MS = 24 * 60 * 60 * 1000;
   const SIDEBAR_LOAD_MORE_THRESHOLD_PX = 160;
@@ -1354,7 +1354,7 @@
       && isDeleteShortcut(event)
     ) {
       event.preventDefault();
-      scheduleSelectedIssuesDeletion(keyboardDeletionTargets());
+      moveIssues(keyboardDeletionTargets());
       return;
     }
     if (
@@ -1799,28 +1799,11 @@
     if (!nextSelected.has(selectionAnchorId)) selectionAnchorId = nextSelected.values().next().value ?? null;
   }
 
-  function moveSelectedIssues() {
-    moveIssues(selectedIssues);
-  }
-
   function keyboardDeletionTargets() {
     if (selectedIssues.length) return selectedIssues;
     const focusedIssue = [...pinnedIssues, ...unpinnedVisibleIssues]
       .find((issue) => String(issue.id) === keyboardFocusedIssueId);
     return focusedIssue && !focusedIssue.local ? [focusedIssue] : [];
-  }
-
-  function scheduleSelectedIssuesDeletion(issuesToDelete) {
-    if (pendingIssueDeletion || !issuesToDelete.length) return;
-
-    // 타이머가 도는 동안 목록이 갱신돼도 대상이 섞이지 않도록 현재 선택을 보관한다.
-    pendingIssueDeletion = [...issuesToDelete];
-    pendingIssueDeletionTimer = setTimeout(() => {
-      const issuesToMove = pendingIssueDeletion;
-      pendingIssueDeletion = null;
-      pendingIssueDeletionTimer = null;
-      moveIssues(issuesToMove);
-    }, KEYBOARD_DELETE_DELAY_MS);
   }
 
   function cancelPendingIssueDeletion() {
@@ -1835,6 +1818,22 @@
       clearIssueSelection();
       return;
     }
+    if (pendingIssueDeletion) return;
+    if (state === 'open') {
+      // 타이머가 도는 동안 목록이 갱신돼도 대상이 섞이지 않도록 현재 이동 대상을 보관한다.
+      pendingIssueDeletion = [...issuesToMove];
+      pendingIssueDeletionTimer = setTimeout(() => {
+        const movedIssues = pendingIssueDeletion;
+        pendingIssueDeletion = null;
+        pendingIssueDeletionTimer = null;
+        moveIssuesImmediately(movedIssues);
+      }, DELETE_DELAY_MS);
+      return;
+    }
+    moveIssuesImmediately(issuesToMove);
+  }
+
+  function moveIssuesImmediately(issuesToMove) {
     const nextState = state === 'open' ? 'closed' : 'open';
     const movedIssues = issuesToMove;
     clearIssueSelection();
@@ -2338,6 +2337,7 @@
 
     error = '';
     const requestedWorkspaceId = activeWorkspaceId;
+    invalidateCachedIssueList(requestedWorkspaceId);
     const noteCountDelta = nextState === 'open' ? 1 : -1;
     const removedIndex = issues.findIndex((item) => item.id === issue.id);
     const pinnedIndex = pinnedIssues.findIndex((item) => item.id === issue.id);
@@ -2710,7 +2710,7 @@
               type="button"
               class="btn btn-sm btn-outline-danger"
               disabled={selectionTagBusy || pendingIssueDeletion}
-              on:click={moveSelectedIssues}
+              on:click={() => moveIssues(selectedIssues)}
               tabindex={selectionMode ? 0 : -1}
             >
               <i class={`bi ${state === 'open' ? 'bi-trash3' : 'bi-arrow-counterclockwise'}`} aria-hidden="true"></i>
@@ -2955,7 +2955,9 @@
               onExternalPasteHandled={externalPasteHandled}
               onLabelsAvailable={mergeRepositoryLabels}
               onTagSelect={openLabel}
-              onMove={(issue) => moveIssue(issue, state === 'open' ? 'closed' : 'open')}
+              onMove={(issue) => state === 'open'
+                ? moveIssues([issue])
+                : moveIssue(issue, 'open')}
               onBack={() => router.pop()}
             />
             </div>
