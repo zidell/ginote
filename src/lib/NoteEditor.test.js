@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/svelte';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/svelte';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import NoteEditor from './NoteEditor.svelte';
 import { composeAttachmentLink } from './attachments.js';
@@ -165,6 +165,87 @@ describe('NoteEditor 코멘트 블록', () => {
     expect(document.querySelector('.note-comment-body').maxLength).toBe(MAX_ISSUE_COMMENT_LENGTH);
     expect(MAX_ISSUE_BODY_LENGTH).toBe(58_982);
     expect(MAX_ISSUE_COMMENT_LENGTH).toBe(58_982);
+  });
+
+  it('기본 모드에서는 검색어와 치환값을 일반 문자열로 처리한다', async () => {
+    localStorage.clear();
+    render(NoteEditor, {
+      token: 't',
+      repo: 'owner/repo',
+      issue: { ...baseIssue, body: 'a+b a+b a.b' },
+      autoSaveSeconds: 9999
+    });
+
+    await fireEvent.click(document.querySelector('.detail-toolbar-replace'));
+    const dialog = screen.getByRole('dialog');
+    const searchInput = within(dialog).getByLabelText('Search for');
+    const replaceInput = within(dialog).getByLabelText('Replace with');
+
+    await fireEvent.input(searchInput, { target: { value: 'not-found' } });
+    expect(within(dialog).getByRole('status').textContent).toContain('0 matches');
+    expect(dialog.querySelector('.replace-example').classList.contains('empty')).toBe(false);
+    expect(dialog.querySelector('.replace-example').textContent).toContain('not-found');
+
+    await fireEvent.input(searchInput, { target: { value: 'a+b' } });
+    expect(within(dialog).getByRole('status').textContent).toContain('2 matches');
+    await fireEvent.input(replaceInput, { target: { value: '$1' } });
+    await fireEvent.click(within(dialog).getByRole('button', { name: 'Replace' }));
+
+    expect(document.querySelector('.inline-body').value).toBe('$1 $1 a.b');
+  });
+
+  it('정규식 모드에서는 캡처 그룹 치환 명령을 적용한다', async () => {
+    localStorage.clear();
+    render(NoteEditor, {
+      token: 't',
+      repo: 'owner/repo',
+      issue: { ...baseIssue, body: 'foo-123 foo-456' },
+      autoSaveSeconds: 9999
+    });
+
+    await fireEvent.click(document.querySelector('.detail-toolbar-replace'));
+    const dialog = screen.getByRole('dialog');
+    await fireEvent.input(within(dialog).getByLabelText('Search for'), {
+      target: { value: '/(\\w+)-(\\d+)/' }
+    });
+    await waitFor(() => expect(within(dialog).getByRole('status').textContent).toContain('2 matches'));
+    await fireEvent.input(within(dialog).getByLabelText('Replace with'), {
+      target: { value: '$2:$1' }
+    });
+    await waitFor(() => expect(within(dialog).getByText(/foo-123/).textContent).toContain('123:foo'));
+    await fireEvent.click(within(dialog).getByRole('button', { name: 'Replace' }));
+
+    expect(document.querySelector('.inline-body').value).toBe('123:foo 456:foo');
+  });
+
+  it('첨부 링크의 내부 {repo} 토큰은 치환 대상에서 제외한다', async () => {
+    localStorage.clear();
+    const attachmentLink = composeAttachmentLink('owner/repo', {
+      name: 'plan.pdf',
+      type: 'application/pdf',
+      path: '.issue-note-assets/issues/5/plan.pdf'
+    });
+    render(NoteEditor, {
+      token: 't',
+      repo: 'owner/repo',
+      issue: { ...baseIssue, body: `repo\n\n${attachmentLink}` },
+      autoSaveSeconds: 9999
+    });
+
+    await fireEvent.click(document.querySelector('.detail-toolbar-replace'));
+    const dialog = screen.getByRole('dialog');
+    await fireEvent.input(within(dialog).getByLabelText('Search for'), {
+      target: { value: 'repo' }
+    });
+    await waitFor(() => expect(within(dialog).getByRole('status').textContent).toContain('1 matches'));
+    await fireEvent.input(within(dialog).getByLabelText('Replace with'), {
+      target: { value: 'project' }
+    });
+    await fireEvent.click(within(dialog).getByRole('button', { name: 'Replace' }));
+
+    expect(document.querySelector('.inline-body').value).toBe(
+      'project\n\n[]({repo}/.issue-note-assets/issues/5/plan.pdf)'
+    );
   });
 
   it('본문 아래 독립된 블록으로 가져온 댓글을 보여준다', async () => {

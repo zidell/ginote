@@ -149,6 +149,13 @@
     "12c0dff05d": "Wait for the current attachment operation to finish.",
     "ee6540eb88": "Write a comment…",
     "5f35b29acf": "Write your note…",
-    "5353b36687": "Your PAT is sent only from this browser to the GitHub API."
+    "5353b36687": "Your PAT is sent only from this browser to the GitHub API.",
+    "d7a8c1e4f2": "Replace",
+    "1b7c9e4d6a": "Search for",
+    "6c2f8a1b4e": "Replace with",
+    "9e4b7c2d1f": "Plain text is matched by default. To use a regular expression, enter /pattern/flags (for example, /foo-(\\d+)/gi); in that form, $1, $2… in the replacement refer to captured groups.",
+    "3f8a2c6d1b": "{count} matches",
+    "8f1b9d0a2c": "Invalid regular expression.",
+    "a4c7e9d2b6": "Example: “{match}” → “{replacement}”"
   }
 }
