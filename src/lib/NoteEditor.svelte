@@ -161,6 +161,9 @@
   let remoteTimer;
   let fileInput;
   let bodyInput;
+  let bodyComposing = false;
+  let bodyCompositionDirty = false;
+  let bodyCompositionCommitted = false;
   let toolbarTagPicker;
   let moreToolbarElement;
   let issueLinkElement;
@@ -168,6 +171,7 @@
   let mobileTagPicker;
   let inlineTagPickerOpen = false;
   let linkTooltip;
+  let linkTooltipFrame = 0;
   let activeLink = null;
   let linkTooltipStyle = '';
   let replacePanelOpen = false;
@@ -293,6 +297,8 @@
 
   onDestroy(() => {
     destroyed = true;
+    if (linkTooltipFrame) cancelAnimationFrame(linkTooltipFrame);
+    linkTooltipFrame = 0;
     cancelPreviewScrollRestore();
     if (dirty) persistLocalDraft();
     clearInterval(localTimer);
@@ -1434,13 +1440,68 @@
     if (files.length) uploadFiles(files);
   }
 
-  function handleBodyInput(event) {
-    body = expandAttachmentLinks(event.currentTarget.value, repo);
-    changed();
+  function updateBodyFromTextarea(value) {
+    const nextBody = expandAttachmentLinks(value, repo);
+    const bodyChanged = nextBody !== body;
+    if (bodyChanged) {
+      body = nextBody;
+      if (titleMode === 'first-line') title = automaticTitle(body);
+    }
+    return bodyChanged;
+  }
+
+  function handleBodyCompositionStart() {
+    bodyComposing = true;
+    bodyCompositionDirty = false;
+    bodyCompositionCommitted = false;
+    hideLinkTooltip();
+  }
+
+  function handleBodyCompositionEnd(event) {
+    const bodyChanged = updateBodyFromTextarea(event.currentTarget.value);
+    bodyComposing = false;
+    if (bodyCompositionDirty || bodyChanged) {
+      changed();
+      bodyCompositionCommitted = true;
+    }
+    bodyCompositionDirty = false;
     updateLinkTooltip(event);
   }
 
+  function handleBodyInput(event) {
+    const textarea = event.currentTarget;
+    displayBody = textarea.value;
+    const composing = bodyComposing || event.isComposing;
+    const bodyChanged = updateBodyFromTextarea(textarea.value);
+
+    if (composing) {
+      bodyCompositionDirty = bodyCompositionDirty || bodyChanged;
+      if (bodyChanged) {
+        dirty = true;
+        saveFailed = false;
+        revision += 1;
+        error = '';
+      }
+      // 새 노트는 번호 할당 응답이 조합 중에 도착해도 최신 조합문을
+      // 잃지 않도록 부모의 pendingNote에만 반영한다. 기존 노트는
+      // 조합 중 부모 렌더를 유발하지 않는다.
+      if (bodyChanged && !issue) notifyDraftChange();
+      return;
+    }
+
+    if (bodyCompositionCommitted && !bodyChanged) {
+      bodyCompositionCommitted = false;
+      return;
+    }
+    bodyCompositionCommitted = false;
+    changed();
+  }
+
   function updateLinkTooltip(event) {
+    if (bodyComposing || event?.isComposing) {
+      hideLinkTooltip();
+      return;
+    }
     const textarea = event?.currentTarget || bodyInput;
     if (!textarea || textarea.selectionStart !== textarea.selectionEnd) {
       hideLinkTooltip();
@@ -1456,7 +1517,9 @@
   }
 
   function positionLinkTooltip(textarea) {
-    requestAnimationFrame(() => {
+    if (linkTooltipFrame) cancelAnimationFrame(linkTooltipFrame);
+    linkTooltipFrame = requestAnimationFrame(() => {
+      linkTooltipFrame = 0;
       if (!activeLink || !textarea?.isConnected) return;
       const style = getComputedStyle(textarea);
       const bounds = textarea.getBoundingClientRect();
@@ -1500,11 +1563,14 @@
   }
 
   function hideLinkTooltip() {
+    if (linkTooltipFrame) cancelAnimationFrame(linkTooltipFrame);
+    linkTooltipFrame = 0;
     activeLink = null;
     linkTooltipStyle = '';
   }
 
   function handleBodyBlur(event) {
+    if (bodyComposing || bodyCompositionDirty) handleBodyCompositionEnd(event);
     if (event.relatedTarget !== linkTooltip) hideLinkTooltip();
     flushRemoteSave();
   }
@@ -1787,10 +1853,25 @@
     }
   }
 
-  function autosize(node, value) {
+  function autosize(node) {
+    const scrollContainer = node.closest('.inline-editor-scroll');
     const resize = () => {
-      node.style.height = 'auto';
-      node.style.height = `${node.scrollHeight}px`;
+      const previousScrollTop = scrollContainer?.scrollTop || 0;
+      const previousMaxScrollTop = scrollContainer
+        ? Math.max(0, scrollContainer.scrollHeight - scrollContainer.clientHeight)
+        : 0;
+      const wasAtBottom = previousMaxScrollTop > 0
+        && previousScrollTop >= previousMaxScrollTop - 1;
+      const nextHeight = node.scrollHeight;
+      const currentHeight = node.getBoundingClientRect().height;
+
+      if (!nextHeight || Math.abs(currentHeight - nextHeight) < 0.5) return;
+      node.style.height = `${nextHeight}px`;
+
+      if (scrollContainer) {
+        const nextMaxScrollTop = Math.max(0, scrollContainer.scrollHeight - scrollContainer.clientHeight);
+        scrollContainer.scrollTop = wasAtBottom ? nextMaxScrollTop : previousScrollTop;
+      }
     };
     resize();
     return { update: resize };
@@ -2635,7 +2716,9 @@
       <textarea
         bind:this={bodyInput}
         class="inline-body"
-        bind:value={displayBody}
+        value={displayBody}
+        on:compositionstart={handleBodyCompositionStart}
+        on:compositionend={handleBodyCompositionEnd}
         on:input={handleBodyInput}
         on:keyup={updateLinkTooltip}
         on:click={updateLinkTooltip}

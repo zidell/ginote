@@ -445,6 +445,14 @@
     // 고정 노트는 현재 페이지에 없거나 검색/필터 결과에서 빠져도 별도
     // 라벨 조회 결과로 목록에 남는다. 그런 노트를 눌렀을 때도 같은 편집기를
     // 열어야 하므로 일반 목록 다음에 고정 목록을 fallback으로 사용한다.
+    // 입력할 때마다 목록 미리보기는 갱신하지만, 활성 편집기에는 새 목록
+    // 객체를 다시 넘기지 않는다. macOS WebView에서 매번 바뀌는 issue prop이
+    // textarea의 포커스와 스크롤 보정을 다시 일으킬 수 있다.
+    if (
+      contentRoute?.segment === route.segment
+      && selectedIssue?.number === issueNumber
+    ) return selectedIssue;
+
     return issues.find((issue) => issue.number === issueNumber)
       || pinnedIssues.find((issue) => issue.number === issueNumber)
       || null;
@@ -1937,7 +1945,11 @@
     issues = issues.map((issue) => issue.id === savedIssue.id ? displayedIssue : issue);
     const savedIssueIsActive = contentRoute?.screen === 'note'
       && Number(contentRoute.value) === savedIssue.number;
-    if (savedIssueIsActive) selectedIssue = displayedIssue;
+    // 저장 응답보다 새 입력이 먼저 들어온 경우(localDraft가 존재함)에는
+    // 활성 편집기에 새 issue 객체를 다시 전달하지 않는다. 편집기 로컬
+    // 상태가 최신이므로, 이 객체 교체가 caret/스크롤 보정을 재발시키지
+    // 않도록 저장 목록만 갱신한다.
+    if (savedIssueIsActive && !localDraft) selectedIssue = displayedIssue;
     if (savedIssueIsActive && activeLabel && !hasIssueLabel(displayedIssue, activeLabel)) {
       router.navigate(`/note.${savedIssue.number}`);
     }
@@ -2109,10 +2121,18 @@
       return;
     }
 
+    // 활성 편집기는 자체 상태를 즉시 관리한다. 타이핑 중 부모 목록까지
+    // 갱신하면 WebView가 편집기 레이아웃을 다시 계산하며 caret/스크롤을
+    // 보정하는 과정에서 화면이 움찔거릴 수 있다. 저장 응답이 오면 onSaved가
+    // 최신 목록 미리보기를 반영한다.
+    if (
+      contentRoute?.screen === 'note'
+      && Number(contentRoute.value) === sourceIssue.number
+    ) return;
+
     const updatedIssue = { ...sourceIssue, ...draft };
     const displayedIssue = syncPinnedIssue(updatedIssue);
     issues = issues.map((issue) => issue.id === sourceIssue.id ? displayedIssue : issue);
-    if (selectedIssue?.id === sourceIssue.id) selectedIssue = displayedIssue;
   }
 
   function mergeRepositoryLabels(nextLabels) {
