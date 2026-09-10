@@ -12,6 +12,7 @@
   import { automaticTitle, linkAtCursor, shortenMiddle } from './notes.js';
   import { loadPendingWork, pendingWorkScope, updatePendingWork } from './pending-work.js';
   import {
+    ATTACHMENT_LINK_PLACEHOLDER,
     attachmentRawUrl,
     composeAttachmentLink,
     compressAttachmentLinks,
@@ -169,6 +170,11 @@
   let linkTooltip;
   let activeLink = null;
   let linkTooltipStyle = '';
+  let replacePanelOpen = false;
+  let replaceSearch = '';
+  let replaceWith = '';
+  let replaceSearchInput;
+  let replaceReturnFocus;
   let mounted = false;
   let handledRefreshRequest = 0;
   let handledExternalPasteRequest = 0;
@@ -187,6 +193,7 @@
       .map((attachment) => [attachmentRawUrl(repo, attachment.path), previewUrls[attachment.path]])
       .filter(([, source]) => source)
   );
+  $: replacementAnalysis = analyzeReplacement(displayBody, replaceSearch, replaceWith);
   $: hasAttachmentRefs = parseAttachmentPaths(body).length > 0;
   $: editable = !archived && !readOnly;
   $: canPreview = lockState !== 'locked' && !lockPanelMode;
@@ -229,6 +236,7 @@
   $: if (mounted && lockState === 'unlocked' && !lockPin && activeLockPin && !lockSessionExpiring) {
     expireLockSession();
   }
+  $: if (replacePanelOpen && lockState === 'locked') closeReplacePanel();
 
   onMount(() => {
     const recovered = !editable || ignoreRecoveredDraft ? null : readDraft();
@@ -657,6 +665,144 @@
     error = '';
     notifyDraftChange();
     scheduleRemoteSave();
+  }
+
+  function escapeRegex(value) {
+    return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
+  function replacementPattern(pattern) {
+    const value = String(pattern || '');
+    const match = value.match(/^\/([\s\S]*)\/([a-z]*)$/);
+    if (!match) return { source: escapeRegex(value), flags: 'g', isRegex: false };
+
+    const flags = match[2].includes('g') ? match[2] : `${match[2]}g`;
+    return { source: match[1], flags, isRegex: true };
+  }
+
+  function countReplacementMatches(text, regex) {
+    let count = 0;
+    for (const segment of String(text || '').split(ATTACHMENT_LINK_PLACEHOLDER)) {
+      regex.lastIndex = 0;
+      for (const _match of segment.matchAll(regex)) count += 1;
+    }
+    return count;
+  }
+
+  function replaceOutsideAttachmentPlaceholders(text, regex, replacement, isRegex) {
+    return String(text || '')
+      .split(ATTACHMENT_LINK_PLACEHOLDER)
+      .map((segment) => {
+        regex.lastIndex = 0;
+        return isRegex
+          ? segment.replace(regex, replacement)
+          : segment.replace(regex, () => replacement);
+      })
+      .join(ATTACHMENT_LINK_PLACEHOLDER);
+  }
+
+  function replacementExample(text, regex, replacement, isRegex) {
+    let previewRegex;
+    try {
+      previewRegex = new RegExp(regex.source, regex.flags.replace('g', '').replace('y', ''));
+    } catch {
+      return null;
+    }
+
+    const source = String(text || '');
+    for (const segment of source.split(ATTACHMENT_LINK_PLACEHOLDER)) {
+      const firstMatch = segment.match(previewRegex);
+      if (!firstMatch) continue;
+
+      const matchIndex = firstMatch.index || 0;
+      const prefix = segment.slice(0, matchIndex);
+      const suffix = segment.slice(matchIndex + firstMatch[0].length);
+      const preview = isRegex
+        ? segment.replace(previewRegex, replacement)
+        : segment.replace(previewRegex, () => replacement);
+      const hasPrefix = preview.startsWith(prefix);
+      const hasSuffix = !suffix || preview.endsWith(suffix);
+      const replaced = hasPrefix && hasSuffix
+        ? preview.slice(prefix.length, suffix ? preview.length - suffix.length : undefined)
+        : replacement;
+      return { match: firstMatch[0], replacement: replaced };
+    }
+    return null;
+  }
+
+  function analyzeReplacement(text, pattern, replacement = '') {
+    if (!pattern) return { count: 0, error: '', regex: null };
+
+    const parsed = replacementPattern(pattern);
+    if (parsed.isRegex && !parsed.source) {
+      return { count: 0, error: $_("m.8f1b9d0a2c"), regex: null };
+    }
+
+    let regex;
+    try {
+      regex = new RegExp(parsed.source, parsed.flags);
+    } catch {
+      return { count: 0, error: $_("m.8f1b9d0a2c"), regex: null };
+    }
+
+    const count = countReplacementMatches(text, regex);
+    const example = count
+      ? replacementExample(text, regex, replacement, parsed.isRegex)
+      : { match: pattern, replacement };
+    return {
+      count,
+      error: '',
+      regex,
+      isRegex: parsed.isRegex,
+      example
+    };
+  }
+
+  function openReplacePanel() {
+    if (!canUseNoteShortcut('e')) return;
+    replaceReturnFocus = document.activeElement;
+    toolbarTagPicker?.close?.();
+    mobileTagPicker?.close?.();
+    inlineTagPickerOpen = false;
+    hideMoreToolbarDropdown();
+    replacePanelOpen = true;
+    tick().then(() => replaceSearchInput?.focus());
+  }
+
+  function closeReplacePanel() {
+    if (!replacePanelOpen) return;
+    replacePanelOpen = false;
+    const focusTarget = replaceReturnFocus;
+    replaceReturnFocus = null;
+    tick().then(() => {
+      if (focusTarget?.isConnected) focusWithoutScrolling(focusTarget);
+    });
+  }
+
+  function handleReplaceDialogKeydown(event) {
+    if (event.key !== 'Escape') return;
+    event.preventDefault();
+    event.stopPropagation();
+    closeReplacePanel();
+  }
+
+  function applyReplacement() {
+    if (!canUseNoteShortcut('e')) return;
+    const analysis = analyzeReplacement(displayBody, replaceSearch, replaceWith);
+    if (analysis.error || !analysis.regex || !analysis.count) return;
+
+    const nextDisplayBody = replaceOutsideAttachmentPlaceholders(
+      displayBody,
+      analysis.regex,
+      replaceWith,
+      analysis.isRegex
+    );
+    const nextBody = expandAttachmentLinks(nextDisplayBody, repo);
+    if (nextBody !== body) {
+      body = nextBody;
+      changed();
+    }
+    closeReplacePanel();
   }
 
   function notifyDraftChange() {
@@ -1846,6 +1992,7 @@
     if (key === 'l' || event.code === 'KeyL') return 'l';
     if (key === 'r' || event.code === 'KeyR') return 'r';
     if (key === 's' || event.code === 'KeyS') return 's';
+    if (key === 'e' || event.code === 'KeyE') return 'e';
     if (event.key === 'Delete' || event.code === 'Delete') return 'delete';
     return '';
   }
@@ -1881,6 +2028,7 @@
     if (key === 'l') return editable;
     if (key === 'r') return Boolean((issue || remoteIssue)?.number);
     if (key === 's') return editable && lockState !== 'locked' && !saving;
+    if (key === 'e') return editable && lockState !== 'locked';
     if (key === 't') return editable && lockState !== 'locked';
     if (key === 'a') {
       return editable
@@ -1915,6 +2063,10 @@
     }
     if (key === 't') {
       return openToolbarTagPicker();
+    }
+    if (key === 'e') {
+      openReplacePanel();
+      return true;
     }
     if (key === 'a') {
       fileInput.click();
@@ -2184,22 +2336,6 @@
             {$_("m.1e0f7e5b67")} <span class="shortcut-hint"><span class="shortcut-key" class:is-available={canUseNoteShortcut('m')}>M</span></span>
           </button>
         {/if}
-        <div class="detail-toolbar-mobile-actions">
-          {#if remoteIssue && !readOnly}
-            <button
-              type="button"
-              class="dropdown-item"
-              aria-keyshortcuts="Delete"
-              on:click={() => onMove(remoteIssue)}
-            >
-              <i class={`bi ${archived ? 'bi-arrow-counterclockwise' : 'bi-trash3'}`} aria-hidden="true"></i>
-              {archived ? $_("m.3cbe6d6b9a") : $_("m.f6fdbe48dc")} <span class="shortcut-hint"><span class="shortcut-key" class:is-available={canUseNoteShortcut('delete')}>Delete</span></span>
-            </button>
-          {/if}
-        </div>
-        {#if remoteIssue}
-          <div class="dropdown-divider detail-toolbar-mobile-divider"></div>
-        {/if}
         {#if editable}
           <button
             type="button"
@@ -2223,18 +2359,18 @@
             {pinned ? '고정 해제' : '상단고정'} <span class="shortcut-hint"><span class="shortcut-key" class:is-available={canUseNoteShortcut('p')}>P</span></span>
           </button>
         {/if}
+        {#if editable && lockState !== 'locked'}
+          <button
+            type="button"
+            class="dropdown-item detail-toolbar-replace"
+            aria-keyshortcuts="E"
+            on:click={openReplacePanel}
+          >
+            <i class="bi bi-regex" aria-hidden="true"></i>
+            {$_("m.d7a8c1e4f2")} <span class="shortcut-hint"><span class="shortcut-key" class:is-available={canUseNoteShortcut('e')}>E</span></span>
+          </button>
+        {/if}
         {#if remoteIssue}
-          {#if !readOnly}
-            <button
-              type="button"
-              class="dropdown-item detail-toolbar-desktop-delete"
-              aria-keyshortcuts="Delete"
-              on:click={() => onMove(remoteIssue)}
-            >
-              <i class={`bi ${archived ? 'bi-arrow-counterclockwise' : 'bi-trash3'}`} aria-hidden="true"></i>
-              {archived ? $_("m.3cbe6d6b9a") : $_("m.f6fdbe48dc")} <span class="shortcut-hint"><span class="shortcut-key" class:is-available={canUseNoteShortcut('delete')}>Delete</span></span>
-            </button>
-          {/if}
           <a
             bind:this={issueLinkElement}
             class="dropdown-item"
@@ -2245,17 +2381,105 @@
           >
             <i class="bi bi-github" aria-hidden="true"></i> {$_('dynamic.viewOnGitHub')} <span class="shortcut-hint"><span class="shortcut-key" class:is-available={canUseNoteShortcut('g')}>G</span></span>
           </a>
-          <div class="dropdown-divider"></div>
           <div class="dropdown-header detail-toolbar-timestamps">
             <span>{$_('dynamic.createdAt', { values: { date: formatTimestamp(remoteIssue.created_at) } })}</span>
             <span>{$_('dynamic.updatedAt', { values: { date: formatTimestamp(remoteIssue.updated_at) } })}</span>
           </div>
+          {#if !readOnly}
+            <div class="dropdown-divider"></div>
+            <button
+              type="button"
+              class="dropdown-item"
+              aria-keyshortcuts="Delete"
+              on:click={() => onMove(remoteIssue)}
+            >
+              <i class={`bi ${archived ? 'bi-arrow-counterclockwise' : 'bi-trash3'}`} aria-hidden="true"></i>
+              {archived ? $_("m.3cbe6d6b9a") : $_("m.f6fdbe48dc")} <span class="shortcut-hint"><span class="shortcut-key" class:is-available={canUseNoteShortcut('delete')}>Delete</span></span>
+            </button>
+          {/if}
         {/if}
       </div>
     </div>
   </div>
 
   {#if error}<div class="editor-notice text-danger">{error}</div>{/if}
+
+  {#if replacePanelOpen}
+    <div class="replace-overlay">
+      <div
+        class="replace-panel"
+        role="dialog"
+        tabindex="-1"
+        aria-modal="true"
+        aria-labelledby={`replace-title-${editorId}`}
+        aria-describedby={`replace-help-${editorId}`}
+        on:keydown={handleReplaceDialogKeydown}
+      >
+        <form class="replace-panel-form" on:submit|preventDefault={applyReplacement}>
+          <div class="replace-panel-header">
+            <h2 id={`replace-title-${editorId}`}>{$_("m.d7a8c1e4f2")}</h2>
+            <button
+              type="button"
+              class="replace-panel-close"
+              aria-label={$_("m.bbfa773e5a")}
+              on:click={closeReplacePanel}
+            ><i class="bi bi-x-lg" aria-hidden="true"></i></button>
+          </div>
+          <p id={`replace-help-${editorId}`} class="replace-panel-help">{$_("m.9e4b7c2d1f")}</p>
+          <label class="replace-field" for={`replace-search-${editorId}`}>
+            <span>{$_("m.1b7c9e4d6a")}</span>
+            <input
+              bind:this={replaceSearchInput}
+              id={`replace-search-${editorId}`}
+              type="text"
+              bind:value={replaceSearch}
+              autocomplete="off"
+              autocorrect="off"
+              autocapitalize="none"
+              spellcheck="false"
+            />
+          </label>
+          <label class="replace-field" for={`replace-with-${editorId}`}>
+            <span>{$_("m.6c2f8a1b4e")}</span>
+            <input
+              id={`replace-with-${editorId}`}
+              type="text"
+              bind:value={replaceWith}
+              autocomplete="off"
+              autocorrect="off"
+              autocapitalize="none"
+              spellcheck="false"
+            />
+          </label>
+          {#if replacementAnalysis.error}
+            <div class="replace-panel-error" role="alert">{replacementAnalysis.error}</div>
+        {:else}
+          <div class="replace-match-count" role="status" aria-live="polite">
+            {$_("m.3f8a2c6d1b", { values: { count: replacementAnalysis.count } })}
+          </div>
+        {/if}
+        <div
+          class="replace-example"
+          class:empty={!replacementAnalysis.example}
+          aria-live="polite"
+          aria-hidden={!replacementAnalysis.example}
+        >
+          {#if replacementAnalysis.example}
+            {$_("m.a4c7e9d2b6", { values: replacementAnalysis.example })}
+          {/if}
+        </div>
+        <div class="replace-panel-actions">
+            <button type="button" class="btn btn-outline-secondary" tabindex="-1" on:click={closeReplacePanel}>{$_("setup.cancel")}</button>
+            <button
+              type="submit"
+              class="btn btn-primary"
+              disabled={!replaceSearch || replacementAnalysis.error || !replacementAnalysis.count}
+            >{$_("m.d7a8c1e4f2")}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  {/if}
 
   <div class="inline-editor-scroll" bind:this={editorScroll} tabindex="-1" use:focusBodyFromOuterGutter>
   <div

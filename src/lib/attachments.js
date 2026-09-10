@@ -44,7 +44,7 @@ export function insertAttachmentLinks(bodyText, links, position = null) {
   return `${before}${leading}${block}${trailing}${after}`;
 }
 
-const ATTACHMENT_LINK_PLACEHOLDER = '{repo}/';
+export const ATTACHMENT_LINK_PLACEHOLDER = '{repo}/';
 
 function attachmentUrlPrefix(repo) {
   return `https://github.com/${repo}/raw/HEAD/`;
