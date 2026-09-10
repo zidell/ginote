@@ -744,6 +744,51 @@ describe('NoteEditor 마크다운 프리뷰와 단축키', () => {
     await waitFor(() => expect(document.querySelector('.markdown-preview')).toBeTruthy());
   });
 
+  it('본문은 자동으로 높이를 늘리고 바깥 스크롤 영역을 사용한다', async () => {
+    render(NoteEditor, { token: 't', repo: 'owner/repo', issue: baseIssue });
+
+    const body = document.querySelector('.inline-body');
+    const scroll = body.closest('.inline-editor-scroll');
+    Object.defineProperty(body, 'scrollHeight', { configurable: true, value: 520 });
+
+    expect(scroll).not.toBe(body.parentElement);
+    expect(scroll.querySelector('.inline-editor-fields')).toBeTruthy();
+
+    await fireEvent.input(body, { target: { value: '긴 본문을 입력하는 중' } });
+
+    expect(body.style.height).toBe('520px');
+  });
+
+  it('한글 조합 중에는 본문을 다시 제어하지 않고 조합 종료 때 한 번만 커밋한다', async () => {
+    localStorage.clear();
+    const onDraftChange = vi.fn();
+    render(NoteEditor, {
+      token: 't',
+      repo: 'owner/repo',
+      issue: baseIssue,
+      autoSaveSeconds: 9999,
+      onDraftChange
+    });
+
+    const body = document.querySelector('.inline-body');
+    await fireEvent.compositionStart(body);
+    await fireEvent.input(body, { target: { value: 'ㅎ' }, isComposing: true });
+    await fireEvent.input(body, { target: { value: '하' }, isComposing: true });
+
+    expect(body.value).toBe('하');
+    expect(onDraftChange).not.toHaveBeenCalled();
+    expect(updateIssue).not.toHaveBeenCalled();
+
+    await fireEvent.compositionEnd(body);
+    expect(onDraftChange).toHaveBeenCalledTimes(1);
+    expect(onDraftChange).toHaveBeenLastCalledWith(expect.objectContaining({ body: '하' }));
+
+    // 일부 WebKit 버전은 compositionend 직후 최종 input을 한 번 더 보낸다.
+    // 이미 커밋한 값을 다시 부모에 전달하거나 저장 예약하지 않아야 한다.
+    await fireEvent.input(body, { target: { value: '하' }, isComposing: false });
+    expect(onDraftChange).toHaveBeenCalledTimes(1);
+  });
+
   it('프리뷰 전환 전후에 스크롤 진행률을 서로 변환한다', async () => {
     render(NoteEditor, {
       token: 't',
