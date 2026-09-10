@@ -1972,7 +1972,76 @@
     activeElement.blur?.();
   }
 
+  function removeOneIndentationLevel(line) {
+    if (line.startsWith('\t')) return line.slice(1);
+
+    const leadingSpaces = line.match(/^ {1,4}/)?.[0].length || 0;
+    return leadingSpaces ? line.slice(leadingSpaces) : line;
+  }
+
+  function mapTextareaSelectionOffset(offset, edits) {
+    return edits.reduce((mappedOffset, edit) => {
+      return mappedOffset + (edit.position < offset ? edit.delta : 0);
+    }, offset);
+  }
+
+  function handleTextareaIndent(event) {
+    const textarea = event.currentTarget;
+    if (!(textarea instanceof HTMLTextAreaElement)) return false;
+    if (
+      (event.key !== 'Tab' && event.code !== 'Tab')
+      || event.altKey
+      || event.ctrlKey
+      || event.metaKey
+      || event.isComposing
+    ) return false;
+
+    const { value, selectionStart, selectionEnd } = textarea;
+    if (
+      selectionStart == null
+      || selectionEnd == null
+      || selectionStart === selectionEnd
+      || !value.slice(selectionStart, selectionEnd).includes('\n')
+    ) return false;
+
+    const firstLineStart = value.lastIndexOf('\n', selectionStart - 1) + 1;
+    // 선택 끝이 줄의 시작이면 그 다음 빈 부분까지 포함하지 않는다. 줄바꿈
+    // 자체를 선택한 경우에는 앞 줄만 처리하는 편이 편집기 동작과 자연스럽다.
+    const lineSelectionEnd = selectionEnd > selectionStart && value[selectionEnd - 1] === '\n'
+      ? selectionEnd - 1
+      : selectionEnd;
+    const lastLineStart = value.lastIndexOf('\n', lineSelectionEnd - 1) + 1;
+    const lastLineEndIndex = value.indexOf('\n', lastLineStart);
+    const lastLineEnd = lastLineEndIndex === -1 ? value.length : lastLineEndIndex;
+    const selectedLines = value.slice(firstLineStart, lastLineEnd).split('\n');
+    const edits = [];
+    let lineStart = firstLineStart;
+
+    const nextLines = selectedLines.map((line) => {
+      const nextLine = event.shiftKey ? removeOneIndentationLevel(line) : `\t${line}`;
+      const delta = nextLine.length - line.length;
+      if (delta) edits.push({ position: lineStart, delta });
+      lineStart += line.length + 1;
+      return nextLine;
+    });
+
+    const nextValue = `${value.slice(0, firstLineStart)}${nextLines.join('\n')}${value.slice(lastLineEnd)}`;
+    const nextSelectionStart = mapTextareaSelectionOffset(selectionStart, edits);
+    const nextSelectionEnd = mapTextareaSelectionOffset(selectionEnd, edits);
+
+    event.preventDefault();
+    event.stopPropagation();
+    if (nextValue === value) return true;
+
+    textarea.value = nextValue;
+    textarea.setSelectionRange(nextSelectionStart, nextSelectionEnd, textarea.selectionDirection);
+    textarea.dispatchEvent(new Event('input', { bubbles: true }));
+    return true;
+  }
+
   function handleEditorKeydown(event) {
+    if (handleTextareaIndent(event)) return;
+
     const key = event.key?.toLocaleLowerCase();
     if (
       event.altKey
