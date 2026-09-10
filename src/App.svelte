@@ -2328,7 +2328,7 @@
     else router.navigate('/');
   }
 
-  function moveIssue(issue, nextState, { confirmAction = true } = {}) {
+  async function moveIssue(issue, nextState, { confirmAction = true } = {}) {
     if (
       confirmAction
       && nextState === 'open'
@@ -2337,51 +2337,45 @@
 
     error = '';
     const requestedWorkspaceId = activeWorkspaceId;
-    invalidateCachedIssueList(requestedWorkspaceId);
+    const requestedToken = token;
+    const requestedRepo = repo;
+    const requestedState = state;
+    const requestedQuery = appliedQuery;
+    const requestedLabel = activeLabel;
     const noteCountDelta = nextState === 'open' ? 1 : -1;
-    const removedIndex = issues.findIndex((item) => item.id === issue.id);
-    const pinnedIndex = pinnedIssues.findIndex((item) => item.id === issue.id);
-    const removedPinnedIssue = pinnedIndex >= 0 ? pinnedIssues[pinnedIndex] : null;
-    const wasSelected = selectedIssue?.id === issue.id;
+    const isCurrentContext = () => requestedWorkspaceId === activeWorkspaceId
+      && requestedToken === token
+      && requestedRepo === repo
+      && requestedState === state
+      && requestedQuery === appliedQuery
+      && requestedLabel === activeLabel;
+    try {
+      await setIssueState(requestedToken, requestedRepo, issue.number, nextState);
+      invalidateCachedIssueList(requestedWorkspaceId);
+      if (!isCurrentContext()) return;
 
-    // 휴지통 이동/복원은 목록에서 즉시 반영하고, GitHub 요청은 뒤에서 처리한다.
-    issues = issues.filter((item) => item.id !== issue.id);
-    if (removedPinnedIssue) {
-      pinnedIssues = pinnedIssues.filter((item) => item.id !== issue.id);
-    }
-    totalIssues = Math.max(0, totalIssues - 1);
-    adjustWorkspaceNoteCount(requestedWorkspaceId, noteCountDelta);
-    if (wasSelected) {
-      selectedIssue = null;
-      if (router.getDepth()) router.popTo(0);
-    }
+      const removedPinnedIssue = pinnedIssues.find((item) => item.id === issue.id);
+      const wasSelected = selectedIssue?.id === issue.id;
 
-    void setIssueState(token, repo, issue.number, nextState)
-      .then(() => {
-        if (nextState === 'open' && hasPinLabel(issue)) {
-          syncPinnedIssue({ ...issue, state: 'open' });
-        }
-        notice = nextState === 'closed'
-          ? ''
-          : $_("m.a480a954e7");
-      })
-      .catch((reason) => {
-        if (!issues.some((item) => item.id === issue.id)) {
-          const insertionIndex = removedIndex < 0 ? issues.length : Math.min(removedIndex, issues.length);
-          issues = [...issues.slice(0, insertionIndex), issue, ...issues.slice(insertionIndex)];
-          totalIssues += 1;
-        }
-        if (removedPinnedIssue && !pinnedIssues.some((item) => item.id === issue.id)) {
-          const insertionIndex = Math.min(pinnedIndex, pinnedIssues.length);
-          pinnedIssues = [
-            ...pinnedIssues.slice(0, insertionIndex),
-            removedPinnedIssue,
-            ...pinnedIssues.slice(insertionIndex)
-          ];
-        }
-        adjustWorkspaceNoteCount(requestedWorkspaceId, -noteCountDelta);
-        error = friendlyError(reason);
-      });
+      issues = issues.filter((item) => item.id !== issue.id);
+      if (removedPinnedIssue) {
+        pinnedIssues = pinnedIssues.filter((item) => item.id !== issue.id);
+      }
+      totalIssues = Math.max(0, totalIssues - 1);
+      adjustWorkspaceNoteCount(requestedWorkspaceId, noteCountDelta);
+      if (wasSelected) {
+        selectedIssue = null;
+        if (router.getDepth()) router.popTo(0);
+      }
+      if (nextState === 'open' && hasPinLabel(issue)) {
+        syncPinnedIssue({ ...issue, state: 'open' });
+      }
+      notice = nextState === 'closed'
+        ? ''
+        : $_("m.a480a954e7");
+    } catch (reason) {
+      if (isCurrentContext()) error = friendlyError(reason);
+    }
   }
 
   function openSettings() {
