@@ -384,7 +384,6 @@ code { color: var(--ui-text-code); }
 body.keyboard-shortcuts-ready .shortcut-hint:has(.shortcut-key.is-available) { opacity: 1; }
 body.keyboard-shortcuts-ready .shortcut-key.is-available { color: var(--ui-accent-shortcut); }
 .sidebar-new-note-shortcut { font-size: .9em; font-weight: 400; }
-.touch-device .sidebar-new-note-shortcut { display: none; }
 .state-tabs { isolation: isolate; display: grid; grid-template-columns: 1fr 1fr; margin-bottom: .5rem; }
 .state-tabs button, .sidebar-search .btn { --bs-btn-color: var(--ui-text-tertiary); --bs-btn-bg: var(--ui-bg-raised); --bs-btn-border-color: var(--ui-border-tabs); --bs-btn-hover-color: var(--ui-text-heading); --bs-btn-hover-bg: var(--ui-border-list); --bs-btn-hover-border-color: var(--ui-border-strong); --bs-btn-active-color: var(--ui-text-heading); --bs-btn-active-bg: var(--ui-border); --bs-btn-active-border-color: var(--ui-border-strong); }
 .state-tabs button:first-child { border-radius: 4px 0 0 4px; }
@@ -625,6 +624,8 @@ html.mode-light .note-row-labels { opacity: 1; }
 *::-webkit-scrollbar-thumb { border-radius: 999px; background: var(--ui-border-strong); }
 
 @media (max-width: 991.98px) {
+  .shortcut-hint,
+  .workspace-shortcut { display: none; }
   .note-workspace { display: block; }
   .sidebar-resize-handle { display: none; }
   .note-sidebar, .note-detail { position: absolute; inset: 0; width: 100%; transition: transform 180ms ease; }
