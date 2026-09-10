@@ -3,6 +3,7 @@
   import { createStackRouter } from 'spa-stack-router';
   import { externalLinkTarget } from './lib/external-links.js';
   import McpGuide from './lib/McpGuide.svelte';
+  import BrailleSpinner from './lib/BrailleSpinner.svelte';
   import NoteEditor from './lib/NoteEditor.svelte';
   import NoteListRow from './lib/NoteListRow.svelte';
   import SetupWizard from './lib/SetupWizard.svelte';
@@ -2415,8 +2416,9 @@
 {#if (appState === 'booting' || appState === 'restoring') && topRoute?.screen !== 'settings'}
   <main class="boot-screen">
     <img class="brand-mark brand-mark-sm" src="./icon.svg" alt="" />
-    <span class="text-secondary small">
+    <span class="boot-loading-message text-secondary small">
       {appState === 'restoring' ? $_("m.dc21c1787a") : $_("m.e5f58095ac")}
+      <BrailleSpinner active />
     </span>
   </main>
 {:else}
