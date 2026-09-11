@@ -2473,10 +2473,6 @@
           >
             <i class="bi bi-github" aria-hidden="true"></i> {$_('dynamic.viewOnGitHub')} <span class="shortcut-hint"><span class="shortcut-key" class:is-available={canUseNoteShortcut('g')}>G</span></span>
           </a>
-          <div class="dropdown-header detail-toolbar-timestamps">
-            <span>{$_('dynamic.createdAt', { values: { date: formatTimestamp(remoteIssue.created_at) } })}</span>
-            <span>{$_('dynamic.updatedAt', { values: { date: formatTimestamp(remoteIssue.updated_at) } })}</span>
-          </div>
           {#if !readOnly}
             <div class="dropdown-divider"></div>
             <button
@@ -2489,6 +2485,11 @@
               {archived ? $_("m.3cbe6d6b9a") : $_("m.f6fdbe48dc")} <span class="shortcut-hint"><span class="shortcut-key" class:is-available={canUseNoteShortcut('delete')}>Delete</span></span>
             </button>
           {/if}
+          <div class="dropdown-divider"></div>
+          <div class="dropdown-header detail-toolbar-timestamps">
+            <span>{$_('dynamic.createdAt', { values: { date: formatTimestamp(remoteIssue.created_at) } })}</span>
+            <span>{$_('dynamic.updatedAt', { values: { date: formatTimestamp(remoteIssue.updated_at) } })}</span>
+          </div>
         {/if}
       </div>
     </div>
