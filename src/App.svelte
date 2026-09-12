@@ -80,6 +80,9 @@
   const DELETE_DELAY_MS = 3000;
   const LONG_PRESS_MOVE_TOLERANCE_PX = 10;
   const ATTACHMENT_PRUNE_INTERVAL_MS = 24 * 60 * 60 * 1000;
+  // 창/탭 전환은 짧은 시간에 focus와 visibilitychange를 모두 일으킬 수 있다.
+  // GitHub API를 중복 호출하지 않도록 활성화 갱신은 이 간격 안에서 한 번만 한다.
+  const ACTIVE_PAGE_REFRESH_COOLDOWN_MS = 30 * 1000;
   const SIDEBAR_LOAD_MORE_THRESHOLD_PX = 160;
   const SIDEBAR_WIDTH_MIN = 200;
   const SIDEBAR_WIDTH_MAX = 600;
@@ -157,6 +160,8 @@
   let themePreference = THEME_DEFAULT;
   let languagePreference = 'auto';
   let backgroundRefreshTimer;
+  let activePageRefreshInFlight = false;
+  let lastActivePageRefreshAt = 0;
   let labelBusy = '';
   let labelMutation = null;
   let labelMutationSequence = 0;
@@ -276,6 +281,8 @@
     document.addEventListener('focusout', scheduleKeyboardShortcutClass);
     window.addEventListener('focus', scheduleKeyboardShortcutClass);
     window.addEventListener('blur', clearKeyboardShortcutClass);
+    window.addEventListener('focus', refreshWhenPageBecomesActive);
+    document.addEventListener('visibilitychange', refreshWhenPageBecomesActive);
     scheduleKeyboardShortcutClass();
     const unsubscribe = router.subscribe((stack) => {
       const targetSignature = stack.map((route) => route.segment).join('/');
@@ -394,6 +401,8 @@
       document.removeEventListener('focusout', scheduleKeyboardShortcutClass);
       window.removeEventListener('focus', scheduleKeyboardShortcutClass);
       window.removeEventListener('blur', clearKeyboardShortcutClass);
+      window.removeEventListener('focus', refreshWhenPageBecomesActive);
+      document.removeEventListener('visibilitychange', refreshWhenPageBecomesActive);
       clearKeyboardShortcutClass();
       unsubscribe();
       router.destroy();
@@ -533,6 +542,39 @@
     backgroundRefreshTimer = setInterval(() => {
       if (appState === 'ready' && topRoute?.screen !== 'settings') loadIssues(true);
     }, backgroundRefreshMinutes * 60 * 1000);
+  }
+
+  function refreshWhenPageBecomesActive() {
+    // visibilitychange는 숨김 상태로 전환될 때도 발생하고, focus는 같은 전환에서
+    // 함께 올 수 있다. 둘 모두 이 함수로 받되 실제 요청은 아래 잠금에서 하나로 합친다.
+    if (document.visibilityState !== 'visible') return;
+    void refreshActivePage();
+  }
+
+  async function refreshActivePage() {
+    if (
+      activePageRefreshInFlight
+      || appState !== 'ready'
+      || topRoute?.screen === 'settings'
+      || Date.now() - lastActivePageRefreshAt < ACTIVE_PAGE_REFRESH_COOLDOWN_MS
+    ) return;
+
+    activePageRefreshInFlight = true;
+    lastActivePageRefreshAt = Date.now();
+    try {
+      // 목록은 화면을 막지 않고 최신 항목과 태그 상태를 합친다. 열린 노트는
+      // 목록 응답만으로 본문을 교체하지 않으므로 별도 조회 요청을 보낸다.
+      await loadIssues(true);
+      const issueNumber = selectedIssue?.local ? null : selectedIssue?.number;
+      if (issueNumber) {
+        issueRefreshRequests = {
+          ...issueRefreshRequests,
+          [issueNumber]: ++issueRefreshSequence
+        };
+      }
+    } finally {
+      activePageRefreshInFlight = false;
+    }
   }
 
   function loadSidebarWidth() {
