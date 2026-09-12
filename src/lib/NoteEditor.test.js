@@ -957,6 +957,22 @@ describe('NoteEditor 마크다운 프리뷰와 단축키', () => {
     expect(onMove).toHaveBeenCalledWith(issue);
     expect(issueLinkSpy).toHaveBeenCalledTimes(1);
   });
+
+  it('E는 음성 녹음을 열고 X는 치환 패널을 연다', async () => {
+    const onVoiceRecording = vi.fn();
+    render(NoteEditor, {
+      token: 't',
+      repo: 'owner/repo',
+      issue: baseIssue,
+      onVoiceRecording
+    });
+
+    dispatchShortcut('e', 'KeyE');
+    expect(onVoiceRecording).toHaveBeenCalledWith(baseIssue);
+
+    dispatchShortcut('x', 'KeyX');
+    await waitFor(() => expect(document.querySelector('.replace-panel')).toBeTruthy());
+  });
 });
 
 describe('NoteEditor 첨부 파일', () => {

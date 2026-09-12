@@ -2,7 +2,7 @@
   import { onMount, onDestroy } from 'svelte';
   import { transcribeAudio, refineTranscript } from './openai-voice.js';
 
-  let { apiKey, refinementPrompt = '', transcriptionModel = 'whisper-1', refinementModel = 'gpt-4o-mini', onComplete, onClose, onDirtyChange = () => {} } = $props();
+  let { apiKey, refinementPrompt = '', transcriptionModel = 'gpt-4o-transcribe', refinementModel = 'gpt-4o-mini', onComplete, onClose, onDirtyChange = () => {} } = $props();
   let recorder;
   let stream;
   let audioContext;
@@ -58,7 +58,7 @@
     try {
       await ensureMicrophone();
       if (audioContext?.state === 'suspended') await audioContext.resume();
-      status = '녹음 버튼을 눌러 시작하세요.';
+      status = '녹음을 시작하는 중…';
     } catch (reason) {
       error = reason?.name === 'NotAllowedError'
         ? '마이크 권한이 필요합니다. 브라우저 또는 시스템 설정에서 마이크를 허용해 주세요.'
@@ -66,6 +66,7 @@
       status = '마이크를 사용할 수 없습니다.';
     } finally {
       preparing = false;
+      if (!error) void startRecording();
     }
   }
 
