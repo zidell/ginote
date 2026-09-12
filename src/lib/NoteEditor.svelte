@@ -83,6 +83,7 @@
   export let onVoiceRecording = () => {};
   export let voiceComment = null;
   export let voiceBody = null;
+  export let onVoiceBodyHandled = () => {};
   export let onBack = () => {};
   export let pinned = false;
   export let pinDisabled = false;
@@ -270,6 +271,9 @@
     if (voiceBody.issueNumber === remoteIssue?.number) {
       body = body.trim() ? `${body.trimEnd()}\n\n${voiceBody.body}` : voiceBody.body;
       changed();
+      // 부모가 이벤트를 소비했다고 표시해야 이 편집기가 다시 마운트되어도
+      // 같은 음성 본문을 한 번 더 덧붙이지 않는다.
+      onVoiceBodyHandled(voiceBody.id);
     }
   }
 

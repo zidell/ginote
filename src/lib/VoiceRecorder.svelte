@@ -169,7 +169,8 @@
       const transcript = await transcribeAudio(apiKey, audio, transcriptionModel, abortController.signal);
       if (!transcript) throw new Error('음성에서 텍스트를 찾지 못했습니다.');
       let body = transcript;
-      if (refinementPrompt.trim()) {
+      // 모델을 고른 경우에만, 화면에서 편집 가능한 정제 프롬프트를 적용한다.
+      if (refinementModel.trim()) {
         status = '텍스트를 정제하는 중…';
         body = await refineTranscript(apiKey, transcript, refinementPrompt, refinementModel, abortController.signal);
       }
@@ -201,6 +202,7 @@
           bind:this={recordButton}
           class="voice-record-button"
           class:is-recording={recording}
+          class:is-processing={processing}
           aria-label={recording ? '녹음 중지' : '녹음 시작'}
           title={recording ? '녹음 중지' : '녹음 시작'}
           onclick={recording ? stopRecording : startRecording}
