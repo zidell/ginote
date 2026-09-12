@@ -270,8 +270,10 @@
 
   onMount(() => {
     const touchMedia = matchMedia('(pointer: coarse)');
-    const desktopMedia = matchMedia('(min-width: 992px)');
-    const updateTouchDevice = () => touchDevice = touchMedia.matches;
+    const updateTouchDevice = () => {
+      touchDevice = touchMedia.matches;
+      scheduleKeyboardShortcutClass();
+    };
     updateTouchDevice();
     touchMedia.addEventListener('change', updateTouchDevice);
     sidebarWidth = loadSidebarWidth();
@@ -284,7 +286,6 @@
     window.addEventListener('blur', clearKeyboardShortcutClass);
     window.addEventListener('focus', refreshWhenPageBecomesActive);
     document.addEventListener('visibilitychange', refreshWhenPageBecomesActive);
-    desktopMedia.addEventListener('change', scheduleKeyboardShortcutClass);
     scheduleKeyboardShortcutClass();
     const unsubscribe = router.subscribe((stack) => {
       const targetSignature = stack.map((route) => route.segment).join('/');
@@ -397,7 +398,6 @@
       clearTimeout(toastTimer);
       clearTimeout(pendingIssueDeletionTimer);
       touchMedia.removeEventListener('change', updateTouchDevice);
-      desktopMedia.removeEventListener('change', scheduleKeyboardShortcutClass);
       window.removeEventListener('keydown', handleGlobalKeydown);
       window.removeEventListener('paste', handleGlobalPaste);
       document.removeEventListener('focusin', scheduleKeyboardShortcutClass);
@@ -1530,7 +1530,7 @@
     keyboardShortcutFocusFrame = 0;
     document.body?.classList.toggle(
       'keyboard-shortcuts-ready',
-      matchMedia('(min-width: 992px)').matches && hasNoInteractiveFocus()
+      !touchDevice && hasNoInteractiveFocus()
     );
   }
 
