@@ -2912,7 +2912,7 @@
                   <div class="col-sm-6">
                     <label class="form-label" for="voice-transcription-model">음성 전사 모델</label>
                     <a class="form-label ms-2 text-decoration-underline" href="https://platform.openai.com/docs/models" target="_blank" rel="noopener noreferrer">공식문서</a>
-                    <input id="voice-transcription-model" class="form-control" type="text" placeholder="gpt-4o-transcribe" bind:value={voiceTranscriptionModel} on:change={persistVoiceSettings} />
+                    <input id="voice-transcription-model" class="form-control" type="text" placeholder="gpt-transcribe" bind:value={voiceTranscriptionModel} on:change={persistVoiceSettings} />
                   </div>
                   <div class="col-sm-6">
                     <label class="form-label" for="voice-refinement-model">텍스트 정제 모델</label>
