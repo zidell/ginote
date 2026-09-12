@@ -13,10 +13,15 @@
   import VoiceRecorder from './lib/VoiceRecorder.svelte';
   import {
     DEFAULT_REFINEMENT_MODEL,
+    DEFAULT_REFINEMENT_PROMPT,
     DEFAULT_TRANSCRIPTION_MODEL,
+    isDatedModelSnapshot,
     loadVoiceSettings,
-    saveVoiceSettings
+    loadVoiceModelLists,
+    saveVoiceSettings,
+    saveVoiceModelLists
   } from './lib/voice-settings.js';
+  import { listAvailableVoiceModels } from './lib/openai-voice.js';
   import { tagColorForName } from './lib/colors.js';
   import {
     CODING_FONT_OPTIONS,
@@ -181,6 +186,7 @@
   let toastSequence = 0;
   let pendingIssueDeletion = null;
   let pendingIssueDeletionTimer;
+  let pendingIssueDeletionInFlight = false;
   let pinBusyIssueNumber = null;
   let pendingPinMutation = null;
   let nextPinMutationId = 0;
@@ -214,9 +220,15 @@
   let keyboardShortcutFocusFrame;
   let voiceApiKey = '';
   let voiceApiKeyEditing = false;
-  let voiceRefinementPrompt = '';
+  let voiceRefinementPrompt = DEFAULT_REFINEMENT_PROMPT;
   let voiceTranscriptionModel = DEFAULT_TRANSCRIPTION_MODEL;
   let voiceRefinementModel = DEFAULT_REFINEMENT_MODEL;
+  let voiceModelLists = { transcription: [], refinement: [] };
+  let voiceModelsRefreshing = false;
+  let voiceModelsError = '';
+  let voiceModelsRefreshTimer;
+  let voiceModelsAbortController;
+  let fetchedVoiceApiKey = '';
   let openVoiceAfterSettings = false;
   let focusVoiceSettingsAfterOpen = false;
   let voiceSettingsHighlighted = false;
@@ -318,6 +330,12 @@
     window.addEventListener('blur', clearKeyboardShortcutClass);
     window.addEventListener('focus', refreshWhenPageBecomesActive);
     document.addEventListener('visibilitychange', refreshWhenPageBecomesActive);
+    // iOS의 엣지 스와이프는 라우터가 스택을 갱신하기 전에 기존 textarea의
+    // 포커스를 복원할 수 있다. 제스처 시작과 history 이벤트에서 먼저 blur해
+    // 뒤로 가는 순간 가상 키보드가 잠깐 나타나는 것을 막는다.
+    window.addEventListener('popstate', blurFocusedTextControl);
+    window.addEventListener('hashchange', blurFocusedTextControl);
+    document.addEventListener('touchstart', blurForEdgeBackSwipe, true);
     scheduleKeyboardShortcutClass();
     const unsubscribe = router.subscribe((stack) => {
       const targetSignature = stack.map((route) => route.segment).join('/');
@@ -407,6 +425,7 @@
       transcriptionModel: voiceTranscriptionModel,
       refinementModel: voiceRefinementModel
     } = loadVoiceSettings());
+    voiceModelLists = loadVoiceModelLists();
     if (settingsDocument) {
       workspaces = settingsDocument.workspaces;
       activeWorkspaceId = settingsDocument.activeWorkspaceId;
@@ -463,6 +482,11 @@
       window.removeEventListener('blur', clearKeyboardShortcutClass);
       window.removeEventListener('focus', refreshWhenPageBecomesActive);
       document.removeEventListener('visibilitychange', refreshWhenPageBecomesActive);
+      window.removeEventListener('popstate', blurFocusedTextControl);
+      window.removeEventListener('hashchange', blurFocusedTextControl);
+      document.removeEventListener('touchstart', blurForEdgeBackSwipe, true);
+      clearTimeout(voiceModelsRefreshTimer);
+      voiceModelsAbortController?.abort();
       clearKeyboardShortcutClass();
       unsubscribe();
       router.destroy();
@@ -586,6 +610,11 @@
       transcriptionModel: voiceTranscriptionModel,
       refinementModel: voiceRefinementModel
     });
+  }
+
+  function restoreDefaultVoiceRefinementPrompt() {
+    voiceRefinementPrompt = DEFAULT_REFINEMENT_PROMPT;
+    persistVoiceSettings();
   }
 
   function persistSettings(normalizedRepo) {
@@ -1383,7 +1412,7 @@
       }
 
       event.preventDefault();
-      if (pendingIssueDeletion) {
+      if (pendingIssueDeletion && !pendingIssueDeletionInFlight) {
         cancelPendingIssueDeletion();
         return;
       }
@@ -1909,8 +1938,8 @@
     selectNote(issue);
   }
 
-  function clearIssueSelection() {
-    cancelPendingIssueDeletion();
+  function clearIssueSelection({ preservePendingDeletion = false } = {}) {
+    if (!preservePendingDeletion) cancelPendingIssueDeletion(true);
     cancelIssueLongPress();
     closeSelectionTagPanel();
     selectedIssueIds = new Set();
@@ -1936,11 +1965,19 @@
     return focusedIssue && !focusedIssue.local ? [focusedIssue] : [];
   }
 
-  function cancelPendingIssueDeletion() {
+  function cancelPendingIssueDeletion(force = false) {
     if (!pendingIssueDeletion) return;
+    if (pendingIssueDeletionInFlight && !force) return;
     clearTimeout(pendingIssueDeletionTimer);
     pendingIssueDeletionTimer = null;
     pendingIssueDeletion = null;
+    pendingIssueDeletionInFlight = false;
+  }
+
+  function settlePendingIssueDeletion(issueId) {
+    if (!pendingIssueDeletionInFlight || !pendingIssueDeletion) return;
+    pendingIssueDeletion = pendingIssueDeletion.filter((issue) => issue.id !== issueId);
+    if (!pendingIssueDeletion.length) pendingIssueDeletionInFlight = false;
   }
 
   function moveIssues(issuesToMove) {
@@ -1952,21 +1989,22 @@
     if (state === 'open') {
       // 타이머가 도는 동안 목록이 갱신돼도 대상이 섞이지 않도록 현재 이동 대상을 보관한다.
       pendingIssueDeletion = [...issuesToMove];
+      pendingIssueDeletionInFlight = false;
       pendingIssueDeletionTimer = setTimeout(() => {
         const movedIssues = pendingIssueDeletion;
-        pendingIssueDeletion = null;
         pendingIssueDeletionTimer = null;
-        moveIssuesImmediately(movedIssues);
+        pendingIssueDeletionInFlight = true;
+        moveIssuesImmediately(movedIssues, { preservePendingDeletion: true });
       }, DELETE_DELAY_MS);
       return;
     }
     moveIssuesImmediately(issuesToMove);
   }
 
-  function moveIssuesImmediately(issuesToMove) {
+  function moveIssuesImmediately(issuesToMove, { preservePendingDeletion = false } = {}) {
     const nextState = state === 'open' ? 'closed' : 'open';
     const movedIssues = issuesToMove;
-    clearIssueSelection();
+    clearIssueSelection({ preservePendingDeletion });
     for (const issue of movedIssues) moveIssue(issue, nextState, { confirmAction: false });
   }
 
@@ -2476,6 +2514,9 @@
     const requestedQuery = appliedQuery;
     const requestedLabel = activeLabel;
     const noteCountDelta = nextState === 'open' ? 1 : -1;
+    const shouldSettlePendingDeletion = nextState === 'closed'
+      && pendingIssueDeletionInFlight
+      && pendingIssueDeletion?.some((item) => item.id === issue.id);
     const isCurrentContext = () => requestedWorkspaceId === activeWorkspaceId
       && requestedToken === token
       && requestedRepo === repo
@@ -2508,6 +2549,8 @@
         : $_("m.a480a954e7");
     } catch (reason) {
       if (isCurrentContext()) error = friendlyError(reason);
+    } finally {
+      if (shouldSettlePendingDeletion) settlePendingIssueDeletion(issue.id);
     }
   }
 
@@ -2574,8 +2617,73 @@
   }
 
   function handleVoiceApiKeyInput(event) {
+    const previousKey = voiceApiKey.trim();
     voiceApiKey = event.currentTarget.value;
     persistVoiceSettings();
+    if (voiceApiKey.trim() && voiceApiKey.trim() !== previousKey) {
+      scheduleVoiceModelRefresh();
+    }
+  }
+
+  function blurFocusedTextControl() {
+    const active = document.activeElement;
+    if (!(active instanceof HTMLElement)) return;
+    const isTextControl = active.matches('textarea, input:not([type]), input[type="text"], input[type="search"], input[type="password"], [contenteditable="true"]');
+    if (isTextControl) active.blur();
+  }
+
+  function blurForEdgeBackSwipe(event) {
+    if (!touchDevice || event.touches?.[0]?.clientX > 24) return;
+    blurFocusedTextControl();
+  }
+
+  function classifyVoiceModels(modelIds) {
+    const sorted = [...new Set(modelIds.filter((id) => !isDatedModelSnapshot(id)))]
+      .sort((left, right) => left.localeCompare(right));
+    return {
+      transcription: sorted.filter((id) => /(?:^|-)transcribe(?:-|$)|^whisper-/.test(id)),
+      // chat/completions로 정제할 수 있는 범용 텍스트 계열만 보여 준다.
+      refinement: sorted.filter((id) => /^(gpt-(?:4|5)|o[1-4])/.test(id)
+        && !/(audio|realtime|transcribe|tts|image|moderation|embedding)/.test(id))
+    };
+  }
+
+  async function refreshVoiceModelLists() {
+    const apiKey = voiceApiKey.trim();
+    if (!apiKey || voiceModelsRefreshing) return;
+    voiceModelsAbortController?.abort();
+    voiceModelsAbortController = new AbortController();
+    voiceModelsRefreshing = true;
+    voiceModelsError = '';
+    try {
+      const lists = classifyVoiceModels(await listAvailableVoiceModels(apiKey, voiceModelsAbortController.signal));
+      // 선택 중인 모델이 목록에서 사라져도 설정값을 조용히 바꾸지 않는다.
+      if (!isDatedModelSnapshot(voiceTranscriptionModel)
+        && voiceTranscriptionModel && !lists.transcription.includes(voiceTranscriptionModel)) {
+        lists.transcription.push(voiceTranscriptionModel);
+      }
+      if (!isDatedModelSnapshot(voiceRefinementModel)
+        && voiceRefinementModel && !lists.refinement.includes(voiceRefinementModel)) {
+        lists.refinement.push(voiceRefinementModel);
+      }
+      lists.transcription.sort((left, right) => left.localeCompare(right));
+      lists.refinement.sort((left, right) => left.localeCompare(right));
+      voiceModelLists = lists;
+      saveVoiceModelLists(lists);
+      fetchedVoiceApiKey = apiKey;
+    } catch (reason) {
+      if (reason?.name !== 'AbortError') voiceModelsError = reason?.message || '모델 목록을 가져오지 못했습니다.';
+    } finally {
+      if (voiceModelsAbortController?.signal.aborted === false) voiceModelsAbortController = null;
+      voiceModelsRefreshing = false;
+    }
+  }
+
+  function scheduleVoiceModelRefresh() {
+    const apiKey = voiceApiKey.trim();
+    if (!apiKey || apiKey === fetchedVoiceApiKey) return;
+    clearTimeout(voiceModelsRefreshTimer);
+    voiceModelsRefreshTimer = setTimeout(() => void refreshVoiceModelLists(), 600);
   }
 
   async function focusVoiceSettings() {
@@ -2587,27 +2695,28 @@
   }
 
   async function recordVoiceNote(body) {
+    const normalizedBody = normalizeVoiceParagraphs(body);
     const requestedWorkspaceId = activeWorkspaceId;
     const requestedToken = token;
     const requestedRepo = repo;
     const destination = voiceRecordingDestination;
     voiceRecordingDestination = null;
     if (destination?.type === 'body' && destination.issueNumber) {
-      voiceBody = { id: ++voiceBodySequence, issueNumber: destination.issueNumber, body };
+      voiceBody = { id: ++voiceBodySequence, issueNumber: destination.issueNumber, body: normalizedBody };
       allowVoiceRouteExit = true;
       router.pop();
       return;
     }
     if (destination?.type === 'comment' && destination.issueNumber) {
-      const comment = await createIssueComment(requestedToken, requestedRepo, destination.issueNumber, body);
+      const comment = await createIssueComment(requestedToken, requestedRepo, destination.issueNumber, normalizedBody);
       if (requestedWorkspaceId !== activeWorkspaceId || requestedToken !== token || requestedRepo !== repo) return;
       voiceComment = { id: ++voiceCommentSequence, issueNumber: destination.issueNumber, comment };
       allowVoiceRouteExit = true;
       router.pop();
       return;
     }
-    const title = body.replace(/\s+/g, ' ').trim().slice(0, 50) || '음성 기록';
-    const created = await createIssue(requestedToken, requestedRepo, { title, body, labels: [] });
+    const title = normalizedBody.replace(/\s+/g, ' ').trim().slice(0, 50) || '음성 기록';
+    const created = await createIssue(requestedToken, requestedRepo, { title, body: normalizedBody, labels: [] });
     if (requestedWorkspaceId !== activeWorkspaceId || requestedToken !== token || requestedRepo !== repo) return;
     invalidateCachedIssueList(activeWorkspaceId);
     state = 'open';
@@ -2618,6 +2727,14 @@
     totalIssues += 1;
     adjustWorkspaceNoteCount(activeWorkspaceId, 1);
     router.navigate(`/note.${created.number}`);
+  }
+
+  function normalizeVoiceParagraphs(body) {
+    return String(body || '').replace(/\r\n?/g, '\n').replace(/\n+/g, '\n\n').trim();
+  }
+
+  function voiceBodyHandled(id) {
+    if (voiceBody?.id === id) voiceBody = null;
   }
 
   function closeSettings() {
@@ -2901,26 +3018,48 @@
                 <div class="settings-help-note">녹음과 전사문은 OpenAI로 직접 전송됩니다. 키는 이 기기의 localStorage에 평문으로 저장되므로 전용 프로젝트 키·사용 한도·정기 교체를 권장합니다.</div>
                 <div class="row g-2 mt-2">
                   <div class="col-sm-6">
-                    <label class="form-label" for="voice-transcription-model">음성 전사 모델</label>
-                    <a class="form-label ms-2 text-decoration-underline" href="https://platform.openai.com/docs/models" target="_blank" rel="noopener noreferrer">공식문서</a>
-                    <input id="voice-transcription-model" class="form-control" type="text" placeholder="gpt-transcribe" bind:value={voiceTranscriptionModel} on:change={persistVoiceSettings} />
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                      <label class="form-label mb-0" for="voice-transcription-model">음성 전사 모델</label>
+                      <button type="button" class="btn btn-link p-0 voice-label-action" on:click={refreshVoiceModelLists} disabled={!voiceApiKey.trim() || voiceModelsRefreshing} title="모델 목록 새로고침" aria-label="모델 목록 새로고침">
+                        <i class:spin={voiceModelsRefreshing} class="bi bi-arrow-clockwise" aria-hidden="true"></i>
+                      </button>
+                    </div>
+                    <select id="voice-transcription-model" class="form-select" bind:value={voiceTranscriptionModel} on:change={persistVoiceSettings}>
+                      {#each voiceModelLists.transcription as model}
+                        <option value={model}>{model}</option>
+                      {/each}
+                    </select>
                   </div>
                   <div class="col-sm-6">
-                    <label class="form-label" for="voice-refinement-model">텍스트 정제 모델</label>
-                    <a class="form-label ms-2 text-decoration-underline" href="https://platform.openai.com/docs/models" target="_blank" rel="noopener noreferrer">공식문서</a>
-                    <input id="voice-refinement-model" class="form-control" type="text" placeholder="gpt-4o-mini" bind:value={voiceRefinementModel} on:change={persistVoiceSettings} />
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                      <label class="form-label mb-0" for="voice-refinement-model">텍스트 정제 모델</label>
+                      <button type="button" class="btn btn-link p-0 voice-label-action" on:click={refreshVoiceModelLists} disabled={!voiceApiKey.trim() || voiceModelsRefreshing} title="모델 목록 새로고침" aria-label="모델 목록 새로고침">
+                        <i class:spin={voiceModelsRefreshing} class="bi bi-arrow-clockwise" aria-hidden="true"></i>
+                      </button>
+                    </div>
+                    <select id="voice-refinement-model" class="form-select" bind:value={voiceRefinementModel} on:change={persistVoiceSettings}>
+                      <option value="">없음</option>
+                      {#each voiceModelLists.refinement as model}
+                        <option value={model}>{model}</option>
+                      {/each}
+                    </select>
                   </div>
                 </div>
-                <label class="form-label mt-3" for="voice-refinement-prompt">정제 프롬프트</label>
-                <input
-                  id="voice-refinement-prompt"
-                  class="form-control"
-                  type="text"
-                  maxlength="1000"
-                  placeholder="예: 회의 용어와 고유명사를 정확히 정정해 주세요."
-                  bind:value={voiceRefinementPrompt}
-                  on:input={persistVoiceSettings}
-                />
+                {#if voiceModelsError}<div class="text-danger small mt-2" role="alert">{voiceModelsError}</div>{/if}
+                {#if voiceRefinementModel.trim()}
+                  <div class="d-flex align-items-center justify-content-between mt-3 mb-2">
+                    <label class="form-label mb-0" for="voice-refinement-prompt">정제 규칙</label>
+                    <button type="button" class="btn btn-link p-0 voice-label-action voice-default-action" on:click={restoreDefaultVoiceRefinementPrompt}>기본값</button>
+                  </div>
+                  <textarea
+                    id="voice-refinement-prompt"
+                    class="form-control"
+                    rows="5"
+                    maxlength="1000"
+                    bind:value={voiceRefinementPrompt}
+                    on:input={persistVoiceSettings}
+                  ></textarea>
+                {/if}
               </fieldset>
 
           </div>
@@ -3238,6 +3377,7 @@
               onVoiceRecording={(issue) => openVoiceRecording(issue)}
               {voiceComment}
               {voiceBody}
+              onVoiceBodyHandled={voiceBodyHandled}
               onBack={() => router.pop()}
             />
             {#if state === 'open' && pendingIssueDeletionIds.has(routeIssue?.id)}
@@ -3281,7 +3421,7 @@
     apiKey={voiceApiKey}
     refinementPrompt={voiceRefinementPrompt}
     transcriptionModel={voiceTranscriptionModel.trim() || DEFAULT_TRANSCRIPTION_MODEL}
-    refinementModel={voiceRefinementModel.trim() || DEFAULT_REFINEMENT_MODEL}
+    refinementModel={voiceRefinementModel.trim()}
     onComplete={recordVoiceNote}
     onDirtyChange={(dirty) => voiceHasUnrecordedAudio = dirty}
     onClose={() => { allowVoiceRouteExit = true; router.pop(); }}

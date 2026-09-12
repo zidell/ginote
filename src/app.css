@@ -327,6 +327,10 @@ button, input, textarea { font: inherit; }
 .tag-settings-row .btn { white-space: nowrap; }
 code { color: var(--ui-text-code); }
 .mcp-prompt { min-height: 8rem; resize: vertical; line-height: 1.55; }
+.voice-label-action { color: var(--bs-secondary-color); font-size: inherit; line-height: inherit; text-decoration: none; }
+.voice-default-action { font-size: .75rem; }
+.voice-label-action:hover, .voice-label-action:focus-visible { color: var(--bs-body-color); text-decoration: underline; }
+.voice-label-action:disabled { color: var(--bs-secondary-color); opacity: .5; text-decoration: none; }
 
 .app-shell { height: 100%; overflow: hidden; background: var(--ui-bg-app); }
 .avatar { width: 100%; height: 100%; border-radius: 50%; }
@@ -405,12 +409,14 @@ code { color: var(--ui-text-code); }
 .voice-record-button:focus-visible { outline: 3px solid var(--ui-focus); outline-offset: 4px; }
 .voice-record-button.is-recording { background: #dc2626; box-shadow: 0 0 0 8px rgba(220, 38, 38, .16), 0 5px 16px rgba(220, 38, 38, .32); }
 .voice-record-button:disabled { cursor: not-allowed; }
+/* 완료 뒤 전송/전사 중에는 녹음 상태가 아니라 비활성 상태임을 분명히 한다. */
+.voice-record-button.is-processing, .voice-record-button.is-processing:disabled { color: var(--ui-text-faint); background: var(--ui-border-strong); box-shadow: none; }
 .voice-footer { display: flex; justify-content: center; padding: 1rem 1.5rem 1.5rem; border-top: 1px solid var(--ui-border); }
 .voice-footer .btn { min-width: 140px; }
 .shortcut-hint { margin-left: 0; display: none; align-items: center; opacity: .6; font-size: .85em; font-weight: 600; line-height: 1; vertical-align: middle; white-space: nowrap; transition: color 120ms ease, opacity 120ms ease; }
+.shortcut-key { color: inherit; line-height: 1; text-transform: uppercase; }
 body.keyboard-shortcuts-ready .shortcut-hint { display: inline-flex; }
 body.keyboard-shortcuts-ready .workspace-shortcut { display: inline-block; }
-.shortcut-key { color: inherit; line-height: 1; text-transform: uppercase; }
 body.keyboard-shortcuts-ready .shortcut-hint:has(.shortcut-key.is-available) { opacity: 1; }
 body.keyboard-shortcuts-ready .shortcut-key.is-available { color: var(--ui-accent-shortcut); }
 .sidebar-new-note-shortcut { font-size: .9em; font-weight: 400; }
@@ -494,7 +500,8 @@ html.mode-light .note-row-labels { opacity: 1; }
 .note-detail-layer.active { visibility: visible; pointer-events: auto; }
 .note-deletion-overlay { position: absolute; z-index: 10; inset: 0; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: .55rem; color: var(--ui-text-heading); background: var(--ui-api-mask); font-size: .9rem; pointer-events: auto; }
 .note-deletion-overlay .braille-spinner { font-size: 1.25rem; }
-.note-deletion-cancel { margin-top: .3rem; }
+.note-deletion-cancel, .attachment-cancel-delete { margin-top: .3rem; padding: 0; border: 0; color: var(--ui-text-body); background: transparent; font-size: inherit; text-decoration: underline; }
+.note-deletion-cancel:hover, .note-deletion-cancel:focus-visible, .attachment-cancel-delete:hover, .attachment-cancel-delete:focus-visible { color: var(--ui-text-emphasis); }
 .detail-toolbar { position: relative; min-height: 46px; display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding: .4375rem .85rem; border-bottom: 1px solid var(--ui-border-divider); color: var(--ui-text-subtle); font-size: .8rem; }
 .detail-toolbar-start, .detail-toolbar-actions { min-width: 0; display: flex; align-items: center; gap: .5rem; }
 .detail-toolbar-start { white-space: nowrap; }
@@ -560,8 +567,6 @@ html.mode-light .note-row-labels { opacity: 1; }
 .attachment-pending-delete { position: absolute; z-index: 2; inset: 0; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: .3rem; padding: .35rem; color: var(--ui-text-body); background: var(--ui-button-mask); font-size: .7rem; text-align: center; }
 .attachment-spinner { display: inline-flex; align-items: center; justify-content: center; min-width: 1rem; min-height: 1rem; font-size: 1rem; line-height: 1; }
 .attachment-spinner .braille-spinner { width: 1ch; flex: none; font-size: inherit; }
-.attachment-cancel-delete { padding: .15rem .45rem; border: 1px solid var(--ui-border-strong); border-radius: 3px; color: var(--ui-text-heading); background: var(--ui-bg-raised); font-size: .72rem; }
-.attachment-cancel-delete:hover { color: var(--ui-text-emphasis); border-color: var(--ui-border-focus); }
 .attachment-open { width: 100%; height: 100%; display: block; padding: 0; border: 0; color: var(--ui-text-icon); text-align: left; background: transparent; }
 .attachment-open img, .attachment-loading, .attachment-file-icon { width: 100%; height: 68px; display: grid; place-items: center; object-fit: cover; color: var(--ui-text-faint); background: var(--ui-bg-media); font-size: .65rem; }
 .attachment-name { display: block; overflow: hidden; padding: .3rem .4rem; font-size: .68rem; text-overflow: ellipsis; white-space: nowrap; }
