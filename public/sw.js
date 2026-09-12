@@ -1,18 +1,22 @@
-const CACHE_NAME = 'ginote-v4';
+const CACHE_NAME = 'ginote-v5';
 
 function appUrl(path) {
   return new URL(path, self.registration.scope).href;
 }
 
-function fetchAndCache(request) {
-  const fetched = fetch(request);
-  const cacheUpdate = fetched.then((response) => {
-    if (!response.ok) return;
-    const copy = response.clone();
-    return caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
-  });
+async function fetchAndCache(request) {
+  const response = await fetch(request);
 
-  return { fetched, cacheUpdate };
+  if (response.ok) {
+    try {
+      const cache = await caches.open(CACHE_NAME);
+      await cache.put(request, response.clone());
+    } catch {
+      // A cache write must never make a successful network response fail.
+    }
+  }
+
+  return response;
 }
 
 self.addEventListener('install', (event) => {
@@ -46,10 +50,8 @@ self.addEventListener('fetch', (event) => {
   if (request.method !== 'GET' || url.origin !== self.location.origin) return;
 
   if (request.mode === 'navigate') {
-    const { fetched, cacheUpdate } = fetchAndCache(request);
-    event.waitUntil(cacheUpdate.catch(() => {}));
     event.respondWith(
-      fetched
+      fetchAndCache(request)
         .catch(async () => (
           await caches.match(request)
           || await caches.match(appUrl('./index.html'))
@@ -59,9 +61,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  const { fetched, cacheUpdate } = fetchAndCache(request);
-  event.waitUntil(cacheUpdate.catch(() => {}));
   event.respondWith(
-    caches.match(request).then((cached) => cached || fetched)
+    caches.match(request).then((cached) => cached || fetchAndCache(request))
   );
 });
