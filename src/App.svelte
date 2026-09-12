@@ -3024,6 +3024,19 @@
                 : moveIssue(issue, 'open')}
               onBack={() => router.pop()}
             />
+            {#if state === 'open' && pendingIssueDeletionIds.has(routeIssue?.id)}
+              <div class="note-deletion-overlay" role="status" aria-live="polite">
+                <BrailleSpinner active />
+                <span>{$_('dynamic.attachmentDeleting')}</span>
+                {#if !pendingIssueDeletionInFlight}
+                  <button
+                    type="button"
+                    class="btn btn-sm btn-outline-secondary note-deletion-cancel"
+                    on:click={cancelPendingIssueDeletion}
+                  >{$_('setup.cancel')}</button>
+                {/if}
+              </div>
+            {/if}
             </div>
             {/if}
           {/each}

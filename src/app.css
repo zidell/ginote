@@ -464,6 +464,7 @@ html.mode-light .note-row-labels { opacity: 1; }
 .note-detail { position: relative; min-width: 0; height: 100%; overflow: hidden; background: var(--ui-bg-app); }
 .note-detail-layer { position: absolute; inset: 0; visibility: hidden; pointer-events: none; }
 .note-detail-layer.active { visibility: visible; pointer-events: auto; }
+.note-deletion-overlay { display: none; }
 .detail-toolbar { position: relative; min-height: 46px; display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding: .4375rem .85rem; border-bottom: 1px solid var(--ui-border-divider); color: var(--ui-text-subtle); font-size: .8rem; }
 .detail-toolbar-start, .detail-toolbar-actions { min-width: 0; display: flex; align-items: center; gap: .5rem; }
 .detail-toolbar-start { white-space: nowrap; }
@@ -639,6 +640,9 @@ html.mode-light .note-row-labels { opacity: 1; }
   .note-detail { z-index: 2; transform: translateX(100%); }
   .mobile-detail-active .note-sidebar { transform: translateX(0); }
   .mobile-detail-active .note-detail { transform: translateX(0); }
+  .note-deletion-overlay { position: absolute; z-index: 10; inset: 0; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: .55rem; color: var(--ui-text-heading); background: var(--ui-api-mask); font-size: .9rem; pointer-events: auto; }
+  .note-deletion-overlay .braille-spinner { font-size: 1.25rem; }
+  .note-deletion-cancel { margin-top: .3rem; }
   .detail-toolbar-start .mobile-back { display: inline-flex; align-items: center; gap: .3rem; }
   .detail-toolbar-start .mobile-back-label { display: none; }
   .sidebar-heading, .detail-toolbar { min-height: 64px; padding-top: .75rem; padding-bottom: .75rem; }
