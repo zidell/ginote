@@ -397,7 +397,7 @@ code { color: var(--ui-text-code); }
 .voice-record-button:hover:not(:disabled) { background: #b91c1c; box-shadow: 0 5px 16px rgba(185, 28, 28, .32); transform: scale(1.05); }
 .voice-record-button:focus-visible { outline: 3px solid var(--ui-focus); outline-offset: 4px; }
 .voice-record-button.is-recording { background: #dc2626; box-shadow: 0 0 0 8px rgba(220, 38, 38, .16), 0 5px 16px rgba(220, 38, 38, .32); }
-.voice-record-button:disabled { opacity: .55; cursor: not-allowed; }
+.voice-record-button:disabled { cursor: not-allowed; }
 .voice-footer { display: flex; justify-content: center; padding: 1rem 1.5rem 1.5rem; border-top: 1px solid var(--ui-border); }
 .voice-footer .btn { min-width: 140px; }
 .shortcut-hint { margin-left: 0; display: none; align-items: center; opacity: .6; font-size: .85em; font-weight: 600; line-height: 1; vertical-align: middle; white-space: nowrap; transition: color 120ms ease, opacity 120ms ease; }
