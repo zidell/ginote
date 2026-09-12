@@ -2516,12 +2516,6 @@
     router.push('settings');
   }
 
-  function closeSettings() {
-    router.pop();
-  }
-
-  function openHelp(topic) {
-    if (!HELP_TOPICS.has(topic)) return;
   function openVoiceRecording() {
     if (pendingNote || selectionMode) return;
     if (!voiceApiKey.trim()) {
@@ -2581,6 +2575,12 @@
     router.navigate(`/note.${created.number}`);
   }
 
+  function closeSettings() {
+    router.pop();
+  }
+
+  function openHelp(topic) {
+    if (!HELP_TOPICS.has(topic)) return;
     router.push(`help.${topic}`);
   }
 
@@ -2836,12 +2836,6 @@
               </div>
               </fieldset>
 
-          </div>
-        </div>
-      </div>
-    </section>
-  </main>
-  {/if}
               <fieldset class="editor-settings voice-settings mb-4" class:is-highlighted={voiceSettingsHighlighted} bind:this={voiceSettingsSection}>
                 <legend>음성 녹음</legend>
                 <label class="form-label" for="voice-api-key">OpenAI API 키</label>
@@ -2884,6 +2878,12 @@
                 />
               </fieldset>
 
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+  {/if}
   {#if appState === 'ready' || topRoute?.screen === 'settings'}
   <div
     class="app-shell"
