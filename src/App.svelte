@@ -11,7 +11,12 @@
   import WorkspaceList from './lib/WorkspaceList.svelte';
   import WorkspaceSwitcher from './lib/WorkspaceSwitcher.svelte';
   import VoiceRecorder from './lib/VoiceRecorder.svelte';
-  import { loadVoiceSettings, saveVoiceSettings } from './lib/voice-settings.js';
+  import {
+    DEFAULT_REFINEMENT_MODEL,
+    DEFAULT_TRANSCRIPTION_MODEL,
+    loadVoiceSettings,
+    saveVoiceSettings
+  } from './lib/voice-settings.js';
   import { tagColorForName } from './lib/colors.js';
   import {
     CODING_FONT_OPTIONS,
@@ -62,6 +67,7 @@
   import {
     addIssueLabel,
     createIssue,
+    createIssueComment,
     createLabel,
     listExpiredClosedIssues,
     listIssuesPage,
@@ -209,13 +215,21 @@
   let voiceApiKey = '';
   let voiceApiKeyEditing = false;
   let voiceRefinementPrompt = '';
-  let voiceTranscriptionModel = 'whisper-1';
-  let voiceRefinementModel = 'gpt-4o-mini';
+  let voiceTranscriptionModel = DEFAULT_TRANSCRIPTION_MODEL;
+  let voiceRefinementModel = DEFAULT_REFINEMENT_MODEL;
   let openVoiceAfterSettings = false;
   let focusVoiceSettingsAfterOpen = false;
   let voiceSettingsHighlighted = false;
   let voiceHasUnrecordedAudio = false;
   let allowVoiceRouteExit = false;
+  let voiceTargetChooserOpen = false;
+  let voiceTargetChooserElement;
+  let voiceTargetIssue = null;
+  let voiceRecordingDestination = null;
+  let voiceCommentSequence = 0;
+  let voiceComment = null;
+  let voiceBodySequence = 0;
+  let voiceBody = null;
   let voiceSettingsSection;
   let voiceApiKeyInput;
 
@@ -2516,7 +2530,7 @@
     router.push('settings');
   }
 
-  function openVoiceRecording() {
+  function openVoiceRecording(issue = null) {
     if (pendingNote || selectionMode) return;
     if (!voiceApiKey.trim()) {
       openVoiceAfterSettings = true;
@@ -2524,6 +2538,30 @@
       openSettings();
       return;
     }
+    // 목록의 녹음 버튼은 새 음성 노트를 만드는 동작이다. 대상 노트가 있을 때만
+    // 본문/코멘트 중 어디에 추가할지 선택한다.
+    if (!issue?.number) {
+      beginVoiceRecording('body');
+      return;
+    }
+    voiceTargetIssue = issue?.number ? issue : null;
+    voiceTargetChooserOpen = true;
+    tick().then(() => voiceTargetChooserElement?.showModal());
+  }
+
+  function closeVoiceTargetChooser() {
+    voiceTargetChooserElement?.close();
+    voiceTargetChooserOpen = false;
+    voiceTargetIssue = null;
+  }
+
+  function beginVoiceRecording(destination) {
+    const issue = voiceTargetIssue;
+    closeVoiceTargetChooser();
+    voiceRecordingDestination = {
+      type: destination,
+      issueNumber: issue?.number || null
+    };
     voiceHasUnrecordedAudio = false;
     allowVoiceRouteExit = false;
     router.push('voice');
@@ -2561,6 +2599,22 @@
     const requestedWorkspaceId = activeWorkspaceId;
     const requestedToken = token;
     const requestedRepo = repo;
+    const destination = voiceRecordingDestination;
+    voiceRecordingDestination = null;
+    if (destination?.type === 'body' && destination.issueNumber) {
+      voiceBody = { id: ++voiceBodySequence, issueNumber: destination.issueNumber, body };
+      allowVoiceRouteExit = true;
+      router.pop();
+      return;
+    }
+    if (destination?.type === 'comment' && destination.issueNumber) {
+      const comment = await createIssueComment(requestedToken, requestedRepo, destination.issueNumber, body);
+      if (requestedWorkspaceId !== activeWorkspaceId || requestedToken !== token || requestedRepo !== repo) return;
+      voiceComment = { id: ++voiceCommentSequence, issueNumber: destination.issueNumber, comment };
+      allowVoiceRouteExit = true;
+      router.pop();
+      return;
+    }
     const title = body.replace(/\s+/g, ' ').trim().slice(0, 50) || '음성 기록';
     const created = await createIssue(requestedToken, requestedRepo, { title, body, labels: [] });
     if (requestedWorkspaceId !== activeWorkspaceId || requestedToken !== token || requestedRepo !== repo) return;
@@ -2858,7 +2912,7 @@
                   <div class="col-sm-6">
                     <label class="form-label" for="voice-transcription-model">음성 전사 모델</label>
                     <a class="form-label ms-2 text-decoration-underline" href="https://platform.openai.com/docs/models" target="_blank" rel="noopener noreferrer">공식문서</a>
-                    <input id="voice-transcription-model" class="form-control" type="text" placeholder="whisper-1" bind:value={voiceTranscriptionModel} on:change={persistVoiceSettings} />
+                    <input id="voice-transcription-model" class="form-control" type="text" placeholder="gpt-4o-transcribe" bind:value={voiceTranscriptionModel} on:change={persistVoiceSettings} />
                   </div>
                   <div class="col-sm-6">
                     <label class="form-label" for="voice-refinement-model">텍스트 정제 모델</label>
@@ -3190,6 +3244,9 @@
               onMove={(issue) => state === 'open'
                 ? moveIssues([issue])
                 : moveIssue(issue, 'open')}
+              onVoiceRecording={(issue) => openVoiceRecording(issue)}
+              {voiceComment}
+              {voiceBody}
               onBack={() => router.pop()}
             />
             {#if state === 'open' && pendingIssueDeletionIds.has(routeIssue?.id)}
@@ -3232,12 +3289,28 @@
   <VoiceRecorder
     apiKey={voiceApiKey}
     refinementPrompt={voiceRefinementPrompt}
-    transcriptionModel={voiceTranscriptionModel}
-    refinementModel={voiceRefinementModel}
+    transcriptionModel={voiceTranscriptionModel.trim() || DEFAULT_TRANSCRIPTION_MODEL}
+    refinementModel={voiceRefinementModel.trim() || DEFAULT_REFINEMENT_MODEL}
     onComplete={recordVoiceNote}
     onDirtyChange={(dirty) => voiceHasUnrecordedAudio = dirty}
     onClose={() => { allowVoiceRouteExit = true; router.pop(); }}
   />
+{/if}
+
+{#if voiceTargetChooserOpen}
+  <dialog bind:this={voiceTargetChooserElement} class="voice-target-modal" aria-labelledby="voice-target-title" on:cancel={(event) => { event.preventDefault(); closeVoiceTargetChooser(); }}>
+    <form method="dialog">
+      <h2 id="voice-target-title">음성 녹음</h2>
+      <p>녹음 내용을 어디에 추가할까요?</p>
+      <div class="voice-target-actions">
+        <button type="button" class="btn btn-primary" on:click={() => beginVoiceRecording('body')}><i class="bi bi-journal-plus" aria-hidden="true"></i> 본문 추가</button>
+        {#if voiceTargetIssue?.number}
+          <button type="button" class="btn btn-outline-secondary" on:click={() => beginVoiceRecording('comment')}><i class="bi bi-chat-square-text" aria-hidden="true"></i> 코멘트 추가</button>
+        {/if}
+      </div>
+      <button type="button" class="btn btn-sm btn-link voice-target-cancel" on:click={closeVoiceTargetChooser}>취소</button>
+    </form>
+  </dialog>
 {/if}
 
 {#if workspaceWizardOpen}
@@ -3325,7 +3398,7 @@
             <div><dt><kbd>Space</kbd></dt><dd>{$_('help.keyboardSelect')}</dd></div>
             <div><dt><kbd>Shift</kbd> + <kbd>↑</kbd> <kbd>↓</kbd></dt><dd>{$_('help.keyboardRangeSelect')}</dd></div>
             <div><dt><kbd>Delete</kbd> / <kbd>Backspace</kbd></dt><dd>{$_('help.keyboardTrash')}</dd></div>
-            <div><dt><kbd>R</kbd> <kbd>S</kbd> <kbd>T</kbd> <kbd>A</kbd> <kbd>P</kbd> <kbd>L</kbd> <kbd>Delete</kbd> <kbd>G</kbd> <kbd>M</kbd></dt><dd>{$_('help.keyboardNoteActions')}</dd></div>
+            <div><dt><kbd>R</kbd> <kbd>S</kbd> <kbd>T</kbd> <kbd>A</kbd> <kbd>E</kbd> <kbd>X</kbd> <kbd>P</kbd> <kbd>L</kbd> <kbd>Delete</kbd> <kbd>G</kbd> <kbd>M</kbd></dt><dd>{$_('help.keyboardNoteActions')}</dd></div>
           </dl>
           <p class="small help-text mb-0">{$_('help.keyboardNote')}</p>
         {:else}

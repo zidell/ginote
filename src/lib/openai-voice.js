@@ -11,7 +11,7 @@ function authorization(apiKey) {
   return { Authorization: `Bearer ${apiKey}` };
 }
 
-export async function transcribeAudio(apiKey, audio, model = 'whisper-1', signal) {
+export async function transcribeAudio(apiKey, audio, model = 'gpt-4o-transcribe', signal) {
   const form = new FormData();
   form.append('model', model);
   form.append('language', 'ko');

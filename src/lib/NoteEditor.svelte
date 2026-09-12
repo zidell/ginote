@@ -80,6 +80,9 @@
   export let onLabelsAvailable = () => {};
   export let onTagSelect = () => {};
   export let onMove = () => {};
+  export let onVoiceRecording = () => {};
+  export let voiceComment = null;
+  export let voiceBody = null;
   export let onBack = () => {};
   export let pinned = false;
   export let pinDisabled = false;
@@ -191,6 +194,8 @@
   let mounted = false;
   let handledRefreshRequest = 0;
   let handledExternalPasteRequest = 0;
+  let handledVoiceCommentId = 0;
+  let handledVoiceBodyId = 0;
 
   $: fontStack = editorFontStack(font);
   $: displayedLabels = visibleLabelNames(labels);
@@ -250,6 +255,20 @@
     expireLockSession();
   }
   $: if (replacePanelOpen && lockState === 'locked') closeReplacePanel();
+  $: if (voiceComment?.id > handledVoiceCommentId) {
+    handledVoiceCommentId = voiceComment.id;
+    if (voiceComment.issueNumber === remoteIssue?.number) {
+      comments = [...comments, voiceComment.comment];
+      commentsLoaded = true;
+    }
+  }
+  $: if (voiceBody?.id > handledVoiceBodyId) {
+    handledVoiceBodyId = voiceBody.id;
+    if (voiceBody.issueNumber === remoteIssue?.number) {
+      body = body.trim() ? `${body.trimEnd()}\n\n${voiceBody.body}` : voiceBody.body;
+      changed();
+    }
+  }
 
   onMount(() => {
     const recovered = !editable || ignoreRecoveredDraft ? null : readDraft();
@@ -2104,6 +2123,7 @@
     if (key === 'r' || event.code === 'KeyR') return 'r';
     if (key === 's' || event.code === 'KeyS') return 's';
     if (key === 'e' || event.code === 'KeyE') return 'e';
+    if (key === 'x' || event.code === 'KeyX') return 'x';
     if (event.key === 'Delete' || event.code === 'Delete') return 'delete';
     return '';
   }
@@ -2156,7 +2176,8 @@
     if (key === 'l') return editable;
     if (key === 'r') return Boolean((issue || remoteIssue)?.number);
     if (key === 's') return editable && lockState !== 'locked' && !saving;
-    if (key === 'e') return editable && lockState !== 'locked';
+    if (key === 'e') return editable && lockState !== 'locked' && Boolean(remoteIssue?.number);
+    if (key === 'x') return editable && lockState !== 'locked';
     if (key === 't') return canUseTagShortcut();
     if (key === 'a') return canUseAttachmentShortcut();
     if (key === 'p') return Boolean(remoteIssue?.number) && !readOnly && !pinDisabled;
@@ -2188,6 +2209,10 @@
       return openToolbarTagPicker();
     }
     if (key === 'e') {
+      onVoiceRecording(remoteIssue);
+      return true;
+    }
+    if (key === 'x') {
       openReplacePanel();
       return true;
     }
@@ -2505,12 +2530,22 @@
         {#if editable && lockState !== 'locked'}
           <button
             type="button"
-            class="dropdown-item detail-toolbar-replace"
+            class="dropdown-item detail-toolbar-voice"
             aria-keyshortcuts="E"
+            disabled={!remoteIssue?.number}
+            on:click={() => onVoiceRecording(remoteIssue)}
+          >
+            <i class="bi bi-mic-fill" aria-hidden="true"></i>
+            음성 녹음 <span class="shortcut-hint"><span class="shortcut-key" class:is-available={canUseNoteShortcut('e')}>E</span></span>
+          </button>
+          <button
+            type="button"
+            class="dropdown-item detail-toolbar-replace"
+            aria-keyshortcuts="X"
             on:click={openReplacePanel}
           >
             <i class="bi bi-regex" aria-hidden="true"></i>
-            {$_("m.d7a8c1e4f2")} <span class="shortcut-hint"><span class="shortcut-key" class:is-available={canUseNoteShortcut('e')}>E</span></span>
+            {$_("m.d7a8c1e4f2")} <span class="shortcut-hint"><span class="shortcut-key" class:is-available={canUseNoteShortcut('x')}>X</span></span>
           </button>
         {/if}
         {#if remoteIssue}
