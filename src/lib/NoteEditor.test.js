@@ -762,6 +762,16 @@ describe('NoteEditor 마크다운 프리뷰와 단축키', () => {
     await waitFor(() => expect(document.querySelector('.markdown-preview')).toBeTruthy());
   });
 
+  it('첨부 A가 가능할 때 태그 T도 같은 툴바 상태로 표시한다', () => {
+    render(NoteEditor, { token: 't', repo: 'owner/repo', issue: baseIssue });
+
+    const tagShortcut = document.querySelector('.detail-toolbar-actions-desktop .tag-picker .shortcut-key');
+    const attachmentShortcut = document.querySelector('.detail-toolbar-attachment .shortcut-key');
+
+    expect(attachmentShortcut.classList.contains('is-available')).toBe(true);
+    expect(tagShortcut.classList.contains('is-available')).toBe(true);
+  });
+
   it('본문은 자동으로 높이를 늘리고 바깥 스크롤 영역을 사용한다', async () => {
     render(NoteEditor, { token: 't', repo: 'owner/repo', issue: baseIssue });
 
