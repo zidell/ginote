@@ -10,6 +10,8 @@
   import TagSettings from './lib/TagSettings.svelte';
   import WorkspaceList from './lib/WorkspaceList.svelte';
   import WorkspaceSwitcher from './lib/WorkspaceSwitcher.svelte';
+  import VoiceRecorder from './lib/VoiceRecorder.svelte';
+  import { loadVoiceSettings, saveVoiceSettings } from './lib/voice-settings.js';
   import { tagColorForName } from './lib/colors.js';
   import {
     CODING_FONT_OPTIONS,
@@ -204,6 +206,18 @@
   let suppressIssueClickId = null;
   let suppressIssueClickTimer;
   let keyboardShortcutFocusFrame;
+  let voiceApiKey = '';
+  let voiceApiKeyEditing = false;
+  let voiceRefinementPrompt = '';
+  let voiceTranscriptionModel = 'whisper-1';
+  let voiceRefinementModel = 'gpt-4o-mini';
+  let openVoiceAfterSettings = false;
+  let focusVoiceSettingsAfterOpen = false;
+  let voiceSettingsHighlighted = false;
+  let voiceHasUnrecordedAudio = false;
+  let allowVoiceRouteExit = false;
+  let voiceSettingsSection;
+  let voiceApiKeyInput;
 
   $: selectionMode = selectedIssueIds.size > 0;
   $: selectedIssues = visibleIssues.filter((issue) => !issue.local && selectedIssueIds.has(issue.id));
@@ -231,6 +245,10 @@
     values: { repo: mcpRepository || 'owner/repository', issueNumber: '{issue number}' }
   });
   $: topRoute = routeStack.at(-1);
+  $: if (topRoute?.screen === 'settings' && focusVoiceSettingsAfterOpen) {
+    focusVoiceSettingsAfterOpen = false;
+    void focusVoiceSettings();
+  }
   // 안내 화면도 다른 화면과 마찬가지로 URL 스택의 한 레이어다. 따라서 새로고침,
   // 공유 URL, 브라우저 뒤로가기 모두 같은 방식으로 동작한다.
   $: helpTopic = topRoute?.screen === 'help' && HELP_TOPICS.has(topRoute.value)
@@ -323,9 +341,21 @@
       // 최상단이 아니라 스택 전체에서 설정 경로의 유무를 비교한다.
       const wasInSettings = routeStack.some((route) => route.screen === 'settings');
       const isInSettings = stack.some((route) => route.screen === 'settings');
+      const wasInVoice = routeStack.some((route) => route.screen === 'voice');
+      const isInVoice = stack.some((route) => route.screen === 'voice');
       const previousLabel = labelFromRoutes(routeStack);
       const nextLabel = labelFromRoutes(stack);
       routeStack = stack;
+      if (wasInVoice && !isInVoice && voiceHasUnrecordedAudio && !allowVoiceRouteExit) {
+        if (!confirm('기록하지 않은 녹음을 전부 취소하시겠습니까?')) {
+          router.push('voice');
+          return;
+        }
+      }
+      if (wasInVoice && !isInVoice) {
+        voiceHasUnrecordedAudio = false;
+        allowVoiceRouteExit = false;
+      }
       activeLabel = nextLabel;
       if (previousLabel !== nextLabel) {
         if (nextLabel) {
@@ -338,6 +368,13 @@
       }
       if (wasInSettings && !isInSettings) {
         applySettingsChanges();
+        if (openVoiceAfterSettings) {
+          openVoiceAfterSettings = false;
+          if (voiceApiKey.trim()) {
+            router.push('voice');
+            return;
+          }
+        }
         if (settingsRouteOverride) {
           const target = settingsRouteOverride;
           settingsRouteOverride = '';
@@ -350,6 +387,12 @@
     }
 
     const settingsDocument = loadSettingsDocument();
+    ({
+      apiKey: voiceApiKey,
+      refinementPrompt: voiceRefinementPrompt,
+      transcriptionModel: voiceTranscriptionModel,
+      refinementModel: voiceRefinementModel
+    } = loadVoiceSettings());
     if (settingsDocument) {
       workspaces = settingsDocument.workspaces;
       activeWorkspaceId = settingsDocument.activeWorkspaceId;
@@ -520,6 +563,15 @@
       workspaceCacheMinutes,
       language: languagePreference
     };
+  }
+
+  function persistVoiceSettings() {
+    saveVoiceSettings({
+      apiKey: voiceApiKey,
+      refinementPrompt: voiceRefinementPrompt,
+      transcriptionModel: voiceTranscriptionModel,
+      refinementModel: voiceRefinementModel
+    });
   }
 
   function persistSettings(normalizedRepo) {
@@ -1291,6 +1343,13 @@
   }
 
   function handleGlobalKeydown(event) {
+    if (topRoute?.screen === 'voice') {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        window.dispatchEvent(new CustomEvent('voice-close-request'));
+      }
+      return;
+    }
     if (event.key === 'Escape') {
       // 컴포넌트가 먼저 처리한 Escape(드롭다운 닫기·입력 취소)는
       // 라우팅까지 이어지지 않게 한다.
@@ -2463,6 +2522,65 @@
 
   function openHelp(topic) {
     if (!HELP_TOPICS.has(topic)) return;
+  function openVoiceRecording() {
+    if (pendingNote || selectionMode) return;
+    if (!voiceApiKey.trim()) {
+      openVoiceAfterSettings = true;
+      focusVoiceSettingsAfterOpen = true;
+      openSettings();
+      return;
+    }
+    voiceHasUnrecordedAudio = false;
+    allowVoiceRouteExit = false;
+    router.push('voice');
+  }
+
+  function maskedVoiceApiKey(value) {
+    const key = String(value || '');
+    if (!key) return '';
+    if (key.length <= 20) return '••••••••••••';
+    return `${key.slice(0, 10)}...${key.slice(-10)}`;
+  }
+
+  function beginVoiceApiKeyEdit() {
+    voiceApiKeyEditing = true;
+  }
+
+  function finishVoiceApiKeyEdit() {
+    voiceApiKeyEditing = false;
+  }
+
+  function handleVoiceApiKeyInput(event) {
+    voiceApiKey = event.currentTarget.value;
+    persistVoiceSettings();
+  }
+
+  async function focusVoiceSettings() {
+    await tick();
+    voiceSettingsHighlighted = true;
+    voiceSettingsSection?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    voiceApiKeyInput?.focus();
+    setTimeout(() => voiceSettingsHighlighted = false, 1800);
+  }
+
+  async function recordVoiceNote(body) {
+    const requestedWorkspaceId = activeWorkspaceId;
+    const requestedToken = token;
+    const requestedRepo = repo;
+    const title = body.replace(/\s+/g, ' ').trim().slice(0, 50) || '음성 기록';
+    const created = await createIssue(requestedToken, requestedRepo, { title, body, labels: [] });
+    if (requestedWorkspaceId !== activeWorkspaceId || requestedToken !== token || requestedRepo !== repo) return;
+    invalidateCachedIssueList(activeWorkspaceId);
+    state = 'open';
+    query = '';
+    appliedQuery = '';
+    activeLabel = '';
+    issues = [created, ...issues.filter((issue) => issue.id !== created.id)];
+    totalIssues += 1;
+    adjustWorkspaceNoteCount(activeWorkspaceId, 1);
+    router.navigate(`/note.${created.number}`);
+  }
+
     router.push(`help.${topic}`);
   }
 
@@ -2724,6 +2842,46 @@
     </section>
   </main>
   {/if}
+              <fieldset class="editor-settings voice-settings mb-4" class:is-highlighted={voiceSettingsHighlighted} bind:this={voiceSettingsSection}>
+                <legend>음성 녹음</legend>
+                <label class="form-label" for="voice-api-key">OpenAI API 키</label>
+                <input
+                  id="voice-api-key"
+                  class="form-control"
+                  type={voiceApiKeyEditing ? 'password' : 'text'}
+                  autocomplete="off"
+                  placeholder="sk-..."
+                  bind:this={voiceApiKeyInput}
+                  value={voiceApiKeyEditing ? voiceApiKey : maskedVoiceApiKey(voiceApiKey)}
+                  readonly={!voiceApiKeyEditing}
+                  aria-label="OpenAI API 키"
+                  on:input={handleVoiceApiKeyInput}
+                  on:focus={beginVoiceApiKeyEdit}
+                  on:blur={finishVoiceApiKeyEdit}
+                />
+                <div class="settings-help-note">녹음과 전사문은 OpenAI로 직접 전송됩니다. 키는 이 기기의 localStorage에 평문으로 저장되므로 전용 프로젝트 키·사용 한도·정기 교체를 권장합니다.</div>
+                <div class="row g-2 mt-2">
+                  <div class="col-sm-6">
+                    <label class="form-label" for="voice-transcription-model">음성 전사 모델</label>
+                    <input id="voice-transcription-model" class="form-control" type="text" placeholder="whisper-1" bind:value={voiceTranscriptionModel} on:change={persistVoiceSettings} />
+                  </div>
+                  <div class="col-sm-6">
+                    <label class="form-label" for="voice-refinement-model">텍스트 정제 모델</label>
+                    <input id="voice-refinement-model" class="form-control" type="text" placeholder="gpt-4o-mini" bind:value={voiceRefinementModel} on:change={persistVoiceSettings} />
+                  </div>
+                </div>
+                <label class="form-label mt-3" for="voice-refinement-prompt">정제 프롬프트</label>
+                <input
+                  id="voice-refinement-prompt"
+                  class="form-control"
+                  type="text"
+                  maxlength="1000"
+                  placeholder="예: 회의 용어와 고유명사를 정확히 정정해 주세요."
+                  bind:value={voiceRefinementPrompt}
+                  on:input={persistVoiceSettings}
+                />
+              </fieldset>
+
   {#if appState === 'ready' || topRoute?.screen === 'settings'}
   <div
     class="app-shell"
@@ -2890,15 +3048,23 @@
               </div>
             </div>
             <div class="note-list-body">
-            <div class="sidebar-new-note">
+            <div class="sidebar-new-note btn-group">
               <button
-                class="btn btn-primary btn-sm btn-block w-100"
+                class="btn btn-primary btn-sm btn-block flex-grow-1"
                 on:click={newNote}
                 disabled={Boolean(pendingNote) || selectionMode}
               >
                 <i class="bi bi-plus-lg" aria-hidden="true"></i> {$_("m.2b7b05c002")}
                 <span class="shortcut-hint sidebar-new-note-shortcut" aria-hidden="true"><span class="shortcut-key" class:is-available={canUseListKeyboardShortcuts() && !selectionMode && !pendingNote}>N</span></span>
               </button>
+              <button
+                type="button"
+                class="btn btn-primary btn-sm sidebar-voice-button"
+                aria-label="음성 녹음"
+                title="음성 녹음"
+                on:click={openVoiceRecording}
+                disabled={Boolean(pendingNote) || selectionMode}
+              ><i class="bi bi-mic-fill" aria-hidden="true"></i></button>
             </div>
             {#if pinnedIssues.length}
               <div class="note-list-pinned">
@@ -3004,7 +3170,7 @@
               {lockSessionMinutes}
               onSetLockSession={setLockSession}
               currentUserLogin={user?.login || ''}
-              paused={topRoute?.screen === 'settings' || route !== contentRoute || selectionMode}
+              paused={topRoute?.screen === 'settings' || topRoute?.screen === 'voice' || route !== contentRoute || selectionMode}
               readOnly={selectionMode}
               availableLabels={visibleRepositoryLabels}
               {labelMutation}
@@ -3058,6 +3224,18 @@
     </main>
   </div>
   {/if}
+{/if}
+
+{#if topRoute?.screen === 'voice'}
+  <VoiceRecorder
+    apiKey={voiceApiKey}
+    refinementPrompt={voiceRefinementPrompt}
+    transcriptionModel={voiceTranscriptionModel}
+    refinementModel={voiceRefinementModel}
+    onComplete={recordVoiceNote}
+    onDirtyChange={(dirty) => voiceHasUnrecordedAudio = dirty}
+    onClose={() => { allowVoiceRouteExit = true; router.pop(); }}
+  />
 {/if}
 
 {#if workspaceWizardOpen}
