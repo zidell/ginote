@@ -93,6 +93,7 @@
   export let currentUserLogin = '';
 
   const DRAFTS_KEY = 'issue-note.drafts.v1';
+  const LIST_PREVIEW_DEBOUNCE_MS = 500;
   const MAX_ATTACHMENTS = 30;
   const ATTACHMENT_DELETE_DELAY_MS = 5000;
   // 아직 번호가 없는 새 노트는 initialDraft.id(세션마다 고유)로 구분해야, 저장 도중
@@ -176,6 +177,8 @@
   let bodyComposing = false;
   let bodyCompositionDirty = false;
   let bodyCompositionCommitted = false;
+  let draftChangeTimer;
+  let publishedListPreview = listPreviewSource(body);
   let toolbarTagPicker;
   let moreToolbarElement;
   let issueLinkElement;
@@ -331,6 +334,7 @@
     if (dirty) persistLocalDraft();
     clearInterval(localTimer);
     clearTimeout(remoteTimer);
+    clearTimeout(draftChangeTimer);
     clearAttachmentDeleteTimers();
     clearTimeout(lockReuseTimer);
     window.removeEventListener('beforeunload', handlePageExit);
@@ -690,14 +694,14 @@
     });
   }
 
-  function changed() {
+  function changed({ debounceListUpdate = false, listPreviewChanged = true } = {}) {
     if (!editable || lockState === 'locked') return;
     if (titleMode === 'first-line') title = automaticTitle(body);
     dirty = true;
     saveFailed = false;
     revision += 1;
     error = '';
-    notifyDraftChange();
+    notifyDraftChange({ debounce: debounceListUpdate, onlyWhenListPreviewChanges: !listPreviewChanged });
     scheduleRemoteSave();
   }
 
@@ -839,8 +843,30 @@
     closeReplacePanel();
   }
 
-  function notifyDraftChange() {
-    onDraftChange(draftPayload());
+  function listPreviewSource(value) {
+    const text = String(value || '');
+    let lineBreaks = 0;
+    for (let index = 0; index < text.length; index += 1) {
+      if (text[index] !== '\n') continue;
+      lineBreaks += 1;
+      if (lineBreaks === 2) return text.slice(0, index);
+    }
+    return text;
+  }
+
+  function notifyDraftChange({ debounce = false, onlyWhenListPreviewChanges = false } = {}) {
+    const preview = listPreviewSource(body);
+    if (onlyWhenListPreviewChanges && preview === publishedListPreview) return;
+
+    const publish = () => {
+      draftChangeTimer = null;
+      publishedListPreview = listPreviewSource(body);
+      onDraftChange(draftPayload());
+    };
+
+    clearTimeout(draftChangeTimer);
+    if (debounce) draftChangeTimer = setTimeout(publish, LIST_PREVIEW_DEBOUNCE_MS);
+    else publish();
   }
 
   function draftPayload() {
@@ -1487,13 +1513,14 @@
   }
 
   function updateBodyFromTextarea(value) {
+    const previousPreview = listPreviewSource(body);
     const nextBody = expandAttachmentLinks(value, repo);
     const bodyChanged = nextBody !== body;
     if (bodyChanged) {
       body = nextBody;
       if (titleMode === 'first-line') title = automaticTitle(body);
     }
-    return bodyChanged;
+    return { bodyChanged, listPreviewChanged: listPreviewSource(nextBody) !== previousPreview };
   }
 
   function handleBodyCompositionStart() {
@@ -1504,10 +1531,10 @@
   }
 
   function handleBodyCompositionEnd(event) {
-    const bodyChanged = updateBodyFromTextarea(event.currentTarget.value);
+    const { bodyChanged, listPreviewChanged } = updateBodyFromTextarea(event.currentTarget.value);
     bodyComposing = false;
     if (bodyCompositionDirty || bodyChanged) {
-      changed();
+      changed({ debounceListUpdate: true, listPreviewChanged });
       bodyCompositionCommitted = true;
     }
     bodyCompositionDirty = false;
@@ -1518,7 +1545,7 @@
     const textarea = event.currentTarget;
     displayBody = textarea.value;
     const composing = bodyComposing || event.isComposing;
-    const bodyChanged = updateBodyFromTextarea(textarea.value);
+    const { bodyChanged, listPreviewChanged } = updateBodyFromTextarea(textarea.value);
 
     if (composing) {
       bodyCompositionDirty = bodyCompositionDirty || bodyChanged;
@@ -1531,7 +1558,7 @@
       // 새 노트는 번호 할당 응답이 조합 중에 도착해도 최신 조합문을
       // 잃지 않도록 부모의 pendingNote에만 반영한다. 기존 노트는
       // 조합 중 부모 렌더를 유발하지 않는다.
-      if (bodyChanged && !issue) notifyDraftChange();
+      if (bodyChanged && !issue) notifyDraftChange({ debounce: true, onlyWhenListPreviewChanges: !listPreviewChanged });
       return;
     }
 
@@ -1540,7 +1567,7 @@
       return;
     }
     bodyCompositionCommitted = false;
-    changed();
+    changed({ debounceListUpdate: true, listPreviewChanged });
   }
 
   function updateLinkTooltip(event) {

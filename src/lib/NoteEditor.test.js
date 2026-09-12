@@ -799,22 +799,55 @@ describe('NoteEditor 마크다운 프리뷰와 단축키', () => {
     });
 
     const body = document.querySelector('.inline-body');
-    await fireEvent.compositionStart(body);
-    await fireEvent.input(body, { target: { value: 'ㅎ' }, isComposing: true });
-    await fireEvent.input(body, { target: { value: '하' }, isComposing: true });
+    vi.useFakeTimers();
+    try {
+      await fireEvent.compositionStart(body);
+      await fireEvent.input(body, { target: { value: 'ㅎ' }, isComposing: true });
+      await fireEvent.input(body, { target: { value: '하' }, isComposing: true });
 
-    expect(body.value).toBe('하');
-    expect(onDraftChange).not.toHaveBeenCalled();
-    expect(updateIssue).not.toHaveBeenCalled();
+      expect(body.value).toBe('하');
+      expect(onDraftChange).not.toHaveBeenCalled();
+      expect(updateIssue).not.toHaveBeenCalled();
 
-    await fireEvent.compositionEnd(body);
-    expect(onDraftChange).toHaveBeenCalledTimes(1);
-    expect(onDraftChange).toHaveBeenLastCalledWith(expect.objectContaining({ body: '하' }));
+      await fireEvent.compositionEnd(body);
+      expect(onDraftChange).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(500);
+      expect(onDraftChange).toHaveBeenCalledTimes(1);
+      expect(onDraftChange).toHaveBeenLastCalledWith(expect.objectContaining({ body: '하' }));
 
-    // 일부 WebKit 버전은 compositionend 직후 최종 input을 한 번 더 보낸다.
-    // 이미 커밋한 값을 다시 부모에 전달하거나 저장 예약하지 않아야 한다.
-    await fireEvent.input(body, { target: { value: '하' }, isComposing: false });
-    expect(onDraftChange).toHaveBeenCalledTimes(1);
+      // 일부 WebKit 버전은 compositionend 직후 최종 input을 한 번 더 보낸다.
+      // 이미 커밋한 값을 다시 부모에 전달하거나 저장 예약하지 않아야 한다.
+      await fireEvent.input(body, { target: { value: '하' }, isComposing: false });
+      expect(onDraftChange).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('목록에 보이는 첫 두 줄이 그대로면 타이핑해도 목록 초안을 다시 알리지 않는다', async () => {
+    localStorage.clear();
+    const onDraftChange = vi.fn();
+    render(NoteEditor, {
+      token: 't',
+      repo: 'owner/repo',
+      issue: baseIssue,
+      autoSaveSeconds: 9999,
+      onDraftChange
+    });
+
+    const body = document.querySelector('.inline-body');
+    vi.useFakeTimers();
+    try {
+      await fireEvent.input(body, { target: { value: '첫 줄\n둘째 줄\n셋째 줄' } });
+      await vi.advanceTimersByTimeAsync(500);
+      expect(onDraftChange).toHaveBeenCalledTimes(1);
+
+      await fireEvent.input(body, { target: { value: '첫 줄\n둘째 줄\n바뀐 셋째 줄' } });
+      await vi.advanceTimersByTimeAsync(500);
+      expect(onDraftChange).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('프리뷰 전환 전후에 스크롤 진행률을 서로 변환한다', async () => {

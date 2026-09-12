@@ -2242,15 +2242,6 @@
       return;
     }
 
-    // 활성 편집기는 자체 상태를 즉시 관리한다. 타이핑 중 부모 목록까지
-    // 갱신하면 WebView가 편집기 레이아웃을 다시 계산하며 caret/스크롤을
-    // 보정하는 과정에서 화면이 움찔거릴 수 있다. 저장 응답이 오면 onSaved가
-    // 최신 목록 미리보기를 반영한다.
-    if (
-      contentRoute?.screen === 'note'
-      && Number(contentRoute.value) === sourceIssue.number
-    ) return;
-
     const updatedIssue = { ...sourceIssue, ...draft };
     const displayedIssue = syncPinnedIssue(updatedIssue);
     issues = issues.map((issue) => issue.id === sourceIssue.id ? displayedIssue : issue);
