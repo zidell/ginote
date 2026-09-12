@@ -18,8 +18,11 @@
     compressAttachmentLinks,
     expandAttachmentLinks,
     insertAttachmentLinks,
+    managedAttachmentLinks,
     parseAttachmentPaths,
-    removeAttachmentLink
+    removeAttachmentLink,
+    stripManagedAttachmentBlocks,
+    withManagedAttachmentBlock
   } from './attachments.js';
   import {
     addLockToTitle,
@@ -97,7 +100,12 @@
 
   const initiallyLocked = isLockedTitle(issue?.title);
   let title = removeLockFromTitle(issue?.title || initialDraft?.title || '');
-  let body = initiallyLocked ? issue?.body || '' : issue?.body || initialDraft?.body || '';
+  let body = initiallyLocked
+    ? issue?.body || ''
+    : stripManagedAttachmentBlocks(issue?.body || initialDraft?.body || '');
+  let preservedManagedAttachmentLinks = initiallyLocked
+    ? []
+    : managedAttachmentLinks(issue?.body || initialDraft?.body || '');
   let encryptedBody = initiallyLocked ? issue?.body || '' : '';
   let lockState = initiallyLocked ? 'locked' : 'plain';
   let activeLockPin = '';
@@ -117,6 +125,7 @@
   let refreshing = false;
   let backgroundRefreshing = false;
   let uploading = 0;
+  let uploadingAttachments = [];
   let uploadBatchActive = false;
   let deletingPath = '';
   let pendingAttachmentDeletes = new Map();
@@ -864,15 +873,20 @@
     };
   }
 
-  function withRevivedAttachmentLinks(bodyText) {
-    if (!orphanedAttachments.length) return bodyText;
-    const links = orphanedAttachments.map((attachment) => composeAttachmentLink(repo, attachment));
-    orphanedAttachments = [];
-    return `${links.join('\n')}\n\n${bodyText}`;
+  function bodyWithManagedAttachmentLinks(bodyText) {
+    const cleanBody = stripManagedAttachmentBlocks(bodyText);
+    const manuallyLinkedPaths = new Set(parseAttachmentPaths(cleanBody));
+    const deletingPaths = new Set(pendingAttachmentDeletes.keys());
+    const links = attachments.length
+      ? attachments
+        .filter((attachment) => !manuallyLinkedPaths.has(attachment.path) && !deletingPaths.has(attachment.path))
+        .map((attachment) => composeAttachmentLink(repo, attachment))
+      : preservedManagedAttachmentLinks;
+    return withManagedAttachmentBlock(cleanBody, links);
   }
 
   async function noteForRemote(note) {
-    const remoteBody = expandAttachmentLinks(withRevivedAttachmentLinks(note.body), repo);
+    const remoteBody = expandAttachmentLinks(bodyWithManagedAttachmentLinks(note.body), repo);
     if (lockState === 'plain') return { ...note, body: remoteBody };
     if (lockState === 'locked') {
       return { ...note, title: addLockToTitle(note.title), body: encryptedBody };
@@ -975,7 +989,9 @@
     lockPanelBusy = true;
     try {
       const contextIssueNumber = issue?.number || remoteIssue?.number;
-      body = await decryptLockedBody(encryptedBody, pin, contextIssueNumber);
+      const decryptedBody = await decryptLockedBody(encryptedBody, pin, contextIssueNumber);
+      preservedManagedAttachmentLinks = managedAttachmentLinks(decryptedBody);
+      body = stripManagedAttachmentBlocks(decryptedBody);
       activeLockPin = pin;
       lockState = 'unlocked';
       lockPanelMode = '';
@@ -1053,7 +1069,8 @@
     const refreshedLocked = isLockedTitle(refreshed.title);
     title = removeLockFromTitle(refreshed.title || '');
     encryptedBody = refreshedLocked ? refreshed.body || '' : '';
-    body = refreshed.body || '';
+    body = refreshedLocked ? refreshed.body || '' : stripManagedAttachmentBlocks(refreshed.body || '');
+    preservedManagedAttachmentLinks = refreshedLocked ? [] : managedAttachmentLinks(refreshed.body || '');
     lockState = refreshedLocked ? 'locked' : 'plain';
     activeLockPin = '';
     labels = (refreshed.labels || []).map((label) => label.name);
@@ -1347,7 +1364,6 @@
       return;
     }
     uploadBatchActive = true;
-    const insertionPoint = bodyInput ? bodyInput.selectionStart : null;
     const requestedFiles = Array.from(fileList || []);
     const remainingSlots = Math.max(0, MAX_ATTACHMENTS - attachments.length);
     const files = requestedFiles.slice(0, remainingSlots);
@@ -1364,33 +1380,44 @@
       uploadBatchActive = false;
       return;
     }
-    const uploadedAttachments = [];
+    const uploadItems = [];
     for (const file of files) {
       if (file.size > 10 * 1024 * 1024) {
         error = $_('dynamic.fileTooLarge', { values: { name: file.name } });
         continue;
       }
+      uploadItems.push({ id: crypto.randomUUID(), file, name: file.name });
+    }
+    if (!uploadItems.length) {
+      if (fileInput) fileInput.value = '';
+      uploadBatchActive = false;
+      return;
+    }
 
-      uploading += 1;
+    // 여러 파일을 고르면 타일을 먼저 모두 확보한다. 실제 업로드가 순서대로
+    // 끝나더라도 목록이 한 항목씩 늦게 생기지 않고 각 타일의 로딩만 해제된다.
+    uploadingAttachments = [...uploadingAttachments, ...uploadItems];
+    uploading = uploadingAttachments.length;
+    const uploadedAttachments = [];
+    for (const item of uploadItems) {
       error = '';
       try {
-        const attachment = await uploadAttachment(token, repo, targetIssue.number, file);
+        const attachment = await uploadAttachment(token, repo, targetIssue.number, item.file);
         uploadedAttachments.push(attachment);
         if (!destroyed) {
           replaceAttachments([...attachments, attachment]);
-          retainPreviewUrl(attachment.path, URL.createObjectURL(file));
+          retainPreviewUrl(attachment.path, URL.createObjectURL(item.file));
         }
       } catch (reason) {
         error = reason?.status === 403
           ? $_("m.8c4abbd3b6")
           : reason?.message || $_("m.d5ca50a853");
       } finally {
-        uploading -= 1;
+        uploadingAttachments = uploadingAttachments.filter(({ id }) => id !== item.id);
+        uploading = uploadingAttachments.length;
       }
     }
     if (uploadedAttachments.length) {
-      const links = uploadedAttachments.map((attachment) => composeAttachmentLink(repo, attachment));
-      body = insertAttachmentLinks(body, links, insertionPoint);
       changed();
       clearTimeout(remoteTimer);
       await flushPendingWork({ reason: 'attachment-upload', allowPaused: true, force: true });
@@ -1658,13 +1685,6 @@
     nextPending.delete(attachment.path);
     pendingAttachmentDeletes = nextPending;
     error = '';
-    const link = composeAttachmentLink(repo, entry.attachment);
-    if (!body.includes(link)) {
-      body = insertAttachmentLinks(body, [link]);
-      changed();
-      clearTimeout(remoteTimer);
-      void flushPendingWork({ reason: 'attachment-cancel' });
-    }
     persistPendingWork();
   }
 
@@ -1690,6 +1710,7 @@
         return;
       }
       const filesByPath = new Map(files.map((file) => [file.path, file]));
+      preservedManagedAttachmentLinks = [];
       const connectedPaths = new Set();
       const linkedAttachments = [];
 
@@ -1884,6 +1905,15 @@
     changed();
     clearTimeout(remoteTimer);
     void flushPendingWork({ reason: 'attachment-link', allowPaused: true, force: true });
+  }
+
+  async function copyAttachmentMarkdown(attachment) {
+    try {
+      await navigator.clipboard.writeText(composeAttachmentLink(repo, attachment));
+      error = '';
+    } catch {
+      error = $_("m.da21b2386d");
+    }
   }
 
   function openViewer(index) {
@@ -2321,7 +2351,15 @@
 
 </script>
 
-<div class="inline-editor">
+<div
+  class="inline-editor"
+  class:is-dragging-files={draggingFiles}
+  role="presentation"
+  on:dragenter={handleDragEnter}
+  on:dragover={handleDragOver}
+  on:dragleave={handleDragLeave}
+  on:drop={handleDrop}
+>
   <div class="detail-toolbar">
     <div class="detail-toolbar-start">
       <button
@@ -2584,13 +2622,8 @@
   <div
     class="inline-editor-fields"
     class:is-lock-protected={lockState !== 'plain'}
-    class:is-dragging-files={draggingFiles}
     role="presentation"
     style={`--note-font:${fontStack};--note-font-size:${fontSize}px;--note-line-height:${lineHeight};--editor-max-width:${maxWidth}px`}
-    on:dragenter={handleDragEnter}
-    on:dragover={handleDragOver}
-    on:dragleave={handleDragLeave}
-    on:drop={handleDrop}
   >
     {#if attachments.length || uploading || deletingPath || (attachmentsLoading && hasAttachmentRefs)}
       <section
@@ -2652,16 +2685,16 @@
               {/if}
             </div>
           {/each}
-          {#if uploading}
+          {#each uploadingAttachments as attachment (attachment.id)}
             <div
               class="attachment-item attachment-uploading"
               role="status"
-              aria-label={$_('dynamic.uploading', { values: { count: uploading } })}
+              aria-label={$_('dynamic.uploading', { values: { count: 1 } })}
             >
               <span class="attachment-loading"><span class="attachment-spinner"><BrailleSpinner active /></span></span>
-              <span class="attachment-name">{$_('dynamic.uploading', { values: { count: uploading } })}</span>
+              <span class="attachment-name" title={attachment.name}>{attachment.name}</span>
             </div>
-          {/if}
+          {/each}
           {#if editable && !previewMode && attachments.length < MAX_ATTACHMENTS}
             <label
               class="attachment-add-tile"
@@ -2903,6 +2936,11 @@
           <a href={previewUrls[viewedAttachment.path]} download={viewedAttachment.name}>
             <i class="bi bi-download" aria-hidden="true"></i> {$_("m.a479c9c34e")}
           </a>
+        {/if}
+        {#if editable}
+          <button type="button" on:click={() => copyAttachmentMarkdown(viewedAttachment)}>
+            <i class="bi bi-copy" aria-hidden="true"></i> Markdown 복사
+          </button>
         {/if}
         {#if editable && !parseAttachmentPaths(body).includes(viewedAttachment.path)}
           <button type="button" on:click={() => insertAttachmentAtEnd(viewedAttachment)}>

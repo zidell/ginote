@@ -476,6 +476,7 @@ html.mode-light .note-row-labels { opacity: 1; }
 .detail-toolbar-more .dropdown-item { display: flex; align-items: center; gap: .55rem; font-size: .9em; }
 .detail-toolbar-start .mobile-back { display: none; white-space: nowrap; }
 .inline-editor { position: relative; height: 100%; display: flex; flex-direction: column; }
+.inline-editor.is-dragging-files { outline: 2px dashed var(--ui-focus); outline-offset: -8px; background: var(--ui-drag-wash); }
 .save-status { display: inline-flex; align-items: center; gap: .35rem; margin-left: .25rem; color: var(--ui-text-faint); opacity: 0; }
 .save-status.is-visible { opacity: 1; }
 .braille-spinner { width: 1ch; flex: 0 0 1ch; opacity: 0; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; line-height: 1; text-align: center; }
@@ -484,7 +485,6 @@ html.mode-light .note-row-labels { opacity: 1; }
 .inline-editor-scroll { flex: 1; width: 100%; min-height: 0; overflow-y: auto; overscroll-behavior: contain; overflow-anchor: none; outline: none; }
 .note-content.markdown-preview-mode { background: rgba(122, 122, 122, 0.1); }
 .inline-editor-fields { --editor-gutter: clamp(1rem, 3vw, 2.5rem); position: relative; width: 100%; max-width: var(--editor-max-width, 840px); margin: 0 auto; display: flex; flex-direction: column; padding-top: var(--editor-gutter); font-family: var(--note-font); }
-.inline-editor-fields.is-dragging-files { border-radius: 6px; outline: 2px dashed var(--ui-focus); outline-offset: -.65rem; background: var(--ui-drag-wash); }
 .note-lock-overlay { position: absolute; z-index: 8; inset: 0; display: grid; place-items: center; padding: 1rem; background: var(--ui-lock-mask); }
 .note-lock-panel { width: min(360px, 100%); display: grid; gap: .8rem; padding: 1.35rem; border: 1px solid var(--ui-border-lock); border-radius: 8px; color: var(--ui-text-body); background: var(--ui-bg-panel); box-shadow: 0 18px 50px var(--ui-shadow-strong); text-align: center; }
 .note-lock-panel > i { color: var(--ui-lock); font-size: 1.65rem; }

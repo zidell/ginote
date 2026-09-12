@@ -4,8 +4,11 @@ import {
   compressAttachmentLinks,
   expandAttachmentLinks,
   insertAttachmentLinks,
+  managedAttachmentLinks,
   parseAttachmentPaths,
-  removeAttachmentLink
+  removeAttachmentLink,
+  stripManagedAttachmentBlocks,
+  withManagedAttachmentBlock
 } from './attachments.js';
 
 const imageAttachment = {
@@ -119,5 +122,43 @@ describe('attachment link 본문 삽입', () => {
     const roundTripped = expandAttachmentLinks(compressAttachmentLinks(body, 'owner/repo'), 'owner/repo');
 
     expect(roundTripped).toBe(body);
+  });
+
+  it('자동 첨부 블록은 본문 맨 위에 주석 경계와 함께 만든다', () => {
+    const link = composeAttachmentLink('owner/repo', imageAttachment);
+
+    expect(withManagedAttachmentBlock('사용자 본문', [link])).toBe(
+      `<!-- ginote:attachments:start -->\n\n${link}\n\n<!-- ginote:attachments:end -->\n\n사용자 본문`
+    );
+  });
+
+  it('자동 첨부 블록만 편집기 본문에서 제거하고 수동 링크는 유지한다', () => {
+    const automatic = composeAttachmentLink('owner/repo', imageAttachment);
+    const manual = composeAttachmentLink('owner/repo', {
+      ...imageAttachment,
+      path: '.issue-note-assets/issues/31/id2-plan.pdf',
+      name: 'plan.pdf',
+      type: 'application/pdf'
+    });
+    const remoteBody = withManagedAttachmentBlock(`사용자 본문\n\n${manual}`, [automatic]);
+
+    expect(stripManagedAttachmentBlocks(remoteBody)).toBe(`사용자 본문\n\n${manual}`);
+    expect(managedAttachmentLinks(remoteBody)).toEqual([automatic]);
+  });
+
+  it('새 자동 블록을 저장할 때 이전 자동 블록은 중복하지 않는다', () => {
+    const first = composeAttachmentLink('owner/repo', imageAttachment);
+    const second = composeAttachmentLink('owner/repo', {
+      ...imageAttachment,
+      path: '.issue-note-assets/issues/31/id2-plan.pdf',
+      name: 'plan.pdf',
+      type: 'application/pdf'
+    });
+    const once = withManagedAttachmentBlock('본문', [first]);
+    const updated = withManagedAttachmentBlock(once, [second]);
+
+    expect(updated).not.toContain(first);
+    expect(updated).toContain(second);
+    expect(updated.match(/ginote:attachments:start/g)).toHaveLength(1);
   });
 });
