@@ -2442,6 +2442,7 @@
           title={`${uploading ? $_('dynamic.uploading', { values: { count: uploading } }) : $_("m.1afff0157c")} A`}
         >
           <i class="bi bi-paperclip" aria-hidden="true"></i>
+          <span class="shortcut-hint" aria-hidden="true"><span class="shortcut-key" class:is-available={canUseNoteShortcut('a')}>A</span></span>
         </label>
       </div>
     {/if}
