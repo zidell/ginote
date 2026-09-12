@@ -3199,7 +3199,7 @@
                 {#if !pendingIssueDeletionInFlight}
                   <button
                     type="button"
-                    class="btn btn-sm btn-outline-secondary note-deletion-cancel"
+                    class="note-deletion-cancel"
                     on:click={cancelPendingIssueDeletion}
                   >{$_('setup.cancel')}</button>
                 {/if}
