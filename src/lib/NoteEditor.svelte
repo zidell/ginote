@@ -2134,19 +2134,31 @@
     return Boolean(picker);
   }
 
+  // 툴바에 단축키를 표시하는 기준과 실제 실행 기준을 같은 상태에서
+  // 계산한다. 첨부는 여기에 업로드 중/개수 제한이라는 추가 제약만 더한다.
+  // 따라서 첨부 A가 사용 가능하면 태그 T도 반드시 사용 가능하다.
+  function canUseToolbarShortcut() {
+    return editable && !previewMode && lockState !== 'locked';
+  }
+
+  function canUseTagShortcut() {
+    return canUseToolbarShortcut();
+  }
+
+  function canUseAttachmentShortcut() {
+    return canUseToolbarShortcut()
+      && Boolean(fileInput)
+      && !fileInput.disabled;
+  }
+
   function canUseNoteShortcut(key) {
     if (key === 'm') return previewMode || canPreview;
     if (key === 'l') return editable;
     if (key === 'r') return Boolean((issue || remoteIssue)?.number);
     if (key === 's') return editable && lockState !== 'locked' && !saving;
     if (key === 'e') return editable && lockState !== 'locked';
-    if (key === 't') return editable && lockState !== 'locked';
-    if (key === 'a') {
-      return editable
-        && lockState !== 'locked'
-        && Boolean(fileInput)
-        && !fileInput.disabled;
-    }
+    if (key === 't') return canUseTagShortcut();
+    if (key === 'a') return canUseAttachmentShortcut();
     if (key === 'p') return Boolean(remoteIssue?.number) && !readOnly && !pinDisabled;
     if (key === 'g') return Boolean(remoteIssue?.html_url) && Boolean(issueLinkElement);
     if (key === 'delete') return Boolean(remoteIssue?.number) && !readOnly && !archived;
@@ -2409,7 +2421,7 @@
           bind:this={toolbarTagPicker}
           toolbar
           shortcut="T"
-          shortcutEnabled={canUseNoteShortcut('t')}
+          shortcutEnabled={canUseTagShortcut()}
           availableLabels={visibleAvailableLabels}
           selectedLabels={displayedLabels}
           onSelect={toggleTag}
@@ -2420,7 +2432,7 @@
           for={`inline-attachment-${editorId}`}
         >
           <i class="bi bi-paperclip" aria-hidden="true"></i>
-          {uploading ? $_('dynamic.uploading', { values: { count: uploading } }) : $_("m.1afff0157c")} <span class="shortcut-hint"><span class="shortcut-key" class:is-available={canUseNoteShortcut('a')}>A</span></span>
+          {uploading ? $_('dynamic.uploading', { values: { count: uploading } }) : $_("m.1afff0157c")} <span class="shortcut-hint"><span class="shortcut-key" class:is-available={canUseAttachmentShortcut()}>A</span></span>
         </label>
       </div>
       <div class="detail-toolbar-actions detail-toolbar-actions-mobile">
@@ -2429,7 +2441,7 @@
           toolbar
           iconOnly
           shortcut="T"
-          shortcutEnabled={canUseNoteShortcut('t')}
+          shortcutEnabled={canUseTagShortcut()}
           availableLabels={visibleAvailableLabels}
           selectedLabels={displayedLabels}
           onSelect={toggleTag}
@@ -2442,7 +2454,7 @@
           title={`${uploading ? $_('dynamic.uploading', { values: { count: uploading } }) : $_("m.1afff0157c")} A`}
         >
           <i class="bi bi-paperclip" aria-hidden="true"></i>
-          <span class="shortcut-hint" aria-hidden="true"><span class="shortcut-key" class:is-available={canUseNoteShortcut('a')}>A</span></span>
+          <span class="shortcut-hint" aria-hidden="true"><span class="shortcut-key" class:is-available={canUseAttachmentShortcut()}>A</span></span>
         </label>
       </div>
     {/if}
