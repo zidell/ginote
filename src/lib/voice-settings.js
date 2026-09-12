@@ -1,5 +1,5 @@
 export const VOICE_SETTINGS_STORAGE_KEY = 'issue-note.voice-settings.v1';
-export const DEFAULT_TRANSCRIPTION_MODEL = 'gpt-4o-transcribe';
+export const DEFAULT_TRANSCRIPTION_MODEL = 'gpt-transcribe';
 export const DEFAULT_REFINEMENT_MODEL = 'gpt-4o-mini';
 
 export function loadVoiceSettings() {

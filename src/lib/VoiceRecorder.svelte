@@ -2,7 +2,7 @@
   import { onMount, onDestroy } from 'svelte';
   import { transcribeAudio, refineTranscript } from './openai-voice.js';
 
-  let { apiKey, refinementPrompt = '', transcriptionModel = 'gpt-4o-transcribe', refinementModel = 'gpt-4o-mini', onComplete, onClose, onDirtyChange = () => {} } = $props();
+  let { apiKey, refinementPrompt = '', transcriptionModel = 'gpt-transcribe', refinementModel = 'gpt-4o-mini', onComplete, onClose, onDirtyChange = () => {} } = $props();
   let recorder;
   let stream;
   let audioContext;
@@ -168,8 +168,11 @@
       const audio = new Blob(chunks, { type: recorder?.mimeType || 'audio/webm' });
       const transcript = await transcribeAudio(apiKey, audio, transcriptionModel, abortController.signal);
       if (!transcript) throw new Error('음성에서 텍스트를 찾지 못했습니다.');
-      status = '텍스트를 정제하는 중…';
-      const body = await refineTranscript(apiKey, transcript, refinementPrompt, refinementModel, abortController.signal);
+      let body = transcript;
+      if (refinementPrompt.trim()) {
+        status = '텍스트를 정제하는 중…';
+        body = await refineTranscript(apiKey, transcript, refinementPrompt, refinementModel, abortController.signal);
+      }
       if (!body) throw new Error('정제된 텍스트가 비어 있습니다.');
       status = '노트에 기록하는 중…';
       await onComplete(body);
