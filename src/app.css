@@ -638,7 +638,7 @@ html.mode-light .note-row-labels { opacity: 1; }
 .markdown-preview th, .markdown-preview td { padding: .4rem .55rem; border: 1px solid var(--ui-border-table); text-align: left; vertical-align: top; }
 .markdown-preview th { color: var(--ui-text-heading); background: var(--ui-bg-code); }
 .markdown-preview input[type="checkbox"] { margin-right: .4em; accent-color: var(--ui-focus); }
-.markdown-preview.note-comment-body-preview { min-height: 1.6em; padding: 0; font-size: calc(var(--note-font-size) * .92); }
+.markdown-preview.note-comment-body-preview { min-height: 1.6em; padding: 0; font-size: var(--note-font-size); }
 .note-comments-section { flex: none; display: flex; flex-direction: column; margin: .75rem var(--editor-gutter) 0; padding: .9rem 0 var(--editor-gutter); border-top: 1px solid var(--ui-border-list); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
 .note-comments-loading { display: flex; justify-content: center; padding: .5rem 0; }
 .note-comment-item { display: flex; flex-direction: column; gap: .3rem; padding: .7rem 0; }
@@ -651,7 +651,7 @@ html.mode-light .note-row-labels { opacity: 1; }
 .note-comment-status-failed { color: var(--ui-text-danger); }
 .note-comment-more { width: 1.5rem; height: 1.5rem; display: grid; place-items: center; padding: 0; border: 0; border-radius: 4px; color: var(--ui-text-subtle); background: transparent; }
 .note-comment-more:hover { color: var(--ui-text-body); background: var(--ui-bg-comment-hover); }
-.note-comment-body { width: 100%; min-height: 1.6em; padding: 0; border: 0; outline: none; color: var(--ui-text-body); background: transparent; resize: none; overflow: hidden; font-family: var(--note-font); font-size: calc(var(--note-font-size) * .92); line-height: var(--note-line-height); }
+.note-comment-body { width: 100%; min-height: 1.6em; padding: 0; border: 0; outline: none; color: var(--ui-text-body); background: transparent; resize: none; overflow: hidden; font-family: var(--note-font); font-size: var(--note-font-size); line-height: var(--note-line-height); }
 .note-comment-add-actions { display: flex; justify-content: space-between; align-items: center; margin-top: .6rem; }
 .note-comment-add { padding: .3rem .15rem; border: 0; color: var(--ui-text-subtle); background: transparent; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: .82rem; }
 .note-comment-add:hover { color: var(--ui-text-body); }
