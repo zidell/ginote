@@ -1075,8 +1075,34 @@ describe('NoteEditor 마크다운 프리뷰와 단축키', () => {
     expect(clickSpy).toHaveBeenCalledTimes(1);
     expect(onTogglePin).toHaveBeenCalledTimes(1);
     await waitFor(() => expect(document.querySelector('.note-lock-panel')).toBeTruthy());
-    expect(onMove).toHaveBeenCalledWith(issue);
+    await waitFor(() => expect(onMove).toHaveBeenCalledWith(issue));
     expect(issueLinkSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('삭제 전에 입력 중인 본문을 저장해 늦은 자동저장이 삭제를 되돌리지 않게 한다', async () => {
+    const onMove = vi.fn();
+    render(NoteEditor, {
+      token: 't',
+      repo: 'owner/repo',
+      issue: baseIssue,
+      autoSaveSeconds: 9999,
+      onMove
+    });
+
+    const bodyTextarea = document.querySelector('.inline-body');
+    await fireEvent.input(bodyTextarea, { target: { value: '삭제 직전 변경한 본문' } });
+    const deleteButton = [...document.querySelectorAll('button')]
+      .find((button) => button.getAttribute('aria-keyshortcuts') === 'Delete');
+    await fireEvent.click(deleteButton);
+
+    await waitFor(() => expect(updateIssue).toHaveBeenCalledWith(
+      't',
+      'owner/repo',
+      5,
+      expect.objectContaining({ body: '삭제 직전 변경한 본문' }),
+      expect.any(Object)
+    ));
+    await waitFor(() => expect(onMove).toHaveBeenCalledWith(expect.objectContaining({ number: 5 })));
   });
 
   it('E는 음성 녹음을 열고 X는 치환 패널을 연다', async () => {

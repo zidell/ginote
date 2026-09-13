@@ -2415,10 +2415,23 @@
       return true;
     }
     if (key === 'delete') {
-      onMove(remoteIssue);
+      void requestMove();
       return true;
     }
     return false;
+  }
+
+  async function requestMove() {
+    if (!remoteIssue || readOnly) return;
+    // 이슈를 닫은 뒤에 기존 자동저장이 state: 'open'을 전송하면 삭제가 즉시
+    // 되돌아간다. 특히 모바일에서 입력 직후 메뉴의 삭제를 누를 때 이 경합이
+    // 자주 생기므로, 먼저 저장 큐를 모두 비운 뒤 이동을 요청한다.
+    clearTimeout(remoteTimer);
+    const saved = await flushPendingWork({
+      reason: 'move',
+      allowPaused: true
+    });
+    if (saved) onMove(remoteIssue);
   }
 
   function handleMoreToolbarEscape(event) {
@@ -2757,7 +2770,7 @@
               type="button"
               class="dropdown-item"
               aria-keyshortcuts="Delete"
-              on:click={() => onMove(remoteIssue)}
+              on:click={() => void requestMove()}
             >
               <i class={`bi ${archived ? 'bi-arrow-counterclockwise' : 'bi-trash3'}`} aria-hidden="true"></i>
               {archived ? $_("m.3cbe6d6b9a") : $_("m.f6fdbe48dc")} <span class="shortcut-hint"><span class="shortcut-key" class:is-available={canUseNoteShortcut('delete')}>Delete</span></span>
