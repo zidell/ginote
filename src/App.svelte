@@ -3385,13 +3385,13 @@
               <div class="note-deletion-overlay" role="status" aria-live="polite">
                 <BrailleSpinner active />
                 <span>{$_('dynamic.attachmentDeleting')}</span>
-                {#if !pendingIssueDeletionInFlight}
-                  <button
-                    type="button"
-                    class="note-deletion-cancel"
-                    on:click={cancelPendingIssueDeletion}
-                  >{$_('setup.cancel')}</button>
-                {/if}
+                <button
+                  type="button"
+                  class="note-deletion-cancel"
+                  style:visibility={pendingIssueDeletionInFlight ? 'hidden' : 'visible'}
+                  tabindex={pendingIssueDeletionInFlight ? -1 : undefined}
+                  on:click={cancelPendingIssueDeletion}
+                >{$_('setup.cancel')}</button>
               </div>
             {/if}
             </div>
