@@ -1885,6 +1885,12 @@
     }
     if ((event.ctrlKey || event.metaKey) && !issue.local) {
       event.preventDefault();
+      const keyboardFocusedIssue = visibleIssues
+        .find((item) => String(item.id) === keyboardFocusedIssueId);
+      if (keyboardFocusedIssue && !keyboardFocusedIssue.local && keyboardFocusedIssue.id !== issue.id) {
+        selectedIssueIds = new Set([keyboardFocusedIssue.id]);
+        selectionAnchorId = keyboardFocusedIssue.id;
+      }
       if (toggleIssueSelection(issue)) previewSelectedIssue(issue);
       return;
     }
