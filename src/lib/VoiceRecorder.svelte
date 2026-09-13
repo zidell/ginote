@@ -2,7 +2,11 @@
   import { onMount, onDestroy } from 'svelte';
   import { transcribeAudio, refineTranscript } from './openai-voice.js';
 
-  let { apiKey, refinementPrompt = '', transcriptionModel = 'gpt-transcribe', refinementModel = 'gpt-4o-mini', onComplete, onClose, onDirtyChange = () => {} } = $props();
+  let { apiKey, refinementPrompt = '', transcriptionModel = 'gpt-transcribe', refinementModel = 'gpt-4o-mini', insertionPreview = null, onComplete, onClose, onDirtyChange = () => {} } = $props();
+  const MAX_RECORDING_MILLISECONDS = 60 * 60 * 1000;
+  // 음성 전사용 mono Opus 품질. 한 시간 녹음도 기존 10 MiB 첨부 정책 안에
+  // 들어갈 수 있는 수준이며, MediaRecorder가 지원하지 않으면 브라우저 기본값을 쓴다.
+  const SPEECH_AUDIO_BITRATE = 16_000;
   let recorder;
   let stream;
   let audioContext;
@@ -15,6 +19,7 @@
   let abortController;
   let elapsedSeconds = $state(0);
   let elapsedInterval;
+  let recordingLimitTimeout;
   let elapsedStartedAt = 0;
   let elapsedMilliseconds = $state(0);
   let recording = $state(false);
@@ -22,6 +27,9 @@
   let processing = $state(false);
   let error = $state('');
   let status = $state('마이크를 준비하고 있습니다…');
+  let stoppingForLimit = false;
+  let audioBlob = $state(null);
+  let downloadUrl = $state('');
 
   onMount(() => {
     dialogElement?.showModal();
@@ -35,10 +43,12 @@
   function stopEverything() {
     abortController?.abort();
     clearInterval(elapsedInterval);
+    clearTimeout(recordingLimitTimeout);
     cancelAnimationFrame(animationFrame);
     if (recorder?.state === 'recording') recorder.stop();
     stream?.getTracks().forEach((track) => track.stop());
     audioContext?.close?.();
+    if (downloadUrl) URL.revokeObjectURL(downloadUrl);
   }
 
   async function ensureMicrophone() {
@@ -79,18 +89,34 @@
         recorder.resume();
         recording = true;
         startElapsedTimer();
+        startRecordingLimitTimer();
         status = '녹음 중';
         return;
       }
       await ensureMicrophone();
       if (audioContext?.state === 'suspended') await audioContext.resume();
       const mimeType = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4'].find((type) => MediaRecorder.isTypeSupported(type));
-      recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+      recorder = new MediaRecorder(stream, {
+        ...(mimeType ? { mimeType } : {}),
+        audioBitsPerSecond: SPEECH_AUDIO_BITRATE
+      });
       recorder.ondataavailable = (event) => { if (event.data.size) chunks.push(event.data); };
-      recorder.onstop = () => { recording = false; status = chunks.length ? '재개하시거나 완료하세요.' : '녹음이 멈췄습니다.'; };
+      recorder.onstop = () => {
+        recording = false;
+        const reachedRecordingLimit = stoppingForLimit;
+        stoppingForLimit = false;
+        if (reachedRecordingLimit) {
+          playRecordingLimitTone();
+          status = '최대 녹음 시간에 도달했습니다. 자동으로 완료하는 중…';
+          void submit();
+          return;
+        }
+        status = chunks.length ? '재개하시거나 완료하세요.' : '녹음이 멈췄습니다.';
+      };
       recorder.start();
       recording = true;
       startElapsedTimer();
+      startRecordingLimitTimer();
       onDirtyChange(true);
       status = '녹음 중';
     } catch (reason) {
@@ -106,6 +132,7 @@
     recorder.pause();
     recording = false;
     pauseElapsedTimer();
+    clearTimeout(recordingLimitTimeout);
     status = '재개하시거나 완료하세요.';
     return Promise.resolve();
   }
@@ -122,10 +149,52 @@
     elapsedInterval = setInterval(updateElapsedSeconds, 250);
   }
 
+  function startRecordingLimitTimer() {
+    clearTimeout(recordingLimitTimeout);
+    const remaining = MAX_RECORDING_MILLISECONDS - elapsedMilliseconds;
+    if (remaining <= 0) {
+      stopForRecordingLimit();
+      return;
+    }
+    recordingLimitTimeout = setTimeout(stopForRecordingLimit, remaining);
+  }
+
+  function playRecordingLimitTone() {
+    try {
+      const context = audioContext || new AudioContext();
+      const playBeep = (offset) => {
+        const oscillator = context.createOscillator();
+        const gain = context.createGain();
+        const startAt = context.currentTime + offset;
+        oscillator.frequency.value = 880;
+        gain.gain.setValueAtTime(.12, startAt);
+        gain.gain.exponentialRampToValueAtTime(.001, startAt + .12);
+        oscillator.connect(gain).connect(context.destination);
+        oscillator.start(startAt);
+        oscillator.stop(startAt + .12);
+      };
+      playBeep(0);
+      playBeep(.18);
+    } catch {
+      // 브라우저의 자동 재생 제한 등으로 소리를 낼 수 없어도 녹음 제한은 지킨다.
+    }
+  }
+
+  function stopForRecordingLimit() {
+    if (recorder?.state !== 'recording') return;
+    stoppingForLimit = true;
+    recording = false;
+    pauseElapsedTimer();
+    clearTimeout(recordingLimitTimeout);
+    status = '최대 녹음 시간에 도달해 중지 중…';
+    recorder.stop();
+  }
+
   function pauseElapsedTimer() {
     if (elapsedStartedAt) elapsedMilliseconds += Date.now() - elapsedStartedAt;
     elapsedStartedAt = 0;
     clearInterval(elapsedInterval);
+    clearTimeout(recordingLimitTimeout);
     updateElapsedSeconds();
   }
 
@@ -161,27 +230,49 @@
     }
     if (!chunks.length || processing) { error = '먼저 음성을 녹음해 주세요.'; return; }
     processing = true; error = '';
-    onDirtyChange(false);
     abortController = new AbortController();
     try {
+      audioBlob ||= new Blob(chunks, { type: recorder?.mimeType || 'audio/webm' });
       status = '음성을 텍스트로 변환하는 중…';
-      const audio = new Blob(chunks, { type: recorder?.mimeType || 'audio/webm' });
-      const transcript = await transcribeAudio(apiKey, audio, transcriptionModel, abortController.signal);
+      const transcript = await retryOnce('음성 전사', () => transcribeAudio(apiKey, audioBlob, transcriptionModel, abortController.signal));
       if (!transcript) throw new Error('음성에서 텍스트를 찾지 못했습니다.');
       let body = transcript;
       // 모델을 고른 경우에만, 화면에서 편집 가능한 정제 프롬프트를 적용한다.
       if (refinementModel.trim()) {
         status = '텍스트를 정제하는 중…';
-        body = await refineTranscript(apiKey, transcript, refinementPrompt, refinementModel, abortController.signal);
+        body = await retryOnce('텍스트 정제', () => refineTranscript(apiKey, transcript, refinementPrompt, refinementModel, abortController.signal));
       }
       if (!body) throw new Error('정제된 텍스트가 비어 있습니다.');
       status = '노트에 기록하는 중…';
-      await onComplete(body);
+      await onComplete(body, audioBlob);
+      onDirtyChange(false);
     } catch (reason) {
       if (reason?.name !== 'AbortError') error = reason?.message || '음성 기록에 실패했습니다.';
-      if (reason?.name !== 'AbortError') onDirtyChange(true);
+      if (reason?.name !== 'AbortError') {
+        onDirtyChange(true);
+        if (audioBlob && !downloadUrl) downloadUrl = URL.createObjectURL(audioBlob);
+      }
       status = '다시 시도할 수 있습니다.';
     } finally { processing = false; abortController = null; }
+  }
+
+  async function retryOnce(label, operation) {
+    try {
+      return await operation();
+    } catch (reason) {
+      if (reason?.name === 'AbortError') throw reason;
+      status = `${label}에 실패해 한 번 더 시도하는 중…`;
+      return operation();
+    }
+  }
+
+  function downloadAudio() {
+    if (!downloadUrl || !audioBlob) return;
+    const extension = audioBlob.type.includes('mp4') ? 'mp4' : 'webm';
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.download = `ginote-voice-${new Date().toISOString().replace(/[:.]/g, '-')}.${extension}`;
+    link.click();
   }
 
   function requestClose() {
@@ -196,6 +287,18 @@
 <dialog bind:this={dialogElement} class="voice-modal" aria-label="음성 녹음" oncancel={(event) => { event.preventDefault(); if (!processing) requestClose(); }}>
     <button class="btn btn-sm btn-outline-secondary voice-close" aria-label="닫기" onclick={requestClose} disabled={processing}><i class="bi bi-x-lg"></i></button>
     <div class="voice-content">
+      {#if insertionPreview?.type === 'insert'}
+        <div class="voice-insertion-preview" aria-label="삽입 위치 미리보기">
+          <strong>삽입 :</strong>
+          <span>{insertionPreview.before}</span><b class="voice-cursor-marker">V</b><span>{insertionPreview.after}</span>
+        </div>
+      {:else if insertionPreview?.type === 'replace'}
+        <div class="voice-insertion-preview" aria-label="대체할 텍스트 미리보기">
+          <strong>대체 :</strong> <span>{insertionPreview.selectedText}</span>
+        </div>
+      {:else if insertionPreview?.type === 'new-comment'}
+        <div class="voice-insertion-preview">삽입 : 새 코멘트</div>
+      {/if}
       <div class="voice-recording-control">
         <canvas class="voice-waveform" width="480" height="120" bind:this={canvas} aria-label="녹음 파형"></canvas>
         <button
@@ -213,6 +316,7 @@
       </div>
       <p class="voice-status" role="status">{status}</p>
       {#if error}<p class="voice-error" role="alert">{error}</p>{/if}
+      {#if downloadUrl}<button type="button" class="btn btn-sm btn-outline-secondary" onclick={downloadAudio}><i class="bi bi-download" aria-hidden="true"></i> 원본 음성 다운로드</button>{/if}
     </div>
     <div class="voice-footer"><button class="btn btn-primary" onclick={submit} disabled={preparing || processing || (!recording && !chunks.length && !elapsedMilliseconds)}>{processing ? '기록 중…' : `완료 (${elapsedSeconds}초)`}</button></div>
 </dialog>

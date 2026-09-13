@@ -167,6 +167,28 @@ describe('NoteEditor 코멘트 블록', () => {
     expect(MAX_ISSUE_COMMENT_LENGTH).toBe(58_982);
   });
 
+  it('음성 전사문은 본문의 저장된 선택 영역을 대체한다', async () => {
+    const onVoiceBodyHandled = vi.fn();
+    const { rerender } = render(NoteEditor, {
+      token: 't',
+      repo: 'owner/repo',
+      issue: { ...baseIssue, body: '앞선택뒤' },
+      autoSaveSeconds: 9999,
+      onVoiceBodyHandled
+    });
+
+    await rerender({ voiceBody: {
+      id: 1,
+      issueNumber: 5,
+      selectionStart: 1,
+      selectionEnd: 3,
+      body: '음성'
+    } });
+
+    await waitFor(() => expect(document.querySelector('.inline-body').value).toBe('앞 음성 뒤'));
+    expect(onVoiceBodyHandled).toHaveBeenCalledWith(1);
+  });
+
   it('기본 모드에서는 검색어와 치환값을 일반 문자열로 처리한다', async () => {
     localStorage.clear();
     render(NoteEditor, {
@@ -612,7 +634,7 @@ describe('NoteEditor 코멘트 블록', () => {
     render(NoteEditor, { token: 't', repo: 'owner/repo', issue: baseIssue });
 
     await waitFor(() => expect(screen.getByText('octocat')).toBeTruthy());
-    await fireEvent.click(document.querySelector('.note-comment-item .dropdown-item'));
+    await fireEvent.click(document.querySelector('.note-comment-item li:last-child .dropdown-item'));
 
     await waitFor(() => expect(deleteIssueComment).toHaveBeenCalledWith('t', 'owner/repo', 1));
     vi.unstubAllGlobals();
@@ -1001,7 +1023,12 @@ describe('NoteEditor 마크다운 프리뷰와 단축키', () => {
     });
 
     dispatchShortcut('e', 'KeyE');
-    expect(onVoiceRecording).toHaveBeenCalledWith(baseIssue);
+    expect(onVoiceRecording).toHaveBeenCalledWith(baseIssue, expect.objectContaining({
+      type: 'body',
+      selectionStart: baseIssue.body.length,
+      selectionEnd: baseIssue.body.length,
+      preview: expect.objectContaining({ type: 'insert' })
+    }));
 
     dispatchShortcut('x', 'KeyX');
     await waitFor(() => expect(document.querySelector('.replace-panel')).toBeTruthy());

@@ -28,14 +28,15 @@ export function loadVoiceSettings() {
         : String(saved.transcriptionModel).trim(),
       refinementModel: saved.refinementModel == null
         ? DEFAULT_REFINEMENT_MODEL
-        : String(saved.refinementModel).trim()
+        : String(saved.refinementModel).trim(),
+      preserveOriginalAudio: Boolean(saved.preserveOriginalAudio)
     };
   } catch {
-    return { apiKey: '', refinementPrompt: DEFAULT_REFINEMENT_PROMPT, transcriptionModel: DEFAULT_TRANSCRIPTION_MODEL, refinementModel: DEFAULT_REFINEMENT_MODEL };
+    return { apiKey: '', refinementPrompt: DEFAULT_REFINEMENT_PROMPT, transcriptionModel: DEFAULT_TRANSCRIPTION_MODEL, refinementModel: DEFAULT_REFINEMENT_MODEL, preserveOriginalAudio: false };
   }
 }
 
-export function saveVoiceSettings({ apiKey, refinementPrompt, transcriptionModel, refinementModel }) {
+export function saveVoiceSettings({ apiKey, refinementPrompt, transcriptionModel, refinementModel, preserveOriginalAudio = false }) {
   localStorage.setItem(VOICE_SETTINGS_STORAGE_KEY, JSON.stringify({
     apiKey: String(apiKey || '').trim(),
     refinementPrompt: String(refinementPrompt || DEFAULT_REFINEMENT_PROMPT).trim(),
@@ -44,7 +45,8 @@ export function saveVoiceSettings({ apiKey, refinementPrompt, transcriptionModel
       : String(transcriptionModel).trim(),
     refinementModel: refinementModel == null
       ? DEFAULT_REFINEMENT_MODEL
-      : String(refinementModel).trim()
+      : String(refinementModel).trim(),
+    preserveOriginalAudio: Boolean(preserveOriginalAudio)
   }));
 }
 
