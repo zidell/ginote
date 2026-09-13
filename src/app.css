@@ -331,6 +331,8 @@ code { color: var(--ui-text-code); }
 .voice-default-action { font-size: .75rem; }
 .voice-label-action:hover, .voice-label-action:focus-visible { color: var(--bs-body-color); text-decoration: underline; }
 .voice-label-action:disabled { color: var(--bs-secondary-color); opacity: .5; text-decoration: none; }
+.voice-refinement-presets { display: flex; align-items: center; gap: .35rem; }
+.voice-preset-separator { color: var(--bs-secondary-color); font-size: .75rem; }
 
 .app-shell { height: 100%; overflow: hidden; background: var(--ui-bg-app); }
 .avatar { width: 100%; height: 100%; border-radius: 50%; }
