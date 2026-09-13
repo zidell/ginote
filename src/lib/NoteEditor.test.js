@@ -189,6 +189,42 @@ describe('NoteEditor 코멘트 블록', () => {
     expect(onVoiceBodyHandled).toHaveBeenCalledWith(1);
   });
 
+  it('본문에 커서가 없을 때 음성 전사문을 빈 줄 뒤 본문 끝에 추가한다', async () => {
+    const onVoiceRecording = vi.fn();
+    const { rerender } = render(NoteEditor, {
+      token: 't',
+      repo: 'owner/repo',
+      issue: { ...baseIssue, body: '기존 본문\n' },
+      autoSaveSeconds: 9999,
+      onVoiceRecording
+    });
+
+    const moreButton = screen.getByRole('button', { name: 'More note actions' });
+    await fireEvent.click(moreButton);
+    const voiceButton = [...document.querySelectorAll('.detail-toolbar-voice')].at(-1);
+    await fireEvent.click(voiceButton);
+    const currentBody = document.querySelector('.inline-body').value;
+    const appendStart = currentBody.trimEnd().length;
+
+    expect(onVoiceRecording).toHaveBeenCalledWith(expect.objectContaining({ number: 5 }), expect.objectContaining({
+      type: 'body',
+      appendAtEnd: true,
+      selectionStart: appendStart,
+      selectionEnd: currentBody.length
+    }));
+
+    await rerender({ voiceBody: {
+      id: 1,
+      issueNumber: 5,
+      appendAtEnd: true,
+      selectionStart: appendStart,
+      selectionEnd: currentBody.length,
+      body: '전사문'
+    } });
+
+    await waitFor(() => expect(document.querySelector('.inline-body').value).toBe(`${currentBody.trimEnd()}\n\n전사문`));
+  });
+
   it('음성 전사문은 자동저장 시간을 기다리지 않고 즉시 저장한다', async () => {
     localStorage.clear();
     const { rerender } = render(NoteEditor, {

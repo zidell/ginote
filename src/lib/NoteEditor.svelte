@@ -1960,9 +1960,16 @@
 
   function voiceTargetFor(input, type, extras = {}) {
     const source = input?.value ?? '';
-    const selectionStart = Math.max(0, Math.min(input?.selectionStart ?? source.length, source.length));
-    const selectionEnd = Math.max(selectionStart, Math.min(input?.selectionEnd ?? selectionStart, source.length));
-    const selectedText = source.slice(selectionStart, selectionEnd);
+    const appendAtEnd = extras.appendAtEnd === true;
+    // 본문에 포커스가 없으면 textarea가 마지막으로 기억한 selectionStart는
+    // 실제 커서가 아니다. 끝의 공백까지 선택해 빈 줄을 새로 만든다.
+    const selectionStart = appendAtEnd
+      ? source.trimEnd().length
+      : Math.max(0, Math.min(input?.selectionStart ?? source.length, source.length));
+    const selectionEnd = appendAtEnd
+      ? source.length
+      : Math.max(selectionStart, Math.min(input?.selectionEnd ?? selectionStart, source.length));
+    const selectedText = appendAtEnd ? '' : source.slice(selectionStart, selectionEnd);
     const preview = selectedText
       ? { type: 'replace', selectedText: shortenMiddle(selectedText, 64) }
       : {
@@ -1988,6 +1995,7 @@
     const start = Math.max(0, Math.min(target?.selectionStart ?? value.length, value.length));
     const end = Math.max(start, Math.min(target?.selectionEnd ?? start, value.length));
     const text = String(transcript || '').trim();
+    if (target?.appendAtEnd) return start > 0 ? `\n\n${text}` : text;
     const needsSpaceBefore = start > 0 && !/\s$/.test(value.slice(0, start));
     const needsSpaceAfter = end < value.length && !/^\s/.test(value.slice(end));
     return `${needsSpaceBefore ? ' ' : ''}${text}${needsSpaceAfter ? ' ' : ''}`;
@@ -2046,7 +2054,8 @@
 
   function recordVoiceInBody() {
     if (!remoteIssue?.number) return;
-    onVoiceRecording(remoteIssue, voiceTargetFor(bodyInput, 'body'));
+    const hasCursor = document.activeElement === bodyInput;
+    onVoiceRecording(remoteIssue, voiceTargetFor(bodyInput, 'body', { appendAtEnd: !hasCursor }));
   }
 
   function recordVoiceInComment(comment) {
