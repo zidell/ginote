@@ -83,7 +83,9 @@
   export let onVoiceRecording = () => {};
   export let voiceComment = null;
   export let voiceBody = null;
+  export let voiceCommentEdit = null;
   export let onVoiceBodyHandled = () => {};
+  export let onVoiceCommentEditHandled = () => {};
   export let onBack = () => {};
   export let pinned = false;
   export let pinDisabled = false;
@@ -97,6 +99,7 @@
   const LIST_PREVIEW_DEBOUNCE_MS = 500;
   const MAX_ATTACHMENTS = 30;
   const ATTACHMENT_DELETE_DELAY_MS = 5000;
+  const VOICE_AUDIO_MARKUP = /<audio\s+controls\s+preload="metadata"\s+src="([^"]+)"[^>]*>[\s\S]*?<\/audio>/g;
   // 아직 번호가 없는 새 노트는 initialDraft.id(세션마다 고유)로 구분해야, 저장 도중
   // 리마운트되며 남겨진 이전 세션의 초안이 이후의 다른 새 노트에 잘못 복구되지 않는다.
   // 새로고침 직후처럼 initialDraft가 없을 때만 공용 'new' 키로 복구를 시도한다.
@@ -140,6 +143,8 @@
   let commentSaveIdleResolvers = [];
   let recoveredPendingWork = false;
   let previewUrls = {};
+  let voiceAudioPreviewUrls = {};
+  let voiceAudioPreviewErrors = {};
   let viewerIndex = -1;
   let viewerElement;
   let editorScroll;
@@ -200,6 +205,7 @@
   let handledExternalPasteRequest = 0;
   let handledVoiceCommentId = 0;
   let handledVoiceBodyId = 0;
+  let handledVoiceCommentEditId = 0;
 
   $: fontStack = editorFontStack(font);
   $: displayedLabels = visibleLabelNames(labels);
@@ -269,13 +275,41 @@
   $: if (voiceBody?.id > handledVoiceBodyId) {
     handledVoiceBodyId = voiceBody.id;
     if (voiceBody.issueNumber === remoteIssue?.number) {
-      body = body.trim() ? `${body.trimEnd()}\n\n${voiceBody.body}` : voiceBody.body;
+      if (voiceBody.attachment) replaceAttachments([...attachments, voiceBody.attachment]);
+      const insertedText = voiceTextWithSpacing(displayBody, voiceBody, voiceBody.body);
+      const nextDisplayBody = replaceVoiceTarget(displayBody, voiceBody, insertedText);
+      updateBodyFromTextarea(nextDisplayBody);
       changed();
       // 부모가 이벤트를 소비했다고 표시해야 이 편집기가 다시 마운트되어도
       // 같은 음성 본문을 한 번 더 덧붙이지 않는다.
       onVoiceBodyHandled(voiceBody.id);
     }
   }
+  $: if (voiceCommentEdit?.id > handledVoiceCommentEditId) {
+    handledVoiceCommentEditId = voiceCommentEdit.id;
+    if (voiceCommentEdit.issueNumber === remoteIssue?.number) {
+      const comment = comments.find((item) => item.id === voiceCommentEdit.commentId);
+      if (comment) {
+        const editableBody = commentTextForEditing(comment.body);
+        const insertedText = voiceTextWithSpacing(editableBody, voiceCommentEdit, voiceCommentEdit.body);
+        const nextBody = replaceVoiceTarget(editableBody, voiceCommentEdit, insertedText);
+        const existingAudioMarkup = voiceAudioMarkup(comment.body);
+        comment.body = voiceCommentEdit.attachmentLink
+          ? `${nextBody.trimEnd()}${existingAudioMarkup ? '\n\n' : ''}${existingAudioMarkup}${existingAudioMarkup ? '\n\n' : ''}${voiceCommentEdit.attachmentLink}`
+          : `${nextBody}${existingAudioMarkup ? `\n\n${existingAudioMarkup}` : ''}`;
+        comments = comments;
+        markCommentDirty(comment);
+        tick().then(() => {
+          const input = document.getElementById(`comment-body-${comment.id}`);
+          input?.focus();
+          const position = Math.min(input?.value.length || 0, (voiceCommentEdit.selectionStart || 0) + insertedText.length);
+          input?.setSelectionRange(position, position);
+        });
+      }
+      onVoiceCommentEditHandled(voiceCommentEdit.id);
+    }
+  }
+  $: if (mounted) comments.forEach((comment) => commentAudioSources(comment.body).forEach(loadCommentAudioPreview));
 
   onMount(() => {
     const recovered = !editable || ignoreRecoveredDraft ? null : readDraft();
@@ -349,6 +383,9 @@
     if (hasPendingWork) void flushPendingWork({ reason: 'destroy', allowPaused: true, requestOptions: { keepalive: true } });
     Object.values(previewUrls).forEach((url) => URL.revokeObjectURL(url));
     previewUrls = {};
+    Object.values(voiceAudioPreviewUrls).forEach((url) => URL.revokeObjectURL(url));
+    voiceAudioPreviewUrls = {};
+    voiceAudioPreviewErrors = {};
   });
 
   function draftStore() {
@@ -1663,6 +1700,11 @@
       || /\.(avif|gif|jpe?g|png|svg|webp)$/i.test(attachment?.name || '');
   }
 
+  function isAudio(attachment) {
+    return attachment?.type?.startsWith('audio/')
+      || /\.(m4a|mp3|mp4|oga|ogg|opus|wav|webm)$/i.test(attachment?.name || '');
+  }
+
   function isCurrentAttachment(path) {
     return !destroyed && attachments.some((attachment) => attachment.path === path);
   }
@@ -1701,7 +1743,8 @@
   async function loadPreview(attachment) {
     if (!attachment || previewUrls[attachment.path]) return previewUrls[attachment.path];
     try {
-      const blob = await downloadAttachment(token, repo, attachment);
+      const downloaded = await downloadAttachment(token, repo, attachment);
+      const blob = isAudio(attachment) ? withAudioMimeType(downloaded, attachment.name) : downloaded;
       if (!isCurrentAttachment(attachment.path)) return '';
       return retainPreviewUrl(attachment.path, URL.createObjectURL(blob));
     } catch (reason) {
@@ -1902,6 +1945,107 @@
     comments = [...comments, draft];
     await tick();
     document.getElementById(`comment-body-${draft.id}`)?.focus();
+  }
+
+  function voiceTargetFor(input, type, extras = {}) {
+    const source = input?.value ?? '';
+    const selectionStart = Math.max(0, Math.min(input?.selectionStart ?? source.length, source.length));
+    const selectionEnd = Math.max(selectionStart, Math.min(input?.selectionEnd ?? selectionStart, source.length));
+    const selectedText = source.slice(selectionStart, selectionEnd);
+    const preview = selectedText
+      ? { type: 'replace', selectedText: shortenMiddle(selectedText, 64) }
+      : {
+          type: 'insert',
+          before: voicePreviewBefore(source.slice(0, selectionStart)),
+          after: voicePreviewAfter(source.slice(selectionEnd))
+        };
+    return { type, selectionStart, selectionEnd, preview, ...extras };
+  }
+
+  function voicePreviewBefore(value) {
+    const characters = Array.from(value);
+    return `${characters.length > 28 ? '…' : ''}${characters.slice(-28).join('')}`;
+  }
+
+  function voicePreviewAfter(value) {
+    const characters = Array.from(value);
+    return `${characters.slice(0, 28).join('')}${characters.length > 28 ? '…' : ''}`;
+  }
+
+  function voiceTextWithSpacing(source, target, transcript) {
+    const value = String(source || '');
+    const start = Math.max(0, Math.min(target?.selectionStart ?? value.length, value.length));
+    const end = Math.max(start, Math.min(target?.selectionEnd ?? start, value.length));
+    const text = String(transcript || '').trim();
+    const needsSpaceBefore = start > 0 && !/\s$/.test(value.slice(0, start));
+    const needsSpaceAfter = end < value.length && !/^\s/.test(value.slice(end));
+    return `${needsSpaceBefore ? ' ' : ''}${text}${needsSpaceAfter ? ' ' : ''}`;
+  }
+
+  function voiceAudioMarkup(value) {
+    return [...String(value || '').matchAll(VOICE_AUDIO_MARKUP)].map((match) => match[0]).join('\n\n');
+  }
+
+  function commentTextForEditing(value) {
+    return String(value || '').replace(VOICE_AUDIO_MARKUP, '').replace(/\n{3,}/g, '\n\n').trimEnd();
+  }
+
+  function commentAudioSources(value) {
+    return [...String(value || '').matchAll(VOICE_AUDIO_MARKUP)].map((match) => match[1]);
+  }
+
+  function attachmentPathFromRawUrl(url) {
+    const marker = '/raw/HEAD/';
+    const index = String(url || '').indexOf(marker);
+    return index < 0 ? '' : String(url).slice(index + marker.length).split('/').map(decodeURIComponent).join('/');
+  }
+
+  async function loadCommentAudioPreview(url) {
+    if (voiceAudioPreviewUrls[url]) return;
+    const path = attachmentPathFromRawUrl(url);
+    if (!path) return;
+    try {
+      const blob = withAudioMimeType(await downloadAttachment(token, repo, { path }), path);
+      if (destroyed || voiceAudioPreviewUrls[url]) return;
+      voiceAudioPreviewUrls = { ...voiceAudioPreviewUrls, [url]: URL.createObjectURL(blob) };
+    } catch {
+      voiceAudioPreviewErrors = { ...voiceAudioPreviewErrors, [url]: true };
+    }
+  }
+
+  function withAudioMimeType(blob, name) {
+    if (blob.type.startsWith('audio/')) return blob;
+    const extension = String(name || '').split('.').pop()?.toLowerCase();
+    const type = { webm: 'audio/webm', mp4: 'audio/mp4', m4a: 'audio/mp4', mp3: 'audio/mpeg', oga: 'audio/ogg', ogg: 'audio/ogg', opus: 'audio/ogg', wav: 'audio/wav' }[extension];
+    return type ? new Blob([blob], { type }) : blob;
+  }
+
+  function updateCommentBody(comment, value) {
+    const audioMarkup = voiceAudioMarkup(comment.body);
+    comment.body = `${value}${audioMarkup ? `${value.trimEnd() ? '\n\n' : ''}${audioMarkup}` : ''}`;
+    markCommentDirty(comment);
+  }
+
+  function replaceVoiceTarget(source, target, transcript) {
+    const value = String(source || '');
+    const start = Math.max(0, Math.min(target?.selectionStart ?? value.length, value.length));
+    const end = Math.max(start, Math.min(target?.selectionEnd ?? start, value.length));
+    return `${value.slice(0, start)}${transcript}${value.slice(end)}`;
+  }
+
+  function recordVoiceInBody() {
+    if (!remoteIssue?.number) return;
+    onVoiceRecording(remoteIssue, voiceTargetFor(bodyInput, 'body'));
+  }
+
+  function recordVoiceInComment(comment) {
+    const input = document.getElementById(`comment-body-${comment.id}`);
+    onVoiceRecording(remoteIssue, voiceTargetFor(input, 'comment-edit', { commentId: comment.id }));
+  }
+
+  function recordVoiceAsNewComment() {
+    if (!remoteIssue?.number) return;
+    onVoiceRecording(remoteIssue, { type: 'comment-new', preview: { type: 'new-comment' } });
   }
 
   async function removeComment(comment) {
@@ -2240,7 +2384,7 @@
       return openToolbarTagPicker();
     }
     if (key === 'e') {
-      onVoiceRecording(remoteIssue);
+      recordVoiceInBody();
       return true;
     }
     if (key === 'x') {
@@ -2521,6 +2665,7 @@
         data-bs-toggle="dropdown"
         aria-expanded="false"
         aria-label={$_("m.a9b795bbb6")}
+        on:mousedown|preventDefault
       ><i class="bi bi-three-dots-vertical" aria-hidden="true"></i></button>
       <div class="dropdown-menu dropdown-menu-end">
         {#if canPreview && !previewMode}
@@ -2564,7 +2709,7 @@
             class="dropdown-item detail-toolbar-voice"
             aria-keyshortcuts="E"
             disabled={!remoteIssue?.number}
-            on:click={() => onVoiceRecording(remoteIssue)}
+            on:click={recordVoiceInBody}
           >
             <i class="bi bi-mic-fill" aria-hidden="true"></i>
             음성 녹음 <span class="shortcut-hint"><span class="shortcut-key" class:is-available={canUseNoteShortcut('e')}>E</span></span>
@@ -2895,8 +3040,16 @@
                         aria-expanded="false"
                         aria-label={$_("m.02f145f769")}
                         tabindex="-1"
+                        on:mousedown|preventDefault
                       ><i class="bi bi-three-dots" aria-hidden="true"></i></button>
                       <ul class="dropdown-menu dropdown-menu-end">
+                        <li>
+                          <button
+                            type="button"
+                            class="dropdown-item"
+                            on:click={() => recordVoiceInComment(comment)}
+                          ><i class="bi bi-mic-fill" aria-hidden="true"></i> 음성 녹음</button>
+                        </li>
                         <li>
                           <button
                             type="button"
@@ -2919,8 +3072,8 @@
                 <textarea
                   id={`comment-body-${comment.id}`}
                   class="note-comment-body"
-                  bind:value={comment.body}
-                  on:input={() => markCommentDirty(comment)}
+                  value={commentTextForEditing(comment.body)}
+                  on:input={(event) => updateCommentBody(comment, event.currentTarget.value)}
                   on:keydown={handleEditorKeydown}
                   on:blur={() => saveComment(comment)}
                   placeholder={$_("m.ee6540eb88")}
@@ -2928,14 +3081,30 @@
                   readonly={!editable || lockState === 'locked'}
                   use:autosize={comment.body}
                 ></textarea>
+                {#each commentAudioSources(comment.body) as source}
+                  {#if voiceAudioPreviewUrls[source]}
+                    <audio class="note-comment-audio" controls preload="metadata" src={voiceAudioPreviewUrls[source]}>
+                      이 브라우저에서는 음성 미리보기를 지원하지 않습니다.
+                    </audio>
+                  {:else if voiceAudioPreviewErrors[source]}
+                    <span class="note-comment-audio-error">원본 음성을 불러오지 못했습니다.</span>
+                  {:else}
+                    <span class="note-comment-audio-loading"><BrailleSpinner active /></span>
+                  {/if}
+                {/each}
               {/if}
             </div>
           {/each}
         {/if}
         {#if editable && lockState !== 'locked' && remoteIssue?.number && !previewMode}
-          <button type="button" class="note-comment-add" on:click={addComment}>
-            <i class="bi bi-plus-lg" aria-hidden="true"></i> {$_("m.7d3764e42e")}
-          </button>
+          <div class="note-comment-add-actions">
+            <button type="button" class="note-comment-add" on:click={addComment}>
+              <i class="bi bi-plus-lg" aria-hidden="true"></i> {$_("m.7d3764e42e")}
+            </button>
+            <button type="button" class="note-comment-add" on:click={recordVoiceAsNewComment}>
+              <i class="bi bi-mic-fill" aria-hidden="true"></i> 음성 추가
+            </button>
+          </div>
         {/if}
       </section>
     {/if}
@@ -3040,7 +3209,17 @@
           {#if previewUrls[viewedAttachment.path]}
             <img src={previewUrls[viewedAttachment.path]} alt={viewedAttachment.name} />
           {:else}
-            <span class="spinner-border" aria-label={$_("m.6adbafad55")}></span>
+            <BrailleSpinner active />
+          {/if}
+        {:else if isAudio(viewedAttachment)}
+          {#if previewUrls[viewedAttachment.path]}
+            <div class="attachment-audio-view">
+              <audio controls preload="metadata" src={previewUrls[viewedAttachment.path]}>
+                이 브라우저에서는 음성 미리보기를 지원하지 않습니다.
+              </audio>
+            </div>
+          {:else}
+            <BrailleSpinner active />
           {/if}
         {:else}
           <div class="attachment-file-view">
@@ -3055,15 +3234,15 @@
             {/if}
           </div>
         {/if}
+        {#if attachments.length > 1}
+          <button type="button" class="viewer-nav viewer-prev" on:click={() => moveViewer(-1)} aria-label={$_("m.ad0c7c8ea7")}>
+            <i class="bi bi-chevron-left" aria-hidden="true"></i>
+          </button>
+          <button type="button" class="viewer-nav viewer-next" on:click={() => moveViewer(1)} aria-label={$_("m.57bc468d7d")}>
+            <i class="bi bi-chevron-right" aria-hidden="true"></i>
+          </button>
+        {/if}
       </div>
-      {#if attachments.length > 1}
-        <button type="button" class="viewer-nav viewer-prev" on:click={() => moveViewer(-1)} aria-label={$_("m.ad0c7c8ea7")}>
-          <i class="bi bi-chevron-left" aria-hidden="true"></i>
-        </button>
-        <button type="button" class="viewer-nav viewer-next" on:click={() => moveViewer(1)} aria-label={$_("m.57bc468d7d")}>
-          <i class="bi bi-chevron-right" aria-hidden="true"></i>
-        </button>
-      {/if}
     </div>
   {/if}
 </div>

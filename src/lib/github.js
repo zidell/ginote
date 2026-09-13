@@ -411,6 +411,17 @@ export async function downloadAttachment(token, repoInput, attachment) {
     error.status = response.status;
     throw error;
   }
+  // 일부 GitHub 응답 경로는 raw Accept를 받았어도 Contents JSON을 돌려준다.
+  // 미디어 미리보기에는 JSON 문자열이 아니라 실제 파일 바이트가 필요하다.
+  const contentType = response.headers.get('content-type') || '';
+  if (contentType.includes('application/json')) {
+    const payload = await response.json();
+    if (typeof payload?.content === 'string' && payload.encoding === 'base64') {
+      const binary = atob(payload.content.replace(/\s/g, ''));
+      const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
+      return new Blob([bytes]);
+    }
+  }
   return response.blob();
 }
 

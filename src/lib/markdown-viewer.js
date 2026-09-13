@@ -13,7 +13,9 @@ export function renderMarkdown(value) {
   const rendered = marked.parse(source, markdownOptions);
   const sanitized = DOMPurify.sanitize(rendered, {
     USE_PROFILES: { html: true },
-    FORBID_ATTR: ['style']
+    FORBID_ATTR: ['style'],
+    ADD_TAGS: ['audio', 'source'],
+    ADD_ATTR: ['controls', 'preload', 'src', 'type']
   });
 
   // DOMPurify removes unsafe protocols and attributes. Add the same external-link

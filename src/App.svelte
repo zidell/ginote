@@ -33,6 +33,7 @@
   import { _, locale as activeLocale } from 'svelte-i18n';
   import { LOCALE_OPTIONS, setAppLocale } from './lib/i18n.js';
   import { normalizeTagName } from './lib/notes.js';
+  import { attachmentRawUrl } from './lib/attachments.js';
   import {
     hasPinLabel,
     isPinLabel,
@@ -84,6 +85,7 @@
     searchIssuesPage,
     setIssueLabels,
     setIssueState,
+    uploadAttachment,
     verifyConnection
   } from './lib/github.js';
 
@@ -223,6 +225,7 @@
   let voiceRefinementPrompt = DEFAULT_REFINEMENT_PROMPT;
   let voiceTranscriptionModel = DEFAULT_TRANSCRIPTION_MODEL;
   let voiceRefinementModel = DEFAULT_REFINEMENT_MODEL;
+  let preserveOriginalVoiceAudio = false;
   let voiceModelLists = { transcription: [], refinement: [] };
   let voiceModelsRefreshing = false;
   let voiceModelsError = '';
@@ -234,14 +237,13 @@
   let voiceSettingsHighlighted = false;
   let voiceHasUnrecordedAudio = false;
   let allowVoiceRouteExit = false;
-  let voiceTargetChooserOpen = false;
-  let voiceTargetChooserElement;
-  let voiceTargetIssue = null;
   let voiceRecordingDestination = null;
   let voiceCommentSequence = 0;
   let voiceComment = null;
   let voiceBodySequence = 0;
   let voiceBody = null;
+  let voiceCommentEditSequence = 0;
+  let voiceCommentEdit = null;
   let voiceSettingsSection;
   let voiceApiKeyInput;
 
@@ -423,7 +425,8 @@
       apiKey: voiceApiKey,
       refinementPrompt: voiceRefinementPrompt,
       transcriptionModel: voiceTranscriptionModel,
-      refinementModel: voiceRefinementModel
+      refinementModel: voiceRefinementModel,
+      preserveOriginalAudio: preserveOriginalVoiceAudio
     } = loadVoiceSettings());
     voiceModelLists = loadVoiceModelLists();
     if (settingsDocument) {
@@ -608,7 +611,8 @@
       apiKey: voiceApiKey,
       refinementPrompt: voiceRefinementPrompt,
       transcriptionModel: voiceTranscriptionModel,
-      refinementModel: voiceRefinementModel
+      refinementModel: voiceRefinementModel,
+      preserveOriginalAudio: preserveOriginalVoiceAudio
     });
   }
 
@@ -2564,7 +2568,7 @@
     router.push('settings');
   }
 
-  function openVoiceRecording(issue = null) {
+  function openVoiceRecording(issue = null, target = { type: 'body' }) {
     if (pendingNote || selectionMode) return;
     if (!voiceApiKey.trim()) {
       openVoiceAfterSettings = true;
@@ -2572,30 +2576,11 @@
       openSettings();
       return;
     }
-    // 목록의 녹음 버튼은 새 음성 노트를 만드는 동작이다. 대상 노트가 있을 때만
-    // 본문/코멘트 중 어디에 추가할지 선택한다.
-    if (!issue?.number) {
-      beginVoiceRecording('body');
-      return;
-    }
-    voiceTargetIssue = issue?.number ? issue : null;
-    voiceTargetChooserOpen = true;
-    tick().then(() => voiceTargetChooserElement?.showModal());
-  }
-
-  function closeVoiceTargetChooser() {
-    voiceTargetChooserElement?.close();
-    voiceTargetChooserOpen = false;
-    voiceTargetIssue = null;
+    beginVoiceRecording({ ...target, issueNumber: issue?.number || null });
   }
 
   function beginVoiceRecording(destination) {
-    const issue = voiceTargetIssue;
-    closeVoiceTargetChooser();
-    voiceRecordingDestination = {
-      type: destination,
-      issueNumber: issue?.number || null
-    };
+    voiceRecordingDestination = destination;
     voiceHasUnrecordedAudio = false;
     allowVoiceRouteExit = false;
     router.push('voice');
@@ -2694,21 +2679,30 @@
     setTimeout(() => voiceSettingsHighlighted = false, 1800);
   }
 
-  async function recordVoiceNote(body) {
+  async function recordVoiceNote(body, audio) {
     const normalizedBody = normalizeVoiceParagraphs(body);
     const requestedWorkspaceId = activeWorkspaceId;
     const requestedToken = token;
     const requestedRepo = repo;
     const destination = voiceRecordingDestination;
+    const attachment = preserveOriginalVoiceAudio && destination?.issueNumber
+      ? await uploadVoiceAttachment(audio, requestedToken, requestedRepo, destination.issueNumber)
+      : null;
     voiceRecordingDestination = null;
     if (destination?.type === 'body' && destination.issueNumber) {
-      voiceBody = { id: ++voiceBodySequence, issueNumber: destination.issueNumber, body: normalizedBody };
+      voiceBody = { id: ++voiceBodySequence, ...destination, body: normalizedBody, attachment };
       allowVoiceRouteExit = true;
       router.pop();
       return;
     }
-    if (destination?.type === 'comment' && destination.issueNumber) {
-      const comment = await createIssueComment(requestedToken, requestedRepo, destination.issueNumber, normalizedBody);
+    if (destination?.type === 'comment-edit' && destination.issueNumber) {
+      voiceCommentEdit = { id: ++voiceCommentEditSequence, ...destination, body: normalizedBody, attachmentLink: voiceAttachmentLink(requestedRepo, attachment) };
+      allowVoiceRouteExit = true;
+      router.pop();
+      return;
+    }
+    if (destination?.type === 'comment-new' && destination.issueNumber) {
+      const comment = await createIssueComment(requestedToken, requestedRepo, destination.issueNumber, appendVoiceAttachmentLink(normalizedBody, requestedRepo, attachment));
       if (requestedWorkspaceId !== activeWorkspaceId || requestedToken !== token || requestedRepo !== repo) return;
       voiceComment = { id: ++voiceCommentSequence, issueNumber: destination.issueNumber, comment };
       allowVoiceRouteExit = true;
@@ -2717,6 +2711,7 @@
     }
     const title = normalizedBody.replace(/\s+/g, ' ').trim().slice(0, 50) || '음성 기록';
     const created = await createIssue(requestedToken, requestedRepo, { title, body: normalizedBody, labels: [] });
+    if (preserveOriginalVoiceAudio) await uploadVoiceAttachment(audio, requestedToken, requestedRepo, created.number);
     if (requestedWorkspaceId !== activeWorkspaceId || requestedToken !== token || requestedRepo !== repo) return;
     invalidateCachedIssueList(activeWorkspaceId);
     state = 'open';
@@ -2727,6 +2722,26 @@
     totalIssues += 1;
     adjustWorkspaceNoteCount(activeWorkspaceId, 1);
     router.navigate(`/note.${created.number}`);
+  }
+
+  async function uploadVoiceAttachment(audio, requestedToken, requestedRepo, issueNumber) {
+    if (!audio) return null;
+    const extension = audio.type.includes('mp4') ? 'mp4' : 'webm';
+    return uploadAttachment(requestedToken, requestedRepo, issueNumber, new File(
+      [audio], `voice-${new Date().toISOString().replace(/[:.]/g, '-')}.${extension}`,
+      { type: audio.type || 'audio/webm' }
+    ));
+  }
+
+  function voiceAttachmentLink(targetRepo, attachment) {
+    if (!attachment) return '';
+    const url = attachmentRawUrl(targetRepo, attachment.path);
+    return `<audio controls preload="metadata" src="${url}"><a href="${url}">🎙 원본 음성 다운로드</a></audio>`;
+  }
+
+  function appendVoiceAttachmentLink(body, targetRepo, attachment) {
+    const link = voiceAttachmentLink(targetRepo, attachment);
+    return link ? `${body}\n\n${link}` : body;
   }
 
   function normalizeVoiceParagraphs(body) {
@@ -3044,6 +3059,11 @@
                       {/each}
                     </select>
                   </div>
+                </div>
+                <div class="form-check mt-3">
+                  <input id="voice-preserve-original" class="form-check-input" type="checkbox" bind:checked={preserveOriginalVoiceAudio} on:change={persistVoiceSettings} />
+                  <label class="form-check-label" for="voice-preserve-original">원본 음성 보존</label>
+                  <div class="settings-help-note">녹음이 성공하면 해당 노트의 첨부파일로 원본 음성을 저장합니다.</div>
                 </div>
                 {#if voiceModelsError}<div class="text-danger small mt-2" role="alert">{voiceModelsError}</div>{/if}
                 {#if voiceRefinementModel.trim()}
@@ -3374,10 +3394,12 @@
               onMove={(issue) => state === 'open'
                 ? moveIssues([issue])
                 : moveIssue(issue, 'open')}
-              onVoiceRecording={(issue) => openVoiceRecording(issue)}
+              onVoiceRecording={(issue, target) => openVoiceRecording(issue, target)}
               {voiceComment}
               {voiceBody}
+              {voiceCommentEdit}
               onVoiceBodyHandled={voiceBodyHandled}
+              onVoiceCommentEditHandled={(id) => { if (voiceCommentEdit?.id === id) voiceCommentEdit = null; }}
               onBack={() => router.pop()}
             />
             {#if state === 'open' && pendingIssueDeletionIds.has(routeIssue?.id)}
@@ -3422,27 +3444,13 @@
     refinementPrompt={voiceRefinementPrompt}
     transcriptionModel={voiceTranscriptionModel.trim() || DEFAULT_TRANSCRIPTION_MODEL}
     refinementModel={voiceRefinementModel.trim()}
+    insertionPreview={voiceRecordingDestination?.preview}
     onComplete={recordVoiceNote}
     onDirtyChange={(dirty) => voiceHasUnrecordedAudio = dirty}
     onClose={() => { allowVoiceRouteExit = true; router.pop(); }}
   />
 {/if}
 
-{#if voiceTargetChooserOpen}
-  <dialog bind:this={voiceTargetChooserElement} class="voice-target-modal" aria-labelledby="voice-target-title" on:cancel={(event) => { event.preventDefault(); closeVoiceTargetChooser(); }}>
-    <form method="dialog">
-      <h2 id="voice-target-title">음성 녹음</h2>
-      <p>녹음 내용을 어디에 추가할까요?</p>
-      <div class="voice-target-actions">
-        <button type="button" class="btn btn-primary" on:click={() => beginVoiceRecording('body')}><i class="bi bi-journal-plus" aria-hidden="true"></i> 본문 추가</button>
-        {#if voiceTargetIssue?.number}
-          <button type="button" class="btn btn-outline-secondary" on:click={() => beginVoiceRecording('comment')}><i class="bi bi-chat-square-text" aria-hidden="true"></i> 코멘트 추가</button>
-        {/if}
-      </div>
-      <button type="button" class="btn btn-sm btn-link voice-target-cancel" on:click={closeVoiceTargetChooser}>취소</button>
-    </form>
-  </dialog>
-{/if}
 
 {#if workspaceWizardOpen}
   <div class="workspace-wizard-overlay">
