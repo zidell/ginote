@@ -167,9 +167,9 @@ describe('NoteEditor 코멘트 블록', () => {
     expect(MAX_ISSUE_COMMENT_LENGTH).toBe(58_982);
   });
 
-  it('음성 전사문은 본문의 저장된 선택 영역을 대체한다', async () => {
+  it('음성 전사문은 선택 영역과 무관하게 본문 끝 빈 줄 뒤에 추가한다', async () => {
     const onVoiceBodyHandled = vi.fn();
-    const { rerender } = render(NoteEditor, {
+    const { rerender, container, unmount } = render(NoteEditor, {
       token: 't',
       repo: 'owner/repo',
       issue: { ...baseIssue, body: '앞선택뒤' },
@@ -185,13 +185,15 @@ describe('NoteEditor 코멘트 블록', () => {
       body: '음성'
     } });
 
-    await waitFor(() => expect(document.querySelector('.inline-body').value).toBe('앞 음성 뒤'));
+    await waitFor(() => expect(container.querySelector('.inline-body').value).toBe('앞선택뒤\n\n음성'));
     expect(onVoiceBodyHandled).toHaveBeenCalledWith(1);
+    unmount();
   });
 
-  it('본문에 커서가 없을 때 음성 전사문을 빈 줄 뒤 본문 끝에 추가한다', async () => {
+  it('본문 음성 녹음은 커서 위치와 무관하게 끝에 추가하도록 요청한다', async () => {
+    localStorage.clear();
     const onVoiceRecording = vi.fn();
-    const { rerender } = render(NoteEditor, {
+    const { rerender, container } = render(NoteEditor, {
       token: 't',
       repo: 'owner/repo',
       issue: { ...baseIssue, body: '기존 본문\n' },
@@ -203,26 +205,17 @@ describe('NoteEditor 코멘트 블록', () => {
     await fireEvent.click(moreButton);
     const voiceButton = [...document.querySelectorAll('.detail-toolbar-voice')].at(-1);
     await fireEvent.click(voiceButton);
-    const currentBody = document.querySelector('.inline-body').value;
-    const appendStart = currentBody.trimEnd().length;
-
     expect(onVoiceRecording).toHaveBeenCalledWith(expect.objectContaining({ number: 5 }), expect.objectContaining({
-      type: 'body',
-      appendAtEnd: true,
-      selectionStart: appendStart,
-      selectionEnd: currentBody.length
+      type: 'body'
     }));
 
     await rerender({ voiceBody: {
       id: 1,
       issueNumber: 5,
-      appendAtEnd: true,
-      selectionStart: appendStart,
-      selectionEnd: currentBody.length,
       body: '전사문'
     } });
 
-    await waitFor(() => expect(document.querySelector('.inline-body').value).toBe(`${currentBody.trimEnd()}\n\n전사문`));
+    await waitFor(() => expect([...container.querySelectorAll('.inline-body')].at(-1).value).toBe('기존 본문\n\n전사문'));
   });
 
   it('음성 전사문은 자동저장 시간을 기다리지 않고 즉시 저장한다', async () => {
@@ -238,8 +231,6 @@ describe('NoteEditor 코멘트 블록', () => {
     await rerender({ voiceBody: {
       id: 1,
       issueNumber: 5,
-      selectionStart: 5,
-      selectionEnd: 5,
       body: '추가 전사문'
     } });
 
@@ -247,7 +238,7 @@ describe('NoteEditor 코멘트 블록', () => {
       't',
       'owner/repo',
       5,
-      expect.objectContaining({ body: '기존 본문 추가 전사문' }),
+      expect.objectContaining({ body: '기존 본문\n\n추가 전사문' }),
       expect.any(Object)
     ));
   });
@@ -1115,7 +1106,7 @@ describe('NoteEditor 마크다운 프리뷰와 단축키', () => {
     expect(issueLinkSpy).toHaveBeenCalledTimes(1);
   });
 
-  it('삭제 전에 입력 중인 본문을 저장해 늦은 자동저장이 삭제를 되돌리지 않게 한다', async () => {
+  it('삭제를 누르면 저장 중에도 즉시 이동 요청을 보내고, 전달한 Promise로 저장 완료를 보장한다', async () => {
     const onMove = vi.fn();
     render(NoteEditor, {
       token: 't',
@@ -1131,6 +1122,9 @@ describe('NoteEditor 마크다운 프리뷰와 단축키', () => {
       .find((button) => button.getAttribute('aria-keyshortcuts') === 'Delete');
     await fireEvent.click(deleteButton);
 
+    expect(onMove).toHaveBeenCalledWith(expect.objectContaining({ number: 5 }), expect.any(Promise));
+    const savePromise = onMove.mock.calls[0][1];
+
     await waitFor(() => expect(updateIssue).toHaveBeenCalledWith(
       't',
       'owner/repo',
@@ -1138,7 +1132,7 @@ describe('NoteEditor 마크다운 프리뷰와 단축키', () => {
       expect.objectContaining({ body: '삭제 직전 변경한 본문' }),
       expect.any(Object)
     ));
-    await waitFor(() => expect(onMove).toHaveBeenCalledWith(expect.objectContaining({ number: 5 })));
+    await expect(savePromise).resolves.toBe(true);
   });
 
   it('E는 음성 녹음을 열고 X는 치환 패널을 연다', async () => {
@@ -1152,10 +1146,7 @@ describe('NoteEditor 마크다운 프리뷰와 단축키', () => {
 
     dispatchShortcut('e', 'KeyE');
     expect(onVoiceRecording).toHaveBeenCalledWith(baseIssue, expect.objectContaining({
-      type: 'body',
-      selectionStart: baseIssue.body.length,
-      selectionEnd: baseIssue.body.length,
-      preview: expect.objectContaining({ type: 'insert' })
+      type: 'body'
     }));
 
     dispatchShortcut('x', 'KeyX');

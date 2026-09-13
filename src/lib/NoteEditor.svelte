@@ -175,6 +175,7 @@
   let commentSaveFailedIds = new Set();
   let dirtyCommentIds = new Set();
   let deletingCommentIds = new Set();
+  let moveRequested = false;
   let error = '';
   let localTimer;
   let remoteTimer;
@@ -276,8 +277,7 @@
     handledVoiceBodyId = voiceBody.id;
     if (voiceBody.issueNumber === remoteIssue?.number) {
       if (voiceBody.attachment) replaceAttachments([...attachments, voiceBody.attachment]);
-      const insertedText = voiceTextWithSpacing(displayBody, voiceBody, voiceBody.body);
-      const nextDisplayBody = replaceVoiceTarget(displayBody, voiceBody, insertedText);
+      const nextDisplayBody = appendVoiceText(displayBody, voiceBody.body);
       updateBodyFromTextarea(nextDisplayBody);
       changed();
       // 음성 화면에서 돌아온 직후 모바일의 뒤로 가기를 누르면 일반 자동저장
@@ -302,8 +302,7 @@
       const comment = comments.find((item) => item.id === voiceCommentEdit.commentId);
       if (comment) {
         const editableBody = commentTextForEditing(comment.body);
-        const insertedText = voiceTextWithSpacing(editableBody, voiceCommentEdit, voiceCommentEdit.body);
-        const nextBody = replaceVoiceTarget(editableBody, voiceCommentEdit, insertedText);
+        const nextBody = appendVoiceText(editableBody, voiceCommentEdit.body);
         const existingAudioMarkup = voiceAudioMarkup(comment.body);
         comment.body = voiceCommentEdit.attachmentLink
           ? `${nextBody.trimEnd()}${existingAudioMarkup ? '\n\n' : ''}${existingAudioMarkup}${existingAudioMarkup ? '\n\n' : ''}${voiceCommentEdit.attachmentLink}`
@@ -313,7 +312,7 @@
         tick().then(() => {
           const input = document.getElementById(`comment-body-${comment.id}`);
           input?.focus();
-          const position = Math.min(input?.value.length || 0, (voiceCommentEdit.selectionStart || 0) + insertedText.length);
+          const position = input?.value.length || 0;
           input?.setSelectionRange(position, position);
         });
       }
@@ -1958,47 +1957,10 @@
     document.getElementById(`comment-body-${draft.id}`)?.focus();
   }
 
-  function voiceTargetFor(input, type, extras = {}) {
-    const source = input?.value ?? '';
-    const appendAtEnd = extras.appendAtEnd === true;
-    // 본문에 포커스가 없으면 textarea가 마지막으로 기억한 selectionStart는
-    // 실제 커서가 아니다. 끝의 공백까지 선택해 빈 줄을 새로 만든다.
-    const selectionStart = appendAtEnd
-      ? source.trimEnd().length
-      : Math.max(0, Math.min(input?.selectionStart ?? source.length, source.length));
-    const selectionEnd = appendAtEnd
-      ? source.length
-      : Math.max(selectionStart, Math.min(input?.selectionEnd ?? selectionStart, source.length));
-    const selectedText = appendAtEnd ? '' : source.slice(selectionStart, selectionEnd);
-    const preview = selectedText
-      ? { type: 'replace', selectedText: shortenMiddle(selectedText, 64) }
-      : {
-          type: 'insert',
-          before: voicePreviewBefore(source.slice(0, selectionStart)),
-          after: voicePreviewAfter(source.slice(selectionEnd))
-        };
-    return { type, selectionStart, selectionEnd, preview, ...extras };
-  }
-
-  function voicePreviewBefore(value) {
-    const characters = Array.from(value);
-    return `${characters.length > 28 ? '…' : ''}${characters.slice(-28).join('')}`;
-  }
-
-  function voicePreviewAfter(value) {
-    const characters = Array.from(value);
-    return `${characters.slice(0, 28).join('')}${characters.length > 28 ? '…' : ''}`;
-  }
-
-  function voiceTextWithSpacing(source, target, transcript) {
-    const value = String(source || '');
-    const start = Math.max(0, Math.min(target?.selectionStart ?? value.length, value.length));
-    const end = Math.max(start, Math.min(target?.selectionEnd ?? start, value.length));
+  function appendVoiceText(source, transcript) {
+    const value = String(source || '').trimEnd();
     const text = String(transcript || '').trim();
-    if (target?.appendAtEnd) return start > 0 ? `\n\n${text}` : text;
-    const needsSpaceBefore = start > 0 && !/\s$/.test(value.slice(0, start));
-    const needsSpaceAfter = end < value.length && !/^\s/.test(value.slice(end));
-    return `${needsSpaceBefore ? ' ' : ''}${text}${needsSpaceAfter ? ' ' : ''}`;
+    return value ? `${value}\n\n${text}` : text;
   }
 
   function voiceAudioMarkup(value) {
@@ -2045,27 +2007,18 @@
     markCommentDirty(comment);
   }
 
-  function replaceVoiceTarget(source, target, transcript) {
-    const value = String(source || '');
-    const start = Math.max(0, Math.min(target?.selectionStart ?? value.length, value.length));
-    const end = Math.max(start, Math.min(target?.selectionEnd ?? start, value.length));
-    return `${value.slice(0, start)}${transcript}${value.slice(end)}`;
-  }
-
   function recordVoiceInBody() {
     if (!remoteIssue?.number) return;
-    const hasCursor = document.activeElement === bodyInput;
-    onVoiceRecording(remoteIssue, voiceTargetFor(bodyInput, 'body', { appendAtEnd: !hasCursor }));
+    onVoiceRecording(remoteIssue, { type: 'body' });
   }
 
   function recordVoiceInComment(comment) {
-    const input = document.getElementById(`comment-body-${comment.id}`);
-    onVoiceRecording(remoteIssue, voiceTargetFor(input, 'comment-edit', { commentId: comment.id }));
+    onVoiceRecording(remoteIssue, { type: 'comment-edit', commentId: comment.id });
   }
 
   function recordVoiceAsNewComment() {
     if (!remoteIssue?.number) return;
-    onVoiceRecording(remoteIssue, { type: 'comment-new', preview: { type: 'new-comment' } });
+    onVoiceRecording(remoteIssue, { type: 'comment-new' });
   }
 
   async function removeComment(comment) {
@@ -2431,16 +2384,30 @@
   }
 
   async function requestMove() {
-    if (!remoteIssue || readOnly) return;
+    if (!remoteIssue || readOnly || moveRequested) return;
+    moveRequested = true;
+
+    // 휴지통에서는 저장할 내용이 없으므로 바로 복원한다. 열린 노트는 삭제
+    // 의도를 부모에 즉시 알리고, 실제 이동만 저장 완료 뒤에 진행시킨다.
+    if (archived) {
+      onMove(remoteIssue);
+      return;
+    }
+
     // 이슈를 닫은 뒤에 기존 자동저장이 state: 'open'을 전송하면 삭제가 즉시
     // 되돌아간다. 특히 모바일에서 입력 직후 메뉴의 삭제를 누를 때 이 경합이
-    // 자주 생기므로, 먼저 저장 큐를 모두 비운 뒤 이동을 요청한다.
+    // 자주 생기므로, 저장 완료 뒤에만 실제 이동을 요청한다. 다만 삭제 대기
+    // 화면은 지금 보여야 하므로 Promise 자체를 부모로 즉시 전달한다.
     clearTimeout(remoteTimer);
-    const saved = await flushPendingWork({
+    const savePromise = flushPendingWork({
       reason: 'move',
       allowPaused: true
     });
-    if (saved) onMove(remoteIssue);
+    onMove(remoteIssue, savePromise);
+
+    // 저장 실패 뒤에는 사용자가 다시 시도할 수 있게 한다. 성공 시 편집기는
+    // 이동과 함께 사라진다.
+    if (!await savePromise) moveRequested = false;
   }
 
   function handleMoreToolbarEscape(event) {

@@ -2,7 +2,7 @@
   import { onMount, onDestroy } from 'svelte';
   import { transcribeAudio, refineTranscript } from './openai-voice.js';
 
-  let { apiKey, refinementPrompt = '', transcriptionModel = 'gpt-transcribe', refinementModel = 'gpt-4o-mini', insertionPreview = null, onComplete, onClose, onDirtyChange = () => {} } = $props();
+  let { apiKey, refinementPrompt = '', transcriptionModel = 'gpt-transcribe', refinementModel = 'gpt-4o-mini', onComplete, onClose, onDirtyChange = () => {} } = $props();
   const MAX_RECORDING_MILLISECONDS = 60 * 60 * 1000;
   // 음성 전사용 mono Opus 품질. 한 시간 녹음도 기존 10 MiB 첨부 정책 안에
   // 들어갈 수 있는 수준이며, MediaRecorder가 지원하지 않으면 브라우저 기본값을 쓴다.
@@ -287,18 +287,6 @@
 <dialog bind:this={dialogElement} class="voice-modal" aria-label="음성 녹음" oncancel={(event) => { event.preventDefault(); if (!processing) requestClose(); }}>
     <button class="btn btn-sm btn-outline-secondary voice-close" aria-label="닫기" onclick={requestClose} disabled={processing}><i class="bi bi-x-lg"></i></button>
     <div class="voice-content">
-      {#if insertionPreview?.type === 'insert'}
-        <div class="voice-insertion-preview" aria-label="삽입 위치 미리보기">
-          <strong>삽입 :</strong>
-          <span>{insertionPreview.before}</span><b class="voice-cursor-marker">V</b><span>{insertionPreview.after}</span>
-        </div>
-      {:else if insertionPreview?.type === 'replace'}
-        <div class="voice-insertion-preview" aria-label="대체할 텍스트 미리보기">
-          <strong>대체 :</strong> <span>{insertionPreview.selectedText}</span>
-        </div>
-      {:else if insertionPreview?.type === 'new-comment'}
-        <div class="voice-insertion-preview">삽입 : 새 코멘트</div>
-      {/if}
       <div class="voice-recording-control">
         <canvas class="voice-waveform" width="480" height="120" bind:this={canvas} aria-label="녹음 파형"></canvas>
         <button
