@@ -3,7 +3,6 @@ import {
   clampNumber,
   createWorkspaceRecord,
   loadSettingsDocument,
-  normalizeBackgroundRefreshMinutes,
   normalizeLockSessionMinutes,
   normalizeWorkspaceCacheMinutes,
   normalizePreferences,
@@ -51,8 +50,6 @@ describe('clampNumber', () => {
 
 describe('시간 설정 정규화', () => {
   it('허용된 옵션이 아니면 기본값으로 되돌린다', () => {
-    expect(normalizeBackgroundRefreshMinutes(15)).toBe(15);
-    expect(normalizeBackgroundRefreshMinutes(999)).toBe(60);
     expect(normalizeLockSessionMinutes(1440)).toBe(1440);
     expect(normalizeLockSessionMinutes(999)).toBe(60);
     expect(normalizeWorkspaceCacheMinutes(1440)).toBe(1440);
@@ -93,7 +90,6 @@ describe('normalizePreferences', () => {
       editorMaxWidth: 840,
       autoSaveSeconds: 5,
       issuePageSize: 30,
-      backgroundRefreshMinutes: 60,
       lockSessionMinutes: 60,
       workspaceCacheMinutes: 60,
       language: 'auto'

@@ -7,8 +7,6 @@ export const THEME_META_COLORS = {
   dark: '#171717',
   light: '#fff'
 };
-export const BACKGROUND_REFRESH_DEFAULT_MINUTES = 60;
-export const BACKGROUND_REFRESH_OPTIONS = [0, 5, 15, 30, 60, 180];
 export const LOCK_SESSION_DEFAULT_MINUTES = 60;
 export const LOCK_SESSION_OPTIONS = [5, 15, 30, 60, 180, 480, 720, 1440];
 export const WORKSPACE_CACHE_DEFAULT_MINUTES = 60;
@@ -18,11 +16,6 @@ export function clampNumber(value, minimum, maximum, fallback) {
   const number = Number(value);
   if (!Number.isFinite(number)) return fallback;
   return Math.min(maximum, Math.max(minimum, number));
-}
-
-export function normalizeBackgroundRefreshMinutes(value) {
-  const minutes = Number(value);
-  return BACKGROUND_REFRESH_OPTIONS.includes(minutes) ? minutes : BACKGROUND_REFRESH_DEFAULT_MINUTES;
 }
 
 export function normalizeLockSessionMinutes(value) {
@@ -75,7 +68,6 @@ export function normalizePreferences(raw) {
     editorMaxWidth: clampNumber(raw?.editorMaxWidth, 480, 1600, 840),
     autoSaveSeconds: clampNumber(raw?.autoSaveSeconds, 3, 30, 5),
     issuePageSize: clampNumber(raw?.issuePageSize, 10, 100, 30),
-    backgroundRefreshMinutes: normalizeBackgroundRefreshMinutes(raw?.backgroundRefreshMinutes),
     lockSessionMinutes: normalizeLockSessionMinutes(raw?.lockSessionMinutes),
     workspaceCacheMinutes: normalizeWorkspaceCacheMinutes(raw?.workspaceCacheMinutes),
     language: LOCALE_OPTIONS.some((option) => option.value === savedLanguage) ? savedLanguage : 'auto'
@@ -93,7 +85,6 @@ export function preferenceSignature(preferences) {
     preferences.editorMaxWidth,
     preferences.autoSaveSeconds,
     preferences.issuePageSize,
-    preferences.backgroundRefreshMinutes,
     preferences.lockSessionMinutes,
     preferences.workspaceCacheMinutes,
     preferences.language
