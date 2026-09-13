@@ -189,6 +189,72 @@ describe('NoteEditor 코멘트 블록', () => {
     expect(onVoiceBodyHandled).toHaveBeenCalledWith(1);
   });
 
+  it('음성 전사문은 자동저장 시간을 기다리지 않고 즉시 저장한다', async () => {
+    localStorage.clear();
+    const { rerender } = render(NoteEditor, {
+      token: 't',
+      repo: 'owner/repo',
+      issue: { ...baseIssue, body: '기존 본문' },
+      autoSaveSeconds: 9999
+    });
+
+    // 외부 녹음 화면이 닫힌 뒤 전달되는 전사문을 흉내 낸다.
+    await rerender({ voiceBody: {
+      id: 1,
+      issueNumber: 5,
+      selectionStart: 5,
+      selectionEnd: 5,
+      body: '추가 전사문'
+    } });
+
+    await waitFor(() => expect(updateIssue).toHaveBeenCalledWith(
+      't',
+      'owner/repo',
+      5,
+      expect.objectContaining({ body: '기존 본문 추가 전사문' }),
+      expect.any(Object)
+    ));
+  });
+
+  it('목록으로 즉시 돌아가도 편집기 파괴 뒤 백그라운드 저장 결과를 목록에 알린다', async () => {
+    localStorage.clear();
+    let resolveUpdate;
+    updateIssue.mockImplementationOnce((token, repo, issueNumber, note) => new Promise((resolve) => {
+      resolveUpdate = () => resolve({
+        number: issueNumber,
+        title: note.title,
+        body: note.body,
+        labels: [],
+        state: 'open',
+        comments: 0,
+        updated_at: '2026-09-06T00:00:00Z'
+      });
+    }));
+    const onBack = vi.fn();
+    const onSaved = vi.fn();
+    const { unmount } = render(NoteEditor, {
+      token: 't',
+      repo: 'owner/repo',
+      issue: baseIssue,
+      autoSaveSeconds: 9999,
+      onBack,
+      onSaved
+    });
+
+    await fireEvent.input(document.querySelector('.inline-body'), { target: { value: '목록 뒤에도 남을 본문' } });
+    await fireEvent.click(screen.getByRole('button', { name: 'Back to list' }));
+
+    expect(onBack).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(updateIssue).toHaveBeenCalled());
+    unmount();
+    resolveUpdate();
+
+    await waitFor(() => expect(onSaved).toHaveBeenCalledWith(
+      expect.objectContaining({ body: '목록 뒤에도 남을 본문' }),
+      null
+    ));
+  });
+
   it('기본 모드에서는 검색어와 치환값을 일반 문자열로 처리한다', async () => {
     localStorage.clear();
     render(NoteEditor, {
