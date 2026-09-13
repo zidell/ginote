@@ -1964,7 +1964,7 @@
     if (!pendingIssueDeletion.length) pendingIssueDeletionInFlight = false;
   }
 
-  function moveIssues(issuesToMove) {
+  function moveIssues(issuesToMove, { savePromise = null } = {}) {
     if (!issuesToMove?.length) {
       clearIssueSelection();
       return;
@@ -1974,10 +1974,26 @@
       // 타이머가 도는 동안 목록이 갱신돼도 대상이 섞이지 않도록 현재 이동 대상을 보관한다.
       pendingIssueDeletion = [...issuesToMove];
       pendingIssueDeletionInFlight = false;
-      pendingIssueDeletionTimer = setTimeout(() => {
+      pendingIssueDeletionTimer = setTimeout(async () => {
         const movedIssues = pendingIssueDeletion;
         pendingIssueDeletionTimer = null;
         pendingIssueDeletionInFlight = true;
+
+        // 편집기에서 시작한 삭제는 오버레이를 먼저 보이고, 저장이 끝난 뒤에
+        // 닫는다. 저장 실패를 조용히 무시하면 모바일에서 삭제가 씹힌 것처럼
+        // 보이므로 대기 상태를 해제하고 오류를 남긴다.
+        let saved = true;
+        try {
+          saved = savePromise ? await savePromise : true;
+        } catch {
+          saved = false;
+        }
+        if (!saved) {
+          pendingIssueDeletion = null;
+          pendingIssueDeletionInFlight = false;
+          error = $_('m.3a743b0e61');
+          return;
+        }
         moveIssuesImmediately(movedIssues, { preservePendingDeletion: true });
       }, DELETE_DELAY_MS);
       return;
@@ -3354,8 +3370,8 @@
               onExternalPasteHandled={externalPasteHandled}
               onLabelsAvailable={mergeRepositoryLabels}
               onTagSelect={openLabel}
-              onMove={(issue) => state === 'open'
-                ? moveIssues([issue])
+              onMove={(issue, savePromise) => state === 'open'
+                ? moveIssues([issue], { savePromise })
                 : moveIssue(issue, 'open')}
               onVoiceRecording={(issue, target) => openVoiceRecording(issue, target)}
               {voiceComment}
@@ -3407,7 +3423,6 @@
     refinementPrompt={voiceRefinementPrompt}
     transcriptionModel={voiceTranscriptionModel.trim() || DEFAULT_TRANSCRIPTION_MODEL}
     refinementModel={voiceRefinementModel.trim()}
-    insertionPreview={voiceRecordingDestination?.preview}
     onComplete={recordVoiceNote}
     onDirtyChange={(dirty) => voiceHasUnrecordedAudio = dirty}
     onClose={() => { allowVoiceRouteExit = true; router.pop(); }}
