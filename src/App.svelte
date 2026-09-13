@@ -1883,6 +1883,11 @@
       if (toggleIssueSelection(issue, true)) previewSelectedIssue(issue);
       return;
     }
+    if ((event.ctrlKey || event.metaKey) && !issue.local) {
+      event.preventDefault();
+      if (toggleIssueSelection(issue)) previewSelectedIssue(issue);
+      return;
+    }
     selectNote(issue);
   }
 
