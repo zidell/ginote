@@ -302,7 +302,6 @@ export const previewSettings = (language = 'en') => ({
     editorLineHeight: 1.7,
     autoSaveSeconds: 5,
     issuePageSize: 30,
-    backgroundRefreshMinutes: 0,
     language
   }
 });

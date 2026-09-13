@@ -43,8 +43,6 @@
   } from './lib/pin-label.js';
   import { makePatCreationUrl, normalizeToken, parseRepositoryAddress } from './lib/repo-address.js';
   import {
-    BACKGROUND_REFRESH_DEFAULT_MINUTES,
-    BACKGROUND_REFRESH_OPTIONS,
     LOCK_SESSION_DEFAULT_MINUTES,
     LOCK_SESSION_OPTIONS,
     THEME_DEFAULT,
@@ -55,7 +53,6 @@
     clampNumber,
     createWorkspaceRecord,
     loadSettingsDocument,
-    normalizeBackgroundRefreshMinutes,
     normalizeLockSessionMinutes,
     normalizeTheme,
     normalizeWorkspaceCacheMinutes,
@@ -168,13 +165,11 @@
   let editorMaxWidth = 840;
   let autoSaveSeconds = 5;
   let issuePageSize = 30;
-  let backgroundRefreshMinutes = BACKGROUND_REFRESH_DEFAULT_MINUTES;
   let lockSessionMinutes = LOCK_SESSION_DEFAULT_MINUTES;
   let workspaceCacheMinutes = WORKSPACE_CACHE_DEFAULT_MINUTES;
   let touchDevice = false;
   let themePreference = THEME_DEFAULT;
   let languagePreference = 'auto';
-  let backgroundRefreshTimer;
   let activePageRefreshInFlight = false;
   let lastActivePageRefreshAt = 0;
   let labelBusy = '';
@@ -441,7 +436,6 @@
         editorMaxWidth,
         autoSaveSeconds,
         issuePageSize,
-        backgroundRefreshMinutes,
         lockSessionMinutes,
         workspaceCacheMinutes,
         theme: themePreference,
@@ -467,10 +461,7 @@
       appState = 'setup';
     }
 
-    restartBackgroundRefreshTimer();
-
     return () => {
-      clearInterval(backgroundRefreshTimer);
       clearTimeout(lockSessionTimer);
       clearTimeout(longPressTimer);
       clearTimeout(suppressIssueClickTimer);
@@ -599,7 +590,6 @@
       editorMaxWidth,
       autoSaveSeconds,
       issuePageSize,
-      backgroundRefreshMinutes,
       lockSessionMinutes,
       workspaceCacheMinutes,
       language: languagePreference
@@ -636,14 +626,6 @@
       : workspaces.map((workspace, index) => (index === existingIndex ? workspaceRecord : workspace));
     activeWorkspaceId = workspaceRecord.id;
     saveSettingsDocument({ workspaces, activeWorkspaceId, preferences: currentPreferences() });
-  }
-
-  function restartBackgroundRefreshTimer() {
-    clearInterval(backgroundRefreshTimer);
-    if (!backgroundRefreshMinutes) return;
-    backgroundRefreshTimer = setInterval(() => {
-      if (appState === 'ready' && topRoute?.screen !== 'settings') loadIssues(true);
-    }, backgroundRefreshMinutes * 60 * 1000);
   }
 
   function refreshWhenPageBecomesActive() {
@@ -892,7 +874,6 @@
       user = result.user;
       repository = result.repository;
       persistSettings(result.repo);
-      restartBackgroundRefreshTimer();
       if (showSuccess) notice = $_("m.2273eb0763");
       await Promise.all([loadIssues(), loadRepositoryLabels()]);
       appState = 'ready';
@@ -1002,7 +983,6 @@
       user = result.user;
       repository = result.repository;
       appState = 'ready';
-      restartBackgroundRefreshTimer();
       // 캐시로 이미 목록을 보여준 상태라면 로딩 스피너 없이 조용히 갱신한다.
       await Promise.all([loadIssues(Boolean(cached)), loadRepositoryLabels()]);
       applyRoute();
@@ -2390,13 +2370,11 @@
     editorMaxWidth = Math.round(clampNumber(editorMaxWidth, 480, 1600, 840));
     autoSaveSeconds = Math.round(clampNumber(autoSaveSeconds, 3, 30, 5));
     issuePageSize = Math.round(clampNumber(issuePageSize, 10, 100, 30));
-    backgroundRefreshMinutes = normalizeBackgroundRefreshMinutes(backgroundRefreshMinutes);
     lockSessionMinutes = normalizeLockSessionMinutes(lockSessionMinutes);
     workspaceCacheMinutes = normalizeWorkspaceCacheMinutes(workspaceCacheMinutes);
     // 그냥 들여다보기만 하고 나온 경우에는 저장도 알림도 하지 않는다.
     if (preferenceSignature(currentPreferences()) === settingsEntrySignature) return;
     persistSettings(repo);
-    restartBackgroundRefreshTimer();
     // 유지 시간을 바꾸면 이미 열려 있는 잠금 세션도 새 길이로 다시 센다.
     if (lockPin) setLockSession(lockPin);
     // 페이지 크기는 목록 요청에 그대로 들어가므로, 바뀌었으면 다시 불러온다.
@@ -2959,21 +2937,6 @@
                     <span class="input-group-text">px</span>
                   </div>
                 </div>
-              </div>
-              <div class="mt-3">
-                <label class="form-label" for="background-refresh-minutes">{$_('settings.backgroundRefreshInterval')}</label>
-                <select
-                  id="background-refresh-minutes"
-                  class="form-select"
-                  bind:value={backgroundRefreshMinutes}
-                  on:change={announceDeferredApply}
-                >
-                  {#each BACKGROUND_REFRESH_OPTIONS as minutes}
-                    <option value={minutes}>
-                      {minutes === 0 ? $_('settings.refreshDisabled') : `${minutes} ${$_('settings.minutes')}`}
-                    </option>
-                  {/each}
-                </select>
               </div>
               <div class="mt-3">
                 <label class="form-label" for="workspace-cache-minutes">{$_('settings.workspaceCacheDuration')}</label>
