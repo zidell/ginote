@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   DEFAULT_REFINEMENT_PROMPT,
+  TYPO_CORRECTION_REFINEMENT_PROMPT,
+  WRITTEN_STYLE_REFINEMENT_PROMPT,
   loadVoiceModelLists,
   loadVoiceSettings,
   saveVoiceModelLists,
@@ -22,6 +24,18 @@ beforeEach(() => vi.stubGlobal('localStorage', createMemoryStorage()));
 afterEach(() => vi.unstubAllGlobals());
 
 describe('voice settings', () => {
+  it('오타수정과 문어체 변경에 서로 다른 목적의 내장 규칙을 제공한다', () => {
+    expect(DEFAULT_REFINEMENT_PROMPT).toBe(TYPO_CORRECTION_REFINEMENT_PROMPT);
+    expect(TYPO_CORRECTION_REFINEMENT_PROMPT).toContain('원문의 의미와 말투를 유지');
+    expect(WRITTEN_STYLE_REFINEMENT_PROMPT).toContain('의미 없는 추임새·머뭇거림');
+    expect(WRITTEN_STYLE_REFINEMENT_PROMPT).toContain('최종 의도');
+    expect(WRITTEN_STYLE_REFINEMENT_PROMPT).toContain('존댓말·반말');
+    expect(WRITTEN_STYLE_REFINEMENT_PROMPT).toContain('추측해 보태거나');
+    expect(WRITTEN_STYLE_REFINEMENT_PROMPT).toContain('읽기 쉬운 문단으로 적극적으로 나눕니다');
+    expect(WRITTEN_STYLE_REFINEMENT_PROMPT).toContain('시간·주제·상황·행동 단계가 바뀌거나');
+    expect(WRITTEN_STYLE_REFINEMENT_PROMPT).not.toContain('예시:');
+  });
+
   it('비어 있거나 손상된 저장값에는 안전한 기본값을 사용한다', () => {
     expect(loadVoiceSettings()).toEqual({ apiKey: '', refinementPrompt: DEFAULT_REFINEMENT_PROMPT, transcriptionModel: 'gpt-transcribe', refinementModel: 'gpt-4o-mini', preserveOriginalAudio: false });
     localStorage.setItem(VOICE_SETTINGS_STORAGE_KEY, '{');

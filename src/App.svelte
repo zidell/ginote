@@ -15,6 +15,8 @@
     DEFAULT_REFINEMENT_MODEL,
     DEFAULT_REFINEMENT_PROMPT,
     DEFAULT_TRANSCRIPTION_MODEL,
+    TYPO_CORRECTION_REFINEMENT_PROMPT,
+    WRITTEN_STYLE_REFINEMENT_PROMPT,
     isDatedModelSnapshot,
     loadVoiceSettings,
     loadVoiceModelLists,
@@ -606,8 +608,8 @@
     });
   }
 
-  function restoreDefaultVoiceRefinementPrompt() {
-    voiceRefinementPrompt = DEFAULT_REFINEMENT_PROMPT;
+  function applyVoiceRefinementPreset(prompt) {
+    voiceRefinementPrompt = prompt;
     persistVoiceSettings();
   }
 
@@ -3048,7 +3050,19 @@
                 {#if voiceRefinementModel.trim()}
                   <div class="d-flex align-items-center justify-content-between mt-3 mb-2">
                     <label class="form-label mb-0" for="voice-refinement-prompt">정제 규칙</label>
-                    <button type="button" class="btn btn-link p-0 voice-label-action voice-default-action" on:click={restoreDefaultVoiceRefinementPrompt}>기본값</button>
+                    <div class="voice-refinement-presets" aria-label="정제 규칙 프리셋">
+                      <button
+                        type="button"
+                        class="btn btn-link p-0 voice-label-action voice-default-action"
+                        on:click={() => applyVoiceRefinementPreset(TYPO_CORRECTION_REFINEMENT_PROMPT)}
+                      >오타수정</button>
+                      <span class="voice-preset-separator" aria-hidden="true">|</span>
+                      <button
+                        type="button"
+                        class="btn btn-link p-0 voice-label-action voice-default-action"
+                        on:click={() => applyVoiceRefinementPreset(WRITTEN_STYLE_REFINEMENT_PROMPT)}
+                      >문어체 변경</button>
+                    </div>
                   </div>
                   <textarea
                     id="voice-refinement-prompt"
