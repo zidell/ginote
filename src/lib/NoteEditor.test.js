@@ -1102,7 +1102,7 @@ describe('NoteEditor 마크다운 프리뷰와 단축키', () => {
     expect(clickSpy).toHaveBeenCalledTimes(1);
     expect(onTogglePin).toHaveBeenCalledTimes(1);
     await waitFor(() => expect(document.querySelector('.note-lock-panel')).toBeTruthy());
-    await waitFor(() => expect(onMove).toHaveBeenCalledWith(issue));
+    await waitFor(() => expect(onMove).toHaveBeenCalledWith(issue, expect.any(Promise)));
     expect(issueLinkSpy).toHaveBeenCalledTimes(1);
   });
 
