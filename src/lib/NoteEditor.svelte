@@ -280,6 +280,17 @@
       const nextDisplayBody = replaceVoiceTarget(displayBody, voiceBody, insertedText);
       updateBodyFromTextarea(nextDisplayBody);
       changed();
+      // 음성 화면에서 돌아온 직후 모바일의 뒤로 가기를 누르면 일반 자동저장
+      // 타이머가 실행되기 전에 편집기가 사라질 수 있다. 전사문은 삽입과 동시에
+      // 저장을 시작해, 목록으로 즉시 돌아가도 다음 진입에서 이전 본문이 보이지
+      // 않게 한다. returnToList()와 onDestroy()는 이 진행 중인 저장도 기다린다.
+      void flushPendingWork({
+        reason: 'voice-body',
+        allowPaused: true,
+        force: true,
+        includeAttachments: false,
+        includeComments: false
+      });
       // 부모가 이벤트를 소비했다고 표시해야 이 편집기가 다시 마운트되어도
       // 같은 음성 본문을 한 번 더 덧붙이지 않는다.
       onVoiceBodyHandled(voiceBody.id);
@@ -1316,18 +1327,18 @@
         saved = lateResolution.saved;
       }
 
-      // 이 시점에 컴포넌트가 이미 파괴됐다면(예: 새 노트가 번호를 받아
-      // note.{번호}로 리마운트됨) 요청 자체는 이미 서버에 반영됐으므로 되돌리지
-      // 않되, onSaved/onCreated를 또 호출하거나 이 죽은 인스턴스가 스스로
-      // 다음 저장을 예약하는 일은 막는다. 그러지 않으면 부모의 noteCreated()가
-      // 두 번 실행되거나, 새로 마운트된 인스턴스와 무관하게 낡은 내용이 나중에
-      // 덮어쓸 수 있다.
-      if (destroyed) return saveSucceeded;
+      const hasNewerChanges = savingRevision !== revision || noteSignature(currentNote()) !== signature;
+      // 목록으로 즉시 돌아간 뒤에도 기존 노트의 백그라운드 저장 결과는 목록
+      // 캐시에 반영해야 한다. 새 노트는 부모가 이미 번호 할당을 처리했을 수
+      // 있으므로 onCreated는 파괴 뒤에 호출하지 않는다.
+      if (destroyed) {
+        if (issue) onSaved(saved, hasNewerChanges ? draftPayload() : null);
+        return saveSucceeded;
+      }
 
       remoteIssue = saved;
       if (lockState !== 'plain') encryptedBody = saved.body || encryptedBody;
       lastRemoteSignature = signature;
-      const hasNewerChanges = savingRevision !== revision || noteSignature(currentNote()) !== signature;
       if (issue) onSaved(saved, hasNewerChanges ? draftPayload() : null);
       if (!hasNewerChanges) {
         dirty = false;
@@ -2547,11 +2558,16 @@
     onTogglePin({ ...targetIssue, ...draftPayload() });
   }
 
-  async function returnToList() {
+  function returnToList() {
     // 라우터의 View Transition 스냅샷보다 앞서 DOM에서도 메뉴를 제거한다.
     prepareReturnToList();
-    await flushPendingWork({ reason: 'back', allowPaused: true });
-    await tick();
+    // 목록 전환을 네트워크 요청에 묶지 않는다. 초안을 먼저 보존하고 패치는
+    // 백그라운드에서 이어 간다. 저장 결과는 위 saveRemote()의 onSaved로 목록
+    // 캐시에도 반영된다.
+    if (hasPendingWork) {
+      persistLocalDraft();
+      void flushPendingWork({ reason: 'back', allowPaused: true });
+    }
     onBack();
   }
 
