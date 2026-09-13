@@ -36,6 +36,8 @@
   import { LOCALE_OPTIONS, setAppLocale } from './lib/i18n.js';
   import { normalizeTagName } from './lib/notes.js';
   import { attachmentRawUrl } from './lib/attachments.js';
+  import { earliestIssue, formatMergedBody, mergeTimeline, replaceAttachmentUrls } from './lib/note-merge.js';
+  import { MAX_ISSUE_BODY_LENGTH } from './lib/github-limits.js';
   import {
     hasPinLabel,
     isPinLabel,
@@ -74,7 +76,11 @@
     createIssue,
     createIssueComment,
     createLabel,
+    downloadAttachment,
+    getIssue,
     listExpiredClosedIssues,
+    listIssueAttachmentFiles,
+    listIssueComments,
     listIssuesPage,
     listLabels,
     removeIssueLabel,
@@ -84,6 +90,7 @@
     searchIssuesPage,
     setIssueLabels,
     setIssueState,
+    updateIssue,
     uploadAttachment,
     verifyConnection
   } from './lib/github.js';
@@ -212,6 +219,7 @@
   let selectionTagPanelOpen = false;
   let selectionTagSearch = '';
   let selectionTagBusy = false;
+  let mergeBusy = false;
   let longPressTimer;
   let longPressStart = null;
   let suppressIssueClickId = null;
@@ -1372,6 +1380,10 @@
   }
 
   function handleGlobalKeydown(event) {
+    if (mergeBusy) {
+      event.preventDefault();
+      return;
+    }
     if (topRoute?.screen === 'voice') {
       if (event.key === 'Escape') {
         event.preventDefault();
@@ -1740,6 +1752,10 @@
   }
 
   function handleGlobalPaste(event) {
+    if (mergeBusy) {
+      event.preventDefault();
+      return;
+    }
     if (appState !== 'ready' || topRoute?.screen === 'settings' || isEditableElement(event.target)) return;
 
     const files = Array.from(event.clipboardData?.files || []);
@@ -2099,6 +2115,131 @@
       // 열려 있는 편집기는 선택이 풀린 뒤 GitHub에서 다시 읽어 태그를 맞춘다.
       if (Object.keys(refreshed).length) issueRefreshRequests = { ...issueRefreshRequests, ...refreshed };
       if (mode === 'remove' && activeLabel.toLocaleLowerCase() === tagName.toLocaleLowerCase()) loadIssues(true);
+    }
+  }
+
+  function mergedIssueLabels(sourceIssues) {
+    const names = new Map();
+    for (const issue of sourceIssues) {
+      for (const label of issue.labels || []) {
+        if (isPinLabel(label)) continue;
+        const name = String(label.name || '').trim();
+        if (name) names.set(name.toLocaleLowerCase(), name);
+      }
+    }
+    return [...names.values()];
+  }
+
+  async function mergeSelectedIssues() {
+    const sources = [...selectedIssues];
+    if (mergeBusy || state !== 'open' || sources.length < 2) return;
+
+    error = '';
+    notice = '';
+    mergeBusy = true;
+    let mergedIssue = null;
+    let mergedBodySaved = false;
+    try {
+      // 목록 항목은 검색 결과일 수 있으므로, 병합 전에 본문·댓글·첨부의 최신 원본을
+      // 모두 다시 읽는다. 이 단계에서는 원본을 전혀 변경하지 않는다.
+      const sourceDetails = [];
+      for (const source of sources) {
+        const issue = await getIssue(token, repo, source.number);
+        const [comments, attachments] = await Promise.all([
+          listIssueComments(token, repo, source.number),
+          listIssueAttachmentFiles(token, repo, source.number)
+        ]);
+        sourceDetails.push({ ...issue, comments, attachments });
+      }
+
+      const earliest = earliestIssue(sourceDetails);
+      const labels = mergedIssueLabels(sourceDetails);
+      const initialBody = formatMergedBody(mergeTimeline(sourceDetails));
+      if (initialBody.length > MAX_ISSUE_BODY_LENGTH) {
+        throw new Error($_('dynamic.mergeTooLong', { values: { limit: MAX_ISSUE_BODY_LENGTH } }));
+      }
+
+      // 새 이슈가 완성되기 전에는 원본을 닫지 않는다. 따라서 첨부 이전, 본문 저장 등
+      // 어느 단계가 실패해도 원본 기록은 그대로 남는다.
+      mergedIssue = await createIssue(token, repo, {
+        title: earliest.title || $_('dynamic.mergedNoteTitle'),
+        body: '> 병합 기록을 준비하는 중입니다.',
+        labels
+      });
+
+      const attachmentPaths = new Map();
+      for (const source of sourceDetails) {
+        for (const attachment of source.attachments) {
+          const blob = await downloadAttachment(token, repo, attachment);
+          const copied = await uploadAttachment(token, repo, mergedIssue.number, new File(
+            [blob],
+            attachment.name,
+            { type: blob.type || attachment.type || 'application/octet-stream' }
+          ));
+          attachmentPaths.set(attachment.path, copied.path);
+        }
+      }
+
+      const copiedSources = sourceDetails.map((source) => ({
+        ...source,
+        body: replaceAttachmentUrls(source.body, repo, attachmentPaths),
+        comments: source.comments.map((comment) => ({
+          ...comment,
+          body: replaceAttachmentUrls(comment.body, repo, attachmentPaths)
+        }))
+      }));
+      const body = formatMergedBody(mergeTimeline(copiedSources));
+      if (body.length > MAX_ISSUE_BODY_LENGTH) {
+        throw new Error($_('dynamic.mergeTooLong', { values: { limit: MAX_ISSUE_BODY_LENGTH } }));
+      }
+      const savedMergedIssue = await updateIssue(token, repo, mergedIssue.number, {
+        title: earliest.title || $_('dynamic.mergedNoteTitle'),
+        body,
+        labels
+      });
+      mergedBodySaved = true;
+
+      const closeFailures = [];
+      const closedSourceIds = new Set();
+      for (const source of sourceDetails) {
+        try {
+          await setIssueState(token, repo, source.number, 'closed');
+          closedSourceIds.add(source.id);
+        } catch {
+          closeFailures.push(source.number);
+        }
+      }
+
+      invalidateCachedIssueList(activeWorkspaceId);
+      clearIssueSelection();
+      // GitHub 검색 인덱스나 목록 요청이 잠시 늦어도, 성공적으로 닫은 원본을
+      // 현재 화면에 다시 남겨 두지 않는다. 저장한 병합 이슈도 즉시 표시한다.
+      issues = [savedMergedIssue, ...issues.filter((issue) => !closedSourceIds.has(issue.id))];
+      pinnedIssues = pinnedIssues.filter((issue) => !closedSourceIds.has(issue.id));
+      // 병합 전 목록을 이어 붙이면, 두 번째 페이지부터 남아 있던 원본이 열린
+      // 목록에 다시 나타날 수 있다. 전체 목록을 다시 읽어 닫힌 원본을 확실히 제거한다.
+      await loadIssues();
+      router.navigate(`/note.${mergedIssue.number}`);
+      if (closeFailures.length) {
+        error = $_('dynamic.mergeCloseFailed', { values: { numbers: closeFailures.map((number) => `#${number}`).join(', ') } });
+      } else {
+        notice = $_('dynamic.mergeComplete', { values: { number: mergedIssue.number } });
+      }
+    } catch (reason) {
+      // 완성 전의 결과물은 휴지통으로 보내고, 원본 이슈는 열어 둔다. 복사된 파일은
+      // 그 이슈의 첨부로 남았다가 기존 휴지통 정리 정책에 따라 함께 제거된다.
+      if (mergedIssue && !mergedBodySaved) {
+        try {
+          await setIssueState(token, repo, mergedIssue.number, 'closed');
+        } catch {
+          // 원본은 여전히 안전하며, 닫지 못한 임시 이슈 번호는 오류 문구로 안내한다.
+        }
+      }
+      error = mergedIssue && !mergedBodySaved
+        ? $_('dynamic.mergeFailedWithDraft', { values: { number: mergedIssue.number, error: friendlyError(reason) } })
+        : $_('dynamic.mergeFailed', { values: { error: friendlyError(reason) } });
+    } finally {
+      mergeBusy = false;
     }
   }
 
@@ -3140,8 +3281,18 @@
             </button>
             <button
               type="button"
+              class="btn btn-sm btn-outline-secondary"
+              disabled={mergeBusy || selectionTagBusy || pendingIssueDeletion || state !== 'open' || selectedIssues.length < 2}
+              on:click={mergeSelectedIssues}
+              tabindex={selectionMode ? 0 : -1}
+              title={state !== 'open' ? $_('dynamic.mergeOpenOnly') : selectedIssues.length < 2 ? $_('dynamic.mergeSelectMore') : undefined}
+            >
+              <i class="bi bi-intersect" aria-hidden="true"></i> {$_('dynamic.merge')}
+            </button>
+            <button
+              type="button"
               class="btn btn-sm btn-outline-danger"
-              disabled={selectionTagBusy || pendingIssueDeletion}
+              disabled={mergeBusy || selectionTagBusy || pendingIssueDeletion}
               on:click={() => moveIssues(selectedIssues)}
               tabindex={selectionMode ? 0 : -1}
             >
@@ -3438,6 +3589,12 @@
         {/if}
       </section>
     </main>
+    {#if mergeBusy}
+      <div class="merge-progress-overlay" role="status" aria-live="assertive" aria-label={$_('dynamic.merging')}>
+        <BrailleSpinner active />
+        <span>{$_('dynamic.merging')}</span>
+      </div>
+    {/if}
   </div>
   {/if}
 {/if}

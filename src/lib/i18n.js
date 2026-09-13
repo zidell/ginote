@@ -27,6 +27,32 @@ const dynamic = {
   ko: { noteCount: '{count}개', openNote: '{title} 노트 열기', clearFilter: '{label} 필터 지우기', tagName: '{name} 태그 이름', createTag: '#{name} 태그 만들기', tagAdded: '#{name} 태그를 추가했습니다.', tagDeleted: '#{name} 태그를 삭제했습니다.', deleteTagConfirm: '#{name} 태그를 모든 노트에서 삭제할까요?', tagRenamed: '#{from} 태그 이름을 #{to}로 바꿨습니다.', tagNameRequired: '태그 이름을 입력하세요.', selectOwner: '{owner} 계정을 선택하세요.', selectRepository: '{repo} 저장소만 선택하세요.', createPat: '{name}용 PAT 만들기', allocateFailed: '새 노트를 준비하지 못했습니다. {error}', moveToTrashConfirm: '“{title}” 노트를 휴지통으로 옮길까요?', restoreConfirm: '“{title}” 노트를 복원할까요?', closedIssueSaveConfirm: '다른 기기에서 “{title}” 노트를 휴지통으로 옮겼습니다. 복원한 뒤 수정 내용을 저장할까요?', attachmentLimit: '노트당 첨부파일은 최대 {count}개까지 추가할 수 있습니다.', attachmentLimitAdded: '노트당 첨부파일은 최대 {count}개라서 {count}개만 추가했습니다.', fileTooLarge: '“{name}” 파일은 10MB보다 커서 업로드하지 않았습니다.', deleteAttachmentConfirm: '“{name}” 파일을 저장소에서도 삭제할까요?', deleteAttachment: '첨부파일 {name} 삭제', attachmentDeleting: '삭제 중…', uploading: '업로드 중 ({count}개)', removeTag: '{name} 태그 제거', openLink: '{url} 새 탭으로 열기', pasteLocationRequired: '붙여넣을 위치를 먼저 클릭하세요.', createdAt: '생성됨: {date}', updatedAt: '수정됨: {date}', viewOnGitHub: 'GitHub에서 보기', workspaceDisplayNameLabel: '{repo} 표시 이름', mcpPrompt: '{repo} 저장소의 GitHub Issues를 노트로 사용하세요. 열린 이슈는 노트, 닫힌 이슈는 휴지통이며 GitHub 라벨은 태그입니다. 첨부파일은 .issue-note-assets/issues/{issueNumber}/ 폴더에 저장되고, 이슈 본문에 일반 이미지·파일 링크로 연결되어 있습니다. 노트 본문을 수정할 때 이 링크를 반드시 그대로 유지하세요. 링크를 지우면 해당 첨부파일 연결도 끊깁니다.' }
 };
 
+Object.assign(dynamic.en, {
+  merge: 'Merge',
+  merging: 'Merging notes…',
+  mergeSelectMore: 'Select at least two notes to merge.',
+  mergeOpenOnly: 'Restore notes before merging them.',
+  mergedNoteTitle: 'Merged note',
+  mergeTooLong: 'The merged record exceeds the {limit}-character note limit.',
+  mergeComplete: 'Created merged note #{number}.',
+  mergeFailed: 'Could not merge the notes. The original notes were not moved to trash. {error}',
+  mergeFailedWithDraft: 'Could not finish the merge. The incomplete merged note #{number} was moved to trash; the original notes were left unchanged. {error}',
+  mergeCloseFailed: 'Created the merged note, but could not move {numbers} to trash. Please close them manually.'
+});
+
+Object.assign(dynamic.ko, {
+  merge: '병합',
+  merging: '노트를 병합하는 중…',
+  mergeSelectMore: '병합하려면 노트를 두 개 이상 선택하세요.',
+  mergeOpenOnly: '휴지통의 노트는 복원한 뒤 병합하세요.',
+  mergedNoteTitle: '병합 노트',
+  mergeTooLong: '병합 기록이 노트 최대 길이({limit}자)를 초과합니다.',
+  mergeComplete: '병합 노트 #{number}을(를) 만들었습니다.',
+  mergeFailed: '노트를 병합하지 못했습니다. 원본 노트는 휴지통으로 옮기지 않았습니다. {error}',
+  mergeFailedWithDraft: '병합을 완료하지 못했습니다. 불완전한 병합 노트 #{number}은(는) 휴지통으로 옮겼고 원본 노트는 그대로 남겼습니다. {error}',
+  mergeCloseFailed: '병합 노트는 만들었지만 {numbers}을(를) 휴지통으로 옮기지 못했습니다. 직접 닫아주세요.'
+});
+
 const dynamicOverrides = {
   'zh-CN': { noteCount: '{count} 条笔记', openNote: '打开笔记 {title}', clearFilter: '清除 {label} 筛选', tagName: '{name} 标签名称', createTag: '创建 #{name}', tagAdded: '已添加 #{name}。', tagDeleted: '已删除 #{name}。', deleteTagConfirm: '要从所有笔记中删除 #{name} 标签吗？', tagRenamed: '已将 #{from} 重命名为 #{to}。', tagNameRequired: '#{name} 的名称不能为空。', selectOwner: '请选择 {owner} 账户。', selectRepository: '仅选择 {repo}。', createPat: '为 {name} 创建 PAT', allocateFailed: '无法为新笔记分配编号。{error}', moveToTrashConfirm: '将“{title}”移至回收站？', restoreConfirm: '恢复“{title}”？', attachmentLimit: '每条笔记最多可有 {count} 个附件。', attachmentLimitAdded: '由于每条笔记的限制，仅添加了 {count} 个附件。', fileTooLarge: '“{name}”超过 10 MB，未上传。', deleteAttachmentConfirm: '也从仓库中删除“{name}”？', deleteAttachment: '删除附件 {name}', uploading: '上传中（{count}）', removeTag: '移除标签 {name}', openLink: '在新标签页中打开 {url}' },
   ja: { noteCount: '{count}件', openNote: 'ノート「{title}」を開く', clearFilter: '{label} フィルターを解除', tagName: '{name} のタグ名', createTag: '#{name} を作成', tagAdded: '#{name} を追加しました。', tagDeleted: '#{name} を削除しました。', deleteTagConfirm: 'すべてのノートから #{name} タグを削除しますか？', tagRenamed: '#{from} を #{to} に変更しました。', tagNameRequired: '#{name} の名前は空にできません。', selectOwner: '{owner} アカウントを選択してください。', selectRepository: '{repo} のみ選択してください。', createPat: '{name} 用PATを作成', allocateFailed: '新しいノート番号を取得できませんでした。{error}', moveToTrashConfirm: '「{title}」をゴミ箱に移動しますか？', restoreConfirm: '「{title}」を復元しますか？', attachmentLimit: '添付ファイルはノートごとに最大{count}件です。', attachmentLimitAdded: '上限により添付ファイルは{count}件まで追加されました。', fileTooLarge: '「{name}」は10MBを超えるためアップロードされませんでした。', deleteAttachmentConfirm: '「{name}」をリポジトリからも削除しますか？', deleteAttachment: '添付ファイル {name} を削除', uploading: 'アップロード中（{count}）', removeTag: 'タグ {name} を削除', openLink: '{url} を新しいタブで開く' },
