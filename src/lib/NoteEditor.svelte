@@ -203,6 +203,7 @@
   let handledFocusRequest = 0;
   let mobileTagPicker;
   let inlineTagPickerOpen = false;
+  let tagOperationBusy = false;
   let linkTooltip;
   let linkTooltipFrame = 0;
   let activeLink = null;
@@ -2546,15 +2547,44 @@
     notifyDraftChange();
   }
 
-  function toggleTag(name) {
+  async function toggleTag(name) {
     if (!name || !editable) return;
     const normalizedName = name.toLocaleLowerCase();
     if (hasLabel(name)) {
       labels = labels.filter((label) => label.toLocaleLowerCase() !== normalizedName);
     } else {
+      // 새 태그는 노트에 붙이기 전에 GitHub 라벨로 먼저 만든다. 이전에는 이
+      // 작업을 자동 저장까지 미뤄서, 생성 실패가 화면상 태그 추가 실패처럼
+      // 보이고 선택기 목록도 갱신되지 않았다.
+      const knownLabel = visibleAvailableLabels.some(
+        (label) => label.name.toLocaleLowerCase() === normalizedName
+      );
+      if (!knownLabel) {
+        if (tagOperationBusy) return;
+        tagOperationBusy = true;
+        try {
+          const createdLabel = await createLabel(token, repo, name);
+          availableLabels = [...availableLabels, createdLabel];
+          onLabelsAvailable([createdLabel]);
+        } catch (reason) {
+          error = reason?.message || $_("m.a129ed8520");
+          return;
+        } finally {
+          tagOperationBusy = false;
+        }
+      }
       labels = [...labels, name];
     }
     changed();
+    // 태그 조작은 본문 변경과 별개로 바로 원격 노트에 반영한다.
+    clearTimeout(remoteTimer);
+    void flushPendingWork({
+      reason: 'tag-change',
+      allowPaused: true,
+      force: true,
+      includeAttachments: false,
+      includeComments: false
+    });
   }
 
   function capturePreviewScrollPosition() {
@@ -3010,6 +3040,7 @@
           toolbar
           shortcut="T"
           shortcutEnabled={canUseTagShortcut()}
+          disabled={tagOperationBusy}
           availableLabels={visibleAvailableLabels}
           selectedLabels={displayedLabels}
           onSelect={toggleTag}
@@ -3030,6 +3061,7 @@
           iconOnly
           shortcut="T"
           shortcutEnabled={canUseTagShortcut()}
+          disabled={tagOperationBusy}
           availableLabels={visibleAvailableLabels}
           selectedLabels={displayedLabels}
           onSelect={toggleTag}
@@ -3286,6 +3318,7 @@
         {#if editable && !previewMode}
           <TagPicker
             bind:open={inlineTagPickerOpen}
+            disabled={tagOperationBusy}
             availableLabels={visibleAvailableLabels}
             selectedLabels={displayedLabels}
             onSelect={toggleTag}
