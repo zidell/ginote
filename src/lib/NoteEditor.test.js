@@ -1070,6 +1070,27 @@ describe('NoteEditor 마크다운 프리뷰와 단축키', () => {
     }
   });
 
+  it('새 노트의 붙여넣기 본문은 번호 할당 전에도 즉시 부모에 전달한다', async () => {
+    localStorage.clear();
+    const onDraftChange = vi.fn();
+    render(NoteEditor, {
+      token: 't',
+      repo: 'owner/repo',
+      issue: null,
+      initialDraft: { id: 'paste-session', title: '', body: '', labels: [] },
+      autoSaveSeconds: 9999,
+      onDraftChange
+    });
+
+    const body = document.querySelector('.inline-body');
+    await fireEvent.input(body, { target: { value: '붙여넣은 본문' } });
+
+    expect(onDraftChange).toHaveBeenCalledTimes(1);
+    expect(onDraftChange).toHaveBeenLastCalledWith(expect.objectContaining({
+      body: '붙여넣은 본문'
+    }));
+  });
+
   it('목록에 보이는 첫 두 줄이 그대로면 타이핑해도 목록 초안을 다시 알리지 않는다', async () => {
     localStorage.clear();
     const onDraftChange = vi.fn();

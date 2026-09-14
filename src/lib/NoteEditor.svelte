@@ -801,7 +801,15 @@
     saveFailed = false;
     revision += 1;
     error = '';
-    notifyDraftChange({ debounce: debounceListUpdate, onlyWhenListPreviewChanges: !listPreviewChanged });
+    // 번호를 할당받기 전의 새 노트는 부모가 이 초안을 이용해 곧바로 정식
+    // 이슈 화면으로 승격한다. 여기까지도 목록 미리보기용 500ms 디바운스를
+    // 적용하면, 붙여넣기 직후 할당 응답이 먼저 도착했을 때 빈 본문으로
+    // 리마운트될 수 있다. 새 노트의 부모 동기화는 즉시 하고, 기존 노트만
+    // 목록 갱신을 묶는다.
+    notifyDraftChange({
+      debounce: debounceListUpdate && Boolean(issue),
+      onlyWhenListPreviewChanges: !listPreviewChanged
+    });
     scheduleRemoteSave();
   }
 
@@ -1814,7 +1822,10 @@
       // 새 노트는 번호 할당 응답이 조합 중에 도착해도 최신 조합문을
       // 잃지 않도록 부모의 pendingNote에만 반영한다. 기존 노트는
       // 조합 중 부모 렌더를 유발하지 않는다.
-      if (bodyChanged && !issue) notifyDraftChange({ debounce: true, onlyWhenListPreviewChanges: !listPreviewChanged });
+      if (bodyChanged && !issue) notifyDraftChange({
+        debounce: false,
+        onlyWhenListPreviewChanges: !listPreviewChanged
+      });
       return;
     }
 
