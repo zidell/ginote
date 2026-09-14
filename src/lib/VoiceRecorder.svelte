@@ -2,7 +2,7 @@
   import { onMount, onDestroy } from 'svelte';
   import { transcribeAudio, refineTranscript } from './openai-voice.js';
 
-  let { apiKey, refinementPrompt = '', transcriptionModel = 'gpt-transcribe', refinementModel = 'gpt-4o-mini', onComplete, onClose, onDirtyChange = () => {} } = $props();
+  let { apiKey, refinementPrompt = '', transcriptionModel = 'gpt-transcribe', refinementModel = 'gpt-4o-mini', availableTags = [], onComplete, onClose, onDirtyChange = () => {} } = $props();
   const MAX_RECORDING_MILLISECONDS = 60 * 60 * 1000;
   // 음성 전사용 mono Opus 품질. 한 시간 녹음도 기존 10 MiB 첨부 정책 안에
   // 들어갈 수 있는 수준이며, MediaRecorder가 지원하지 않으면 브라우저 기본값을 쓴다.
@@ -237,15 +237,25 @@
       const transcript = await retryOnce('음성 전사', () => transcribeAudio(apiKey, audioBlob, transcriptionModel, abortController.signal));
       if (!transcript) throw new Error('음성에서 텍스트를 찾지 못했습니다.');
       let body = transcript;
+      let selectedTags = [];
+      let suggestedTitle = '';
       // 모델을 고른 경우에만, 화면에서 편집 가능한 정제 프롬프트를 적용한다.
       if (refinementModel.trim()) {
         status = '텍스트를 정제하는 중…';
-        body = await retryOnce('텍스트 정제', () => refineTranscript(apiKey, transcript, refinementPrompt, refinementModel, abortController.signal));
+        const refined = await retryOnce('텍스트 정제', () => refineTranscript(
+          apiKey, transcript, refinementPrompt, refinementModel, abortController.signal, availableTags
+        ));
+        body = refined.body;
+        selectedTags = refined.tags;
+        suggestedTitle = refined.title;
       }
-      if (!body) throw new Error('정제된 텍스트가 비어 있습니다.');
+      if (!body && !selectedTags.length) throw new Error('정제된 텍스트와 선택된 태그가 모두 비어 있습니다.');
       status = '노트에 기록하는 중…';
-      await onComplete(body, audioBlob);
+      // onComplete는 성공한 뒤 라우트를 닫을 수 있다. 그 전에 미기록 상태를
+      // 해제해야 정상 완료를 사용자의 취소로 오인하지 않는다. 저장 실패 시
+      // catch에서 다시 true로 되돌린다.
       onDirtyChange(false);
+      await onComplete(body, audioBlob, selectedTags, suggestedTitle);
     } catch (reason) {
       if (reason?.name !== 'AbortError') error = reason?.message || '음성 기록에 실패했습니다.';
       if (reason?.name !== 'AbortError') {
