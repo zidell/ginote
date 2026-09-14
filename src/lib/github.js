@@ -5,6 +5,7 @@ import { ATTACHMENT_BRANCH } from './attachments.js';
 
 const API_ROOT = 'https://api.github.com';
 export const DEFAULT_ISSUE_PAGE_SIZE = 30;
+export const HYBRID_SEARCH_MAX_RESULTS = 100;
 export const CLOSED_ISSUE_RETENTION_DAYS = 30;
 const ATTACHMENT_STORAGE_MARKER = '.issue-note-assets/.ginote-storage';
 const ATTACHMENT_STORAGE_MARKER_CONTENT = 'Ginote attachment storage. Do not delete this branch.\n';
@@ -129,14 +130,17 @@ export async function searchIssuesPage(token, repoInput, state, term, label = ''
   const cutoffQuery = state === 'closed'
     ? ` closed:>=${closedIssueCutoff(now)}`
     : '';
-  const query = `${termQuery ? `${termQuery} ` : ''}repo:${repo} is:issue is:${state}${termQuery ? ' in:title,body' : ''}${cutoffQuery}${labelQuery}`;
+  // GitHub 웹 이슈 검색과 같은 hybrid 검색을 사용한다. REST Search API의
+  // 기본 lexical 검색은 한글 부분 단어를 놓칠 수 있다.
+  const query = `${termQuery ? `${termQuery} ` : ''}repo:${repo} is:issue is:${state}${cutoffQuery}${labelQuery}`;
   const data = await request(
-    `/search/issues?q=${encodeURIComponent(query)}&sort=updated&order=desc&per_page=${pageSize}&page=${page}`,
+    `/search/issues?q=${encodeURIComponent(query)}&search_type=hybrid&per_page=${HYBRID_SEARCH_MAX_RESULTS}&page=1`,
     token
   );
   return {
     items: sortIssuesForState(issueOnly(data.items), state),
-    hasMore: page * pageSize < Math.min(Number(data.total_count) || 0, 1000),
+    // GitHub hybrid 검색은 한 페이지만 제공한다.
+    hasMore: false,
     totalCount: Number(data.total_count) || 0
   };
 }
