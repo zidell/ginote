@@ -28,6 +28,7 @@ const dynamic = {
 };
 
 Object.assign(dynamic.en, {
+  tagDefinition: 'Tag name: classification description',
   merge: 'Merge',
   merging: 'Merging notes…',
   mergeSelectMore: 'Select at least two notes to merge.',
@@ -41,6 +42,7 @@ Object.assign(dynamic.en, {
 });
 
 Object.assign(dynamic.ko, {
+  tagDefinition: '태그명: 분류 설명',
   merge: '병합',
   merging: '노트를 병합하는 중…',
   mergeSelectMore: '병합하려면 노트를 두 개 이상 선택하세요.',

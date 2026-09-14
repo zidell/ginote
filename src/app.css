@@ -324,6 +324,10 @@ button, input, textarea { font: inherit; }
 .tag-settings-create { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .4rem; margin-bottom: .65rem; padding-bottom: .65rem; border-bottom: 1px solid var(--ui-border-separator); }
 .tag-settings-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: .4rem; padding: .35rem 0; }
 .tag-settings-row .form-control { min-width: 0; }
+.tag-settings-input { position: relative; min-width: 0; }
+.tag-settings-input .form-control { padding-right: 1.8rem; }
+.tag-settings-saving { position: absolute; top: 50%; right: .55rem; display: flex; transform: translateY(-50%); pointer-events: none; }
+.tag-settings-saving .braille-spinner.active { opacity: .5; }
 .tag-settings-row .btn { white-space: nowrap; }
 code { color: var(--ui-text-code); }
 .mcp-prompt { min-height: 8rem; resize: vertical; line-height: 1.55; }

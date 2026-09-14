@@ -22,6 +22,8 @@ describe('refineTranscript', () => {
     expect(request.messages[0].content).toContain('사용자가 수정할 수 있는 정제 규칙');
     expect(request.messages[0].content).toContain('원문 데이터');
     expect(request.messages[0].content).toContain('반드시 JSON 객체만 출력');
+    expect(request.messages[0].content).toContain('명시적 지정을 최우선');
+    expect(request.messages[0].content).toContain('가장 적합한 기존 태그');
     expect(request.messages[0].content).toContain('<refinement_rules>\n띄어쓰기와 문장부호만 정리하세요.\n</refinement_rules>');
     expect(request.messages[1]).toEqual({
       role: 'user',
@@ -50,6 +52,33 @@ describe('refineTranscript', () => {
     await expect(refineTranscript(
       'sk-test', '업무 태그로 해줘. 회의 일정을 정리했다.', '', 'gpt-4o-mini', undefined, ['업무', '개인']
     )).resolves.toEqual({ title: '회의 일정', body: '회의 일정을 정리했다.', tags: ['업무'] });
+  });
+
+  it('명시 태그가 없으면 본문과 맞는 기존 태그를 적용한다', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      choices: [{ message: { content: JSON.stringify({ title: '항공권 예약', body: '다음 달 제주도 항공권을 예약했다.', tags: ['여행'] }) } }]
+    }), { headers: { 'Content-Type': 'application/json' } }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(refineTranscript(
+      'sk-test', '다음 달 제주도 항공권을 예약했다.', '', 'gpt-4o-mini', undefined, ['업무', '여행']
+    )).resolves.toEqual({ title: '항공권 예약', body: '다음 달 제주도 항공권을 예약했다.', tags: ['여행'] });
+  });
+
+  it('태그 설명을 태그명과 함께 정제 모델에 전달한다', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      choices: [{ message: { content: JSON.stringify({ title: '영화 감상', body: '영화 감상을 기록했다.', tags: ['culture'] }) } }]
+    }), { headers: { 'Content-Type': 'application/json' } }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await refineTranscript('sk-test', '영화 감상을 기록했다.', '', 'gpt-4o-mini', undefined, [
+      { name: 'culture', description: '책, 영화, 드라마 등 문화 관련 기록' }
+    ]);
+
+    const request = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(request.messages[1].content).toContain(JSON.stringify([
+      { name: 'culture', description: '책, 영화, 드라마 등 문화 관련 기록' }
+    ]));
   });
 });
 
