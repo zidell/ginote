@@ -2792,6 +2792,7 @@
   function openVoiceRecording(issue = null, target = { type: 'body' }) {
     if (pendingNote || selectionMode) return;
     if (!voiceApiKey.trim()) {
+      alert('음성 녹음을 사용하려면 OpenAI API 키를 발급한 뒤 환경설정의 음성 API 키에 지정하세요. 해당 설정으로 이동합니다.');
       openVoiceAfterSettings = true;
       focusVoiceSettingsAfterOpen = true;
       openSettings();
@@ -3517,8 +3518,9 @@
               <button
                 type="button"
                 class="btn btn-primary btn-sm sidebar-voice-button"
+                class:voice-unavailable={!voiceApiKey.trim()}
                 aria-label="음성 녹음"
-                title="음성 녹음"
+                title={voiceApiKey.trim() ? '음성 녹음' : 'OpenAI API 키를 지정하면 음성 녹음을 사용할 수 있습니다.'}
                 on:click={openVoiceRecording}
                 disabled={Boolean(pendingNote) || selectionMode}
               ><i class="bi bi-mic-fill" aria-hidden="true"></i></button>
@@ -3650,6 +3652,7 @@
                 ? moveIssues([issue], { savePromise })
                 : moveIssue(issue, 'open')}
               onVoiceRecording={(issue, target) => openVoiceRecording(issue, target)}
+              voiceEnabled={Boolean(voiceApiKey.trim())}
               {voiceComment}
               {voiceBody}
               {voiceCommentEdit}

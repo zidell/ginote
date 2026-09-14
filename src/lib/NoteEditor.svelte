@@ -85,6 +85,7 @@
   export let onTagSelect = () => {};
   export let onMove = () => {};
   export let onVoiceRecording = () => {};
+  export let voiceEnabled = false;
   export let voiceComment = null;
   export let voiceBody = null;
   export let voiceCommentEdit = null;
@@ -3148,6 +3149,7 @@
           <button
             type="button"
             class="dropdown-item detail-toolbar-voice"
+            class:voice-unavailable={!voiceEnabled}
             aria-keyshortcuts="E"
             disabled={!remoteIssue?.number}
             on:click={recordVoiceInBody}
@@ -3432,6 +3434,7 @@
                           <button
                             type="button"
                             class="dropdown-item"
+                            class:voice-unavailable={!voiceEnabled}
                             on:click={() => recordVoiceInComment(comment)}
                           ><i class="bi bi-mic-fill" aria-hidden="true"></i> 음성 녹음</button>
                         </li>
@@ -3527,7 +3530,7 @@
             <button type="button" class="note-comment-add" on:click={addComment}>
               <i class="bi bi-plus-lg" aria-hidden="true"></i> {$_("m.7d3764e42e")}
             </button>
-            <button type="button" class="note-comment-add" on:click={recordVoiceAsNewComment}>
+            <button type="button" class="note-comment-add" class:voice-unavailable={!voiceEnabled} on:click={recordVoiceAsNewComment}>
               <i class="bi bi-mic-fill" aria-hidden="true"></i> 음성 추가
             </button>
           </div>
