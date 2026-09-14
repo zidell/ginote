@@ -2,6 +2,8 @@ function encodedPath(value) {
   return value.split('/').map(encodeURIComponent).join('/');
 }
 
+export const ATTACHMENT_BRANCH = 'ginote-assets';
+
 function isImage(attachment) {
   return attachment?.type?.startsWith('image/')
     || /\.(avif|gif|jpe?g|png|svg|webp)$/i.test(attachment?.name || '');
@@ -13,10 +15,10 @@ export function composeAttachmentLink(repo, attachment) {
 }
 
 export function attachmentRawUrl(repo, path) {
-  return `https://github.com/${repo}/raw/HEAD/${encodedPath(path)}`;
+  return `https://github.com/${repo}/raw/${ATTACHMENT_BRANCH}/${encodedPath(path)}`;
 }
 
-const RAW_ATTACHMENT_LINK = /!?\[(?:\\.|[^\]\n])*\]\(https:\/\/github\.com\/[^/)\s]+\/[^/)\s]+\/raw\/HEAD\/([^)\s]+)\)/g;
+const RAW_ATTACHMENT_LINK = /!?\[(?:\\.|[^\]\n])*\]\(https:\/\/github\.com\/[^/)\s]+\/[^/)\s]+\/raw\/ginote-assets\/([^)\s]+)\)/g;
 const MANAGED_ATTACHMENT_BLOCK = /(?:^|\n)<!-- ginote:attachments:start -->\s*[\s\S]*?\s*<!-- ginote:attachments:end -->(?=\n|$)/g;
 
 export const MANAGED_ATTACHMENT_START = '<!-- ginote:attachments:start -->';
@@ -85,7 +87,7 @@ export function withManagedAttachmentBlock(bodyText, links) {
 export const ATTACHMENT_LINK_PLACEHOLDER = '{repo}/';
 
 function attachmentUrlPrefix(repo) {
-  return `https://github.com/${repo}/raw/HEAD/`;
+  return `https://github.com/${repo}/raw/${ATTACHMENT_BRANCH}/`;
 }
 
 export function compressAttachmentLinks(bodyText, repo) {

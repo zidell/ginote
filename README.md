@@ -142,10 +142,13 @@ PAT와 저장소 설정은 사용자의 브라우저에만 저장되며, API 요
 
 ### 첨부파일 저장 방식
 
-첨부파일은 같은 GitHub 저장소의 `.issue-note-assets/issues/{이슈 번호}/` 폴더에
-파일로 저장하고, 이슈 본문에는 Markdown 링크로 연결합니다. 앱과 GitHub 이슈
-페이지에서 모두 확인할 수 있습니다. 저장 경로, 첨부 동작, 기존 노트와의
-호환성 규약은 [첨부파일 저장 방식](docs/ATTACHMENTS.md)을 참고하세요.
+첨부파일은 같은 GitHub 저장소의 전용 `ginote-assets` 브랜치에 있는
+`.issue-note-assets/issues/{이슈 번호}/` 폴더에 파일로 저장하고, 이슈 본문에는
+Markdown 링크로 연결합니다. 전용 브랜치는 코드나 GitHub Actions workflow를
+포함하지 않는 독립된 이력이라, 첨부 작업이 `main`, `master`, `test` 같은 개발
+브랜치를 갱신하거나 그 브랜치의 CI를 실행하지 않습니다. 앱과 GitHub 이슈
+페이지에서 모두 확인할 수 있습니다. 자세한 저장 규약은
+[첨부파일 저장 방식](docs/ATTACHMENTS.md)을 참고하세요.
 
 ### 편집 및 저장
 

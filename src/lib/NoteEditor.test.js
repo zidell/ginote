@@ -853,7 +853,7 @@ describe('NoteEditor 마크다운 프리뷰와 단축키', () => {
 
     await waitFor(() => expect(document.querySelector('.markdown-preview img')).toBeTruthy());
     expect(document.querySelector('.markdown-preview img').getAttribute('src'))
-      .toBe(`https://github.com/owner/repo/raw/HEAD/${path}`);
+      .toBe(`https://github.com/owner/repo/raw/ginote-assets/${path}`);
   });
 
   it('private 저장소 첨부 이미지는 인증된 미리보기 URL로 렌더링한다', async () => {

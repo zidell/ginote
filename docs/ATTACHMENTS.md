@@ -1,9 +1,15 @@
 # 첨부파일 저장 방식
 
 Ginote는 GitHub Issue 본문에 파일 자체를 넣지 않습니다. 사용자가 선택한 같은
-GitHub 저장소에 파일을 저장하고, 이슈 본문에는 그 파일을 가리키는 Markdown
-링크를 넣습니다. 따라서 별도 앱 서버나 첨부파일 전용 저장소가 필요하지
-않습니다.
+GitHub 저장소의 `ginote-assets` 전용 브랜치에 파일을 저장하고, 이슈 본문에는
+그 파일을 가리키는 Markdown 링크를 넣습니다. 따라서 별도 앱 서버나 첨부파일
+전용 저장소가 필요하지 않습니다.
+
+전용 브랜치는 첫 첨부 때 코드와 GitHub Actions workflow가 없는 orphan root
+commit으로 자동 생성됩니다. 이후 첨부 추가·삭제·보관 정리는 모두 이 브랜치만
+갱신하므로 저장소의 기본 브랜치와 `test` 같은 개발 브랜치에는 첨부 commit이
+생기지 않습니다. `ginote-assets` 브랜치는 앱이 예약해 사용하므로 직접 삭제하거나
+다른 용도로 사용하지 마세요.
 
 ## 저장 구조
 
@@ -14,9 +20,10 @@ GitHub 저장소에 파일을 저장하고, 이슈 본문에는 그 파일을 �
 .issue-note-assets/issues/{이슈 번호}/comments/{댓글 ID}/{UUID}-{파일명}
 ```
 
-파일 경로에는 GitHub Contents API를 사용합니다. 파일명에 포함될 수 없는 문자는
-안전한 문자로 바뀌고, 공백은 하이픈으로 정리됩니다. UUID를 앞에 붙이므로 같은
-이름의 파일을 여러 번 올려도 경로가 충돌하지 않습니다.
+파일 경로에는 GitHub Contents API를 사용하며 모든 조회와 변경에
+`ginote-assets` ref를 명시합니다. 파일명에 포함될 수 없는 문자는 안전한 문자로
+바뀌고, 공백은 하이픈으로 정리됩니다. UUID를 앞에 붙이므로 같은 이름의 파일을
+여러 번 올려도 경로가 충돌하지 않습니다.
 
 이슈 본문에는 Markdown 링크를 넣습니다. Ginote가 자동으로 관리하는 링크는 본문
 최상단의 HTML 주석 경계 사이에 넣습니다. 주석 경계만 GitHub에서 숨겨지고, 그 안의
@@ -24,13 +31,13 @@ GitHub 저장소에 파일을 저장하고, 이슈 본문에는 그 파일을 �
 넣은 링크는 이 관리 블록 밖에 그대로 남습니다.
 
 ```md
-![사진.jpg](https://github.com/owner/repository/raw/HEAD/.issue-note-assets/issues/31/...)
-[📎 계획.pdf](https://github.com/owner/repository/raw/HEAD/.issue-note-assets/issues/31/...)
+![사진.jpg](https://github.com/owner/repository/raw/ginote-assets/.issue-note-assets/issues/31/...)
+[📎 계획.pdf](https://github.com/owner/repository/raw/ginote-assets/.issue-note-assets/issues/31/...)
 ```
 
 앱에서는 첨부파일을 본문 위의 썸네일 목록과 이미지 뷰어로 볼 수 있고, GitHub
 이슈 페이지에서도 이미지나 파일 링크를 바로 확인할 수 있습니다. 편집기에서는
-긴 `https://github.com/{저장소}/raw/HEAD/` 주소를 `{repo}/`로 짧게 보여주지만,
+긴 `https://github.com/{저장소}/raw/ginote-assets/` 주소를 `{repo}/`로 짧게 보여주지만,
 GitHub에 저장할 때는 다시 완전한 주소로 바꿉니다.
 
 ## 첨부 작업의 동작
@@ -61,8 +68,8 @@ GitHub에 저장할 때는 다시 완전한 주소로 바꿉니다.
 - Repository access: 노트 저장소 하나
 - Contents: Read and write
 
-GitHub에서 `.issue-note-assets/`의 파일 경로나 본문의 첨부 Markdown 링크를
-직접 바꾸면 앱이 첨부파일을 찾지 못할 수 있습니다.
+GitHub에서 `ginote-assets` 브랜치나 `.issue-note-assets/`의 파일 경로, 본문의
+첨부 Markdown 링크를 직접 바꾸면 앱이 첨부파일을 찾지 못할 수 있습니다.
 
 ## 보관 기간과 정리
 
@@ -83,14 +90,14 @@ GitHub API는 이슈 자체를 영구 삭제할 수 없으므로, Ginote는 이�
 .issue-note-assets/issues/{이슈 번호}/{UUID}-{파일명}
 .issue-note-assets/issues/{이슈 번호}/comments/{댓글 ID}/{UUID}-{파일명}
 <!-- ginote:attachments:start -->
-![파일명](https://github.com/{저장소}/raw/HEAD/{인코딩된 경로})
-[📎 파일명](https://github.com/{저장소}/raw/HEAD/{인코딩된 경로})
+![파일명](https://github.com/{저장소}/raw/ginote-assets/{인코딩된 경로})
+[📎 파일명](https://github.com/{저장소}/raw/ginote-assets/{인코딩된 경로})
 <!-- ginote:attachments:end -->
 ```
 
 경로의 `issue-note` 접두사는 앱 이름을 바꾸기 전부터 사용하던 식별자입니다.
-이미 올라간 첨부파일을 계속 읽어야 하므로 앱 이름과 별개로 유지합니다. 원격
-저장소에는 항상 위의 완전한 GitHub 주소로만 저장해야 하며, 편집기 표시용
+앱 이름과 별개로 유지합니다. 원격 저장소에는 항상 위의 완전한 GitHub 주소로만
+저장해야 하며, 편집기 표시용
 `{repo}/` 축약형(`compressAttachmentLinks`/`expandAttachmentLinks`,
 `src/lib/attachments.js`)이 저장 페이로드에 남으면 안 됩니다.
 

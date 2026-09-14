@@ -13,6 +13,7 @@
   import { automaticTitle, linkAtCursor, shortenMiddle } from './notes.js';
   import { loadPendingWork, pendingWorkScope, updatePendingWork } from './pending-work.js';
   import {
+    ATTACHMENT_BRANCH,
     ATTACHMENT_LINK_PLACEHOLDER,
     attachmentRawUrl,
     composeAttachmentLink,
@@ -2248,7 +2249,7 @@
   }
 
   function attachmentPathFromRawUrl(url) {
-    const marker = '/raw/HEAD/';
+    const marker = `/raw/${ATTACHMENT_BRANCH}/`;
     const index = String(url || '').indexOf(marker);
     return index < 0 ? '' : String(url).slice(index + marker.length).split('/').map(decodeURIComponent).join('/');
   }
