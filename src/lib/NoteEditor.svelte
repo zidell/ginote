@@ -2800,7 +2800,6 @@
       selectionStart == null
       || selectionEnd == null
       || selectionStart === selectionEnd
-      || !value.slice(selectionStart, selectionEnd).includes('\n')
     ) return false;
 
     const firstLineStart = value.lastIndexOf('\n', selectionStart - 1) + 1;

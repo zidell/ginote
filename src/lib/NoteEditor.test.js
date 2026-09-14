@@ -559,22 +559,44 @@ describe('NoteEditor 코멘트 블록', () => {
     expect(bodyTextarea.selectionEnd).toBe(10);
   });
 
-  it('여러 줄 선택이 아닌 Tab은 textarea의 기본 동작을 유지한다', () => {
+  it('한 줄의 일부만 선택해도 Tab과 Shift+Tab을 줄 단위로 적용한다', () => {
     localStorage.clear();
-    render(NoteEditor, { token: 't', repo: 'owner/repo', issue: baseIssue });
+    render(NoteEditor, {
+      token: 't',
+      repo: 'owner/repo',
+      issue: { ...baseIssue, body: 'before\n one line\nafter' }
+    });
 
     const bodyTextarea = document.querySelector('.inline-body');
-    bodyTextarea.setSelectionRange(0, 1);
-    const event = new KeyboardEvent('keydown', {
+    bodyTextarea.focus();
+    bodyTextarea.setSelectionRange(9, 14);
+
+    const indentEvent = new KeyboardEvent('keydown', {
       key: 'Tab',
       code: 'Tab',
       bubbles: true,
       cancelable: true
     });
-    bodyTextarea.dispatchEvent(event);
+    bodyTextarea.dispatchEvent(indentEvent);
 
-    expect(event.defaultPrevented).toBe(false);
-    expect(bodyTextarea.value).toBe(baseIssue.body);
+    expect(indentEvent.defaultPrevented).toBe(true);
+    expect(bodyTextarea.value).toBe('before\n\t one line\nafter');
+    expect(bodyTextarea.selectionStart).toBe(10);
+    expect(bodyTextarea.selectionEnd).toBe(15);
+
+    const outdentEvent = new KeyboardEvent('keydown', {
+      key: 'Tab',
+      code: 'Tab',
+      shiftKey: true,
+      bubbles: true,
+      cancelable: true
+    });
+    bodyTextarea.dispatchEvent(outdentEvent);
+
+    expect(outdentEvent.defaultPrevented).toBe(true);
+    expect(bodyTextarea.value).toBe('before\n one line\nafter');
+    expect(bodyTextarea.selectionStart).toBe(9);
+    expect(bodyTextarea.selectionEnd).toBe(14);
   });
 
   it('선택 시작 줄의 들여쓰기를 제거해도 선택 시작점이 이전 줄로 이동하지 않는다', () => {
