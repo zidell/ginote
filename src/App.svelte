@@ -195,9 +195,8 @@
   let toastMessage = '';
   let toastTimer;
   let toastSequence = 0;
-  let pendingIssueDeletion = null;
-  let pendingIssueDeletionTimer;
-  let pendingIssueDeletionInFlight = false;
+  let pendingIssueDeletionQueue = [];
+  let pendingIssueDeletionSequence = 0;
   let pinBusyIssueNumber = null;
   let pendingPinMutation = null;
   let nextPinMutationId = 0;
@@ -259,7 +258,9 @@
 
   $: selectionMode = selectedIssueIds.size > 0;
   $: selectedIssues = visibleIssues.filter((issue) => !issue.local && selectedIssueIds.has(issue.id));
-  $: pendingIssueDeletionIds = new Set(pendingIssueDeletion?.map((issue) => issue.id) ?? []);
+  $: pendingIssueDeletionIds = new Set(
+    pendingIssueDeletionQueue.flatMap((entry) => entry.issues.map((issue) => issue.id))
+  );
   $: selectionTagCounts = countSelectionTags(selectedIssues);
   $: selectionTagOptions = buildSelectionTagOptions(
     visibleRepositoryLabels,
@@ -481,7 +482,7 @@
       clearTimeout(longPressTimer);
       clearTimeout(suppressIssueClickTimer);
       clearTimeout(toastTimer);
-      clearTimeout(pendingIssueDeletionTimer);
+      cancelAllPendingIssueDeletions(true);
       touchMedia.removeEventListener('change', updateTouchDevice);
       window.removeEventListener('keydown', handleGlobalKeydown);
       window.removeEventListener('paste', handleGlobalPaste);
@@ -943,6 +944,7 @@
       sidebarToolsRevealing
     });
 
+    cancelAllPendingIssueDeletions(true);
     clearIssueSelection();
     selectedIssue = null;
     keyboardFocusedIssueId = '';
@@ -1295,6 +1297,7 @@
 
   async function changeState(nextState) {
     if (state === nextState) return;
+    cancelAllPendingIssueDeletions(true);
     clearIssueSelection();
     state = nextState;
     query = '';
@@ -1401,6 +1404,12 @@
       return;
     }
     if (event.key === 'Escape') {
+      // 삭제 유예는 Esc로 가장 최근 것부터 되돌린다. 목록 행 버튼에 포커스가
+      // 남아 있어도 첫 Esc가 단순 blur로 소비되지 않게 이보다 먼저 처리한다.
+      if (cancelMostRecentPendingIssueDeletion()) {
+        event.preventDefault();
+        return;
+      }
       // 컴포넌트가 먼저 처리한 Escape(드롭다운 닫기·입력 취소)는
       // 라우팅까지 이어지지 않게 한다.
       // Escape의 첫 번째 의미는 항상 현재 포커스를 해제하는 것이다.
@@ -1419,10 +1428,6 @@
       }
 
       event.preventDefault();
-      if (pendingIssueDeletion && !pendingIssueDeletionInFlight) {
-        cancelPendingIssueDeletion();
-        return;
-      }
       if (selectionTagPanelOpen) {
         closeSelectionTagPanel();
         return;
@@ -1924,7 +1929,6 @@
 
   function toggleIssueSelection(issue, selectRange = false) {
     if (issue.local) return false;
-    cancelPendingIssueDeletion();
     // 마우스 선택 뒤에도 이후 키보드 조작의 기준은 마지막으로 고른 항목이다.
     keyboardFocusedIssueId = String(issue.id);
     keyboardEnteredIssueId = '';
@@ -1960,8 +1964,7 @@
     selectNote(issue);
   }
 
-  function clearIssueSelection({ preservePendingDeletion = false } = {}) {
-    if (!preservePendingDeletion) cancelPendingIssueDeletion(true);
+  function clearIssueSelection() {
     cancelIssueLongPress();
     closeSelectionTagPanel();
     selectedIssueIds = new Set();
@@ -1975,7 +1978,6 @@
     const availableIds = new Set(nextIssues.filter((issue) => !issue.local).map((issue) => issue.id));
     const nextSelected = new Set([...selectedIssueIds].filter((id) => availableIds.has(id)));
     if (nextSelected.size === selectedIssueIds.size) return;
-    cancelPendingIssueDeletion();
     selectedIssueIds = nextSelected;
     if (!nextSelected.has(selectionAnchorId)) selectionAnchorId = nextSelected.values().next().value ?? null;
   }
@@ -1987,19 +1989,70 @@
     return focusedIssue && !focusedIssue.local ? [focusedIssue] : [];
   }
 
-  function cancelPendingIssueDeletion(force = false) {
-    if (!pendingIssueDeletion) return;
-    if (pendingIssueDeletionInFlight && !force) return;
-    clearTimeout(pendingIssueDeletionTimer);
-    pendingIssueDeletionTimer = null;
-    pendingIssueDeletion = null;
-    pendingIssueDeletionInFlight = false;
+  function removePendingIssueDeletion(entryId) {
+    pendingIssueDeletionQueue = pendingIssueDeletionQueue.filter((entry) => entry.id !== entryId);
   }
 
-  function settlePendingIssueDeletion(issueId) {
-    if (!pendingIssueDeletionInFlight || !pendingIssueDeletion) return;
-    pendingIssueDeletion = pendingIssueDeletion.filter((issue) => issue.id !== issueId);
-    if (!pendingIssueDeletion.length) pendingIssueDeletionInFlight = false;
+  function cancelPendingIssueDeletion(entryId) {
+    const entry = pendingIssueDeletionQueue.find((item) => item.id === entryId);
+    if (!entry || entry.inFlight) return false;
+    clearTimeout(entry.timer);
+    removePendingIssueDeletion(entryId);
+    return true;
+  }
+
+  function cancelMostRecentPendingIssueDeletion() {
+    const entry = [...pendingIssueDeletionQueue].reverse().find((item) => !item.inFlight);
+    return entry ? cancelPendingIssueDeletion(entry.id) : false;
+  }
+
+  function pendingIssueDeletionForIssue(issueId) {
+    return pendingIssueDeletionQueue.find((entry) => (
+      entry.issues.some((issue) => issue.id === issueId)
+    ));
+  }
+
+  function cancelAllPendingIssueDeletions(force = false) {
+    for (const entry of pendingIssueDeletionQueue) {
+      if (!entry.inFlight || force) clearTimeout(entry.timer);
+    }
+    pendingIssueDeletionQueue = force
+      ? []
+      : pendingIssueDeletionQueue.filter((entry) => entry.inFlight);
+  }
+
+  function settlePendingIssueDeletion(entryId, issueId) {
+    const entry = pendingIssueDeletionQueue.find((item) => item.id === entryId);
+    if (!entry) return;
+    const remainingIssues = entry.issues.filter((issue) => issue.id !== issueId);
+    if (!remainingIssues.length) {
+      removePendingIssueDeletion(entryId);
+      return;
+    }
+    pendingIssueDeletionQueue = pendingIssueDeletionQueue.map((item) => (
+      item.id === entryId ? { ...item, issues: remainingIssues } : item
+    ));
+  }
+
+  async function runPendingIssueDeletion(entryId) {
+    const entry = pendingIssueDeletionQueue.find((item) => item.id === entryId);
+    if (!entry) return;
+    pendingIssueDeletionQueue = pendingIssueDeletionQueue.map((item) => (
+      item.id === entryId ? { ...item, timer: null, inFlight: true } : item
+    ));
+
+    let saved = true;
+    try {
+      saved = entry.savePromise ? await entry.savePromise : true;
+    } catch {
+      saved = false;
+    }
+    if (!saved) {
+      removePendingIssueDeletion(entryId);
+      error = $_('m.3a743b0e61');
+      return;
+    }
+    moveIssuesImmediately(entry.issues, { deletionEntryId: entryId });
   }
 
   function moveIssues(issuesToMove, { savePromise = null } = {}) {
@@ -2007,43 +2060,34 @@
       clearIssueSelection();
       return;
     }
-    if (pendingIssueDeletion) return;
     if (state === 'open') {
-      // 타이머가 도는 동안 목록이 갱신돼도 대상이 섞이지 않도록 현재 이동 대상을 보관한다.
-      pendingIssueDeletion = [...issuesToMove];
-      pendingIssueDeletionInFlight = false;
-      pendingIssueDeletionTimer = setTimeout(async () => {
-        const movedIssues = pendingIssueDeletion;
-        pendingIssueDeletionTimer = null;
-        pendingIssueDeletionInFlight = true;
-
-        // 편집기에서 시작한 삭제는 오버레이를 먼저 보이고, 저장이 끝난 뒤에
-        // 닫는다. 저장 실패를 조용히 무시하면 모바일에서 삭제가 씹힌 것처럼
-        // 보이므로 대기 상태를 해제하고 오류를 남긴다.
-        let saved = true;
-        try {
-          saved = savePromise ? await savePromise : true;
-        } catch {
-          saved = false;
-        }
-        if (!saved) {
-          pendingIssueDeletion = null;
-          pendingIssueDeletionInFlight = false;
-          error = $_('m.3a743b0e61');
-          return;
-        }
-        moveIssuesImmediately(movedIssues, { preservePendingDeletion: true });
-      }, DELETE_DELAY_MS);
+      // 이미 대기열에 든 항목은 다시 넣지 않는다. 나머지는 각각 독립적인
+      // 3초 유예를 가지므로 Delete를 연달아 눌러도 모두 접수된다.
+      const queuedIssueIds = pendingIssueDeletionIds;
+      const uniqueIssues = issuesToMove.filter((issue) => !queuedIssueIds.has(issue.id));
+      if (!uniqueIssues.length) return;
+      const entry = {
+        id: ++pendingIssueDeletionSequence,
+        issues: [...uniqueIssues],
+        timer: null,
+        inFlight: false,
+        savePromise
+      };
+      entry.timer = setTimeout(() => runPendingIssueDeletion(entry.id), DELETE_DELAY_MS);
+      pendingIssueDeletionQueue = [...pendingIssueDeletionQueue, entry];
+      clearIssueSelection();
       return;
     }
     moveIssuesImmediately(issuesToMove);
   }
 
-  function moveIssuesImmediately(issuesToMove, { preservePendingDeletion = false } = {}) {
+  function moveIssuesImmediately(issuesToMove, { deletionEntryId = null } = {}) {
     const nextState = state === 'open' ? 'closed' : 'open';
     const movedIssues = issuesToMove;
-    clearIssueSelection({ preservePendingDeletion });
-    for (const issue of movedIssues) moveIssue(issue, nextState, { confirmAction: false });
+    clearIssueSelection();
+    for (const issue of movedIssues) {
+      moveIssue(issue, nextState, { confirmAction: false, deletionEntryId });
+    }
   }
 
   function countSelectionTags(issues) {
@@ -2676,7 +2720,7 @@
     else router.navigate('/');
   }
 
-  async function moveIssue(issue, nextState, { confirmAction = true } = {}) {
+  async function moveIssue(issue, nextState, { confirmAction = true, deletionEntryId = null } = {}) {
     if (
       confirmAction
       && nextState === 'open'
@@ -2692,8 +2736,10 @@
     const requestedLabel = activeLabel;
     const noteCountDelta = nextState === 'open' ? 1 : -1;
     const shouldSettlePendingDeletion = nextState === 'closed'
-      && pendingIssueDeletionInFlight
-      && pendingIssueDeletion?.some((item) => item.id === issue.id);
+      && deletionEntryId !== null
+      && pendingIssueDeletionQueue.some((entry) => (
+        entry.id === deletionEntryId && entry.inFlight && entry.issues.some((item) => item.id === issue.id)
+      ));
     const isCurrentContext = () => requestedWorkspaceId === activeWorkspaceId
       && requestedToken === token
       && requestedRepo === repo
@@ -2729,7 +2775,7 @@
     } catch (reason) {
       if (isCurrentContext()) error = friendlyError(reason);
     } finally {
-      if (shouldSettlePendingDeletion) settlePendingIssueDeletion(issue.id);
+      if (shouldSettlePendingDeletion) settlePendingIssueDeletion(deletionEntryId, issue.id);
     }
   }
 
@@ -3332,7 +3378,7 @@
             <button
               type="button"
               class="btn btn-sm btn-outline-secondary"
-              disabled={mergeBusy || selectionTagBusy || pendingIssueDeletion || state !== 'open' || selectedIssues.length < 2}
+              disabled={mergeBusy || selectionTagBusy || pendingIssueDeletionQueue.length > 0 || state !== 'open' || selectedIssues.length < 2}
               on:click={mergeSelectedIssues}
               tabindex={selectionMode ? 0 : -1}
               title={state !== 'open' ? $_('dynamic.mergeOpenOnly') : selectedIssues.length < 2 ? $_('dynamic.mergeSelectMore') : undefined}
@@ -3342,7 +3388,7 @@
             <button
               type="button"
               class="btn btn-sm btn-outline-danger"
-              disabled={mergeBusy || selectionTagBusy || pendingIssueDeletion}
+              disabled={mergeBusy || selectionTagBusy || pendingIssueDeletionQueue.length > 0}
               on:click={() => moveIssues(selectedIssues)}
               tabindex={selectionMode ? 0 : -1}
             >
@@ -3491,6 +3537,8 @@
                     {listRowFields}
                     refreshing={refreshingIssueNumber === issue.number}
                     pendingDeletion={pendingIssueDeletionIds.has(issue.id)}
+                    deletionCancellable={!pendingIssueDeletionForIssue(issue.id)?.inFlight}
+                    onCancelDeletion={(pendingIssue) => cancelPendingIssueDeletion(pendingIssueDeletionForIssue(pendingIssue.id)?.id)}
                     onPointerDown={beginIssueLongPress}
                     onPointerMove={trackIssueLongPress}
                     onPointerUp={finishIssueLongPress}
@@ -3516,6 +3564,8 @@
                   {listRowFields}
                   refreshing={refreshingIssueNumber === issue.number}
                   pendingDeletion={pendingIssueDeletionIds.has(issue.id)}
+                  deletionCancellable={!pendingIssueDeletionForIssue(issue.id)?.inFlight}
+                  onCancelDeletion={(pendingIssue) => cancelPendingIssueDeletion(pendingIssueDeletionForIssue(pendingIssue.id)?.id)}
                   onPointerDown={beginIssueLongPress}
                   onPointerMove={trackIssueLongPress}
                   onPointerUp={finishIssueLongPress}
@@ -3608,15 +3658,16 @@
               onBack={() => router.pop()}
             />
             {#if state === 'open' && pendingIssueDeletionIds.has(routeIssue?.id)}
+              {@const pendingDeletionEntry = pendingIssueDeletionForIssue(routeIssue?.id)}
               <div class="note-deletion-overlay" role="status" aria-live="polite">
                 <BrailleSpinner active />
                 <span>{$_('dynamic.attachmentDeleting')}</span>
                 <button
                   type="button"
                   class="note-deletion-cancel"
-                  style:visibility={pendingIssueDeletionInFlight ? 'hidden' : 'visible'}
-                  tabindex={pendingIssueDeletionInFlight ? -1 : undefined}
-                  on:click={cancelPendingIssueDeletion}
+                  style:visibility={pendingDeletionEntry?.inFlight ? 'hidden' : 'visible'}
+                  tabindex={pendingDeletionEntry?.inFlight ? -1 : undefined}
+                  on:click={() => cancelPendingIssueDeletion(pendingDeletionEntry?.id)}
                 >{$_('setup.cancel')}</button>
               </div>
             {/if}
