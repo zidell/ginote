@@ -38,7 +38,7 @@
           {#if previewUrls[attachment.path]}
             <img src={previewUrls[attachment.path]} alt="" />
           {:else}
-            <span class="attachment-loading">…</span>
+            <span class="attachment-loading"><span class="attachment-spinner"><BrailleSpinner active /></span></span>
           {/if}
         {:else}
           <span class="attachment-file-icon">FILE</span>

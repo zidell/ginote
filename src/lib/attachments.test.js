@@ -24,7 +24,7 @@ describe('attachment link 본문 삽입', () => {
     const link = composeAttachmentLink('owner/private-notes', imageAttachment);
 
     expect(link).toContain('![](');
-    expect(link).toContain('owner/private-notes/raw/HEAD/');
+    expect(link).toContain('owner/private-notes/raw/ginote-assets/');
     expect(link).toContain('%EC%97%AC%ED%96%89%20%EC%82%AC%EC%A7%84.png');
   });
 
@@ -111,7 +111,7 @@ describe('attachment link 본문 삽입', () => {
 
     const compressed = compressAttachmentLinks(body, 'owner/repo');
 
-    expect(compressed).not.toContain('https://github.com/owner/repo/raw/HEAD/');
+    expect(compressed).not.toContain('https://github.com/owner/repo/raw/ginote-assets/');
     expect(compressed).toContain('{repo}/');
   });
 

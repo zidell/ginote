@@ -7,6 +7,7 @@ import {
   createLabel,
   deleteAttachment,
   deleteIssueComment,
+  downloadAttachment,
   getIssue,
   listIssueCommentAttachmentFiles,
   listIssueAttachmentFiles,
@@ -453,7 +454,9 @@ describe('GitHub API client', () => {
 
   it('첨부 폴더가 없으면 빈 목록으로 처리하고 하위 폴더를 제외한다', async () => {
     fetch
+      .mockResolvedValueOnce(jsonResponse({ ref: 'refs/heads/ginote-assets' }))
       .mockResolvedValueOnce(jsonResponse({ message: 'Not Found' }, { status: 404 }))
+      .mockResolvedValueOnce(jsonResponse({ ref: 'refs/heads/ginote-assets' }))
       .mockResolvedValueOnce(jsonResponse([
         { type: 'file', name: 'photo.png', path: '.issue-note-assets/issues/31/photo.png', sha: 'a', size: 10, html_url: 'file-url' },
         { type: 'dir', name: 'nested', path: '.issue-note-assets/issues/31/nested', sha: 'b' }
@@ -467,9 +470,11 @@ describe('GitHub API client', () => {
 
   it('첨부파일을 안전한 경로와 base64 내용으로 저장한다', async () => {
     vi.spyOn(crypto, 'randomUUID').mockReturnValue('00000000-0000-4000-8000-000000000000');
-    fetch.mockResolvedValueOnce(jsonResponse({
-      content: { sha: 'stored-sha', size: 2, html_url: 'https://github.com/file' }
-    }));
+    fetch
+      .mockResolvedValueOnce(jsonResponse({ ref: 'refs/heads/ginote-assets' }))
+      .mockResolvedValueOnce(jsonResponse({
+        content: { sha: 'stored-sha', size: 2, html_url: 'https://github.com/file' }
+      }));
     const file = {
       name: '계획 #1?.txt',
       type: 'text/plain',
@@ -477,7 +482,7 @@ describe('GitHub API client', () => {
     };
 
     const result = await uploadAttachment('token', 'owner/repo', 31, file);
-    const [url, options] = fetch.mock.calls[0];
+    const [url, options] = fetch.mock.calls[1];
 
     expect(result.path).toBe(
       '.issue-note-assets/issues/31/00000000-0000-4000-8000-000000000000-계획-1-.txt'
@@ -486,14 +491,58 @@ describe('GitHub API client', () => {
     expect(options.method).toBe('PUT');
     expect(JSON.parse(options.body)).toMatchObject({
       message: 'Add Ginote attachment: 계획 #1?.txt',
-      content: 'QUI='
+      content: 'QUI=',
+      branch: 'ginote-assets'
     });
+  });
+
+  it('전용 브랜치가 없으면 workflow 없는 orphan root commit으로 만든다', async () => {
+    vi.spyOn(crypto, 'randomUUID').mockReturnValue('00000000-0000-4000-8000-000000000000');
+    fetch
+      .mockResolvedValueOnce(jsonResponse({ message: 'Not Found' }, { status: 404 }))
+      .mockResolvedValueOnce(jsonResponse({ sha: 'tree-sha' }))
+      .mockResolvedValueOnce(jsonResponse({ sha: 'root-commit-sha' }))
+      .mockResolvedValueOnce(jsonResponse({ ref: 'refs/heads/ginote-assets' }))
+      .mockResolvedValueOnce(jsonResponse({
+        content: { sha: 'stored-sha', size: 1, html_url: 'https://github.com/file' }
+      }));
+    const file = {
+      name: 'photo.png',
+      type: 'image/png',
+      arrayBuffer: async () => new Uint8Array([65]).buffer
+    };
+
+    await uploadAttachment('token', 'owner/repo', 31, file);
+
+    expect(new URL(fetch.mock.calls[0][0]).pathname)
+      .toBe('/repos/owner/repo/git/ref/heads/ginote-assets');
+    expect(new URL(fetch.mock.calls[1][0]).pathname).toBe('/repos/owner/repo/git/trees');
+    expect(JSON.parse(fetch.mock.calls[1][1].body)).toEqual({
+      tree: [{
+        path: '.issue-note-assets/.ginote-storage',
+        mode: '100644',
+        type: 'blob',
+        content: 'Ginote attachment storage. Do not delete this branch.\n'
+      }]
+    });
+    expect(JSON.parse(fetch.mock.calls[2][1].body)).toEqual({
+      message: 'Initialize Ginote attachment storage',
+      tree: 'tree-sha',
+      parents: []
+    });
+    expect(JSON.parse(fetch.mock.calls[3][1].body)).toEqual({
+      ref: 'refs/heads/ginote-assets',
+      sha: 'root-commit-sha'
+    });
+    expect(JSON.parse(fetch.mock.calls[4][1].body).branch).toBe('ginote-assets');
   });
 
   it('댓글 첨부파일은 댓글 ID 전용 폴더에 저장하고 별도로 조회한다', async () => {
     vi.spyOn(crypto, 'randomUUID').mockReturnValue('00000000-0000-4000-8000-000000000000');
     fetch
+      .mockResolvedValueOnce(jsonResponse({ ref: 'refs/heads/ginote-assets' }))
       .mockResolvedValueOnce(jsonResponse({ content: { sha: 'stored-sha', size: 2, html_url: 'https://github.com/file' } }))
+      .mockResolvedValueOnce(jsonResponse({ ref: 'refs/heads/ginote-assets' }))
       .mockResolvedValueOnce(jsonResponse([
         { type: 'file', name: 'comment.png', path: '.issue-note-assets/issues/31/comments/45/comment.png', sha: 'a', size: 10, html_url: 'file-url' }
       ]));
@@ -503,11 +552,13 @@ describe('GitHub API client', () => {
     await expect(listIssueCommentAttachmentFiles('token', 'owner/repo', 31, 45)).resolves.toEqual([
       { name: 'comment.png', path: '.issue-note-assets/issues/31/comments/45/comment.png', sha: 'a', size: 10, url: 'file-url' }
     ]);
-    expect(decodeURIComponent(new URL(fetch.mock.calls[0][0]).pathname)).toContain('.issue-note-assets/issues/31/comments/45/');
+    expect(decodeURIComponent(new URL(fetch.mock.calls[1][0]).pathname)).toContain('.issue-note-assets/issues/31/comments/45/');
+    expect(new URL(fetch.mock.calls[3][0]).searchParams.get('ref')).toBe('ginote-assets');
   });
 
   it('전체 첨부 목록은 댓글 전용 하위 폴더까지 재귀적으로 읽는다', async () => {
     fetch
+      .mockResolvedValueOnce(jsonResponse({ ref: 'refs/heads/ginote-assets' }))
       .mockResolvedValueOnce(jsonResponse([
         { type: 'dir', name: 'comments', path: '.issue-note-assets/issues/31/comments' }
       ]))
@@ -538,12 +589,31 @@ describe('GitHub API client', () => {
     expect(options.method).toBe('DELETE');
     expect(JSON.parse(options.body)).toEqual({
       message: 'Delete Ginote attachment: 여행 사진.png',
-      sha: 'file-sha'
+      sha: 'file-sha',
+      branch: 'ginote-assets'
     });
+  });
+
+  it('첨부파일 조회와 다운로드는 항상 전용 브랜치를 지정한다', async () => {
+    fetch
+      .mockResolvedValueOnce(jsonResponse({ ref: 'refs/heads/ginote-assets' }))
+      .mockResolvedValueOnce(jsonResponse([]))
+      .mockResolvedValueOnce(new Response(new Uint8Array([65]), {
+        headers: { 'Content-Type': 'application/octet-stream' }
+      }));
+
+    await listIssueAttachmentFiles('token', 'owner/repo', 31);
+    await downloadAttachment('token', 'owner/repo', {
+      path: '.issue-note-assets/issues/31/photo.png'
+    });
+
+    expect(new URL(fetch.mock.calls[1][0]).searchParams.get('ref')).toBe('ginote-assets');
+    expect(new URL(fetch.mock.calls[2][0]).searchParams.get('ref')).toBe('ginote-assets');
   });
 
   it('만료된 노트의 첨부 파일을 모두 정리한다', async () => {
     fetch
+      .mockResolvedValueOnce(jsonResponse({ ref: 'refs/heads/ginote-assets' }))
       .mockResolvedValueOnce(jsonResponse([
         { type: 'file', name: 'linked.png', path: '.issue-note-assets/issues/31/linked.png', sha: 'linked-sha', size: 7 },
         { type: 'file', name: 'orphan.png', path: '.issue-note-assets/issues/31/orphan.png', sha: 'orphan-sha', size: 8 }
@@ -555,9 +625,9 @@ describe('GitHub API client', () => {
       deletedFiles: 2
     });
 
-    expect(fetch.mock.calls).toHaveLength(3);
-    expect(fetch.mock.calls[1][1].method).toBe('DELETE');
+    expect(fetch.mock.calls).toHaveLength(4);
     expect(fetch.mock.calls[2][1].method).toBe('DELETE');
+    expect(fetch.mock.calls[3][1].method).toBe('DELETE');
   });
 
   it('잘못된 저장소 형식은 fetch 전에 거부한다', async () => {

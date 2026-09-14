@@ -1,10 +1,13 @@
 import { tagColorForName } from './colors.js';
 import { translate } from './i18n.js';
 import { parseRepositoryAddress } from './repo-address.js';
+import { ATTACHMENT_BRANCH } from './attachments.js';
 
 const API_ROOT = 'https://api.github.com';
 export const DEFAULT_ISSUE_PAGE_SIZE = 30;
 export const CLOSED_ISSUE_RETENTION_DAYS = 30;
+const ATTACHMENT_STORAGE_MARKER = '.issue-note-assets/.ginote-storage';
+const ATTACHMENT_STORAGE_MARKER_CONTENT = 'Ginote attachment storage. Do not delete this branch.\n';
 
 function headers(token) {
   return {
@@ -284,6 +287,98 @@ function issueAttachmentDirectory(issueNumber, commentId = null) {
   return `${directory}/comments/${normalizedCommentId}`;
 }
 
+async function attachmentBranchExists(token, repo) {
+  try {
+    await request(`/repos/${repo}/git/ref/heads/${ATTACHMENT_BRANCH}`, token);
+    return true;
+  } catch (reason) {
+    if (reason?.status === 404 || reason?.status === 409) return false;
+    throw reason;
+  }
+}
+
+async function repositoryHasNoBranches(token, repo) {
+  const repository = await request(`/repos/${repo}`, token);
+  const defaultBranch = String(repository.default_branch || 'main');
+  const encodedBranch = defaultBranch.split('/').map(encodeURIComponent).join('/');
+  try {
+    await request(`/repos/${repo}/git/ref/heads/${encodedBranch}`, token);
+    return false;
+  } catch (reason) {
+    if (reason?.status === 404 || reason?.status === 409) return true;
+    throw reason;
+  }
+}
+
+async function createAttachmentBranchRef(token, repo, sha) {
+  return request(`/repos/${repo}/git/refs`, token, {
+    method: 'POST',
+    body: JSON.stringify({
+      ref: `refs/heads/${ATTACHMENT_BRANCH}`,
+      sha
+    })
+  });
+}
+
+async function ensureAttachmentBranch(token, repo) {
+  if (await attachmentBranchExists(token, repo)) return;
+
+  const tree = await request(`/repos/${repo}/git/trees`, token, {
+    method: 'POST',
+    body: JSON.stringify({
+      tree: [{
+        path: ATTACHMENT_STORAGE_MARKER,
+        mode: '100644',
+        type: 'blob',
+        content: ATTACHMENT_STORAGE_MARKER_CONTENT
+      }]
+    })
+  });
+  const commit = await request(`/repos/${repo}/git/commits`, token, {
+    method: 'POST',
+    body: JSON.stringify({
+      message: 'Initialize Ginote attachment storage',
+      tree: tree.sha,
+      parents: []
+    })
+  });
+
+  try {
+    await createAttachmentBranchRef(token, repo, commit.sha);
+  } catch (reason) {
+    // 다른 창이 동시에 초기화한 경우 그 창이 만든 브랜치를 사용한다.
+    if ((reason?.status === 409 || reason?.status === 422)
+      && await attachmentBranchExists(token, repo)) return;
+
+    // GitHub는 브랜치가 하나도 없는 빈 저장소에는 root commit ref도 만들지
+    // 못하게 한다. 이 경우에만 marker로 기본 브랜치를 한 번 초기화한다. 빈
+    // 저장소에는 실행할 workflow가 없으므로 CI를 깨우는 문제도 생기지 않는다.
+    if (reason?.status === 422 && await repositoryHasNoBranches(token, repo)) {
+      await request(`/repos/${repo}/contents/${ATTACHMENT_STORAGE_MARKER.split('/').map(encodeURIComponent).join('/')}`, token, {
+        method: 'PUT',
+        body: JSON.stringify({
+          message: 'Initialize empty repository for Ginote attachment storage',
+          content: btoa(ATTACHMENT_STORAGE_MARKER_CONTENT)
+        })
+      });
+      try {
+        await createAttachmentBranchRef(token, repo, commit.sha);
+        return;
+      } catch (retryReason) {
+        if ((retryReason?.status === 409 || retryReason?.status === 422)
+          && await attachmentBranchExists(token, repo)) return;
+        throw retryReason;
+      }
+    }
+    throw reason;
+  }
+}
+
+function attachmentContentsPath(repo, path) {
+  const encodedPath = path.split('/').map(encodeURIComponent).join('/');
+  return `/repos/${repo}/contents/${encodedPath}?ref=${encodeURIComponent(ATTACHMENT_BRANCH)}`;
+}
+
 export async function uploadAttachment(token, repoInput, issueNumber, file, commentId = null) {
   const repo = normalizeRepo(repoInput);
   const unique = crypto.randomUUID();
@@ -291,11 +386,14 @@ export async function uploadAttachment(token, repoInput, issueNumber, file, comm
   const encodedPath = path.split('/').map(encodeURIComponent).join('/');
   const content = arrayBufferToBase64(await file.arrayBuffer());
 
+  await ensureAttachmentBranch(token, repo);
+
   const result = await request(`/repos/${repo}/contents/${encodedPath}`, token, {
     method: 'PUT',
     body: JSON.stringify({
       message: `Add Ginote attachment: ${file.name}`,
-      content
+      content,
+      branch: ATTACHMENT_BRANCH
     })
   });
 
@@ -382,14 +480,14 @@ export async function deleteIssueComment(token, repoInput, commentId) {
 
 export async function listIssueAttachmentFiles(token, repoInput, issueNumber) {
   const repo = normalizeRepo(repoInput);
+  await ensureAttachmentBranch(token, repo);
   const directory = issueAttachmentDirectory(issueNumber);
   return listAttachmentDirectory(token, repo, directory);
 }
 
 async function listAttachmentDirectory(token, repo, directory) {
-  const encodedPath = directory.split('/').map(encodeURIComponent).join('/');
   try {
-    const result = await request(`/repos/${repo}/contents/${encodedPath}`, token);
+    const result = await request(attachmentContentsPath(repo, directory), token);
     return Array.isArray(result)
       ? result.filter((item) => item.type === 'file').map((item) => ({
           name: item.name,
@@ -409,6 +507,7 @@ async function listAttachmentDirectory(token, repo, directory) {
 // 읽어야 본문 첨부 목록에 댓글 파일이 섞이지 않는다.
 export async function listIssueCommentAttachmentFiles(token, repoInput, issueNumber, commentId) {
   const repo = normalizeRepo(repoInput);
+  await ensureAttachmentBranch(token, repo);
   const directory = issueAttachmentDirectory(issueNumber, commentId);
   return listAttachmentDirectory(token, repo, directory);
 }
@@ -416,11 +515,11 @@ export async function listIssueCommentAttachmentFiles(token, repoInput, issueNum
 // 보관 정리와 노트 병합에는 댓글 전용 하위 폴더까지 포함한 전체 목록이 필요하다.
 export async function listAllIssueAttachmentFiles(token, repoInput, issueNumber) {
   const repo = normalizeRepo(repoInput);
+  await ensureAttachmentBranch(token, repo);
   const rootDirectory = issueAttachmentDirectory(issueNumber);
   const visit = async (directory) => {
-    const encodedPath = directory.split('/').map(encodeURIComponent).join('/');
     try {
-      const entries = await request(`/repos/${repo}/contents/${encodedPath}`, token);
+      const entries = await request(attachmentContentsPath(repo, directory), token);
       if (!Array.isArray(entries)) return [];
       const files = entries.filter((item) => item.type === 'file').map((item) => ({
         name: item.name, path: item.path, sha: item.sha, size: item.size, url: item.html_url
@@ -439,8 +538,7 @@ export async function listAllIssueAttachmentFiles(token, repoInput, issueNumber)
 
 export async function downloadAttachment(token, repoInput, attachment) {
   const repo = normalizeRepo(repoInput);
-  const encodedPath = attachment.path.split('/').map(encodeURIComponent).join('/');
-  const response = await fetch(`${API_ROOT}/repos/${repo}/contents/${encodedPath}`, {
+  const response = await fetch(`${API_ROOT}${attachmentContentsPath(repo, attachment.path)}`, {
     cache: 'no-store',
     headers: {
       ...headers(token),
@@ -474,7 +572,8 @@ export async function deleteAttachment(token, repoInput, attachment) {
     method: 'DELETE',
     body: JSON.stringify({
       message: `Delete Ginote attachment: ${attachment.name}`,
-      sha: attachment.sha
+      sha: attachment.sha,
+      branch: ATTACHMENT_BRANCH
     })
   });
 }
