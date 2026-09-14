@@ -3,6 +3,7 @@
 
   export let attachments = [];
   export let uploadingAttachments = [];
+  export let loadingAttachmentCount = 0;
   export let previewUrls = {};
   export let isImage = () => false;
   export let onOpen = () => {};
@@ -20,6 +21,11 @@
 </script>
 
 <div class="attachment-list">
+  {#each Array(loadingAttachmentCount) as _, index (index)}
+    <div class="attachment-loading-placeholder" aria-hidden="true">
+      <span class="attachment-loading"><span class="attachment-spinner"><BrailleSpinner active /></span></span>
+    </div>
+  {/each}
   {#each attachments as attachment, index (attachment.path)}
     <div
       class="attachment-item"

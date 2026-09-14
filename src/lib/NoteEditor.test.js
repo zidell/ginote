@@ -774,15 +774,39 @@ describe('NoteEditor 코멘트 블록', () => {
     expect(document.querySelectorAll('.note-comment-body').length).toBe(bodiesBefore.length - 1);
   });
 
-  it('더보기 메뉴에서 삭제를 누르면 확인 후 댓글을 삭제한다', async () => {
-    vi.stubGlobal('confirm', vi.fn(() => true));
-    render(NoteEditor, { token: 't', repo: 'owner/repo', issue: baseIssue });
+  it('댓글 삭제는 3초 동안 취소할 수 있고, 그 뒤에만 요청한다', async () => {
+    vi.useFakeTimers();
+    try {
+      render(NoteEditor, { token: 't', repo: 'owner/repo', issue: baseIssue });
 
-    await waitFor(() => expect(screen.getByText('octocat')).toBeTruthy());
-    await fireEvent.click(document.querySelector('.note-comment-item li:last-child .dropdown-item'));
+      await waitFor(() => expect(screen.getByText('octocat')).toBeTruthy());
+      await fireEvent.click(document.querySelector('.note-comment-item li:last-child .dropdown-item'));
 
-    await waitFor(() => expect(deleteIssueComment).toHaveBeenCalledWith('t', 'owner/repo', 1));
-    vi.unstubAllGlobals();
+      expect(document.querySelector('.comment-deletion-overlay')).toBeTruthy();
+      expect(deleteIssueComment).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(3000);
+      await waitFor(() => expect(deleteIssueComment).toHaveBeenCalledWith('t', 'owner/repo', 1));
+      expect(document.querySelector('.note-comment-item')).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('댓글 삭제 대기 중 취소하면 삭제 요청을 보내지 않는다', async () => {
+    vi.useFakeTimers();
+    try {
+      render(NoteEditor, { token: 't', repo: 'owner/repo', issue: baseIssue });
+
+      await waitFor(() => expect(screen.getByText('octocat')).toBeTruthy());
+      await fireEvent.click(document.querySelector('.note-comment-item li:last-child .dropdown-item'));
+      await fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+      await vi.advanceTimersByTimeAsync(3000);
+
+      expect(deleteIssueComment).not.toHaveBeenCalled();
+      expect(document.querySelector('.note-comment-item')).toBeTruthy();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('댓글을 삭제하면 다른 곳에서 참조하지 않는 댓글 첨부도 정리한다', async () => {
@@ -795,14 +819,19 @@ describe('NoteEditor 코멘트 블록', () => {
     };
     listIssueCommentAttachmentFiles.mockResolvedValueOnce([attachment]);
     listAllIssueAttachmentFiles.mockResolvedValueOnce([attachment]);
-    vi.stubGlobal('confirm', vi.fn(() => true));
-    render(NoteEditor, { token: 't', repo: 'owner/repo', issue: baseIssue });
+    vi.useFakeTimers();
+    try {
+      render(NoteEditor, { token: 't', repo: 'owner/repo', issue: baseIssue });
 
-    await waitFor(() => expect(document.querySelector('.note-comment-item .attachment-name')).toBeTruthy());
-    await fireEvent.click(document.querySelector('.note-comment-item li:last-child .dropdown-item'));
+      await waitFor(() => expect(document.querySelector('.note-comment-item .attachment-name')).toBeTruthy());
+      await fireEvent.click(document.querySelector('.note-comment-item li:last-child .dropdown-item'));
+      await vi.advanceTimersByTimeAsync(3000);
 
-    await waitFor(() => expect(deleteIssueComment).toHaveBeenCalledWith('t', 'owner/repo', 1));
-    await waitFor(() => expect(deleteAttachment).toHaveBeenCalledWith('t', 'owner/repo', attachment));
+      await waitFor(() => expect(deleteIssueComment).toHaveBeenCalledWith('t', 'owner/repo', 1));
+      await waitFor(() => expect(deleteAttachment).toHaveBeenCalledWith('t', 'owner/repo', attachment));
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 
@@ -876,6 +905,35 @@ describe('NoteEditor 마크다운 프리뷰와 단축키', () => {
 
     await waitFor(() => expect(document.querySelector('.markdown-preview img')).toBeTruthy());
     expect(document.querySelector('.markdown-preview img').getAttribute('src')).toBe('blob:mock');
+  });
+
+  it('자동 관리 첨부 링크가 있으면 파일 목록 전부터 첨부 영역을 표시한다', async () => {
+    let resolveFiles;
+    listIssueAttachmentFiles.mockImplementationOnce(() => new Promise((resolve) => {
+      resolveFiles = resolve;
+    }));
+    const attachment = {
+      name: 'photo.png',
+      path: '.issue-note-assets/issues/5/photo.png',
+      type: 'image/png'
+    };
+    const secondAttachment = {
+      name: 'document.pdf',
+      path: '.issue-note-assets/issues/5/document.pdf',
+      type: 'application/pdf'
+    };
+    const issue = {
+      ...baseIssue,
+      body: `<!-- ginote:attachments:start -->\n\n${composeAttachmentLink('owner/repo', attachment)}\n\n<!-- ginote:attachments:end -->\n\n노트 본문\n\n${composeAttachmentLink('owner/repo', secondAttachment)}`
+    };
+    render(NoteEditor, { token: 't', repo: 'owner/repo', issue });
+
+    await waitFor(() => expect(listIssueAttachmentFiles).toHaveBeenCalledWith('t', 'owner/repo', 5));
+    expect(document.querySelector('.attachment-section')).toBeTruthy();
+    expect(document.querySelectorAll('.attachment-loading-placeholder')).toHaveLength(2);
+
+    resolveFiles([]);
+    await waitFor(() => expect(document.querySelectorAll('.attachment-loading-placeholder')).toHaveLength(0));
   });
 
   it('MD뷰어에서 코멘트도 Markdown으로 안전하게 렌더링한다', async () => {

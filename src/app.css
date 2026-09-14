@@ -497,10 +497,10 @@ html.mode-light .note-row-labels { opacity: 1; }
 .note-detail { position: relative; min-width: 0; height: 100%; overflow: hidden; background: var(--ui-bg-app); }
 .note-detail-layer { position: absolute; inset: 0; visibility: hidden; pointer-events: none; }
 .note-detail-layer.active { visibility: visible; pointer-events: auto; }
-.note-deletion-overlay { position: absolute; z-index: 10; inset: 0; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: .55rem; color: var(--ui-text-heading); background: var(--ui-api-mask); font-size: .9rem; pointer-events: auto; }
-.note-deletion-overlay .braille-spinner { font-size: 1.25rem; }
-.note-deletion-cancel, .attachment-cancel-delete { margin-top: .3rem; padding: 0; border: 0; color: var(--ui-text-body); background: transparent; font-size: inherit; text-decoration: underline; }
-.note-deletion-cancel:hover, .note-deletion-cancel:focus-visible, .attachment-cancel-delete:hover, .attachment-cancel-delete:focus-visible { color: var(--ui-text-emphasis); }
+.note-deletion-overlay { position: absolute; z-index: 10; inset: 0; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: .55rem; color: var(--ui-text-heading); background: color-mix(in srgb, var(--ui-api-mask) 75%, #000 25%); font-size: .9rem; pointer-events: auto; }
+.note-deletion-overlay .braille-spinner, .comment-deletion-overlay .braille-spinner { font-size: 1.25rem; }
+.note-deletion-cancel, .comment-deletion-cancel, .attachment-cancel-delete { margin-top: .3rem; padding: 0; border: 0; color: var(--ui-text-body); background: transparent; font-size: inherit; text-decoration: underline; }
+.note-deletion-cancel:hover, .note-deletion-cancel:focus-visible, .comment-deletion-cancel:hover, .comment-deletion-cancel:focus-visible, .attachment-cancel-delete:hover, .attachment-cancel-delete:focus-visible { color: var(--ui-text-emphasis); }
 .detail-toolbar { position: relative; min-height: 46px; display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding: .4375rem .85rem; border-bottom: 1px solid var(--ui-border-divider); color: var(--ui-text-subtle); font-size: .8rem; }
 .detail-toolbar-start, .detail-toolbar-actions { min-width: 0; display: flex; align-items: center; gap: .5rem; }
 .detail-toolbar-start { white-space: nowrap; }
@@ -558,9 +558,9 @@ html.mode-light .note-row-labels { opacity: 1; }
 .editor-link-tooltip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .attachment-section { flex: none; min-height: 96px; margin: 0 var(--editor-gutter) .75rem; padding-bottom: .75rem; border-bottom: 1px solid var(--ui-border-list); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
 .attachment-list { display: flex; gap: .5rem; overflow-x: auto; }
-.attachment-list-loading { display: flex; align-items: center; justify-content: center; height: 96px; }
-.attachment-item, .attachment-add-tile { width: 116px; height: 96px; flex: 0 0 116px; border: 1px solid var(--ui-border); border-radius: 5px; overflow: hidden; background: var(--ui-bg-panel); }
+.attachment-item, .attachment-loading-placeholder, .attachment-add-tile { width: 116px; height: 96px; flex: 0 0 116px; border: 1px solid var(--ui-border); border-radius: 5px; overflow: hidden; background: var(--ui-bg-panel); }
 .attachment-item { position: relative; }
+.attachment-loading-placeholder { border-color: var(--ui-border-list); }
 .attachment-item.is-loading { opacity: .72; }
 .attachment-item.is-pending-delete .attachment-open { opacity: .32; }
 .attachment-pending-delete { position: absolute; z-index: 2; inset: 0; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: .3rem; padding: .35rem; color: var(--ui-text-body); background: var(--ui-button-mask); font-size: .7rem; text-align: center; }
@@ -642,7 +642,8 @@ html.mode-light .note-row-labels { opacity: 1; }
 .markdown-preview.note-comment-body-preview { min-height: 1.6em; padding: 0; font-size: var(--note-font-size); }
 .note-comments-section { flex: none; display: flex; flex-direction: column; margin: .75rem var(--editor-gutter) 0; padding: .9rem 0 var(--editor-gutter); border-top: 1px solid var(--ui-border-list); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
 .note-comments-loading { display: flex; justify-content: center; padding: .5rem 0; }
-.note-comment-item { display: flex; flex-direction: column; gap: .3rem; padding: .7rem 0; }
+.note-comment-item { position: relative; display: flex; flex-direction: column; gap: .3rem; padding: .7rem 0; }
+.comment-deletion-overlay { position: absolute; z-index: 2; inset: 0; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: .45rem; color: var(--ui-text-heading); background: color-mix(in srgb, var(--ui-api-mask) 75%, #000 25%); font-size: .82rem; pointer-events: auto; }
 .note-comment-item:not(:first-child) { border-top: 1px solid var(--ui-border-comment); }
 .note-comment-meta { display: flex; align-items: center; gap: .5rem; color: var(--ui-text-muted); font-size: .74rem; }
 .note-comment-author { color: var(--ui-text-tertiary); font-weight: 600; }
