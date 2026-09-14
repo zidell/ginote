@@ -79,6 +79,7 @@
     downloadAttachment,
     getIssue,
     listExpiredClosedIssues,
+    listAllIssueAttachmentFiles,
     listIssueAttachmentFiles,
     listIssueComments,
     listIssuesPage,
@@ -2147,7 +2148,7 @@
         const issue = await getIssue(token, repo, source.number);
         const [comments, attachments] = await Promise.all([
           listIssueComments(token, repo, source.number),
-          listIssueAttachmentFiles(token, repo, source.number)
+          listAllIssueAttachmentFiles(token, repo, source.number)
         ]);
         sourceDetails.push({ ...issue, comments, attachments });
       }

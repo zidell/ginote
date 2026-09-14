@@ -270,18 +270,24 @@ function safeFileName(name) {
     .replace(/^-|-$/g, '') || 'attachment';
 }
 
-function issueAttachmentDirectory(issueNumber) {
+function issueAttachmentDirectory(issueNumber, commentId = null) {
   const normalizedNumber = Number(issueNumber);
   if (!Number.isInteger(normalizedNumber) || normalizedNumber <= 0) {
     throw new Error(translate('errors.issueNumberRequired'));
   }
-  return `.issue-note-assets/issues/${normalizedNumber}`;
+  const directory = `.issue-note-assets/issues/${normalizedNumber}`;
+  if (commentId === null || commentId === undefined) return directory;
+  const normalizedCommentId = Number(commentId);
+  if (!Number.isInteger(normalizedCommentId) || normalizedCommentId <= 0) {
+    throw new Error('A comment ID is required for comment attachments.');
+  }
+  return `${directory}/comments/${normalizedCommentId}`;
 }
 
-export async function uploadAttachment(token, repoInput, issueNumber, file) {
+export async function uploadAttachment(token, repoInput, issueNumber, file, commentId = null) {
   const repo = normalizeRepo(repoInput);
   const unique = crypto.randomUUID();
-  const path = `${issueAttachmentDirectory(issueNumber)}/${unique}-${safeFileName(file.name)}`;
+  const path = `${issueAttachmentDirectory(issueNumber, commentId)}/${unique}-${safeFileName(file.name)}`;
   const encodedPath = path.split('/').map(encodeURIComponent).join('/');
   const content = arrayBufferToBase64(await file.arrayBuffer());
 
@@ -377,6 +383,10 @@ export async function deleteIssueComment(token, repoInput, commentId) {
 export async function listIssueAttachmentFiles(token, repoInput, issueNumber) {
   const repo = normalizeRepo(repoInput);
   const directory = issueAttachmentDirectory(issueNumber);
+  return listAttachmentDirectory(token, repo, directory);
+}
+
+async function listAttachmentDirectory(token, repo, directory) {
   const encodedPath = directory.split('/').map(encodeURIComponent).join('/');
   try {
     const result = await request(`/repos/${repo}/contents/${encodedPath}`, token);
@@ -393,6 +403,38 @@ export async function listIssueAttachmentFiles(token, repoInput, issueNumber) {
     if (reason?.status === 404) return [];
     throw reason;
   }
+}
+
+// 댓글 첨부는 본문 첨부와 별도 디렉터리에 보관한다. 목록도 소유 댓글 단위로
+// 읽어야 본문 첨부 목록에 댓글 파일이 섞이지 않는다.
+export async function listIssueCommentAttachmentFiles(token, repoInput, issueNumber, commentId) {
+  const repo = normalizeRepo(repoInput);
+  const directory = issueAttachmentDirectory(issueNumber, commentId);
+  return listAttachmentDirectory(token, repo, directory);
+}
+
+// 보관 정리와 노트 병합에는 댓글 전용 하위 폴더까지 포함한 전체 목록이 필요하다.
+export async function listAllIssueAttachmentFiles(token, repoInput, issueNumber) {
+  const repo = normalizeRepo(repoInput);
+  const rootDirectory = issueAttachmentDirectory(issueNumber);
+  const visit = async (directory) => {
+    const encodedPath = directory.split('/').map(encodeURIComponent).join('/');
+    try {
+      const entries = await request(`/repos/${repo}/contents/${encodedPath}`, token);
+      if (!Array.isArray(entries)) return [];
+      const files = entries.filter((item) => item.type === 'file').map((item) => ({
+        name: item.name, path: item.path, sha: item.sha, size: item.size, url: item.html_url
+      }));
+      const nested = await Promise.all(entries
+        .filter((item) => item.type === 'dir')
+        .map((item) => visit(item.path)));
+      return [...files, ...nested.flat()];
+    } catch (reason) {
+      if (reason?.status === 404) return [];
+      throw reason;
+    }
+  };
+  return visit(rootDirectory);
 }
 
 export async function downloadAttachment(token, repoInput, attachment) {
@@ -438,7 +480,7 @@ export async function deleteAttachment(token, repoInput, attachment) {
 }
 
 export async function purgeIssueAttachments(token, repoInput, issueNumber) {
-  const files = await listIssueAttachmentFiles(token, repoInput, issueNumber);
+  const files = await listAllIssueAttachmentFiles(token, repoInput, issueNumber);
   for (const file of files) {
     await deleteAttachment(token, repoInput, file);
   }

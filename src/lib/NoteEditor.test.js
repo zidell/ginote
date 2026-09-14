@@ -29,6 +29,8 @@ vi.mock('./github.js', () => ({
     comments: 1,
     updated_at: '2026-09-01T00:00:00Z'
   })),
+  listAllIssueAttachmentFiles: vi.fn(async () => []),
+  listIssueCommentAttachmentFiles: vi.fn(async () => []),
   listIssueAttachmentFiles: vi.fn(async () => []),
   listIssueComments: vi.fn(async () => [{
     id: 1,
@@ -57,10 +59,10 @@ vi.mock('./github.js', () => ({
     updatedAt: '2026-09-02T00:00:00Z',
     url: ''
   })),
-  uploadAttachment: vi.fn(async (token, repo, issueNumber, file) => ({
+  uploadAttachment: vi.fn(async (token, repo, issueNumber, file, commentId = null) => ({
     name: file.name,
     type: file.type,
-    path: `.issue-note-assets/issues/${issueNumber}/uuid-${file.name}`,
+    path: `.issue-note-assets/issues/${issueNumber}${commentId ? `/comments/${commentId}` : ''}/uuid-${file.name}`,
     sha: 'file-sha',
     size: file.size,
     url: 'https://github.com/file'
@@ -73,10 +75,13 @@ const {
   deleteIssueComment,
   downloadAttachment,
   getIssue,
+  listAllIssueAttachmentFiles,
+  listIssueCommentAttachmentFiles,
   listIssueComments,
   listIssueAttachmentFiles,
   updateIssue,
-  updateIssueComment
+  updateIssueComment,
+  uploadAttachment
 } = await import('./github.js');
 
 const baseIssue = {
@@ -732,6 +737,26 @@ describe('NoteEditor 코멘트 블록', () => {
     await waitFor(() => expect(deleteIssueComment).toHaveBeenCalledWith('t', 'owner/repo', 1));
     vi.unstubAllGlobals();
   });
+
+  it('댓글을 삭제하면 다른 곳에서 참조하지 않는 댓글 첨부도 정리한다', async () => {
+    const attachment = {
+      name: 'comment.txt',
+      path: '.issue-note-assets/issues/5/comments/1/uuid-comment.txt',
+      sha: 'comment-sha',
+      size: 4,
+      url: ''
+    };
+    listIssueCommentAttachmentFiles.mockResolvedValueOnce([attachment]);
+    listAllIssueAttachmentFiles.mockResolvedValueOnce([attachment]);
+    vi.stubGlobal('confirm', vi.fn(() => true));
+    render(NoteEditor, { token: 't', repo: 'owner/repo', issue: baseIssue });
+
+    await waitFor(() => expect(document.querySelector('.note-comment-item .attachment-name')).toBeTruthy());
+    await fireEvent.click(document.querySelector('.note-comment-item li:last-child .dropdown-item'));
+
+    await waitFor(() => expect(deleteIssueComment).toHaveBeenCalledWith('t', 'owner/repo', 1));
+    await waitFor(() => expect(deleteAttachment).toHaveBeenCalledWith('t', 'owner/repo', attachment));
+  });
 });
 
 describe('NoteEditor 마크다운 프리뷰와 단축키', () => {
@@ -1155,6 +1180,57 @@ describe('NoteEditor 마크다운 프리뷰와 단축키', () => {
 });
 
 describe('NoteEditor 첨부 파일', () => {
+  it('댓글 첨부의 진행·완료 목록은 해당 댓글 아래에만 표시한다', async () => {
+    let finishUpload;
+    uploadAttachment.mockImplementationOnce(() => new Promise((resolve) => { finishUpload = resolve; }));
+    render(NoteEditor, { token: 't', repo: 'owner/repo', issue: baseIssue });
+    await waitFor(() => expect(screen.getByText('octocat')).toBeTruthy());
+
+    await fireEvent.click(document.querySelector('.note-comment-attachment'));
+    const file = new File(['binary'], 'comment-progress.png', { type: 'image/png' });
+    const change = fireEvent.change(document.querySelector('#comment-attachment-note'), { target: { files: [file] } });
+
+    await waitFor(() => expect(document.querySelector('.note-comment-item .attachment-uploading')).toBeTruthy());
+    expect(document.querySelector('.attachment-section .attachment-uploading')).toBeNull();
+
+    finishUpload({
+      name: file.name,
+      type: file.type,
+      path: '.issue-note-assets/issues/5/comments/1/uuid-comment-progress.png',
+      sha: 'file-sha',
+      size: file.size,
+      url: 'https://github.com/file'
+    });
+    await change;
+
+    await waitFor(() => expect(document.querySelector('.note-comment-item .attachment-name').textContent)
+      .toBe('comment-progress.png'));
+    expect(document.querySelector('.attachment-section')).toBeNull();
+  });
+
+  it('댓글 툴바에서 파일을 첨부하면 해당 댓글에 링크를 넣고 저장한다', async () => {
+    render(NoteEditor, { token: 't', repo: 'owner/repo', issue: baseIssue });
+    await waitFor(() => expect(screen.getByText('octocat')).toBeTruthy());
+
+    await fireEvent.click(document.querySelector('.note-comment-attachment'));
+    const file = new File(['binary'], 'comment.png', { type: 'image/png' });
+    await fireEvent.change(document.querySelector('#comment-attachment-note'), { target: { files: [file] } });
+
+    await waitFor(() => expect(uploadAttachment).toHaveBeenCalledWith('t', 'owner/repo', 5, file, 1));
+    await waitFor(() => expect(updateIssueComment).toHaveBeenCalledWith(
+      't',
+      'owner/repo',
+      1,
+      expect.stringContaining('.issue-note-assets/issues/5/comments/1/uuid-comment.png')
+    ));
+
+    const body = document.querySelector('.inline-body');
+    await fireEvent.input(body, { target: { value: '노트 본문 수정' } });
+    await fireEvent.blur(body);
+    await waitFor(() => expect(updateIssue).toHaveBeenCalled());
+    expect(updateIssue.mock.calls.at(-1)[3].body).not.toContain('uuid-comment.png');
+  });
+
   it('파일을 업로드하면 본문에 링크를 끼워 넣고 저장한다', async () => {
     render(NoteEditor, { token: 't', repo: 'owner/repo', issue: baseIssue });
     await waitFor(() => expect(screen.getByText('octocat')).toBeTruthy());
