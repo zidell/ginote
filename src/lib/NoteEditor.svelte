@@ -309,6 +309,16 @@
     handledVoiceBodyId = voiceBody.id;
     if (voiceBody.issueNumber === remoteIssue?.number) {
       if (voiceBody.attachment) replaceAttachments([...attachments, voiceBody.attachment]);
+      const selectedVoiceTags = Array.isArray(voiceBody.selectedTags) ? voiceBody.selectedTags : [];
+      const existingTagNames = new Set(labels.map((name) => name.toLocaleLowerCase()));
+      labels = [...labels, ...selectedVoiceTags.filter((name) => {
+        const normalizedName = String(name).toLocaleLowerCase();
+        if (!normalizedName || existingTagNames.has(normalizedName)) return false;
+        existingTagNames.add(normalizedName);
+        return true;
+      })];
+      // 추천 제목은 새 음성 이슈의 첫 기록에만 적용한다. 기존 이슈에 추가·수정
+      // 녹음할 때는 사용자가 이미 정한 제목과 본문 첫 줄을 바꾸지 않는다.
       const nextDisplayBody = appendVoiceText(displayBody, voiceBody.body);
       updateBodyFromTextarea(nextDisplayBody);
       changed();

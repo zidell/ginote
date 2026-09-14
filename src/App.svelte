@@ -34,7 +34,7 @@
   } from './lib/editor-fonts.js';
   import { _, locale as activeLocale } from 'svelte-i18n';
   import { LOCALE_OPTIONS, setAppLocale } from './lib/i18n.js';
-  import { normalizeTagName } from './lib/notes.js';
+  import { automaticTitle, normalizeTagName } from './lib/notes.js';
   import { attachmentRawUrl } from './lib/attachments.js';
   import { earliestIssue, formatMergedBody, mergeTimeline, replaceAttachmentUrls } from './lib/note-merge.js';
   import { MAX_ISSUE_BODY_LENGTH } from './lib/github-limits.js';
@@ -2828,8 +2828,12 @@
     setTimeout(() => voiceSettingsHighlighted = false, 1800);
   }
 
-  async function recordVoiceNote(body, audio) {
+  async function recordVoiceNote(body, audio, selectedTags = [], suggestedTitle = '') {
     const normalizedBody = normalizeVoiceParagraphs(body);
+    const normalizedSuggestedTitle = String(suggestedTitle || '').replace(/\s+/g, ' ').trim().slice(0, 50);
+    const selectedTagNames = selectedTags.filter((name) => visibleRepositoryLabels.some(
+      (label) => label.name.toLocaleLowerCase() === String(name).toLocaleLowerCase()
+    ));
     const requestedWorkspaceId = activeWorkspaceId;
     const requestedToken = token;
     const requestedRepo = repo;
@@ -2839,18 +2843,29 @@
       : null;
     voiceRecordingDestination = null;
     if (destination?.type === 'body' && destination.issueNumber) {
-      voiceBody = { id: ++voiceBodySequence, ...destination, body: normalizedBody, attachment };
+      voiceBody = {
+        id: ++voiceBodySequence, ...destination, body: normalizedBody, attachment,
+        selectedTags: selectedTagNames, suggestedTitle: normalizedSuggestedTitle
+      };
       allowVoiceRouteExit = true;
       router.pop();
       return;
     }
     if (destination?.type === 'comment-edit' && destination.issueNumber) {
+      await Promise.all(selectedTagNames.map((name) => addIssueLabel(requestedToken, requestedRepo, destination.issueNumber, name)));
       voiceCommentEdit = { id: ++voiceCommentEditSequence, ...destination, body: normalizedBody, attachmentLink: voiceAttachmentLink(requestedRepo, attachment) };
       allowVoiceRouteExit = true;
       router.pop();
       return;
     }
     if (destination?.type === 'comment-new' && destination.issueNumber) {
+      await Promise.all(selectedTagNames.map((name) => addIssueLabel(requestedToken, requestedRepo, destination.issueNumber, name)));
+      // 태그 분류 발화만 한 경우 빈 댓글을 만들지 않고, 부모 이슈의 태그만 갱신한다.
+      if (!normalizedBody && !attachment) {
+        allowVoiceRouteExit = true;
+        router.pop();
+        return;
+      }
       const comment = await createIssueComment(requestedToken, requestedRepo, destination.issueNumber, appendVoiceAttachmentLink(normalizedBody, requestedRepo, attachment));
       if (requestedWorkspaceId !== activeWorkspaceId || requestedToken !== token || requestedRepo !== repo) return;
       voiceComment = { id: ++voiceCommentSequence, issueNumber: destination.issueNumber, comment };
@@ -2858,8 +2873,13 @@
       router.pop();
       return;
     }
-    const title = normalizedBody.replace(/\s+/g, ' ').trim().slice(0, 50) || '음성 기록';
-    const created = await createIssue(requestedToken, requestedRepo, { title, body: normalizedBody, labels: [] });
+    const issueBody = titleMode === 'first-line' && normalizedBody && normalizedSuggestedTitle
+      ? `${normalizedSuggestedTitle}\n\n${normalizedBody}`
+      : normalizedBody;
+    const title = titleMode === 'separate'
+      ? normalizedSuggestedTitle || automaticTitle(normalizedBody) || '음성 기록'
+      : automaticTitle(issueBody) || '음성 기록';
+    const created = await createIssue(requestedToken, requestedRepo, { title, body: issueBody, labels: selectedTagNames });
     if (preserveOriginalVoiceAudio) await uploadVoiceAttachment(audio, requestedToken, requestedRepo, created.number);
     if (requestedWorkspaceId !== activeWorkspaceId || requestedToken !== token || requestedRepo !== repo) return;
     invalidateCachedIssueList(activeWorkspaceId);
@@ -2870,6 +2890,9 @@
     issues = [created, ...issues.filter((issue) => issue.id !== created.id)];
     totalIssues += 1;
     adjustWorkspaceNoteCount(activeWorkspaceId, 1);
+    // 새 이슈로 이동하면서 음성 경로를 닫는다. VoiceRecorder가 이미 dirty
+    // 상태를 해제하지만, 비동기 렌더 순서에도 안전하도록 완료 이탈임을 명시한다.
+    allowVoiceRouteExit = true;
     router.navigate(`/note.${created.number}`);
   }
 
@@ -3606,6 +3629,7 @@
     refinementPrompt={voiceRefinementPrompt}
     transcriptionModel={voiceTranscriptionModel.trim() || DEFAULT_TRANSCRIPTION_MODEL}
     refinementModel={voiceRefinementModel.trim()}
+    availableTags={visibleRepositoryLabels.map((label) => label.name)}
     onComplete={recordVoiceNote}
     onDirtyChange={(dirty) => voiceHasUnrecordedAudio = dirty}
     onClose={() => { allowVoiceRouteExit = true; router.pop(); }}
