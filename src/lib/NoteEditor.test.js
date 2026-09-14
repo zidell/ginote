@@ -70,6 +70,7 @@ vi.mock('./github.js', () => ({
 }));
 
 const {
+  createLabel,
   createIssueComment,
   deleteAttachment,
   deleteIssueComment,
@@ -1435,6 +1436,30 @@ describe('NoteEditor 첨부 파일', () => {
 });
 
 describe('NoteEditor 태그', () => {
+  it('새 태그는 먼저 만들고 목록을 갱신한 뒤 즉시 노트에 적용한다', async () => {
+    const onLabelsAvailable = vi.fn();
+    createLabel.mockResolvedValueOnce({ name: 'idea', color: 'abcdef' });
+    render(NoteEditor, {
+      token: 't',
+      repo: 'owner/repo',
+      issue: baseIssue,
+      availableLabels: [{ name: 'work' }],
+      onLabelsAvailable,
+      ignoreRecoveredDraft: true,
+      autoSaveSeconds: 9999
+    });
+
+    await fireEvent.click(document.querySelector('.detail-toolbar-actions-desktop .tag-picker > button'));
+    await fireEvent.input(screen.getByRole('textbox', { name: 'Search or create a tag' }), { target: { value: 'idea' } });
+    await fireEvent.click(screen.getByRole('button', { name: 'Create #idea' }));
+
+    await waitFor(() => expect(createLabel).toHaveBeenCalledWith('t', 'owner/repo', 'idea'));
+    await waitFor(() => expect(onLabelsAvailable).toHaveBeenCalledWith([{ name: 'idea', color: 'abcdef' }]));
+    await waitFor(() => expect(document.querySelector('.editor-tag-link')?.textContent).toBe('#idea'));
+    await waitFor(() => expect(updateIssue).toHaveBeenCalled());
+    expect(updateIssue.mock.calls.at(-1)[3].labels).toContain('idea');
+  });
+
   it('pin 시스템 라벨은 숨기고 저장할 때는 보존한다', async () => {
     const issue = {
       ...baseIssue,
