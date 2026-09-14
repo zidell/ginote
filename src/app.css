@@ -705,6 +705,8 @@ html.mode-light .note-row-labels { opacity: 1; }
   .detail-toolbar-more-tag .tag-picker > button { width: 100%; display: flex; align-items: center; gap: .55rem; padding: var(--bs-dropdown-item-padding-y) var(--bs-dropdown-item-padding-x); border: 0; border-radius: 0; color: var(--bs-dropdown-link-color); background: transparent; font-size: 1rem; text-align: left; }
   .detail-toolbar-more-tag .tag-picker > button:hover { color: var(--bs-dropdown-link-hover-color); background: var(--bs-dropdown-link-hover-bg); }
   .detail-toolbar-more-tag .tag-dropdown { right: calc(100% + .35rem); top: 0; left: auto; }
+  .attachment-viewer-toolbar { gap: .45rem; }
+  .attachment-viewer-toolbar .viewer-action-label { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
   .attachment-viewer-stage { padding: 1rem 3rem; }
 
   html[data-note-transition] { view-transition-name: none; }
