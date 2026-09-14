@@ -24,7 +24,7 @@ beforeEach(() => vi.stubGlobal('localStorage', createMemoryStorage()));
 afterEach(() => vi.unstubAllGlobals());
 
 describe('voice settings', () => {
-  it('오타수정과 문어체 변경에 서로 다른 목적의 내장 규칙을 제공한다', () => {
+  it('약하게와 강하게에 서로 다른 목적의 내장 규칙을 제공한다', () => {
     expect(DEFAULT_REFINEMENT_PROMPT).toBe(TYPO_CORRECTION_REFINEMENT_PROMPT);
     expect(TYPO_CORRECTION_REFINEMENT_PROMPT).toContain('원문의 의미와 말투를 유지');
     expect(WRITTEN_STYLE_REFINEMENT_PROMPT).toContain('화자가 실제로 전달하려던 내용을 빠짐없이 담은 자연스러운 기록문');

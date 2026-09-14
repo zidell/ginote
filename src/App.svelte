@@ -3257,13 +3257,13 @@
                         type="button"
                         class="btn btn-link p-0 voice-label-action voice-default-action"
                         on:click={() => applyVoiceRefinementPreset(TYPO_CORRECTION_REFINEMENT_PROMPT)}
-                      >오타수정</button>
+                      >약하게</button>
                       <span class="voice-preset-separator" aria-hidden="true">|</span>
                       <button
                         type="button"
                         class="btn btn-link p-0 voice-label-action voice-default-action"
                         on:click={() => applyVoiceRefinementPreset(WRITTEN_STYLE_REFINEMENT_PROMPT)}
-                      >문어체 변경</button>
+                      >강하게</button>
                     </div>
                   </div>
                   <textarea
