@@ -103,6 +103,7 @@
   const LIST_PREVIEW_DEBOUNCE_MS = 500;
   const MAX_ATTACHMENTS = 30;
   const ATTACHMENT_DELETE_DELAY_MS = 5000;
+  const COMMENT_DELETE_DELAY_MS = 3000;
   const VOICE_AUDIO_MARKUP = /<audio\s+controls\s+preload="metadata"\s+src="([^"]+)"[^>]*>[\s\S]*?<\/audio>/g;
   // 아직 번호가 없는 새 노트는 initialDraft.id(세션마다 고유)로 구분해야, 저장 도중
   // 리마운트되며 남겨진 이전 세션의 초안이 이후의 다른 새 노트에 잘못 복구되지 않는다.
@@ -181,6 +182,8 @@
   let commentSaveFailedIds = new Set();
   let dirtyCommentIds = new Set();
   let deletingCommentIds = new Set();
+  let pendingCommentDeletions = new Map();
+  let commentDeleteTimers = new Map();
   let moveRequested = false;
   let error = '';
   let localTimer;
@@ -234,7 +237,14 @@
       .filter(([, source]) => source)
   );
   $: replacementAnalysis = analyzeReplacement(displayBody, replaceSearch, replaceWith);
-  $: hasAttachmentRefs = parseAttachmentPaths(body).length > 0;
+  // 편집기에서는 자동 관리 블록을 본문에서 제거해 두지만, 그 안의 링크도
+  // 첨부 목록을 미리 위한 신호다. 빠뜨리면 파일 목록 요청이 끝난 뒤에야
+  // 섹션이 처음 마운트되어 본문이 아래로 밀린다.
+  $: attachmentReferencePaths = [...new Set([
+    ...parseAttachmentPaths(body),
+    ...preservedManagedAttachmentLinks.flatMap(parseAttachmentPaths)
+  ])];
+  $: hasAttachmentRefs = attachmentReferencePaths.length > 0;
   // 30개 제한은 본문과 모든 댓글을 합친 노트 단위 제한이다. 소유 목록은
   // 분리하되 제한만은 기존 동작을 유지한다.
   $: issueAttachmentCount = new Set([
@@ -410,6 +420,8 @@
     clearAttachmentDeleteTimers();
     for (const timer of commentAttachmentDeleteTimers.values()) clearTimeout(timer);
     commentAttachmentDeleteTimers = new Map();
+    for (const timer of commentDeleteTimers.values()) clearTimeout(timer);
+    commentDeleteTimers = new Map();
     clearTimeout(lockReuseTimer);
     window.removeEventListener('beforeunload', handlePageExit);
     window.removeEventListener('pagehide', handlePageExit);
@@ -2295,13 +2307,43 @@
     onVoiceRecording(remoteIssue, { type: 'comment-new' });
   }
 
-  async function removeComment(comment) {
+  function removeComment(comment) {
     if (!editable || lockState === 'locked') return;
     if (comment.isNew) {
       discardNewComment(comment);
       return;
     }
-    if (!confirm($_("m.b88a2bf0d1"))) return;
+    if (pendingCommentDeletions.has(comment.id) || deletingCommentIds.has(comment.id)) return;
+    const expiresAt = Date.now() + COMMENT_DELETE_DELAY_MS;
+    pendingCommentDeletions = new Map(pendingCommentDeletions).set(comment.id, {
+      comment: { ...comment },
+      expiresAt
+    });
+    const timer = setTimeout(() => {
+      const nextTimers = new Map(commentDeleteTimers);
+      nextTimers.delete(comment.id);
+      commentDeleteTimers = nextTimers;
+      void commitCommentDeletion(comment.id);
+    }, COMMENT_DELETE_DELAY_MS);
+    commentDeleteTimers = new Map(commentDeleteTimers).set(comment.id, timer);
+  }
+
+  function cancelCommentDeletion(comment) {
+    if (!pendingCommentDeletions.has(comment.id) || deletingCommentIds.has(comment.id)) return;
+    const timer = commentDeleteTimers.get(comment.id);
+    if (timer) clearTimeout(timer);
+    const nextTimers = new Map(commentDeleteTimers);
+    nextTimers.delete(comment.id);
+    commentDeleteTimers = nextTimers;
+    const nextPending = new Map(pendingCommentDeletions);
+    nextPending.delete(comment.id);
+    pendingCommentDeletions = nextPending;
+  }
+
+  async function commitCommentDeletion(commentId) {
+    const entry = pendingCommentDeletions.get(commentId);
+    if (!entry) return;
+    const comment = comments.find((item) => item.id === commentId) || entry.comment;
     deletingCommentIds.add(comment.id);
     deletingCommentIds = deletingCommentIds;
     try {
@@ -2330,6 +2372,9 @@
 
       await deleteIssueComment(token, repo, comment.id);
       comments = comments.filter((item) => item.id !== comment.id);
+      const nextPending = new Map(pendingCommentDeletions);
+      nextPending.delete(comment.id);
+      pendingCommentDeletions = nextPending;
       for (const [key, timer] of commentAttachmentDeleteTimers) {
         if (!key.startsWith(`${comment.id}:`)) continue;
         clearTimeout(timer);
@@ -2349,6 +2394,11 @@
     } finally {
       deletingCommentIds.delete(comment.id);
       deletingCommentIds = deletingCommentIds;
+      if (pendingCommentDeletions.has(comment.id)) {
+        const nextPending = new Map(pendingCommentDeletions);
+        nextPending.delete(comment.id);
+        pendingCommentDeletions = nextPending;
+      }
     }
   }
 
@@ -3191,14 +3241,12 @@
       <section
         class="attachment-section"
       >
-        {#if !attachments.length && attachmentsLoading && !uploading && !deletingPath}
-          <div class="attachment-list-loading">
-            <span class="attachment-spinner"><BrailleSpinner active /></span>
-          </div>
-        {:else}
         <AttachmentGrid
           {attachments}
           {uploadingAttachments}
+          loadingAttachmentCount={attachmentsLoading && !attachments.length && !uploading && !deletingPath
+            ? attachmentReferencePaths.length
+            : 0}
           {previewUrls}
           {isImage}
           onOpen={(attachment, index) => openViewer(index)}
@@ -3214,7 +3262,6 @@
           addDisabled={uploadBatchActive}
           onAdd={() => fileInput?.click()}
         />
-        {/if}
       </section>
     {/if}
     {#if displayedLabels.length || inlineTagPickerOpen}
@@ -3346,7 +3393,7 @@
                           <button
                             type="button"
                             class="dropdown-item"
-                            disabled={deletingCommentIds.has(comment.id)}
+                            disabled={pendingCommentDeletions.has(comment.id) || deletingCommentIds.has(comment.id)}
                             on:click={() => removeComment(comment)}
                           ><i class="bi bi-trash3" aria-hidden="true"></i> {$_("m.f6fdbe48dc")}</button>
                         </li>
@@ -3404,6 +3451,19 @@
                     <span class="note-comment-audio-loading"><BrailleSpinner active /></span>
                   {/if}
                 {/each}
+              {/if}
+              {#if pendingCommentDeletions.has(comment.id)}
+                <div class="comment-deletion-overlay" role="status" aria-live="polite">
+                  <BrailleSpinner active />
+                  <span>{$_('dynamic.attachmentDeleting')}</span>
+                  <button
+                    type="button"
+                    class="comment-deletion-cancel"
+                    style:visibility={deletingCommentIds.has(comment.id) ? 'hidden' : 'visible'}
+                    tabindex={deletingCommentIds.has(comment.id) ? -1 : undefined}
+                    on:click={() => cancelCommentDeletion(comment)}
+                  >{$_('setup.cancel')}</button>
+                </div>
               {/if}
             </div>
           {/each}
