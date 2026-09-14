@@ -389,6 +389,31 @@ describe('NoteEditor 코멘트 블록', () => {
     await waitFor(() => expect(updateIssueComment).toHaveBeenCalledWith('t', 'owner/repo', 1, '수정한 댓글'));
   });
 
+  it('댓글 내용이 늘거나 줄 때 textarea 높이를 내용에 맞춘다', async () => {
+    render(NoteEditor, { token: 't', repo: 'owner/repo', issue: baseIssue });
+
+    await waitFor(() => expect(screen.getByText('octocat')).toBeTruthy());
+    const commentBody = document.querySelector('.note-comment-body');
+    let contentHeight = 96;
+    Object.defineProperty(commentBody, 'scrollHeight', {
+      configurable: true,
+      get() {
+        if (commentBody.style.height === 'auto') return contentHeight;
+        return Math.max(contentHeight, Number.parseFloat(commentBody.style.height) || 0);
+      }
+    });
+
+    await fireEvent.input(commentBody, { target: { value: '여러 줄로 길어진 댓글' } });
+    expect(commentBody.style.height).toBe('96px');
+
+    contentHeight = 32;
+    await fireEvent.input(commentBody, { target: { value: '짧은 댓글' } });
+    expect(commentBody.style.height).toBe('32px');
+
+    await fireEvent.blur(commentBody);
+    await waitFor(() => expect(updateIssueComment).toHaveBeenCalledWith('t', 'owner/repo', 1, '짧은 댓글'));
+  });
+
   it('내용을 바꾸지 않고 포커스를 벗어나면 저장하지 않는다', async () => {
     render(NoteEditor, { token: 't', repo: 'owner/repo', issue: baseIssue });
 

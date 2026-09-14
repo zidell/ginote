@@ -2360,10 +2360,13 @@
         : 0;
       const wasAtBottom = previousMaxScrollTop > 0
         && previousScrollTop >= previousMaxScrollTop - 1;
+      const previousHeight = node.style.height;
+      node.style.height = 'auto';
       const nextHeight = node.scrollHeight;
-      const currentHeight = node.getBoundingClientRect().height;
-
-      if (!nextHeight || Math.abs(currentHeight - nextHeight) < 0.5) return;
+      if (!nextHeight) {
+        node.style.height = previousHeight;
+        return;
+      }
       node.style.height = `${nextHeight}px`;
 
       if (scrollContainer) {
@@ -2371,8 +2374,14 @@
         scrollContainer.scrollTop = wasAtBottom ? nextMaxScrollTop : previousScrollTop;
       }
     };
+    node.addEventListener('input', resize);
     resize();
-    return { update: resize };
+    return {
+      update: resize,
+      destroy() {
+        node.removeEventListener('input', resize);
+      }
+    };
   }
 
   function insertAttachmentAtEnd(attachment) {
