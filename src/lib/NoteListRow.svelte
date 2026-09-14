@@ -16,6 +16,7 @@
   export let listRowFields = { title: true, summary: true, meta: true, tags: true };
   export let refreshing = false;
   export let pendingDeletion = false;
+  export let deletionCancellable = false;
   export let onPointerDown = () => {};
   export let onPointerMove = () => {};
   export let onPointerUp = () => {};
@@ -23,6 +24,7 @@
   export let onContextMenu = () => {};
   export let onClick = () => {};
   export let onSelectionClick = () => {};
+  export let onCancelDeletion = () => {};
 
   function labelColor(label) {
     return tagColorForName(label?.name);
@@ -103,7 +105,14 @@
       {/each}
     </div>
   {/if}
-  {#if refreshing || pendingDeletion}
+  {#if pendingDeletion}
+    <div class="note-row-deletion-overlay" role="status" aria-live="polite">
+      <span><BrailleSpinner active /> {$_('dynamic.attachmentDeleting')}</span>
+      {#if deletionCancellable}
+        <button type="button" on:click|stopPropagation={() => onCancelDeletion(issue)}>{$_('setup.cancel')}</button>
+      {/if}
+    </div>
+  {:else if refreshing}
     <span class="note-row-refresh-spinner" aria-label={$_("m.6e6e21803f")}>
       <BrailleSpinner active />
     </span>

@@ -449,7 +449,7 @@ body.keyboard-shortcuts-ready .shortcut-key.is-available { color: var(--ui-accen
 .note-list-row.selection-mode { padding-left: 2.75rem; }
 .note-list-row.selected { background: rgba(122, 122, 122, .3); }
 .note-list-row.is-archived { opacity: .5; }
-.note-list-row.pending-deletion { opacity: .3; }
+.note-list-row.pending-deletion > :not(.note-row-deletion-overlay) { opacity: .3; }
 .note-row-checkbox { position: absolute; z-index: 3; top: 50%; left: .85rem; margin: 0; transform: translateY(-50%); }
 .note-row-hit-area { position: absolute; z-index: 1; inset: 0; width: 100%; padding: 0; border: 0; background: transparent; }
 .note-row-hit-area:focus-visible { outline: none; }
@@ -466,6 +466,10 @@ body.keyboard-shortcuts-ready .note-row-hit-area:focus-visible { outline: 1px so
 html.mode-light .note-row-labels { opacity: 1; }
 .note-row-labels span { padding: .08rem .12rem; color: var(--tag-color); font-size: .68rem; }
 .note-row-refresh-spinner { position: absolute; z-index: 3; top: 50%; right: .85rem; color: var(--ui-text-icon); opacity: .8; pointer-events: none; transform: translateY(-50%); }
+.note-row-deletion-overlay { position: absolute; z-index: 4; inset: 0; display: flex; align-items: center; justify-content: center; gap: .55rem; color: var(--ui-text-heading); background: color-mix(in srgb, var(--ui-api-mask) 72%, #000 28%); font-size: .78rem; }
+.note-row-deletion-overlay span { display: inline-flex; align-items: center; gap: .3rem; }
+.note-row-deletion-overlay button { padding: 0; border: 0; color: inherit; background: transparent; font: inherit; text-decoration: underline; }
+.note-row-deletion-overlay button:hover, .note-row-deletion-overlay button:focus-visible { color: var(--ui-text-emphasis); }
 .note-list-pinned { border-bottom: 1px solid var(--ui-border-list); }
 .toolbar-lock-icon { margin-right: .4rem; color: var(--ui-warning); }
 .list-load-more { display: flex; justify-content: center; padding: .85rem .75rem 1.25rem; }
