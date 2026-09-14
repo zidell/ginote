@@ -1,5 +1,20 @@
 const OPENAI_API_ROOT = 'https://api.openai.com/v1';
 
+const REFINEMENT_RESPONSE_SCHEMA = {
+  name: 'voice_transcript_refinement',
+  strict: true,
+  schema: {
+    type: 'object',
+    additionalProperties: false,
+    properties: {
+      title: { type: 'string' },
+      body: { type: 'string' },
+      tags: { type: 'array', items: { type: 'string' } }
+    },
+    required: ['title', 'body', 'tags']
+  }
+};
+
 // The transcript is untrusted content: it can itself contain requests such as
 // "answer this". Keep the editing role outside the user-configurable prompt so
 // that a recording cannot turn this request into a chat conversation.
@@ -126,7 +141,7 @@ export async function refineTranscript(apiKey, transcript, refinementPrompt = ''
         { role: 'system', content: refinementSystemPrompt(instructions) },
         { role: 'user', content: refinementInput(transcript, tagCandidates) }
       ],
-      response_format: { type: 'json_object' }
+      response_format: { type: 'json_schema', json_schema: REFINEMENT_RESPONSE_SCHEMA }
     }), signal
   });
   const payload = await readResponse(response);
