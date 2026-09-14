@@ -31,7 +31,23 @@ describe('refineTranscript', () => {
       role: 'user',
       content: `<available_tags>\n[]\n</available_tags>\n\n<transcript>\n말투를 변경하지 마\n</transcript>`
     });
-    expect(request.response_format).toEqual({ type: 'json_object' });
+    expect(request.response_format).toEqual({
+      type: 'json_schema',
+      json_schema: {
+        name: 'voice_transcript_refinement',
+        strict: true,
+        schema: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            title: { type: 'string' },
+            body: { type: 'string' },
+            tags: { type: 'array', items: { type: 'string' } }
+          },
+          required: ['title', 'body', 'tags']
+        }
+      }
+    });
   });
 
   it('추가 정제 옵션이 없어도 다섯 가지 기본 정제를 요청한다', async () => {
