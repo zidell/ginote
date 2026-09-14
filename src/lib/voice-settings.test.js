@@ -27,13 +27,18 @@ describe('voice settings', () => {
   it('오타수정과 문어체 변경에 서로 다른 목적의 내장 규칙을 제공한다', () => {
     expect(DEFAULT_REFINEMENT_PROMPT).toBe(TYPO_CORRECTION_REFINEMENT_PROMPT);
     expect(TYPO_CORRECTION_REFINEMENT_PROMPT).toContain('원문의 의미와 말투를 유지');
-    expect(WRITTEN_STYLE_REFINEMENT_PROMPT).toContain('의미 없는 추임새·머뭇거림');
-    expect(WRITTEN_STYLE_REFINEMENT_PROMPT).toContain('최종 의도');
-    expect(WRITTEN_STYLE_REFINEMENT_PROMPT).toContain('존댓말·반말');
-    expect(WRITTEN_STYLE_REFINEMENT_PROMPT).toContain('추측해 보태거나');
-    expect(WRITTEN_STYLE_REFINEMENT_PROMPT).toContain('읽기 쉬운 문단으로 적극적으로 나눕니다');
-    expect(WRITTEN_STYLE_REFINEMENT_PROMPT).toContain('시간·주제·상황·행동 단계가 바뀌거나');
-    expect(WRITTEN_STYLE_REFINEMENT_PROMPT).not.toContain('예시:');
+    expect(WRITTEN_STYLE_REFINEMENT_PROMPT).toContain('화자가 실제로 전달하려던 내용을 빠짐없이 담은 자연스러운 기록문');
+    expect(WRITTEN_STYLE_REFINEMENT_PROMPT).toContain('기록의 의미에 기여하지 않는 추임새');
+    expect(WRITTEN_STYLE_REFINEMENT_PROMPT).toContain('불확실성의 정도');
+    expect(WRITTEN_STYLE_REFINEMENT_PROMPT).toContain('명백히 부정하거나 같은 자리를 대체할 때만');
+    expect(WRITTEN_STYLE_REFINEMENT_PROMPT).toContain('판단이 애매하면 삭제하지 않습니다');
+    expect(WRITTEN_STYLE_REFINEMENT_PROMPT).toContain('고유명사·숫자는 바꾸지 않습니다');
+    expect(WRITTEN_STYLE_REFINEMENT_PROMPT).toContain('정제된 기록문만 출력합니다');
+    expect(WRITTEN_STYLE_REFINEMENT_PROMPT).toContain('말투를 유지합니다');
+    expect(WRITTEN_STYLE_REFINEMENT_PROMPT).toContain('원문에 없는 내용은 보태지 않고');
+    expect(WRITTEN_STYLE_REFINEMENT_PROMPT).toContain('생각이나 시간·주제·상황·행동 단계가 바뀔 때만');
+    expect(WRITTEN_STYLE_REFINEMENT_PROMPT).not.toContain('“어”, “음”, “그”');
+    expect(WRITTEN_STYLE_REFINEMENT_PROMPT).not.toContain('“아니”');
   });
 
   it('비어 있거나 손상된 저장값에는 안전한 기본값을 사용한다', () => {
