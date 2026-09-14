@@ -161,6 +161,9 @@
   let issuePage = 1;
   let hasMoreIssues = false;
   let totalIssues = 0;
+  // 목록 변경 중에 시작된 요청이 나중에 도착해, 이미 반영한 삭제/복원을
+  // 오래된 서버 응답으로 되돌리지 않도록 하는 세대 번호다.
+  let issueListMutationVersion = 0;
   let error = '';
   let notice = '';
   let routeStack = [];
@@ -182,7 +185,8 @@
   let languagePreference = 'auto';
   let activePageRefreshInFlight = false;
   let lastActivePageRefreshAt = 0;
-  let labelBusy = '';
+  let labelBusy = {};
+  const labelRenameQueues = new Map();
   let labelMutation = null;
   let labelMutationSequence = 0;
   let settingsRouteOverride = '';
@@ -1097,6 +1101,7 @@
     const requestedQuery = appliedQuery;
     const requestedState = state;
     const requestedLabel = activeLabel;
+    const requestedListMutationVersion = issueListMutationVersion;
     const requestedTerm = queryMatchesActiveLabel(requestedQuery, requestedLabel) ? '' : requestedQuery;
     if (!background) {
       error = '';
@@ -1124,6 +1129,7 @@
         || requestedQuery !== appliedQuery
         || requestedState !== state
         || requestedLabel !== activeLabel
+        || requestedListMutationVersion !== issueListMutationVersion
       ) return;
       const pendingPin = pendingPinMutationFor(
         requestedWorkspaceId,
@@ -1166,6 +1172,7 @@
     const requestedQuery = appliedQuery;
     const requestedState = state;
     const requestedLabel = activeLabel;
+    const requestedListMutationVersion = issueListMutationVersion;
     const requestedTerm = queryMatchesActiveLabel(requestedQuery, requestedLabel) ? '' : requestedQuery;
     const nextPage = issuePage + 1;
     loadingMore = true;
@@ -1181,6 +1188,7 @@
         || requestedQuery !== appliedQuery
         || requestedState !== state
         || requestedLabel !== activeLabel
+        || requestedListMutationVersion !== issueListMutationVersion
       ) return;
       const pendingPin = pendingPinMutationFor(
         requestedWorkspaceId,
@@ -2286,6 +2294,7 @@
     const removedPinnedIndex = pinnedIssues.findIndex((issue) => issue.id === closedIssue.id);
     if (!removedFromIssues && removedPinnedIndex < 0) return;
 
+    issueListMutationVersion += 1;
     issues = issues.filter((issue) => issue.id !== closedIssue.id);
     if (removedPinnedIndex >= 0) {
       pinnedIssues = pinnedIssues.filter((issue) => issue.id !== closedIssue.id);
@@ -2486,39 +2495,50 @@
     router.navigate(`/${[...nextSegments, 'settings'].join('/')}`);
   }
 
-  async function renameRepositoryLabel(label, nextName) {
-    if (labelBusy || isPinLabel(label)) return false;
-    const normalizedName = Array.from(nextName.trim()).slice(0, 50).join('');
-    if (!normalizedName || isPinLabel(normalizedName)) {
+  async function renameRepositoryLabel(label, nextTag) {
+    const normalizedName = Array.from(String(nextTag?.name || '').trim()).slice(0, 50).join('');
+    const normalizedDescription = Array.from(String(nextTag?.description || '').trim()).slice(0, 100).join('');
+    if (isPinLabel(label) || !normalizedName || isPinLabel(normalizedName)) {
       error = $_('dynamic.tagNameRequired', { values: { name: label.name } });
       return false;
     }
-    if (normalizedName === label.name) return true;
-    labelBusy = label.name;
-    error = '';
-    try {
-      const connectedRepo = repository?.full_name || repo;
-      const savedLabel = await renameLabel(token, connectedRepo, label.name, normalizedName);
-      repositoryLabels = repositoryLabels
-        .map((item) => item.name === label.name ? savedLabel : item)
-        .sort((a, b) => a.name.localeCompare(b.name, $activeLocale));
-      issues = issues.map((issue) => replaceLabelInIssue(issue, label.name, savedLabel.name));
-      pinnedIssues = pinnedIssues.map((issue) => replaceLabelInIssue(issue, label.name, savedLabel.name));
-      pendingNote = replaceLabelInIssue(pendingNote, label.name, savedLabel.name);
-      selectedIssue = replaceLabelInIssue(selectedIssue, label.name, savedLabel.name);
-      updateDraftLabels(connectedRepo, label.name, savedLabel.name);
-      labelMutation = { id: ++labelMutationSequence, from: label.name, to: savedLabel.name };
-      notice = $_('dynamic.tagRenamed', { values: { from: label.name, to: savedLabel.name } });
-      if (activeLabel.toLocaleLowerCase() === label.name.toLocaleLowerCase()) {
-        rewriteActiveTagRoute(savedLabel.name);
+    if (normalizedName === label.name && normalizedDescription === String(label.description || '').trim()) return true;
+    const labelKey = String(label.id || label.name).toLocaleLowerCase();
+    labelBusy = { ...labelBusy, [labelKey]: true };
+    const previous = labelRenameQueues.get(labelKey) || Promise.resolve();
+    const queued = previous.catch(() => false).then(async () => {
+      const currentLabel = repositoryLabels.find((item) => String(item.id || item.name).toLocaleLowerCase() === labelKey) || label;
+      error = '';
+      try {
+        const connectedRepo = repository?.full_name || repo;
+        const savedLabel = await renameLabel(token, connectedRepo, currentLabel.name, normalizedName, normalizedDescription);
+        repositoryLabels = repositoryLabels
+          .map((item) => item.name === currentLabel.name ? savedLabel : item)
+          .sort((a, b) => a.name.localeCompare(b.name, $activeLocale));
+        issues = issues.map((issue) => replaceLabelInIssue(issue, currentLabel.name, savedLabel.name));
+        pinnedIssues = pinnedIssues.map((issue) => replaceLabelInIssue(issue, currentLabel.name, savedLabel.name));
+        pendingNote = replaceLabelInIssue(pendingNote, currentLabel.name, savedLabel.name);
+        selectedIssue = replaceLabelInIssue(selectedIssue, currentLabel.name, savedLabel.name);
+        updateDraftLabels(connectedRepo, currentLabel.name, savedLabel.name);
+        labelMutation = { id: ++labelMutationSequence, from: currentLabel.name, to: savedLabel.name };
+        if (currentLabel.name !== savedLabel.name) {
+          notice = $_('dynamic.tagRenamed', { values: { from: currentLabel.name, to: savedLabel.name } });
+          if (activeLabel.toLocaleLowerCase() === currentLabel.name.toLocaleLowerCase()) rewriteActiveTagRoute(savedLabel.name);
+        }
+        return true;
+      } catch (reason) {
+        error = friendlyError(reason);
+        return false;
       }
-      return true;
-    } catch (reason) {
-      error = friendlyError(reason);
-      return false;
-    } finally {
-      labelBusy = '';
-    }
+    });
+    labelRenameQueues.set(labelKey, queued);
+    void queued.finally(() => {
+      if (labelRenameQueues.get(labelKey) !== queued) return;
+      labelRenameQueues.delete(labelKey);
+      const { [labelKey]: completed, ...remaining } = labelBusy;
+      labelBusy = remaining;
+    });
+    return queued;
   }
 
   function showToast(message) {
@@ -2595,28 +2615,31 @@
     ...(selectedLocalFont ? [selectedLocalFont] : [])
   ])].sort((left, right) => left.localeCompare(right));
 
-  async function createRepositoryLabel(name) {
-    if (labelBusy) return;
-    const normalizedName = Array.from(name.trim()).slice(0, 50).join('');
+  async function createRepositoryLabel(tag) {
+    if (labelBusy.creating) return;
+    const normalizedName = Array.from(String(tag?.name || '').trim()).slice(0, 50).join('');
+    const normalizedDescription = Array.from(String(tag?.description || '').trim()).slice(0, 100).join('');
     if (!normalizedName || isPinLabel(normalizedName)) return;
-    labelBusy = normalizedName;
+    labelBusy = { ...labelBusy, creating: true };
     error = '';
     try {
       const connectedRepo = repository?.full_name || repo;
-      const savedLabel = await createLabel(token, connectedRepo, normalizedName);
+      const savedLabel = await createLabel(token, connectedRepo, normalizedName, { description: normalizedDescription });
       mergeRepositoryLabels([savedLabel]);
       notice = $_('dynamic.tagAdded', { values: { name: savedLabel.name } });
     } catch (reason) {
       error = friendlyError(reason);
     } finally {
-      labelBusy = '';
+      const { creating, ...remaining } = labelBusy;
+      labelBusy = remaining;
     }
   }
 
   async function deleteRepositoryLabel(label) {
-    if (labelBusy || isPinLabel(label)) return;
+    const labelKey = String(label.id || label.name).toLocaleLowerCase();
+    if (labelBusy[labelKey] || isPinLabel(label)) return;
     if (!confirm($_('dynamic.deleteTagConfirm', { values: { name: label.name } }))) return;
-    labelBusy = label.name;
+    labelBusy = { ...labelBusy, [labelKey]: true };
     error = '';
     try {
       const connectedRepo = repository?.full_name || repo;
@@ -2633,7 +2656,8 @@
     } catch (reason) {
       error = friendlyError(reason);
     } finally {
-      labelBusy = '';
+      const { [labelKey]: completed, ...remaining } = labelBusy;
+      labelBusy = remaining;
     }
   }
 
@@ -2680,6 +2704,8 @@
       await setIssueState(requestedToken, requestedRepo, issue.number, nextState);
       invalidateCachedIssueList(requestedWorkspaceId);
       if (!isCurrentContext()) return;
+
+      issueListMutationVersion += 1;
 
       const removedPinnedIssue = pinnedIssues.find((item) => item.id === issue.id);
       const wasSelected = selectedIssue?.id === issue.id;
@@ -3629,7 +3655,7 @@
     refinementPrompt={voiceRefinementPrompt}
     transcriptionModel={voiceTranscriptionModel.trim() || DEFAULT_TRANSCRIPTION_MODEL}
     refinementModel={voiceRefinementModel.trim()}
-    availableTags={visibleRepositoryLabels.map((label) => label.name)}
+    availableTags={visibleRepositoryLabels.map(({ name, description }) => ({ name, description }))}
     onComplete={recordVoiceNote}
     onDirtyChange={(dirty) => voiceHasUnrecordedAudio = dirty}
     onClose={() => { allowVoiceRouteExit = true; router.pop(); }}

@@ -332,6 +332,22 @@ describe('GitHub API client', () => {
     expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({ new_name: '새 이름' });
   });
 
+  it('라벨 생성·수정 시 분류 설명을 함께 저장할 수 있다', async () => {
+    fetch
+      .mockResolvedValueOnce(jsonResponse({ id: 7, name: 'culture', description: '문화 기록' }))
+      .mockResolvedValueOnce(jsonResponse({ id: 7, name: 'culture', description: '책과 영화 기록' }));
+
+    await createLabel('token', 'owner/repo', 'culture', { description: '문화 기록' });
+    await renameLabel('token', 'owner/repo', 'culture', 'culture', '책과 영화 기록');
+
+    expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({
+      name: 'culture', color: expect.stringMatching(/^[0-9a-f]{6}$/), description: '문화 기록'
+    });
+    expect(JSON.parse(fetch.mock.calls[1][1].body)).toEqual({
+      new_name: 'culture', description: '책과 영화 기록'
+    });
+  });
+
   it('Link 헤더가 없어도 100개인 댓글 페이지를 끝까지 읽는다', async () => {
     const firstPage = Array.from({ length: 100 }, (_, index) => plainComment(index + 1, 31));
     const secondPage = [plainComment(101, 31)];

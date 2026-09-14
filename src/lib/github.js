@@ -216,11 +216,12 @@ export async function listLabels(token, repoInput) {
 
 export async function createLabel(token, repoInput, name, requestOptions = {}) {
   const repo = normalizeRepo(repoInput);
+  const { description = '', ...options } = requestOptions;
   try {
     return await request(`/repos/${repo}/labels`, token, {
-      ...requestOptions,
+      ...options,
       method: 'POST',
-      body: JSON.stringify({ name, color: tagColorForName(name) })
+      body: JSON.stringify({ name, color: tagColorForName(name), ...(description ? { description } : {}) })
     });
   } catch (reason) {
     // 라벨 목록이 오래된 동안 다른 창에서 같은 라벨을 만든 경우 기존 라벨을 사용한다.
@@ -231,11 +232,11 @@ export async function createLabel(token, repoInput, name, requestOptions = {}) {
   }
 }
 
-export async function renameLabel(token, repoInput, currentName, newName) {
+export async function renameLabel(token, repoInput, currentName, newName, description) {
   const repo = normalizeRepo(repoInput);
   return request(`/repos/${repo}/labels/${encodeURIComponent(currentName)}`, token, {
     method: 'PATCH',
-    body: JSON.stringify({ new_name: newName })
+    body: JSON.stringify({ new_name: newName, ...(description === undefined ? {} : { description }) })
   });
 }
 
