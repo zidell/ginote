@@ -23,7 +23,7 @@ describe('refineTranscript', () => {
     expect(request.messages[0].content).toContain('원문 데이터');
     expect(request.messages[0].content).toContain('반드시 JSON 객체만 출력');
     expect(request.messages[0].content).toContain('명시적 지정을 최우선');
-    expect(request.messages[0].content).toContain('가장 적합한 기존 태그');
+    expect(request.messages[0].content).toContain('하나 이상 선택할 수 있습니다');
     expect(request.messages[0].content).toContain('<refinement_rules>\n띄어쓰기와 문장부호만 정리하세요.\n</refinement_rules>');
     expect(request.messages[1]).toEqual({
       role: 'user',
@@ -63,6 +63,17 @@ describe('refineTranscript', () => {
     await expect(refineTranscript(
       'sk-test', '다음 달 제주도 항공권을 예약했다.', '', 'gpt-4o-mini', undefined, ['업무', '여행']
     )).resolves.toEqual({ title: '항공권 예약', body: '다음 달 제주도 항공권을 예약했다.', tags: ['여행'] });
+  });
+
+  it('본문에 명확히 관련된 기존 태그는 여러 개를 적용한다', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      choices: [{ message: { content: JSON.stringify({ title: '출장 일정', body: '제주 출장 항공권을 예약했다.', tags: ['업무', '여행'] }) } }]
+    }), { headers: { 'Content-Type': 'application/json' } }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(refineTranscript(
+      'sk-test', '제주 출장 항공권을 예약했다.', '', 'gpt-4o-mini', undefined, ['업무', '여행', '개인']
+    )).resolves.toEqual({ title: '출장 일정', body: '제주 출장 항공권을 예약했다.', tags: ['업무', '여행'] });
   });
 
   it('태그 설명을 태그명과 함께 정제 모델에 전달한다', async () => {
