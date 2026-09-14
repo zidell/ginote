@@ -8,9 +8,11 @@ import {
   deleteAttachment,
   deleteIssueComment,
   getIssue,
+  listIssueCommentAttachmentFiles,
   listIssueAttachmentFiles,
   listIssueComments,
   listExpiredClosedIssues,
+  listAllIssueAttachmentFiles,
   listIssues,
   listIssuesPage,
   purgeIssueAttachments,
@@ -486,6 +488,39 @@ describe('GitHub API client', () => {
       message: 'Add Ginote attachment: 계획 #1?.txt',
       content: 'QUI='
     });
+  });
+
+  it('댓글 첨부파일은 댓글 ID 전용 폴더에 저장하고 별도로 조회한다', async () => {
+    vi.spyOn(crypto, 'randomUUID').mockReturnValue('00000000-0000-4000-8000-000000000000');
+    fetch
+      .mockResolvedValueOnce(jsonResponse({ content: { sha: 'stored-sha', size: 2, html_url: 'https://github.com/file' } }))
+      .mockResolvedValueOnce(jsonResponse([
+        { type: 'file', name: 'comment.png', path: '.issue-note-assets/issues/31/comments/45/comment.png', sha: 'a', size: 10, html_url: 'file-url' }
+      ]));
+    const file = { name: 'comment.png', type: 'image/png', arrayBuffer: async () => new Uint8Array([65, 66]).buffer };
+
+    await uploadAttachment('token', 'owner/repo', 31, file, 45);
+    await expect(listIssueCommentAttachmentFiles('token', 'owner/repo', 31, 45)).resolves.toEqual([
+      { name: 'comment.png', path: '.issue-note-assets/issues/31/comments/45/comment.png', sha: 'a', size: 10, url: 'file-url' }
+    ]);
+    expect(decodeURIComponent(new URL(fetch.mock.calls[0][0]).pathname)).toContain('.issue-note-assets/issues/31/comments/45/');
+  });
+
+  it('전체 첨부 목록은 댓글 전용 하위 폴더까지 재귀적으로 읽는다', async () => {
+    fetch
+      .mockResolvedValueOnce(jsonResponse([
+        { type: 'dir', name: 'comments', path: '.issue-note-assets/issues/31/comments' }
+      ]))
+      .mockResolvedValueOnce(jsonResponse([
+        { type: 'dir', name: '45', path: '.issue-note-assets/issues/31/comments/45' }
+      ]))
+      .mockResolvedValueOnce(jsonResponse([
+        { type: 'file', name: 'comment.png', path: '.issue-note-assets/issues/31/comments/45/comment.png', sha: 'a', size: 10, html_url: 'file-url' }
+      ]));
+
+    await expect(listAllIssueAttachmentFiles('token', 'owner/repo', 31)).resolves.toEqual([
+      { name: 'comment.png', path: '.issue-note-assets/issues/31/comments/45/comment.png', sha: 'a', size: 10, url: 'file-url' }
+    ]);
   });
 
   it('첨부파일 삭제시 해당 SHA를 함께 전송한다', async () => {

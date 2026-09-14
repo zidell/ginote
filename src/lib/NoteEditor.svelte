@@ -4,6 +4,7 @@
   import { tagColorForName } from './colors.js';
   import { _, locale } from 'svelte-i18n';
   import BrailleSpinner from './BrailleSpinner.svelte';
+  import AttachmentGrid from './AttachmentGrid.svelte';
   import { externalLinkTarget } from './external-links.js';
   import { editorFontStack } from './editor-fonts.js';
   import { MAX_ISSUE_BODY_LENGTH, MAX_ISSUE_COMMENT_LENGTH } from './github-limits.js';
@@ -42,6 +43,8 @@
     deleteIssueComment,
     downloadAttachment,
     getIssue,
+    listAllIssueAttachmentFiles,
+    listIssueCommentAttachmentFiles,
     listIssueAttachmentFiles,
     listIssueComments,
     updateIssue,
@@ -138,6 +141,7 @@
   let deletingPath = '';
   let pendingAttachmentDeletes = new Map();
   let attachmentDeleteTimers = new Map();
+  let commentAttachmentDeleteTimers = new Map();
   let pendingWorkFlushPromise = null;
   let saveIdleResolvers = [];
   let commentSaveIdleResolvers = [];
@@ -146,6 +150,7 @@
   let voiceAudioPreviewUrls = {};
   let voiceAudioPreviewErrors = {};
   let viewerIndex = -1;
+  let viewerCommentId = null;
   let viewerElement;
   let editorScroll;
   let markdownViewer;
@@ -180,6 +185,8 @@
   let localTimer;
   let remoteTimer;
   let fileInput;
+  let commentFileInput;
+  let attachmentCommentId = '';
   let bodyInput;
   let bodyComposing = false;
   let bodyCompositionDirty = false;
@@ -213,7 +220,10 @@
   $: visibleAvailableLabels = filterVisibleLabels(availableLabels);
   $: desiredPinned = pinned || Boolean(issue?.labels?.some((label) => isPinLabel(label)));
   $: if (mounted && remoteIssue?.number) syncPinLabelToParent();
-  $: viewedAttachment = viewerIndex >= 0 ? attachments[viewerIndex] : null;
+  $: viewerAttachments = viewerCommentId === null
+    ? attachments
+    : comments.find((comment) => comment.id === viewerCommentId)?.attachments || [];
+  $: viewedAttachment = viewerIndex >= 0 ? viewerAttachments[viewerIndex] : null;
   $: displayBody = compressAttachmentLinks(body, repo);
   $: previewBody = expandAttachmentLinks(displayBody, repo);
   $: previewImageSources = Object.fromEntries(
@@ -224,6 +234,16 @@
   );
   $: replacementAnalysis = analyzeReplacement(displayBody, replaceSearch, replaceWith);
   $: hasAttachmentRefs = parseAttachmentPaths(body).length > 0;
+  // 30개 제한은 본문과 모든 댓글을 합친 노트 단위 제한이다. 소유 목록은
+  // 분리하되 제한만은 기존 동작을 유지한다.
+  $: issueAttachmentCount = new Set([
+    ...attachments.map((attachment) => attachment.path),
+    ...comments.flatMap((comment) => [
+      ...(comment.attachments || []).map((attachment) => attachment.path),
+      ...parseAttachmentPaths(comment.body),
+      ...(comment.preservedManagedAttachmentLinks || []).flatMap(parseAttachmentPaths)
+    ])
+  ]).size;
   $: editable = !archived && !readOnly;
   $: canPreview = lockState !== 'locked' && !lockPanelMode;
   $: compactStatus = !editable
@@ -319,7 +339,10 @@
       onVoiceCommentEditHandled(voiceCommentEdit.id);
     }
   }
-  $: if (mounted) comments.forEach((comment) => commentAudioSources(comment.body).forEach(loadCommentAudioPreview));
+  $: if (mounted) comments.forEach((comment) => {
+    commentAudioSources(comment.body).forEach(loadCommentAudioPreview);
+    (comment.attachments || []).filter(isImage).forEach(loadPreview);
+  });
 
   onMount(() => {
     const recovered = !editable || ignoreRecoveredDraft ? null : readDraft();
@@ -384,6 +407,8 @@
     clearTimeout(remoteTimer);
     clearTimeout(draftChangeTimer);
     clearAttachmentDeleteTimers();
+    for (const timer of commentAttachmentDeleteTimers.values()) clearTimeout(timer);
+    commentAttachmentDeleteTimers = new Map();
     clearTimeout(lockReuseTimer);
     window.removeEventListener('beforeunload', handlePageExit);
     window.removeEventListener('pagehide', handlePageExit);
@@ -972,13 +997,68 @@
   function bodyWithManagedAttachmentLinks(bodyText) {
     const cleanBody = stripManagedAttachmentBlocks(bodyText);
     const manuallyLinkedPaths = new Set(parseAttachmentPaths(cleanBody));
+    const commentLinkedPaths = new Set(comments.flatMap((comment) => [
+      ...parseAttachmentPaths(comment.body),
+      ...(comment.preservedManagedAttachmentLinks || []).flatMap(parseAttachmentPaths),
+      ...commentAudioSources(comment.body).map(attachmentPathFromRawUrl).filter(Boolean)
+    ]));
     const deletingPaths = new Set(pendingAttachmentDeletes.keys());
     const links = attachments.length
       ? attachments
-        .filter((attachment) => !manuallyLinkedPaths.has(attachment.path) && !deletingPaths.has(attachment.path))
+        .filter((attachment) => !manuallyLinkedPaths.has(attachment.path)
+          && !commentLinkedPaths.has(attachment.path)
+          && !deletingPaths.has(attachment.path))
         .map((attachment) => composeAttachmentLink(repo, attachment))
       : preservedManagedAttachmentLinks;
     return withManagedAttachmentBlock(cleanBody, links);
+  }
+
+  function commentBodyWithManagedAttachmentLinks(comment, bodyText = comment.body) {
+    const cleanBody = stripManagedAttachmentBlocks(bodyText);
+    const manuallyLinkedPaths = new Set(parseAttachmentPaths(cleanBody));
+    const deletingPaths = new Set((comment.pendingAttachmentDeletes || new Map()).keys());
+    const generatedLinks = (comment.attachments || [])
+      .filter((attachment) => !manuallyLinkedPaths.has(attachment.path) && !deletingPaths.has(attachment.path))
+      .map((attachment) => composeAttachmentLink(repo, attachment));
+    const seenPaths = new Set();
+    const links = [...(comment.preservedManagedAttachmentLinks || []), ...generatedLinks]
+      .filter((link) => {
+        const path = parseAttachmentPaths(link)[0];
+        if (!path || manuallyLinkedPaths.has(path) || seenPaths.has(path)) return false;
+        seenPaths.add(path);
+        return true;
+      });
+    return withManagedAttachmentBlock(cleanBody, links);
+  }
+
+  function normalizeCommentAttachmentBody(comment) {
+    return {
+      ...comment,
+      body: stripManagedAttachmentBlocks(comment.body),
+      preservedManagedAttachmentLinks: managedAttachmentLinks(comment.body),
+      attachments: comment.attachments || [],
+      uploadingAttachments: comment.uploadingAttachments || [],
+      pendingAttachmentDeletes: comment.pendingAttachmentDeletes || new Map(),
+      deletingPath: comment.deletingPath || ''
+    };
+  }
+
+  async function hydrateCommentAttachments(comment, issueNumber) {
+    if (comment.isNew) return { ...comment, attachments: comment.attachments || [], uploadingAttachments: [] };
+    try {
+      const files = await listIssueCommentAttachmentFiles(token, repo, issueNumber, comment.id);
+      return {
+        ...comment,
+        attachments: files.map((file) => {
+          const name = inferredAttachmentName(file);
+          return { ...file, name, type: inferredAttachmentType(name) };
+        }),
+        uploadingAttachments: []
+      };
+    } catch {
+      // 목록을 읽지 못해도 댓글 본문과 이미 저장된 관리 링크는 보존한다.
+      return { ...comment, attachments: comment.attachments || [], uploadingAttachments: [] };
+    }
   }
 
   async function noteForRemote(note) {
@@ -1095,7 +1175,8 @@
       lockPanelError = '';
       onSetLockSession(pin);
       lastRemoteSignature = noteSignature(currentNote());
-      comments = await decryptCommentBodies(comments, pin, contextIssueNumber);
+      comments = (await decryptCommentBodies(comments, pin, contextIssueNumber))
+        .map(normalizeCommentAttachmentBody);
     } catch (reason) {
       if (!automatic) throw reason;
       activeLockPin = '';
@@ -1461,7 +1542,7 @@
     }
     uploadBatchActive = true;
     const requestedFiles = Array.from(fileList || []);
-    const remainingSlots = Math.max(0, MAX_ATTACHMENTS - attachments.length);
+    const remainingSlots = Math.max(0, MAX_ATTACHMENTS - issueAttachmentCount);
     const files = requestedFiles.slice(0, remainingSlots);
     const limitReached = requestedFiles.length > remainingSlots;
     if (!files.length) {
@@ -1523,6 +1604,106 @@
       error = $_('dynamic.attachmentLimitAdded', { values: { count: MAX_ATTACHMENTS } });
     }
     if (fileInput) fileInput.value = '';
+    uploadBatchActive = false;
+  }
+
+  function openCommentAttachmentPicker(comment) {
+    if (!editable || lockState === 'locked' || previewMode || uploadBatchActive) return;
+    attachmentCommentId = comment.id;
+    commentFileInput?.click();
+  }
+
+  async function uploadFilesToComment(fileList) {
+    const comment = comments.find((item) => item.id === attachmentCommentId);
+    const resetPicker = () => {
+      if (commentFileInput) commentFileInput.value = '';
+      attachmentCommentId = '';
+    };
+    if (!comment || !editable || lockState === 'locked' || uploadBatchActive) {
+      resetPicker();
+      return;
+    }
+
+    uploadBatchActive = true;
+    const requestedFiles = Array.from(fileList || []);
+    const remainingSlots = Math.max(0, MAX_ATTACHMENTS - issueAttachmentCount);
+    const files = requestedFiles.slice(0, remainingSlots);
+    const limitReached = requestedFiles.length > remainingSlots;
+    if (!files.length) {
+      if (limitReached) error = $_('dynamic.attachmentLimit', { values: { count: MAX_ATTACHMENTS } });
+      resetPicker();
+      uploadBatchActive = false;
+      return;
+    }
+
+    const targetIssue = await resolveRemoteIssue();
+    if (!targetIssue?.number) {
+      error = $_("m.510647ea33");
+      resetPicker();
+      uploadBatchActive = false;
+      return;
+    }
+
+    // GitHub comment ID가 있어야 댓글 전용 첨부 경로를 만들 수 있다. 새 댓글은
+    // 본문을 먼저 저장한 뒤 첨부할 수 있다.
+    const targetComment = comment;
+    if (targetComment.isNew) {
+      error = '댓글을 먼저 저장한 뒤 파일을 첨부하세요.';
+      resetPicker();
+      uploadBatchActive = false;
+      return;
+    }
+
+    const uploadItems = [];
+    for (const file of files) {
+      if (file.size > 10 * 1024 * 1024) {
+        error = $_('dynamic.fileTooLarge', { values: { name: file.name } });
+        continue;
+      }
+      uploadItems.push({ id: crypto.randomUUID(), file, name: file.name });
+    }
+    if (!uploadItems.length) {
+      resetPicker();
+      uploadBatchActive = false;
+      return;
+    }
+
+    updateComment(targetComment.id, (current) => ({
+      ...current,
+      uploadingAttachments: [...(current.uploadingAttachments || []), ...uploadItems]
+    }));
+    let uploadedCount = 0;
+    for (const item of uploadItems) {
+      error = '';
+      try {
+        const attachment = await uploadAttachment(token, repo, targetIssue.number, item.file, targetComment.id);
+        updateComment(targetComment.id, (current) => ({
+          ...current,
+          attachments: [...(current.attachments || []), attachment]
+        }));
+        uploadedCount += 1;
+      } catch (reason) {
+        error = reason?.status === 403
+          ? $_("m.8c4abbd3b6")
+          : reason?.message || $_("m.d5ca50a853");
+      } finally {
+        updateComment(targetComment.id, (current) => ({
+          ...current,
+          uploadingAttachments: (current.uploadingAttachments || []).filter(({ id }) => id !== item.id)
+        }));
+      }
+    }
+
+    const currentComment = comments.find((item) => item.id === targetComment.id);
+    if (uploadedCount && currentComment && !destroyed) {
+      markCommentDirty(currentComment);
+      await saveComment(currentComment, true);
+    }
+    reconciledIssueNumber = null;
+    if (limitReached && !error) {
+      error = $_('dynamic.attachmentLimitAdded', { values: { count: MAX_ATTACHMENTS } });
+    }
+    resetPicker();
     uploadBatchActive = false;
   }
 
@@ -1716,7 +1897,8 @@
   }
 
   function isCurrentAttachment(path) {
-    return !destroyed && attachments.some((attachment) => attachment.path === path);
+    return !destroyed && (attachments.some((attachment) => attachment.path === path)
+      || comments.some((comment) => (comment.attachments || []).some((attachment) => attachment.path === path)));
   }
 
   function retainPreviewUrl(path, url) {
@@ -1789,6 +1971,72 @@
     pendingAttachmentDeletes = nextPending;
     error = '';
     persistPendingWork();
+  }
+
+  function commentAttachmentTimerKey(commentId, path) {
+    return `${commentId}:${path}`;
+  }
+
+  function removeCommentAttachment(comment, attachment) {
+    if (!editable || comment.deletingPath || comment.pendingAttachmentDeletes?.has(attachment.path)) return;
+    const expiresAt = Date.now() + ATTACHMENT_DELETE_DELAY_MS;
+    updateComment(comment.id, (current) => ({
+      ...current,
+      pendingAttachmentDeletes: new Map(current.pendingAttachmentDeletes || []).set(attachment.path, {
+        attachment: { ...attachment }, expiresAt
+      })
+    }));
+    const key = commentAttachmentTimerKey(comment.id, attachment.path);
+    const timer = setTimeout(() => {
+      commentAttachmentDeleteTimers.delete(key);
+      void commitCommentAttachmentDeletion(comment.id, attachment.path);
+    }, ATTACHMENT_DELETE_DELAY_MS);
+    commentAttachmentDeleteTimers = new Map(commentAttachmentDeleteTimers).set(key, timer);
+  }
+
+  function cancelCommentAttachmentDeletion(comment, attachment) {
+    const key = commentAttachmentTimerKey(comment.id, attachment.path);
+    const timer = commentAttachmentDeleteTimers.get(key);
+    if (timer) clearTimeout(timer);
+    const nextTimers = new Map(commentAttachmentDeleteTimers);
+    nextTimers.delete(key);
+    commentAttachmentDeleteTimers = nextTimers;
+    updateComment(comment.id, (current) => {
+      const pendingAttachmentDeletes = new Map(current.pendingAttachmentDeletes || []);
+      pendingAttachmentDeletes.delete(attachment.path);
+      return { ...current, pendingAttachmentDeletes };
+    });
+  }
+
+  async function commitCommentAttachmentDeletion(commentId, path) {
+    let comment = comments.find((item) => item.id === commentId);
+    const entry = comment?.pendingAttachmentDeletes?.get(path);
+    if (!comment || !entry) return;
+    updateComment(commentId, (current) => ({ ...current, deletingPath: path }));
+    comment = comments.find((item) => item.id === commentId);
+    markCommentDirty(comment);
+    await saveComment(comment, true);
+    if (commentSaveFailedIds.has(commentId)) {
+      updateComment(commentId, (current) => ({ ...current, deletingPath: '' }));
+      return;
+    }
+    try {
+      await deleteAttachment(token, repo, entry.attachment);
+      updateComment(commentId, (current) => {
+        const pendingAttachmentDeletes = new Map(current.pendingAttachmentDeletes || []);
+        pendingAttachmentDeletes.delete(path);
+        return {
+          ...current,
+          attachments: (current.attachments || []).filter((attachment) => attachment.path !== path),
+          pendingAttachmentDeletes,
+          deletingPath: ''
+        };
+      });
+      if (viewerCommentId === commentId && viewedAttachment?.path === path) closeViewer();
+    } catch (reason) {
+      error = reason?.message || $_("m.f8a2b33cc2");
+      updateComment(commentId, (current) => ({ ...current, deletingPath: '' }));
+    }
   }
 
   function inferredAttachmentName(file) {
@@ -1865,7 +2113,10 @@
       const decryptedComments = lockState === 'unlocked'
         ? await decryptCommentBodies(nextComments, activeLockPin, issue?.number || remoteIssue?.number)
         : nextComments;
-      comments = restorePendingComments(decryptedComments);
+      const normalizedComments = decryptedComments.map(normalizeCommentAttachmentBody);
+      comments = restorePendingComments(await Promise.all(
+        normalizedComments.map((comment) => hydrateCommentAttachments(comment, issueNumber))
+      ));
       commentsLoaded = true;
       if (dirtyCommentIds.size) void flushPendingWork({ reason: 'comment-recovery', allowPaused: true });
     } catch (reason) {
@@ -1883,6 +2134,14 @@
     persistPendingWork();
   }
 
+  function updateComment(id, updater) {
+    const index = comments.findIndex((comment) => comment.id === id);
+    if (index < 0) return null;
+    const nextComment = updater(comments[index]);
+    comments = comments.map((comment, itemIndex) => itemIndex === index ? nextComment : comment);
+    return nextComment;
+  }
+
   function discardNewComment(comment) {
     comments = comments.filter((item) => item.id !== comment.id);
     dirtyCommentIds.delete(comment.id);
@@ -1891,6 +2150,7 @@
   }
 
   async function saveComment(comment, force = false) {
+    comment = comments.find((item) => item.id === comment.id) || comment;
     if (!editable || lockState === 'locked') return;
     if (savingCommentIds.has(comment.id)) return;
     const trimmedBody = comment.body.trim();
@@ -1904,18 +2164,25 @@
     savingCommentIds = savingCommentIds;
     let savedSuccessfully = false;
     try {
+      const managedBody = commentBodyWithManagedAttachmentLinks(comment, trimmedBody);
       const remoteBody = lockState === 'unlocked'
-        ? await encryptLockedBody(trimmedBody, activeLockPin, issue?.number || remoteIssue?.number)
-        : trimmedBody;
+        ? await encryptLockedBody(managedBody, activeLockPin, issue?.number || remoteIssue?.number)
+        : managedBody;
       const saved = comment.isNew
         ? await createIssueComment(token, repo, remoteIssue.number, remoteBody)
         : await updateIssueComment(token, repo, comment.id, remoteBody);
       savedSuccessfully = true;
+      comment.preservedManagedAttachmentLinks = managedAttachmentLinks(managedBody);
       const hasNewerChanges = comment.body.trim() !== trimmedBody;
       if (comment.isNew) {
         const index = comments.findIndex((item) => item.id === comment.id);
         if (index >= 0) {
-          comments[index] = { ...saved, body: hasNewerChanges ? comment.body : trimmedBody };
+          comments[index] = {
+            ...saved,
+            body: hasNewerChanges ? comment.body : trimmedBody,
+            attachments: comment.attachments || [],
+            preservedManagedAttachmentLinks: comment.preservedManagedAttachmentLinks || []
+          };
           comments = comments;
         }
       } else {
@@ -1950,7 +2217,12 @@
       avatarUrl: '',
       createdAt: now,
       updatedAt: now,
-      isNew: true
+      isNew: true,
+      attachments: [],
+      preservedManagedAttachmentLinks: [],
+      uploadingAttachments: [],
+      pendingAttachmentDeletes: new Map(),
+      deletingPath: ''
     };
     comments = [...comments, draft];
     await tick();
@@ -2003,7 +2275,8 @@
 
   function updateCommentBody(comment, value) {
     const audioMarkup = voiceAudioMarkup(comment.body);
-    comment.body = `${value}${audioMarkup ? `${value.trimEnd() ? '\n\n' : ''}${audioMarkup}` : ''}`;
+    const rawValue = expandAttachmentLinks(value, repo);
+    comment.body = `${rawValue}${audioMarkup ? `${rawValue.trimEnd() ? '\n\n' : ''}${audioMarkup}` : ''}`;
     markCommentDirty(comment);
   }
 
@@ -2031,8 +2304,45 @@
     deletingCommentIds.add(comment.id);
     deletingCommentIds = deletingCommentIds;
     try {
+      const linkedPaths = new Set([
+        ...parseAttachmentPaths(comment.body),
+        ...(comment.preservedManagedAttachmentLinks || []).flatMap(parseAttachmentPaths),
+        ...commentAudioSources(comment.body).map(attachmentPathFromRawUrl).filter(Boolean),
+        ...(comment.attachments || []).map((attachment) => attachment.path)
+      ]);
+      const referencedElsewhere = new Set([
+        ...parseAttachmentPaths(body),
+        ...commentAudioSources(body).map(attachmentPathFromRawUrl).filter(Boolean),
+        ...comments
+          .filter((item) => item.id !== comment.id)
+          .flatMap((item) => [
+            ...parseAttachmentPaths(item.body),
+            ...(item.preservedManagedAttachmentLinks || []).flatMap(parseAttachmentPaths),
+            ...commentAudioSources(item.body).map(attachmentPathFromRawUrl).filter(Boolean)
+          ])
+      ]);
+      const allFiles = await listAllIssueAttachmentFiles(token, repo, remoteIssue.number);
+      const commentDirectory = `.issue-note-assets/issues/${remoteIssue.number}/comments/${comment.id}/`;
+      const ownedFiles = allFiles.filter((file) => (
+        file.path.startsWith(commentDirectory) || linkedPaths.has(file.path)
+      ) && !referencedElsewhere.has(file.path));
+
       await deleteIssueComment(token, repo, comment.id);
       comments = comments.filter((item) => item.id !== comment.id);
+      for (const [key, timer] of commentAttachmentDeleteTimers) {
+        if (!key.startsWith(`${comment.id}:`)) continue;
+        clearTimeout(timer);
+        commentAttachmentDeleteTimers.delete(key);
+      }
+      const cleanupFailures = [];
+      for (const attachment of ownedFiles) {
+        try {
+          await deleteAttachment(token, repo, attachment);
+        } catch (reason) {
+          if (reason?.status !== 404) cleanupFailures.push(reason);
+        }
+      }
+      if (cleanupFailures.length) error = cleanupFailures[0]?.message || $_("m.f8a2b33cc2");
     } catch (reason) {
       error = reason?.message || $_("m.ab5becbd3a");
     } finally {
@@ -2083,20 +2393,25 @@
     }
   }
 
-  function openViewer(index) {
+  function openViewer(index, commentId = null) {
+    const ownerAttachments = commentId === null
+      ? attachments
+      : comments.find((comment) => comment.id === commentId)?.attachments || [];
+    viewerCommentId = commentId;
     viewerIndex = index;
-    loadPreview(attachments[index]);
+    loadPreview(ownerAttachments[index]);
     requestAnimationFrame(() => viewerElement?.focus());
   }
 
   function closeViewer() {
     viewerIndex = -1;
+    viewerCommentId = null;
   }
 
   function moveViewer(direction) {
-    if (!attachments.length) return;
-    viewerIndex = (viewerIndex + direction + attachments.length) % attachments.length;
-    loadPreview(attachments[viewerIndex]);
+    if (!viewerAttachments.length) return;
+    viewerIndex = (viewerIndex + direction + viewerAttachments.length) % viewerAttachments.length;
+    loadPreview(viewerAttachments[viewerIndex]);
   }
 
   function handleViewerKeydown(event) {
@@ -2601,8 +2916,17 @@
         id={`inline-attachment-${editorId}`}
         aria-keyshortcuts="A"
         multiple
-        disabled={uploadBatchActive || attachments.length >= MAX_ATTACHMENTS}
+        disabled={uploadBatchActive || issueAttachmentCount >= MAX_ATTACHMENTS}
         on:change={(event) => uploadFiles(event.currentTarget.files)}
+      />
+      <input
+        bind:this={commentFileInput}
+        class="visually-hidden"
+        type="file"
+        id={`comment-attachment-${editorId}`}
+        multiple
+        disabled={uploadBatchActive || issueAttachmentCount >= MAX_ATTACHMENTS}
+        on:change={(event) => uploadFilesToComment(event.currentTarget.files)}
       />
     {/if}
     {#if previewMode}
@@ -2633,7 +2957,7 @@
         />
         <label
           class="btn btn-sm btn-outline-secondary detail-toolbar-attachment"
-          class:disabled={uploadBatchActive || attachments.length >= MAX_ATTACHMENTS}
+          class:disabled={uploadBatchActive || issueAttachmentCount >= MAX_ATTACHMENTS}
           for={`inline-attachment-${editorId}`}
         >
           <i class="bi bi-paperclip" aria-hidden="true"></i>
@@ -2653,7 +2977,7 @@
         />
         <label
           class="btn btn-outline-secondary detail-toolbar-icon-action"
-          class:disabled={uploadBatchActive || attachments.length >= MAX_ATTACHMENTS}
+          class:disabled={uploadBatchActive || issueAttachmentCount >= MAX_ATTACHMENTS}
           for={`inline-attachment-${editorId}`}
           aria-label={`${uploading ? $_('dynamic.uploading', { values: { count: uploading } }) : $_("m.1afff0157c")} A`}
           title={`${uploading ? $_('dynamic.uploading', { values: { count: uploading } }) : $_("m.1afff0157c")} A`}
@@ -2863,78 +3187,24 @@
             <span class="attachment-spinner"><BrailleSpinner active /></span>
           </div>
         {:else}
-        <div class="attachment-list">
-          {#each attachments as attachment, index (attachment.path)}
-            <div
-              class="attachment-item"
-              class:is-loading={deletingPath === attachment.path}
-              class:is-pending-delete={pendingAttachmentDeletes.has(attachment.path)}
-            >
-              <button
-                type="button"
-                class="attachment-open"
-                disabled={Boolean(deletingPath) || pendingAttachmentDeletes.has(attachment.path)}
-                on:click={() => openViewer(index)}
-              >
-                {#if deletingPath === attachment.path}
-                  <span class="attachment-loading"><span class="attachment-spinner"><BrailleSpinner active /></span></span>
-                {:else if isImage(attachment)}
-                  {#if previewUrls[attachment.path]}
-                    <img src={previewUrls[attachment.path]} alt="" />
-                  {:else}
-                    <span class="attachment-loading">…</span>
-                  {/if}
-                {:else}
-                  <span class="attachment-file-icon">FILE</span>
-                {/if}
-                <span class="attachment-name" title={attachment.name}>{attachment.name}</span>
-              </button>
-              {#if pendingAttachmentDeletes.has(attachment.path)}
-                <div class="attachment-pending-delete" role="status">
-                  <span class="attachment-spinner"><BrailleSpinner active /></span>
-                  <span>{$_('dynamic.attachmentDeleting')}</span>
-                  {#if deletingPath !== attachment.path && editable && !previewMode}
-                    <button
-                      type="button"
-                      class="attachment-cancel-delete"
-                      on:click|stopPropagation={() => cancelAttachmentDeletion(attachment)}
-                    >{$_('setup.cancel')}</button>
-                  {/if}
-                </div>
-              {:else if editable && !previewMode}
-                <button
-                  type="button"
-                  class="attachment-delete"
-                  disabled={Boolean(deletingPath)}
-                  on:click={() => removeAttachment(attachment)}
-                  aria-label={$_('dynamic.deleteAttachment', { values: { name: attachment.name } })}
-                >
-                  <i class="bi bi-x-lg" aria-hidden="true"></i>
-                </button>
-              {/if}
-            </div>
-          {/each}
-          {#each uploadingAttachments as attachment (attachment.id)}
-            <div
-              class="attachment-item attachment-uploading"
-              role="status"
-              aria-label={$_('dynamic.uploading', { values: { count: 1 } })}
-            >
-              <span class="attachment-loading"><span class="attachment-spinner"><BrailleSpinner active /></span></span>
-              <span class="attachment-name" title={attachment.name}>{attachment.name}</span>
-            </div>
-          {/each}
-          {#if editable && !previewMode && attachments.length < MAX_ATTACHMENTS}
-            <label
-              class="attachment-add-tile"
-              class:disabled={uploadBatchActive}
-              for={`inline-attachment-${editorId}`}
-            >
-              <strong><i class="bi bi-plus-lg" aria-hidden="true"></i></strong>
-              <span>{uploading ? $_('dynamic.uploading', { values: { count: uploading } }) : $_("m.61cc55aa04")}</span>
-            </label>
-          {/if}
-        </div>
+        <AttachmentGrid
+          {attachments}
+          {uploadingAttachments}
+          {previewUrls}
+          {isImage}
+          onOpen={(attachment, index) => openViewer(index)}
+          onRemove={removeAttachment}
+          deletingPath={deletingPath}
+          pendingDeletes={pendingAttachmentDeletes}
+          onCancelDelete={cancelAttachmentDeletion}
+          {editable}
+          {previewMode}
+          deleteLabel={(attachment) => $_('dynamic.deleteAttachment', { values: { name: attachment.name } })}
+          showAdd={editable && !previewMode && attachments.length < MAX_ATTACHMENTS}
+          addLabel={uploading ? $_('dynamic.uploading', { values: { count: uploading } }) : $_("m.61cc55aa04")}
+          addDisabled={uploadBatchActive}
+          onAdd={() => fileInput?.click()}
+        />
         {/if}
       </section>
     {/if}
@@ -3058,6 +3328,14 @@
                         <li>
                           <button
                             type="button"
+                            class="dropdown-item note-comment-attachment"
+                            disabled={comment.isNew || uploadBatchActive || issueAttachmentCount >= MAX_ATTACHMENTS}
+                            on:click={() => openCommentAttachmentPicker(comment)}
+                          ><i class="bi bi-paperclip" aria-hidden="true"></i> {$_("m.1afff0157c")}</button>
+                        </li>
+                        <li>
+                          <button
+                            type="button"
                             class="dropdown-item"
                             disabled={deletingCommentIds.has(comment.id)}
                             on:click={() => removeComment(comment)}
@@ -3068,6 +3346,26 @@
                   {/if}
                 </div>
               </div>
+              {#if (comment.attachments || []).length || (comment.uploadingAttachments || []).length}
+                <AttachmentGrid
+                  attachments={comment.attachments || []}
+                  uploadingAttachments={comment.uploadingAttachments || []}
+                  {previewUrls}
+                  {isImage}
+                  onOpen={(attachment, index) => openViewer(index, comment.id)}
+                  onRemove={(attachment) => removeCommentAttachment(comment, attachment)}
+                  deletingPath={comment.deletingPath || ''}
+                  pendingDeletes={comment.pendingAttachmentDeletes || new Map()}
+                  onCancelDelete={(attachment) => cancelCommentAttachmentDeletion(comment, attachment)}
+                  {editable}
+                  {previewMode}
+                  deleteLabel={(attachment) => $_('dynamic.deleteAttachment', { values: { name: attachment.name } })}
+                  showAdd={editable && !previewMode && !comment.isNew && issueAttachmentCount < MAX_ATTACHMENTS}
+                  addLabel={$_("m.61cc55aa04")}
+                  addDisabled={uploadBatchActive}
+                  onAdd={() => { attachmentCommentId = comment.id; commentFileInput?.click(); }}
+                />
+              {/if}
               {#if previewMode}
                 <MarkdownViewer
                   className="note-comment-body-preview"
@@ -3077,7 +3375,7 @@
                 <textarea
                   id={`comment-body-${comment.id}`}
                   class="note-comment-body"
-                  value={commentTextForEditing(comment.body)}
+                  value={compressAttachmentLinks(commentTextForEditing(comment.body), repo)}
                   on:input={(event) => updateCommentBody(comment, event.currentTarget.value)}
                   on:keydown={handleEditorKeydown}
                   on:blur={() => saveComment(comment)}
@@ -3183,25 +3481,36 @@
       on:keyup|stopPropagation
     >
       <div class="attachment-viewer-toolbar">
-        <span>{viewerIndex + 1} / {attachments.length}</span>
+        <span>{viewerIndex + 1} / {viewerAttachments.length}</span>
         <span class="viewer-file-name">{viewedAttachment.name}</span>
         {#if previewUrls[viewedAttachment.path]}
           <a href={previewUrls[viewedAttachment.path]} download={viewedAttachment.name}>
             <i class="bi bi-download" aria-hidden="true"></i> {$_("m.a479c9c34e")}
           </a>
         {/if}
-        {#if editable}
+        {#if editable && viewerCommentId === null}
           <button type="button" on:click={() => copyAttachmentMarkdown(viewedAttachment)}>
             <i class="bi bi-copy" aria-hidden="true"></i> Markdown 복사
           </button>
         {/if}
-        {#if editable && !parseAttachmentPaths(body).includes(viewedAttachment.path)}
+        {#if editable && viewerCommentId === null && !parseAttachmentPaths(body).includes(viewedAttachment.path)}
           <button type="button" on:click={() => insertAttachmentAtEnd(viewedAttachment)}>
             <i class="bi bi-file-earmark-plus" aria-hidden="true"></i> 본문삽입
           </button>
         {/if}
-        {#if editable}
+        {#if editable && viewerCommentId === null}
           <button type="button" on:click={() => removeAttachment(viewedAttachment)}>
+            <i class="bi bi-trash3" aria-hidden="true"></i> {$_("m.f6fdbe48dc")}
+          </button>
+        {:else if editable && viewerCommentId !== null}
+          <button
+            type="button"
+            disabled={Boolean(comments.find((comment) => comment.id === viewerCommentId)?.deletingPath)}
+            on:click={() => {
+              const comment = comments.find((item) => item.id === viewerCommentId);
+              if (comment) removeCommentAttachment(comment, viewedAttachment);
+            }}
+          >
             <i class="bi bi-trash3" aria-hidden="true"></i> {$_("m.f6fdbe48dc")}
           </button>
         {/if}
@@ -3239,7 +3548,7 @@
             {/if}
           </div>
         {/if}
-        {#if attachments.length > 1}
+        {#if viewerAttachments.length > 1}
           <button type="button" class="viewer-nav viewer-prev" on:click={() => moveViewer(-1)} aria-label={$_("m.ad0c7c8ea7")}>
             <i class="bi bi-chevron-left" aria-hidden="true"></i>
           </button>
