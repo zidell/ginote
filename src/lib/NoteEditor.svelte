@@ -3587,22 +3587,22 @@
         <span class="viewer-file-name">{viewedAttachment.name}</span>
         {#if previewUrls[viewedAttachment.path]}
           <a href={previewUrls[viewedAttachment.path]} download={viewedAttachment.name}>
-            <i class="bi bi-download" aria-hidden="true"></i> {$_("m.a479c9c34e")}
+            <i class="bi bi-download" aria-hidden="true"></i><span class="viewer-action-label"> {$_("m.a479c9c34e")}</span>
           </a>
         {/if}
         {#if editable && viewerCommentId === null}
           <button type="button" on:click={() => copyAttachmentMarkdown(viewedAttachment)}>
-            <i class="bi bi-copy" aria-hidden="true"></i> Markdown 복사
+            <i class="bi bi-copy" aria-hidden="true"></i><span class="viewer-action-label"> Markdown 복사</span>
           </button>
         {/if}
         {#if editable && viewerCommentId === null && !parseAttachmentPaths(body).includes(viewedAttachment.path)}
           <button type="button" on:click={() => insertAttachmentAtEnd(viewedAttachment)}>
-            <i class="bi bi-file-earmark-plus" aria-hidden="true"></i> 본문삽입
+            <i class="bi bi-file-earmark-plus" aria-hidden="true"></i><span class="viewer-action-label"> 본문삽입</span>
           </button>
         {/if}
         {#if editable && viewerCommentId === null}
           <button type="button" on:click={() => removeAttachment(viewedAttachment)}>
-            <i class="bi bi-trash3" aria-hidden="true"></i> {$_("m.f6fdbe48dc")}
+            <i class="bi bi-trash3" aria-hidden="true"></i><span class="viewer-action-label"> {$_("m.f6fdbe48dc")}</span>
           </button>
         {:else if editable && viewerCommentId !== null}
           <button
@@ -3613,11 +3613,11 @@
               if (comment) removeCommentAttachment(comment, viewedAttachment);
             }}
           >
-            <i class="bi bi-trash3" aria-hidden="true"></i> {$_("m.f6fdbe48dc")}
+            <i class="bi bi-trash3" aria-hidden="true"></i><span class="viewer-action-label"> {$_("m.f6fdbe48dc")}</span>
           </button>
         {/if}
         <button type="button" on:click={closeViewer} aria-label={$_("m.acf7548d73")}>
-          <i class="bi bi-x-lg" aria-hidden="true"></i> {$_("m.bbfa773e5a")}
+          <i class="bi bi-x-lg" aria-hidden="true"></i><span class="viewer-action-label"> {$_("m.bbfa773e5a")}</span>
         </button>
       </div>
       <div class="attachment-viewer-stage">
