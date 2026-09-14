@@ -161,6 +161,10 @@
   let issuePage = 1;
   let hasMoreIssues = false;
   let totalIssues = 0;
+  // Hybrid 검색은 GitHub가 최대 100개만 한 번에 반환한다. 받은 결과는 여기서
+  // 보관하고, 목록에는 사용자가 정한 단위만 조금씩 넣는다.
+  let searchResultItems = [];
+  let searchResultLimitReached = false;
   // 목록 변경 중에 시작된 요청이 나중에 도착해, 이미 반영한 삭제/복원을
   // 오래된 서버 응답으로 되돌리지 않도록 하는 세대 번호다.
   let issueListMutationVersion = 0;
@@ -1138,11 +1142,26 @@
         requestedToken,
         requestedRepo
       );
-      const resultItems = result.items.map((issue) => applyPendingPinToIssue(issue, pendingPin));
-      if (background && issuePage > 1) {
+      const allSearchItems = requestedTerm.trim()
+        ? result.items.map((issue) => applyPendingPinToIssue(issue, pendingPin))
+        : [];
+      const resultItems = requestedTerm.trim()
+        ? allSearchItems.slice(0, issuePageSize)
+        : result.items.map((issue) => applyPendingPinToIssue(issue, pendingPin));
+      if (requestedTerm.trim()) {
+        searchResultItems = allSearchItems;
+        searchResultLimitReached = result.totalCount > allSearchItems.length;
+        issues = resultItems;
+        issuePage = 1;
+        hasMoreIssues = allSearchItems.length > issuePageSize;
+      } else if (background && issuePage > 1) {
+        searchResultItems = [];
+        searchResultLimitReached = false;
         const refreshedIds = new Set(resultItems.map((issue) => issue.id));
         issues = [...resultItems, ...issues.filter((issue) => !refreshedIds.has(issue.id))];
       } else {
+        searchResultItems = [];
+        searchResultLimitReached = false;
         issues = resultItems;
         issuePage = 1;
         hasMoreIssues = result.hasMore;
@@ -1153,7 +1172,9 @@
       );
       reconcileIssueSelection(issues);
       if (result.totalCount !== null) {
-        totalIssues = result.totalCount;
+        totalIssues = requestedTerm.trim()
+          ? Math.min(result.totalCount, allSearchItems.length)
+          : result.totalCount;
         if (isUnfilteredNoteView(requestedState, requestedQuery, requestedLabel)) {
           setWorkspaceNoteCount(requestedWorkspaceId, result.totalCount);
         }
@@ -1180,6 +1201,15 @@
     loadingMore = true;
     error = '';
     try {
+      if (requestedTerm.trim() && searchResultItems.length) {
+        const nextItems = searchResultItems.slice(issues.length, issues.length + issuePageSize);
+        issues = [...issues, ...nextItems];
+        issuePage = nextPage;
+        hasMoreIssues = issues.length < searchResultItems.length;
+        reconcileIssueSelection(issues);
+        applyRoute();
+        return;
+      }
       const result = requestedTerm.trim()
         ? await searchIssuesPage(requestedToken, requestedRepo, requestedState, requestedTerm, requestedLabel, nextPage, Date.now(), issuePageSize)
         : await listIssuesPage(requestedToken, requestedRepo, requestedState, requestedLabel, nextPage, Date.now(), issuePageSize);
@@ -3588,6 +3618,9 @@
                     {$_("m.dfe60ca92e")}
                   </button>
                 </div>
+              {/if}
+              {#if searchResultLimitReached && !hasMoreIssues}
+                <div class="list-status">{$_('dynamic.searchResultLimit')}</div>
               {/if}
             {/if}
             </div>

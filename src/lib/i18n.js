@@ -28,6 +28,7 @@ const dynamic = {
 };
 
 Object.assign(dynamic.en, {
+  searchResultLimit: 'Search shows up to 100 results.',
   tagDefinition: 'Tag name: classification description',
   merge: 'Merge',
   merging: 'Merging notes…',
@@ -42,6 +43,7 @@ Object.assign(dynamic.en, {
 });
 
 Object.assign(dynamic.ko, {
+  searchResultLimit: '검색 결과는 최대 100개까지 표시합니다.',
   tagDefinition: '태그명: 분류 설명',
   merge: '병합',
   merging: '노트를 병합하는 중…',

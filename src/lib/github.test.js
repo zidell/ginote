@@ -152,7 +152,7 @@ describe('GitHub API client', () => {
     expect(result.items).toHaveLength(1);
   });
 
-  it('설정한 목록 단위를 per_page와 다음 페이지 계산에 사용한다', async () => {
+  it('hybrid 검색은 최대 100개를 한 번에 요청한다', async () => {
     fetch.mockResolvedValueOnce(jsonResponse({
       total_count: 41,
       items: Array.from({ length: 20 }, (_, index) => ({ id: index + 21 }))
@@ -163,11 +163,12 @@ describe('GitHub API client', () => {
     );
     const url = new URL(fetch.mock.calls[0][0]);
 
-    expect(url.searchParams.get('per_page')).toBe('20');
-    expect(result.hasMore).toBe(true);
+    expect(url.searchParams.get('per_page')).toBe('100');
+    expect(url.searchParams.get('page')).toBe('1');
+    expect(result.hasMore).toBe(false);
   });
 
-  it('제목과 본문을 대상으로 저장소와 태그를 포함해 검색한다', async () => {
+  it('GitHub hybrid 이슈 검색에 저장소와 태그를 포함한다', async () => {
     fetch.mockResolvedValueOnce(jsonResponse({
       items: [{ id: 1, title: '결과' }, { id: 2, pull_request: {} }]
     }));
@@ -178,10 +179,11 @@ describe('GitHub API client', () => {
     expect(result).toEqual([{ id: 1, title: '결과' }]);
     expect(url.pathname).toBe('/search/issues');
     expect(url.searchParams.get('q')).toBe(
-      '검색어 repo:owner/repo is:issue is:open in:title,body label:"할 일"'
+      '검색어 repo:owner/repo is:issue is:open label:"할 일"'
     );
-    expect(url.searchParams.get('sort')).toBe('updated');
-    expect(url.searchParams.get('per_page')).toBe('30');
+    expect(url.searchParams.get('search_type')).toBe('hybrid');
+    expect(url.searchParams.has('sort')).toBe(false);
+    expect(url.searchParams.get('per_page')).toBe('100');
     expect(url.searchParams.get('page')).toBe('1');
   });
 
@@ -194,7 +196,7 @@ describe('GitHub API client', () => {
     const result = await searchIssuesPage('token', 'owner/repo', 'open', '검색어', '', 2);
 
     expect(result.items).toHaveLength(30);
-    expect(result.hasMore).toBe(true);
+    expect(result.hasMore).toBe(false);
     expect(result.totalCount).toBe(61);
   });
 
