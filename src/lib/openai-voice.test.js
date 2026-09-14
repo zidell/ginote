@@ -24,6 +24,8 @@ describe('refineTranscript', () => {
     expect(request.messages[0].content).toContain('반드시 JSON 객체만 출력');
     expect(request.messages[0].content).toContain('명시적 지정을 최우선');
     expect(request.messages[0].content).toContain('하나 이상 선택할 수 있습니다');
+    expect(request.messages[0].content).toContain('"tags":["기존 태그명 1", "기존 태그명 2"]');
+    expect(request.messages[0].content).toContain('하나 또는 여러 개가 적합하면 모두 넣으십시오');
     expect(request.messages[0].content).toContain('<refinement_rules>\n띄어쓰기와 문장부호만 정리하세요.\n</refinement_rules>');
     expect(request.messages[1]).toEqual({
       role: 'user',
