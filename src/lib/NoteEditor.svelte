@@ -3003,7 +3003,7 @@
   on:dragleave={handleDragLeave}
   on:drop={handleDrop}
 >
-  <div class="detail-toolbar">
+  <div class="detail-toolbar" class:is-lock-protected={lockState !== 'plain'}>
     <div class="detail-toolbar-start">
       <button
         class="btn btn-outline-secondary mobile-back"
@@ -3537,44 +3537,6 @@
         {/if}
       </section>
     {/if}
-    {#if lockState === 'locked' || lockPanelMode}
-      <div class="note-lock-overlay">
-        <form class="note-lock-panel" novalidate on:submit|preventDefault={submitLockPanel}>
-          <i class={`bi ${lockPanelMode === 'lock' ? 'bi-lock' : 'bi-shield-lock'}`} aria-hidden="true"></i>
-          <strong>{lockPanelMode === 'lock' ? '노트 잠금' : '잠긴 노트'}</strong>
-          {#if lockPanelMode === 'reuse'}
-            <BrailleSpinner active />
-            <p>암호 재사용중...</p>
-          {:else}
-            <p>{lockPanelMode === 'lock'
-              ? `모든 잠금 노트에 같은 6자리 숫자를 사용하세요. 숫자는 저장되지 않고 ${lockSessionLabel} 동안만 재사용되며, 잊으면 내용을 복구할 수 없습니다.`
-              : '내용을 보려면 계정에서 사용한 6자리 숫자를 입력하세요.'}</p>
-            <input
-              id={`note-lock-pin-${editorId}`}
-              class="form-control"
-              type="text"
-              inputmode="numeric"
-              maxlength="6"
-              autocomplete="off"
-              bind:value={lockPanelPin}
-              on:input={handleLockPinInput}
-              aria-label="6자리 잠금 숫자"
-              placeholder="000000"
-            />
-            <input type="submit" hidden disabled={lockPanelBusy || lockPanelPin.length !== 6} />
-            {#if lockPanelError}<span class="note-lock-error">{lockPanelError}</span>{/if}
-            {#if lockPanelMode === 'lock'}
-              <div class="note-lock-actions">
-                <button type="button" class="btn btn-outline-secondary" on:click={closeLockPanel}>취소</button>
-                <button type="submit" class="btn btn-primary" disabled={lockPanelBusy || lockPanelPin.length !== 6}>
-                  {lockPanelBusy ? '처리 중…' : '잠그기'}
-                </button>
-              </div>
-            {/if}
-          {/if}
-        </form>
-      </div>
-    {/if}
     {#if activeLink}
       <a
         bind:this={linkTooltip}
@@ -3593,6 +3555,46 @@
     {/if}
   </div>
   </div>
+
+  {#if lockState === 'locked' || lockPanelMode}
+    <div class="note-lock-overlay">
+      <form class="note-lock-panel" novalidate on:submit|preventDefault={submitLockPanel}>
+        <i class={`bi ${lockPanelMode === 'lock' ? 'bi-lock' : 'bi-shield-lock'}`} aria-hidden="true"></i>
+        <strong>{lockPanelMode === 'lock' ? '노트 잠금' : '잠긴 노트'}</strong>
+        {#if lockPanelMode === 'reuse'}
+          <BrailleSpinner active />
+          <p>암호 재사용중...</p>
+        {:else}
+          <p>{lockPanelMode === 'lock'
+            ? `모든 잠금 노트에 같은 6자리 숫자를 사용하세요. 숫자는 저장되지 않고 ${lockSessionLabel} 동안만 재사용되며, 잊으면 내용을 복구할 수 없습니다.`
+            : '내용을 보려면 계정에서 사용한 6자리 숫자를 입력하세요.'}</p>
+          {#if lockPanelMode === 'lock'}<p>전체 동일한 번호를 사용하세요.</p>{/if}
+          <input
+            id={`note-lock-pin-${editorId}`}
+            class="form-control"
+            type="text"
+            inputmode="numeric"
+            maxlength="6"
+            autocomplete="off"
+            bind:value={lockPanelPin}
+            on:input={handleLockPinInput}
+            aria-label="6자리 잠금 숫자"
+            placeholder="000000"
+          />
+          <input type="submit" hidden disabled={lockPanelBusy || lockPanelPin.length !== 6} />
+          {#if lockPanelError}<span class="note-lock-error">{lockPanelError}</span>{/if}
+          {#if lockPanelMode === 'lock'}
+            <div class="note-lock-actions">
+              <button type="button" class="btn btn-outline-secondary" on:click={closeLockPanel}>취소</button>
+              <button type="submit" class="btn btn-primary" disabled={lockPanelBusy || lockPanelPin.length !== 6}>
+                {lockPanelBusy ? '처리 중…' : '잠그기'}
+              </button>
+            </div>
+          {/if}
+        {/if}
+      </form>
+    </div>
+  {/if}
 
   {#if viewedAttachment}
     <div
