@@ -511,6 +511,7 @@ html.mode-light .note-row-labels { opacity: 1; }
 .note-deletion-cancel, .comment-deletion-cancel, .attachment-cancel-delete { margin-top: .3rem; padding: 0; border: 0; color: var(--ui-text-body); background: transparent; font-size: inherit; text-decoration: underline; }
 .note-deletion-cancel:hover, .note-deletion-cancel:focus-visible, .comment-deletion-cancel:hover, .comment-deletion-cancel:focus-visible, .attachment-cancel-delete:hover, .attachment-cancel-delete:focus-visible { color: var(--ui-text-emphasis); }
 .detail-toolbar { position: relative; min-height: 46px; display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding: .4375rem .85rem; border-bottom: 1px solid var(--ui-border-divider); color: var(--ui-text-subtle); font-size: .8rem; }
+.detail-toolbar.is-lock-protected { background: rgb(242 149 0 / 12%); }
 .detail-toolbar-start, .detail-toolbar-actions { min-width: 0; display: flex; align-items: center; gap: .5rem; }
 .detail-toolbar-start { white-space: nowrap; }
 .detail-toolbar-actions { justify-content: flex-end; gap: .5rem; }
