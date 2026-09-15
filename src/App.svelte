@@ -3113,7 +3113,7 @@
   >
     <section class="setup-card card border-0 shadow-sm mx-auto overflow-hidden">
       <div class="row g-0">
-        <div class="col-12 bg-white p-4 p-md-5">
+        <div class="col-12 bg-white p-3 p-md-5">
           <div class="d-flex align-items-start justify-content-between gap-3 mb-4">
             <div>
               <h2 class="h4 fw-bold mb-2">{$_("m.c7f73bb54d")}</h2>

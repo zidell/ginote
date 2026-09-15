@@ -272,6 +272,10 @@ button, input, textarea { font: inherit; }
 .settings-overlay { position: fixed; z-index: 1060; inset: 0; width: 100%; max-width: none; height: 100%; min-height: 0; display: flex; overflow-y: auto; overscroll-behavior: contain; }
 .workspace-wizard-overlay { position: fixed; z-index: 1070; inset: 0; height: 100%; overflow-y: auto; overscroll-behavior: contain; }
 .setup-card { width: min(680px, 100%); margin: auto; border: 1px solid var(--ui-border) !important; border-radius: 8px; box-shadow: none !important; background: var(--ui-bg-card); }
+@media (max-width: 480px) {
+  .settings-overlay { padding: 0 !important; }
+  .settings-overlay .setup-card { width: 100%; min-height: 100%; margin: 0; border: 0 !important; border-radius: 0; }
+}
 .setup-wizard { width: min(600px, 100%); }
 .setup-source-link { position: fixed; z-index: 2; top: 1rem; right: 1.25rem; text-decoration: none; }
 .setup-source-link:hover { color: var(--ui-text-body) !important; text-decoration: underline; }
