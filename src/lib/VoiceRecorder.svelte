@@ -2,7 +2,7 @@
   import { onMount, onDestroy } from 'svelte';
   import { transcribeAudio, refineTranscript } from './openai-voice.js';
 
-  let { apiKey, refinementPrompt = '', transcriptionModel = 'gpt-transcribe', refinementModel = 'gpt-4o-mini', availableTags = [], onComplete, onClose, onDirtyChange = () => {} } = $props();
+  let { apiKey, refinementPrompt = '', transcriptionModel = 'gpt-transcribe', transcriptionLanguage = '', transcriptionHints = '', refinementModel = 'gpt-4o-mini', availableTags = [], onComplete, onClose, onDirtyChange = () => {} } = $props();
   const MAX_RECORDING_MILLISECONDS = 60 * 60 * 1000;
   // 음성 전사용 mono Opus 품질. 한 시간 녹음도 기존 10 MiB 첨부 정책 안에
   // 들어갈 수 있는 수준이며, MediaRecorder가 지원하지 않으면 브라우저 기본값을 쓴다.
@@ -234,7 +234,9 @@
     try {
       audioBlob ||= new Blob(chunks, { type: recorder?.mimeType || 'audio/webm' });
       status = '음성을 텍스트로 변환하는 중…';
-      const transcript = await retryOnce('음성 전사', () => transcribeAudio(apiKey, audioBlob, transcriptionModel, abortController.signal));
+      const transcript = await retryOnce('음성 전사', () => transcribeAudio(
+        apiKey, audioBlob, transcriptionModel, abortController.signal, transcriptionLanguage, transcriptionHints
+      ));
       if (!transcript) throw new Error('음성에서 텍스트를 찾지 못했습니다.');
       let body = transcript;
       let selectedTags = [];

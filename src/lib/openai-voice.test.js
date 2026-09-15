@@ -1,7 +1,24 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { listAvailableVoiceModels, refineTranscript } from './openai-voice.js';
+import { listAvailableVoiceModels, refineTranscript, transcribeAudio } from './openai-voice.js';
 
 afterEach(() => vi.unstubAllGlobals());
+
+describe('transcribeAudio', () => {
+  it('현재 앱 언어를 ISO 639-1 전사 언어 힌트로 전달한다', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ text: '你好' }), {
+      headers: { 'Content-Type': 'application/json' }
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(transcribeAudio('sk-test', new Blob(['audio']), 'gpt-transcribe', undefined, 'zh-CN', 'Ginote, 지델'))
+      .resolves.toBe('你好');
+
+    const form = fetchMock.mock.calls[0][1].body;
+    expect(form.get('language')).toBe('zh');
+    expect(form.get('model')).toBe('gpt-transcribe');
+    expect(form.get('prompt')).toBe('Ginote, 지델');
+  });
+});
 
 describe('refineTranscript', () => {
   it('고정된 편집 역할과 분리된 데이터 블록으로 정제를 요청한다', async () => {

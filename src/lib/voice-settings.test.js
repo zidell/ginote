@@ -3,10 +3,14 @@ import {
   DEFAULT_REFINEMENT_PROMPT,
   TYPO_CORRECTION_REFINEMENT_PROMPT,
   WRITTEN_STYLE_REFINEMENT_PROMPT,
+  clearPendingVoiceTranscriptionHints,
+  loadPendingVoiceTranscriptionHints,
   loadVoiceModelLists,
   loadVoiceSettings,
+  savePendingVoiceTranscriptionHints,
   saveVoiceModelLists,
   saveVoiceSettings,
+  VOICE_HINTS_PENDING_STORAGE_KEY,
   VOICE_MODEL_LIST_STORAGE_KEY,
   VOICE_SETTINGS_STORAGE_KEY
 } from './voice-settings.js';
@@ -36,7 +40,8 @@ describe('voice settings', () => {
     expect(WRITTEN_STYLE_REFINEMENT_PROMPT).toContain('정제된 기록문만 출력합니다');
     expect(WRITTEN_STYLE_REFINEMENT_PROMPT).toContain('말투를 유지합니다');
     expect(WRITTEN_STYLE_REFINEMENT_PROMPT).toContain('원문에 없는 내용은 보태지 않고');
-    expect(WRITTEN_STYLE_REFINEMENT_PROMPT).toContain('생각이나 시간·주제·상황·행동 단계가 바뀔 때만');
+    expect(WRITTEN_STYLE_REFINEMENT_PROMPT).toContain('의미상 문단을 구분합니다');
+    expect(WRITTEN_STYLE_REFINEMENT_PROMPT).toContain('한 문단의 크기가 너무 길어지지 않게 합니다');
     expect(WRITTEN_STYLE_REFINEMENT_PROMPT).not.toContain('“어”, “음”, “그”');
     expect(WRITTEN_STYLE_REFINEMENT_PROMPT).not.toContain('“아니”');
   });
@@ -73,6 +78,16 @@ describe('voice settings', () => {
   it('원본 음성 보존은 기본적으로 끄고 명시적으로 켤 수 있다', () => {
     saveVoiceSettings({ apiKey: '', refinementPrompt: '', preserveOriginalAudio: true });
     expect(loadVoiceSettings().preserveOriginalAudio).toBe(true);
+  });
+
+  it('미처리 전사 단어는 저장소별로 보관하고 반영 뒤 지운다', () => {
+    savePendingVoiceTranscriptionHints('owner/one', 'Ginote, 지델');
+    savePendingVoiceTranscriptionHints('owner/two', 'Svelte');
+    expect(loadPendingVoiceTranscriptionHints('owner/one')).toBe('Ginote, 지델');
+    expect(loadPendingVoiceTranscriptionHints('owner/two')).toBe('Svelte');
+    clearPendingVoiceTranscriptionHints('owner/one');
+    expect(loadPendingVoiceTranscriptionHints('owner/one')).toBeNull();
+    expect(JSON.parse(localStorage.getItem(VOICE_HINTS_PENDING_STORAGE_KEY))).toEqual({ 'owner/two': 'Svelte' });
   });
 
   it('가져온 모델 목록을 중복 없이 별도 캐시에 보관한다', () => {

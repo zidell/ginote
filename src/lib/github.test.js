@@ -16,11 +16,13 @@ import {
   listAllIssueAttachmentFiles,
   listIssues,
   listIssuesPage,
+  loadVoiceTranscriptionHints,
   purgeIssueAttachments,
   removeIssueLabel,
   renameLabel,
   searchIssues,
   searchIssuesPage,
+  saveVoiceTranscriptionHints,
   setIssueLabels,
   updateIssue,
   updateIssueComment,
@@ -512,6 +514,30 @@ describe('GitHub API client', () => {
       content: 'QUI=',
       branch: 'ginote-assets'
     });
+  });
+
+  it('전사 힌트를 전용 브랜치에서 읽고 UTF-8 JSON으로 저장한다', async () => {
+    const encoded = btoa(String.fromCharCode(...new TextEncoder().encode(JSON.stringify({ version: 1, hints: 'Ginote, 지델' }))));
+    fetch.mockResolvedValueOnce(jsonResponse({ content: encoded, sha: 'existing-sha' }));
+    await expect(loadVoiceTranscriptionHints('token', 'owner/repo')).resolves.toBe('Ginote, 지델');
+
+    fetch
+      .mockResolvedValueOnce(jsonResponse({ ref: 'refs/heads/ginote-assets' }))
+      .mockResolvedValueOnce(jsonResponse({ content: encoded, sha: 'existing-sha' }))
+      .mockResolvedValueOnce(jsonResponse({ content: { sha: 'next-sha' } }));
+    await saveVoiceTranscriptionHints('token', 'owner/repo', 'Ginote, 지델, Svelte');
+
+    const [url, options] = fetch.mock.calls[3];
+    expect(decodeURIComponent(new URL(url).pathname)).toBe('/repos/owner/repo/contents/.issue-note-assets/voice-hints.json');
+    expect(JSON.parse(options.body)).toMatchObject({
+      message: 'Update Ginote voice transcription hints',
+      branch: 'ginote-assets',
+      sha: 'existing-sha'
+    });
+    const stored = JSON.parse(new TextDecoder().decode(Uint8Array.from(
+      atob(JSON.parse(options.body).content), (character) => character.charCodeAt(0)
+    )));
+    expect(stored).toEqual({ version: 1, hints: 'Ginote, 지델, Svelte' });
   });
 
   it('전용 브랜치가 없으면 workflow 없는 orphan root commit으로 만든다', async () => {

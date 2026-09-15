@@ -9,6 +9,7 @@ export const HYBRID_SEARCH_MAX_RESULTS = 100;
 export const CLOSED_ISSUE_RETENTION_DAYS = 30;
 const ATTACHMENT_STORAGE_MARKER = '.issue-note-assets/.ginote-storage';
 const ATTACHMENT_STORAGE_MARKER_CONTENT = 'Ginote attachment storage. Do not delete this branch.\n';
+const VOICE_HINTS_PATH = '.issue-note-assets/voice-hints.json';
 
 function headers(token) {
   return {
@@ -382,6 +383,56 @@ async function ensureAttachmentBranch(token, repo) {
 function attachmentContentsPath(repo, path) {
   const encodedPath = path.split('/').map(encodeURIComponent).join('/');
   return `/repos/${repo}/contents/${encodedPath}?ref=${encodeURIComponent(ATTACHMENT_BRANCH)}`;
+}
+
+function encodeTextAsBase64(text) {
+  const bytes = new TextEncoder().encode(text);
+  let binary = '';
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary);
+}
+
+function decodeBase64Text(content) {
+  const binary = atob(String(content || '').replace(/\s/g, ''));
+  return new TextDecoder().decode(Uint8Array.from(binary, (character) => character.charCodeAt(0)));
+}
+
+// Voice hints are repository data rather than device preferences: a person can
+// use the same vocabulary on every device connected to this repository.
+export async function loadVoiceTranscriptionHints(token, repoInput) {
+  const repo = normalizeRepo(repoInput);
+  try {
+    const file = await request(attachmentContentsPath(repo, VOICE_HINTS_PATH), token);
+    const parsed = JSON.parse(decodeBase64Text(file.content));
+    return typeof parsed?.hints === 'string' ? parsed.hints : '';
+  } catch (reason) {
+    if (reason?.status === 404) return '';
+    if (reason instanceof SyntaxError) return '';
+    throw reason;
+  }
+}
+
+export async function saveVoiceTranscriptionHints(token, repoInput, hints) {
+  const repo = normalizeRepo(repoInput);
+  const value = String(hints || '').trim();
+  await ensureAttachmentBranch(token, repo);
+  let sha;
+  try {
+    const current = await request(attachmentContentsPath(repo, VOICE_HINTS_PATH), token);
+    sha = current.sha;
+  } catch (reason) {
+    if (reason?.status !== 404) throw reason;
+  }
+  await request(`/repos/${repo}/contents/${VOICE_HINTS_PATH.split('/').map(encodeURIComponent).join('/')}`, token, {
+    method: 'PUT',
+    body: JSON.stringify({
+      message: 'Update Ginote voice transcription hints',
+      content: encodeTextAsBase64(JSON.stringify({ version: 1, hints: value }, null, 2) + '\n'),
+      branch: ATTACHMENT_BRANCH,
+      ...(sha ? { sha } : {})
+    })
+  });
+  return value;
 }
 
 export async function uploadAttachment(token, repoInput, issueNumber, file, commentId = null) {
