@@ -3486,7 +3486,6 @@
                     disabled={voiceHintsLoading}
                     on:input={stageVoiceTranscriptionHints}
                   />
-                  <div class="settings-help-note">쉼표나 줄바꿈으로 구분해 입력하세요. 이 저장소의 <code>ginote-assets</code> 브랜치에 저장되며, 녹음을 시작할 때 한 번만 불러옵니다.</div>
                   {#if voiceHintsError}<div class="text-danger small mt-1" role="alert">{voiceHintsError}</div>{/if}
                 </div>
               </fieldset>
