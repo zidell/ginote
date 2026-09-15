@@ -136,6 +136,11 @@
   let user = null;
   let repository = null;
   let issues = [];
+  // GitHub의 목록 API는 이슈 재개방 직후 잠시 이전 결과를 줄 수 있다. 그 동안
+  // 복원한 노트를 노트 탭에서 바로 보여 주고, API 응답에 포함되면 이 보관분을
+  // 자연스럽게 해제한다.
+  let pendingRestoredIssues = [];
+  let pendingTrashedIssues = [];
   let pinnedIssues = [];
   let repositoryLabels = [];
   let selectedIssue = null;
@@ -959,6 +964,8 @@
     loading = false;
     loadingMore = false;
     state = 'open';
+    pendingRestoredIssues = [];
+    pendingTrashedIssues = [];
     query = '';
     appliedQuery = '';
     activeLabel = '';
@@ -1145,9 +1152,26 @@
       const allSearchItems = requestedTerm.trim()
         ? result.items.map((issue) => applyPendingPinToIssue(issue, pendingPin))
         : [];
-      const resultItems = requestedTerm.trim()
+      const fetchedResultItems = requestedTerm.trim()
         ? allSearchItems.slice(0, issuePageSize)
         : result.items.map((issue) => applyPendingPinToIssue(issue, pendingPin));
+      const pendingStateIssues = !requestedTerm.trim() && !requestedLabel
+        ? requestedState === 'open' ? pendingRestoredIssues : pendingTrashedIssues
+        : [];
+      const fetchedIssueIds = new Set(fetchedResultItems.map((issue) => issue.id));
+      const resultItems = pendingStateIssues.length
+        ? [
+          ...pendingStateIssues.filter((issue) => !fetchedIssueIds.has(issue.id)),
+          ...fetchedResultItems
+        ]
+        : fetchedResultItems;
+      if (pendingStateIssues.length) {
+        if (requestedState === 'open') {
+          pendingRestoredIssues = pendingRestoredIssues.filter((issue) => !fetchedIssueIds.has(issue.id));
+        } else {
+          pendingTrashedIssues = pendingTrashedIssues.filter((issue) => !fetchedIssueIds.has(issue.id));
+        }
+      }
       if (requestedTerm.trim()) {
         searchResultItems = allSearchItems;
         searchResultLimitReached = result.totalCount > allSearchItems.length;
@@ -1172,11 +1196,12 @@
       );
       reconcileIssueSelection(issues);
       if (result.totalCount !== null) {
-        totalIssues = requestedTerm.trim()
+        const displayedTotal = requestedTerm.trim()
           ? Math.min(result.totalCount, allSearchItems.length)
-          : result.totalCount;
+          : result.totalCount + pendingStateIssues.filter((issue) => !fetchedIssueIds.has(issue.id)).length;
+        totalIssues = displayedTotal;
         if (isUnfilteredNoteView(requestedState, requestedQuery, requestedLabel)) {
-          setWorkspaceNoteCount(requestedWorkspaceId, result.totalCount);
+          setWorkspaceNoteCount(requestedWorkspaceId, displayedTotal);
         }
       }
       applyRoute();
@@ -1327,7 +1352,6 @@
 
   async function changeState(nextState) {
     if (state === nextState) return;
-    cancelAllPendingIssueDeletions(true);
     clearIssueSelection();
     state = nextState;
     query = '';
@@ -2082,7 +2106,7 @@
       error = $_('m.3a743b0e61');
       return;
     }
-    moveIssuesImmediately(entry.issues, { deletionEntryId: entryId });
+    moveIssuesImmediately(entry.issues, { deletionEntryId: entryId, nextState: entry.nextState });
   }
 
   function moveIssues(issuesToMove, { savePromise = null } = {}) {
@@ -2099,6 +2123,7 @@
       const entry = {
         id: ++pendingIssueDeletionSequence,
         issues: [...uniqueIssues],
+        nextState: 'closed',
         timer: null,
         inFlight: false,
         savePromise
@@ -2111,12 +2136,11 @@
     moveIssuesImmediately(issuesToMove);
   }
 
-  function moveIssuesImmediately(issuesToMove, { deletionEntryId = null } = {}) {
-    const nextState = state === 'open' ? 'closed' : 'open';
+  function moveIssuesImmediately(issuesToMove, { deletionEntryId = null, nextState = state === 'open' ? 'closed' : 'open' } = {}) {
     const movedIssues = issuesToMove;
     clearIssueSelection();
     for (const issue of movedIssues) {
-      moveIssue(issue, nextState, { confirmAction: false, deletionEntryId });
+      moveIssue(issue, nextState, { deletionEntryId });
     }
   }
 
@@ -2750,13 +2774,7 @@
     else router.navigate('/');
   }
 
-  async function moveIssue(issue, nextState, { confirmAction = true, deletionEntryId = null } = {}) {
-    if (
-      confirmAction
-      && nextState === 'open'
-      && !confirm($_('dynamic.restoreConfirm', { values: { title: issue.title } }))
-    ) return;
-
+  async function moveIssue(issue, nextState, { deletionEntryId = null } = {}) {
     error = '';
     const requestedWorkspaceId = activeWorkspaceId;
     const requestedToken = token;
@@ -2786,11 +2804,14 @@
       const removedPinnedIssue = pinnedIssues.find((item) => item.id === issue.id);
       const wasSelected = selectedIssue?.id === issue.id;
 
-      issues = issues.filter((item) => item.id !== issue.id);
+      const transitionedIssue = { ...issue, state: nextState };
+      issues = nextState === requestedState
+        ? [transitionedIssue, ...issues.filter((item) => item.id !== issue.id)]
+        : issues.filter((item) => item.id !== issue.id);
       if (removedPinnedIssue) {
         pinnedIssues = pinnedIssues.filter((item) => item.id !== issue.id);
       }
-      totalIssues = Math.max(0, totalIssues - 1);
+      totalIssues = Math.max(0, totalIssues + (nextState === requestedState ? 1 : -1));
       adjustWorkspaceNoteCount(requestedWorkspaceId, noteCountDelta);
       if (wasSelected) {
         selectedIssue = null;
@@ -2798,6 +2819,18 @@
       }
       if (nextState === 'open' && hasPinLabel(issue)) {
         syncPinnedIssue({ ...issue, state: 'open' });
+      }
+      if (nextState === 'open') {
+        const restoredIssue = transitionedIssue;
+        pendingRestoredIssues = [
+          restoredIssue,
+          ...pendingRestoredIssues.filter((item) => item.id !== restoredIssue.id)
+        ];
+      } else {
+        pendingTrashedIssues = [
+          transitionedIssue,
+          ...pendingTrashedIssues.filter((item) => item.id !== transitionedIssue.id)
+        ];
       }
       notice = nextState === 'closed'
         ? ''
