@@ -17,10 +17,13 @@
     DEFAULT_TRANSCRIPTION_MODEL,
     TYPO_CORRECTION_REFINEMENT_PROMPT,
     WRITTEN_STYLE_REFINEMENT_PROMPT,
+    clearPendingVoiceTranscriptionHints,
     isDatedModelSnapshot,
+    loadPendingVoiceTranscriptionHints,
     loadVoiceSettings,
     loadVoiceModelLists,
     saveVoiceSettings,
+    savePendingVoiceTranscriptionHints,
     saveVoiceModelLists
   } from './lib/voice-settings.js';
   import { listAvailableVoiceModels } from './lib/openai-voice.js';
@@ -78,6 +81,7 @@
     createLabel,
     downloadAttachment,
     getIssue,
+    loadVoiceTranscriptionHints,
     listExpiredClosedIssues,
     listAllIssueAttachmentFiles,
     listIssueAttachmentFiles,
@@ -91,6 +95,7 @@
     searchIssuesPage,
     setIssueLabels,
     setIssueState,
+    saveVoiceTranscriptionHints,
     updateIssue,
     uploadAttachment,
     verifyConnection
@@ -243,6 +248,12 @@
   let voiceRefinementPrompt = DEFAULT_REFINEMENT_PROMPT;
   let voiceTranscriptionModel = DEFAULT_TRANSCRIPTION_MODEL;
   let voiceRefinementModel = DEFAULT_REFINEMENT_MODEL;
+  let voiceTranscriptionHints = '';
+  let voiceHintsLoadedRepo = '';
+  let voiceHintsLoading = false;
+  let voiceHintsSaving = false;
+  let voiceHintsError = '';
+  let voiceHintsLoadPromise = null;
   let preserveOriginalVoiceAudio = false;
   let voiceModelLists = { transcription: [], refinement: [] };
   let voiceModelsRefreshing = false;
@@ -425,7 +436,7 @@
         if (openVoiceAfterSettings) {
           openVoiceAfterSettings = false;
           if (voiceApiKey.trim()) {
-            router.push('voice');
+            void openVoiceRecording();
             return;
           }
         }
@@ -902,6 +913,7 @@
       if (showSuccess) notice = $_("m.2273eb0763");
       await Promise.all([loadIssues(), loadRepositoryLabels()]);
       appState = 'ready';
+      void flushPendingVoiceTranscriptionHints();
       applyRoute();
       pruneExpiredAttachments();
     } catch (reason) {
@@ -974,6 +986,9 @@
     pinnedIssues = [];
     token = target.token;
     repo = target.repo;
+    voiceTranscriptionHints = '';
+    voiceHintsLoadedRepo = '';
+    voiceHintsError = '';
     rememberToken = target.rememberToken;
     user = null;
     repository = null;
@@ -1014,6 +1029,7 @@
       // 캐시로 이미 목록을 보여준 상태라면 로딩 스피너 없이 조용히 갱신한다.
       await Promise.all([loadIssues(Boolean(cached)), loadRepositoryLabels()]);
       applyRoute();
+      void flushPendingVoiceTranscriptionHints();
       pruneExpiredAttachments();
     } catch (reason) {
       appState = cached ? 'ready' : 'setup';
@@ -2661,8 +2677,12 @@
     issuePageSize = Math.round(clampNumber(issuePageSize, 10, 100, 30));
     lockSessionMinutes = normalizeLockSessionMinutes(lockSessionMinutes);
     workspaceCacheMinutes = normalizeWorkspaceCacheMinutes(workspaceCacheMinutes);
+    const preferencesChanged = preferenceSignature(currentPreferences()) !== settingsEntrySignature;
+    // 전사 단어는 다른 기기와 공유하는 저장소 설정이므로, 환경설정을 닫을 때
+    // 한 번만 저장한다. 태그 변경처럼 매번 즉시 저장할 필요는 없다.
+    void flushPendingVoiceTranscriptionHints();
     // 그냥 들여다보기만 하고 나온 경우에는 저장도 알림도 하지 않는다.
-    if (preferenceSignature(currentPreferences()) === settingsEntrySignature) return;
+    if (!preferencesChanged) return;
     persistSettings(repo);
     // 유지 시간을 바꾸면 이미 열려 있는 잠금 세션도 새 길이로 다시 센다.
     if (lockPin) setLockSession(lockPin);
@@ -2849,10 +2869,12 @@
     settingsEntrySignature = preferenceSignature(currentPreferences());
     error = '';
     notice = '';
+    // 환경설정을 열 때는 다른 기기에서 바꾼 용어집도 즉시 반영한다.
+    void loadVoiceTranscriptionHintsForCurrentRepo(true);
     router.push('settings');
   }
 
-  function openVoiceRecording(issue = null, target = { type: 'body' }) {
+  async function openVoiceRecording(issue = null, target = { type: 'body' }) {
     if (pendingNote || selectionMode) return;
     if (!voiceApiKey.trim()) {
       alert('음성 녹음을 사용하려면 OpenAI API 키를 발급한 뒤 환경설정의 음성 API 키에 지정하세요. 해당 설정으로 이동합니다.');
@@ -2861,6 +2883,9 @@
       openSettings();
       return;
     }
+    // 녹음 진입 시에는 현재 저장소의 용어집을 한 번만 읽는다. 이후 녹음은
+    // 메모리에 둔 값을 쓰므로 전사할 때마다 GitHub 요청을 보내지 않는다.
+    await loadVoiceTranscriptionHintsForCurrentRepo();
     beginVoiceRecording({ ...target, issueNumber: issue?.number || null });
   }
 
@@ -2869,6 +2894,70 @@
     voiceHasUnrecordedAudio = false;
     allowVoiceRouteExit = false;
     router.push('voice');
+  }
+
+  async function loadVoiceTranscriptionHintsForCurrentRepo(force = false) {
+    const requestedToken = token;
+    const requestedRepo = repo;
+    if (!requestedToken || !requestedRepo) return;
+    if (!force && voiceHintsLoadedRepo === requestedRepo) return;
+    if (voiceHintsLoadPromise) return voiceHintsLoadPromise;
+
+    const pending = loadPendingVoiceTranscriptionHints(requestedRepo);
+    if (pending !== null) {
+      voiceTranscriptionHints = pending;
+      voiceHintsLoadedRepo = requestedRepo;
+      return;
+    }
+
+    voiceHintsLoading = true;
+    voiceHintsError = '';
+    const task = loadVoiceTranscriptionHints(requestedToken, requestedRepo)
+      .then((hints) => {
+        if (requestedToken !== token || requestedRepo !== repo) return;
+        voiceTranscriptionHints = hints;
+        voiceHintsLoadedRepo = requestedRepo;
+      })
+      .catch((reason) => {
+        if (requestedToken === token && requestedRepo === repo) {
+          voiceHintsError = reason?.message || '전사 힌트를 불러오지 못했습니다.';
+        }
+      })
+      .finally(() => {
+        if (requestedToken === token && requestedRepo === repo) voiceHintsLoading = false;
+        if (voiceHintsLoadPromise === task) voiceHintsLoadPromise = null;
+      });
+    voiceHintsLoadPromise = task;
+    return task;
+  }
+
+  async function flushPendingVoiceTranscriptionHints() {
+    const requestedToken = token;
+    const requestedRepo = repo;
+    if (!requestedToken || !requestedRepo || voiceHintsSaving) return;
+    const value = loadPendingVoiceTranscriptionHints(requestedRepo);
+    if (value === null) return;
+    voiceHintsSaving = true;
+    voiceHintsError = '';
+    try {
+      const saved = await saveVoiceTranscriptionHints(requestedToken, requestedRepo, value);
+      if (requestedToken === token && requestedRepo === repo) {
+        clearPendingVoiceTranscriptionHints(requestedRepo);
+        voiceHintsLoadedRepo = requestedRepo;
+      }
+    } catch (reason) {
+      if (requestedToken === token && requestedRepo === repo) {
+        voiceHintsError = reason?.message || '전사 힌트를 저장하지 못했습니다.';
+      }
+    } finally {
+      if (requestedToken === token && requestedRepo === repo) voiceHintsSaving = false;
+    }
+  }
+
+  function stageVoiceTranscriptionHints(event) {
+    const value = event.currentTarget.value;
+    voiceTranscriptionHints = value;
+    savePendingVoiceTranscriptionHints(repo, value);
   }
 
   function maskedVoiceApiKey(value) {
@@ -3385,6 +3474,21 @@
                     on:input={persistVoiceSettings}
                   ></textarea>
                 {/if}
+                <div class="mt-3">
+                  <label class="form-label" for="voice-transcription-hints">자주 쓰는 전사 단어</label>
+                  <input
+                    id="voice-transcription-hints"
+                    class="form-control"
+                    type="text"
+                    maxlength="3000"
+                    placeholder="Ginote, Svelte, OpenAI, 프로젝트명"
+                    bind:value={voiceTranscriptionHints}
+                    disabled={voiceHintsLoading}
+                    on:input={stageVoiceTranscriptionHints}
+                  />
+                  <div class="settings-help-note">쉼표나 줄바꿈으로 구분해 입력하세요. 이 저장소의 <code>ginote-assets</code> 브랜치에 저장되며, 녹음을 시작할 때 한 번만 불러옵니다.</div>
+                  {#if voiceHintsError}<div class="text-danger small mt-1" role="alert">{voiceHintsError}</div>{/if}
+                </div>
               </fieldset>
 
           </div>
@@ -3774,6 +3878,8 @@
     apiKey={voiceApiKey}
     refinementPrompt={voiceRefinementPrompt}
     transcriptionModel={voiceTranscriptionModel.trim() || DEFAULT_TRANSCRIPTION_MODEL}
+    transcriptionLanguage={$activeLocale}
+    transcriptionHints={voiceTranscriptionHints}
     refinementModel={voiceRefinementModel.trim()}
     availableTags={visibleRepositoryLabels.map(({ name, description }) => ({ name, description }))}
     onComplete={recordVoiceNote}

@@ -12,11 +12,12 @@ export const WRITTEN_STYLE_REFINEMENT_PROMPT = `목적: 두서없이 말한 음�
 - 기록의 의미에 기여하지 않는 추임새, 단순 머뭇거림, 문장을 찾으며 생긴 끊김, 뜻이 같은 단순 반복만 정리합니다. 삭제하면 확신·감정·대조·강조·횟수의 의미가 달라지는 표현은 남깁니다.
 - 뒤 표현이 앞 표현을 명백히 부정하거나 같은 자리를 대체할 때만 앞 표현을 지우고 최종 표현을 기록합니다. 이유·범위·우선순위를 보태거나 관점을 바꾼 말은 모두 남기며, 판단이 애매하면 삭제하지 않습니다.
 - 명백한 전사 오류·오타만 고치고, 확신할 수 없는 단어·고유명사·숫자는 바꾸지 않습니다. 띄어쓰기·문장부호·어순은 뜻을 바꾸지 않는 범위에서 다듬습니다.
-- 내용은 빠뜨리지 않고, 생각이나 시간·주제·상황·행동 단계가 바뀔 때만 문단을 나눕니다. 정제된 기록문만 출력합니다.`;
+- 내용은 빠뜨리지 않고, 의미상 문단을 구분합니다. 한 문단의 크기가 너무 길어지지 않게 합니다. 정제된 기록문만 출력합니다.`;
 
 // 기존 저장값 및 외부 사용처와의 호환성을 위해 기본 프롬프트 이름은 유지한다.
 export const DEFAULT_REFINEMENT_PROMPT = TYPO_CORRECTION_REFINEMENT_PROMPT;
 export const VOICE_MODEL_LIST_STORAGE_KEY = 'issue-note.voice-models.v1';
+export const VOICE_HINTS_PENDING_STORAGE_KEY = 'issue-note.voice-hints-pending.v1';
 
 export const DEFAULT_VOICE_MODEL_LISTS = {
   transcription: ['gpt-transcribe', 'gpt-4o-mini-transcribe', 'gpt-4o-transcribe'],
@@ -88,4 +89,47 @@ export function saveVoiceModelLists({ transcription, refinement }) {
     transcription: uniqueModels(transcription, DEFAULT_VOICE_MODEL_LISTS.transcription),
     refinement: uniqueModels(refinement, DEFAULT_VOICE_MODEL_LISTS.refinement)
   }));
+}
+
+function loadPendingVoiceHintsStore() {
+  try {
+    const value = JSON.parse(localStorage.getItem(VOICE_HINTS_PENDING_STORAGE_KEY) || '{}');
+    return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+  } catch {
+    return {};
+  }
+}
+
+// A pending value is intentionally keyed by repository so an interrupted
+// settings edit cannot be applied to a different workspace on the next launch.
+export function loadPendingVoiceTranscriptionHints(repo) {
+  const key = String(repo || '').trim();
+  if (!key) return null;
+  const store = loadPendingVoiceHintsStore();
+  return Object.hasOwn(store, key) ? String(store[key] || '') : null;
+}
+
+export function savePendingVoiceTranscriptionHints(repo, hints) {
+  const key = String(repo || '').trim();
+  if (!key) return;
+  try {
+    const store = loadPendingVoiceHintsStore();
+    store[key] = String(hints || '');
+    localStorage.setItem(VOICE_HINTS_PENDING_STORAGE_KEY, JSON.stringify(store));
+  } catch {
+    // The repository save still runs when settings close if local backup fails.
+  }
+}
+
+export function clearPendingVoiceTranscriptionHints(repo) {
+  const key = String(repo || '').trim();
+  if (!key) return;
+  try {
+    const store = loadPendingVoiceHintsStore();
+    if (!Object.hasOwn(store, key)) return;
+    delete store[key];
+    localStorage.setItem(VOICE_HINTS_PENDING_STORAGE_KEY, JSON.stringify(store));
+  } catch {
+    // Leaving an already-applied backup behind only causes a harmless retry.
+  }
 }

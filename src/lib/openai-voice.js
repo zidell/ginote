@@ -102,10 +102,15 @@ function authorization(apiKey) {
   return { Authorization: `Bearer ${apiKey}` };
 }
 
-export async function transcribeAudio(apiKey, audio, model = 'gpt-transcribe', signal) {
+export async function transcribeAudio(apiKey, audio, model = 'gpt-transcribe', signal, language, hints = '') {
   const form = new FormData();
   form.append('model', model);
-  form.append('language', 'ko');
+  // The Transcriptions API expects an ISO 639-1 language code. The app's
+  // Chinese locale is a regional BCP 47 tag, so reduce it to `zh` here.
+  const languageHint = String(language || '').trim().split('-')[0].toLowerCase();
+  if (languageHint) form.append('language', languageHint);
+  const transcriptionHints = String(hints || '').trim();
+  if (transcriptionHints) form.append('prompt', transcriptionHints);
   form.append('response_format', 'json');
   const extension = audio.type.includes('mp4') ? 'mp4' : 'webm';
   form.append('file', audio, `recording.${extension}`);
