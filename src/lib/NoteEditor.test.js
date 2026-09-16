@@ -1307,6 +1307,32 @@ describe('NoteEditor 마크다운 프리뷰와 단축키', () => {
 });
 
 describe('NoteEditor 첨부 파일', () => {
+  it('번호를 할당 중인 새 노트의 붙여넣기 파일은 교체 뒤 편집기로 넘긴다', async () => {
+    let resolveAllocation;
+    const onFileUploadRequested = vi.fn();
+    const allocationPromise = new Promise((resolve) => { resolveAllocation = resolve; });
+    render(NoteEditor, {
+      token: 't',
+      repo: 'owner/repo',
+      issue: null,
+      initialDraft: { id: 'new-paste', title: '', body: '', labels: [] },
+      allocationPromise,
+      onFileUploadRequested
+    });
+
+    const file = new File(['image'], 'clipboard.png', { type: 'image/png' });
+    const body = document.querySelector('.inline-body');
+    await fireEvent.paste(body, { clipboardData: { files: [file] } });
+
+    expect(onFileUploadRequested).toHaveBeenCalledWith([file]);
+    expect(uploadAttachment).not.toHaveBeenCalled();
+
+    // 이 시점에 번호가 도착해도 파괴될 예정인 현재 인스턴스는 업로드하지 않는다.
+    resolveAllocation({ number: 42, title: '', body: '', labels: [] });
+    await Promise.resolve();
+    expect(uploadAttachment).not.toHaveBeenCalled();
+  });
+
   it('댓글 첨부의 진행·완료 목록은 해당 댓글 아래에만 표시한다', async () => {
     let finishUpload;
     uploadAttachment.mockImplementationOnce(() => new Promise((resolve) => { finishUpload = resolve; }));

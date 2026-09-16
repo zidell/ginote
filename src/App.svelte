@@ -3814,6 +3814,7 @@
               onRefreshStateChange={(active) => noteRefreshStateChanged(routeIssue?.number, active)}
               onCreated={noteCreated}
               onDraftChange={(draft) => noteDraftChanged(routeIssue, draft)}
+              onFileUploadRequested={queueExternalPaste}
               onExternalPasteHandled={externalPasteHandled}
               onLabelsAvailable={mergeRepositoryLabels}
               onTagSelect={openLabel}
