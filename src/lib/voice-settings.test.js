@@ -3,6 +3,7 @@ import {
   DEFAULT_REFINEMENT_PROMPT,
   TYPO_CORRECTION_REFINEMENT_PROMPT,
   WRITTEN_STYLE_REFINEMENT_PROMPT,
+  CONCLUSION_FOCUSED_REFINEMENT_PROMPT,
   clearPendingVoiceTranscriptionHints,
   loadPendingVoiceTranscriptionHints,
   loadVoiceModelLists,
@@ -28,22 +29,24 @@ beforeEach(() => vi.stubGlobal('localStorage', createMemoryStorage()));
 afterEach(() => vi.unstubAllGlobals());
 
 describe('voice settings', () => {
-  it('약하게와 강하게에 서로 다른 목적의 내장 규칙을 제공한다', () => {
+  it('약함·중간·강함에 서로 다른 목적의 내장 규칙을 제공한다', () => {
     expect(DEFAULT_REFINEMENT_PROMPT).toBe(TYPO_CORRECTION_REFINEMENT_PROMPT);
-    expect(TYPO_CORRECTION_REFINEMENT_PROMPT).toContain('원문의 의미와 말투를 유지');
-    expect(WRITTEN_STYLE_REFINEMENT_PROMPT).toContain('화자가 실제로 전달하려던 내용을 빠짐없이 담은 자연스러운 기록문');
-    expect(WRITTEN_STYLE_REFINEMENT_PROMPT).toContain('기록의 의미에 기여하지 않는 추임새');
+    expect(TYPO_CORRECTION_REFINEMENT_PROMPT).toContain('원문의 의미·말투·정보량·불확실성은 그대로 보존');
+    expect(WRITTEN_STYLE_REFINEMENT_PROMPT).toContain('전달하려던 내용을 빠짐없이 담은 자연스러운 기록문');
+    expect(WRITTEN_STYLE_REFINEMENT_PROMPT).toContain('의미를 이루는 표현을 중심으로 문장을 만들고');
     expect(WRITTEN_STYLE_REFINEMENT_PROMPT).toContain('불확실성의 정도');
-    expect(WRITTEN_STYLE_REFINEMENT_PROMPT).toContain('명백히 부정하거나 같은 자리를 대체할 때만');
-    expect(WRITTEN_STYLE_REFINEMENT_PROMPT).toContain('판단이 애매하면 삭제하지 않습니다');
-    expect(WRITTEN_STYLE_REFINEMENT_PROMPT).toContain('고유명사·숫자는 바꾸지 않습니다');
-    expect(WRITTEN_STYLE_REFINEMENT_PROMPT).toContain('정제된 기록문만 출력합니다');
-    expect(WRITTEN_STYLE_REFINEMENT_PROMPT).toContain('말투를 유지합니다');
-    expect(WRITTEN_STYLE_REFINEMENT_PROMPT).toContain('원문에 없는 내용은 보태지 않고');
-    expect(WRITTEN_STYLE_REFINEMENT_PROMPT).toContain('의미상 문단을 구분합니다');
-    expect(WRITTEN_STYLE_REFINEMENT_PROMPT).toContain('한 문단의 크기가 너무 길어지지 않게 합니다');
-    expect(WRITTEN_STYLE_REFINEMENT_PROMPT).not.toContain('“어”, “음”, “그”');
-    expect(WRITTEN_STYLE_REFINEMENT_PROMPT).not.toContain('“아니”');
+    expect(WRITTEN_STYLE_REFINEMENT_PROMPT).toContain('최종 표현을 반영');
+    expect(WRITTEN_STYLE_REFINEMENT_PROMPT).toContain('애매한 단어·고유명사·숫자는 원문대로 둡니다');
+    expect(WRITTEN_STYLE_REFINEMENT_PROMPT).toContain('말투를 보존');
+    expect(WRITTEN_STYLE_REFINEMENT_PROMPT).toContain('원문에서 확인되는 정보만 사용');
+    expect(CONCLUSION_FOCUSED_REFINEMENT_PROMPT).toContain('최종적으로 남기려는 생각을 결론·결정·요청과 핵심 근거');
+    expect(CONCLUSION_FOCUSED_REFINEMENT_PROMPT).toContain('발화의 흐름과 순서를 기본으로 삼고');
+    expect(CONCLUSION_FOCUSED_REFINEMENT_PROMPT).toContain('필요한 범위에서 재배열');
+    expect(CONCLUSION_FOCUSED_REFINEMENT_PROMPT).toContain('최종 표현을 반영');
+    expect(CONCLUSION_FOCUSED_REFINEMENT_PROMPT).toContain('선택지와 보류 상태를 간결하게 기록');
+    expect(CONCLUSION_FOCUSED_REFINEMENT_PROMPT).toContain('원문에서 확인되는 사실·의도·관계만으로 구성');
+    expect(CONCLUSION_FOCUSED_REFINEMENT_PROMPT).toContain('자연스럽고 매끄러운 기록문');
+    expect(CONCLUSION_FOCUSED_REFINEMENT_PROMPT).toContain('말투와 의도');
   });
 
   it('비어 있거나 손상된 저장값에는 안전한 기본값을 사용한다', () => {
