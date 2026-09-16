@@ -1497,10 +1497,10 @@ describe('NoteEditor 태그', () => {
     });
 
     await fireEvent.click(document.querySelector('.detail-toolbar-actions-desktop .tag-picker > button'));
-    await fireEvent.input(screen.getByRole('textbox', { name: 'Search or create a tag' }), { target: { value: 'idea' } });
+    await fireEvent.input(screen.getByRole('textbox', { name: 'Tag name: classification description' }), { target: { value: 'idea' } });
     await fireEvent.click(screen.getByRole('button', { name: 'Create #idea' }));
 
-    await waitFor(() => expect(createLabel).toHaveBeenCalledWith('t', 'owner/repo', 'idea'));
+    await waitFor(() => expect(createLabel).toHaveBeenCalledWith('t', 'owner/repo', 'idea', { description: '' }));
     await waitFor(() => expect(onLabelsAvailable).toHaveBeenCalledWith([{ name: 'idea', color: 'abcdef' }]));
     await waitFor(() => expect(document.querySelector('.editor-tag-link')?.textContent).toBe('#idea'));
     await waitFor(() => expect(updateIssue).toHaveBeenCalled());
