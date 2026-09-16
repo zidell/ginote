@@ -17,6 +17,7 @@
     DEFAULT_TRANSCRIPTION_MODEL,
     TYPO_CORRECTION_REFINEMENT_PROMPT,
     WRITTEN_STYLE_REFINEMENT_PROMPT,
+    CONCLUSION_FOCUSED_REFINEMENT_PROMPT,
     clearPendingVoiceTranscriptionHints,
     isDatedModelSnapshot,
     loadPendingVoiceTranscriptionHints,
@@ -3456,13 +3457,19 @@
                         type="button"
                         class="btn btn-link p-0 voice-label-action voice-default-action"
                         on:click={() => applyVoiceRefinementPreset(TYPO_CORRECTION_REFINEMENT_PROMPT)}
-                      >약하게</button>
+                      >약함</button>
                       <span class="voice-preset-separator" aria-hidden="true">|</span>
                       <button
                         type="button"
                         class="btn btn-link p-0 voice-label-action voice-default-action"
                         on:click={() => applyVoiceRefinementPreset(WRITTEN_STYLE_REFINEMENT_PROMPT)}
-                      >강하게</button>
+                      >중간</button>
+                      <span class="voice-preset-separator" aria-hidden="true">|</span>
+                      <button
+                        type="button"
+                        class="btn btn-link p-0 voice-label-action voice-default-action"
+                        on:click={() => applyVoiceRefinementPreset(CONCLUSION_FOCUSED_REFINEMENT_PROMPT)}
+                      >강함</button>
                     </div>
                   </div>
                   <textarea
