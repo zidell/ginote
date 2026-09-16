@@ -117,6 +117,7 @@
       recording = true;
       startElapsedTimer();
       startRecordingLimitTimer();
+      playRecordingStartTone();
       onDirtyChange(true);
       status = '녹음 중';
     } catch (reason) {
@@ -177,6 +178,26 @@
       playBeep(.18);
     } catch {
       // 브라우저의 자동 재생 제한 등으로 소리를 낼 수 없어도 녹음 제한은 지킨다.
+    }
+  }
+
+  function playRecordingStartTone() {
+    try {
+      const context = audioContext || new AudioContext();
+      const oscillator = context.createOscillator();
+      const gain = context.createGain();
+      const startAt = context.currentTime;
+      // 녹음 시작을 가볍게 알리는 짧은 "띵" 소리다.
+      oscillator.type = 'sine';
+      oscillator.frequency.setValueAtTime(1_046.5, startAt);
+      gain.gain.setValueAtTime(.0001, startAt);
+      gain.gain.exponentialRampToValueAtTime(.09, startAt + .015);
+      gain.gain.exponentialRampToValueAtTime(.001, startAt + .18);
+      oscillator.connect(gain).connect(context.destination);
+      oscillator.start(startAt);
+      oscillator.stop(startAt + .18);
+    } catch {
+      // 브라우저가 오디오 출력을 막아도 녹음 자체는 계속한다.
     }
   }
 
@@ -306,12 +327,12 @@
           class="voice-record-button"
           class:is-recording={recording}
           class:is-processing={processing}
-          aria-label={recording ? '녹음 중지' : '녹음 시작'}
-          title={recording ? '녹음 중지' : '녹음 시작'}
+          aria-label={recording ? '녹음 일시정지' : '녹음 시작'}
+          title={recording ? '녹음 일시정지' : '녹음 시작'}
           onclick={recording ? stopRecording : startRecording}
           disabled={preparing || processing}
         >
-          <i class={`bi ${recording ? 'bi-stop-fill' : 'bi-mic-fill'}`} aria-hidden="true"></i>
+          <i class={`bi ${recording ? 'bi-pause-fill' : 'bi-mic-fill'}`} aria-hidden="true"></i>
         </button>
       </div>
       <p class="voice-status" role="status">{status}</p>
