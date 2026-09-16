@@ -2569,7 +2569,9 @@
     notifyDraftChange();
   }
 
-  async function toggleTag(name) {
+  async function toggleTag(tag) {
+    const name = typeof tag === 'string' ? tag : tag?.name;
+    const description = typeof tag === 'object' && tag ? tag.description : '';
     if (!name || !editable) return;
     const normalizedName = name.toLocaleLowerCase();
     if (hasLabel(name)) {
@@ -2585,7 +2587,7 @@
         if (tagOperationBusy) return;
         tagOperationBusy = true;
         try {
-          const createdLabel = await createLabel(token, repo, name);
+          const createdLabel = await createLabel(token, repo, name, { description });
           availableLabels = [...availableLabels, createdLabel];
           onLabelsAvailable([createdLabel]);
         } catch (reason) {

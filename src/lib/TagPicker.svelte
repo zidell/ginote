@@ -3,6 +3,7 @@
   import { tagColorForName } from './colors.js';
   import { normalizeTagName } from './notes.js';
   import { isPinLabel } from './pin-label.js';
+  import { parseTagDefinition } from './tag-definition.js';
   import { _ } from 'svelte-i18n';
 
   export let availableLabels = [];
@@ -31,7 +32,9 @@
   $: filteredLabels = pickerLabels
     .filter((label) => label.name.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase()))
     .slice(0, 12);
-  $: newTagName = normalizeTagName(search);
+  $: newTag = parseTagDefinition(search);
+  $: newTagName = normalizeTagName(newTag.name);
+  $: newTagDescription = newTag.description;
   $: canCreate = Boolean(newTagName)
     && !isPinLabel(newTagName)
     && !hasSelected(newTagName)
@@ -70,8 +73,8 @@
     searchInput?.blur();
   }
 
-  function select(name) {
-    onSelect(name);
+  function select(name, description = '') {
+    onSelect(description ? { name, description } : name);
     search = '';
     highlightedIndex = -1;
     requestAnimationFrame(() => searchInput?.focus());
@@ -90,7 +93,7 @@
     if (highlightedIndex < 0) return null;
     if (highlightedIndex < filteredLabels.length) return filteredLabels[highlightedIndex];
     return canCreate && highlightedIndex === filteredLabels.length
-      ? { name: newTagName }
+      ? { name: newTagName, description: newTagDescription, isNew: true }
       : null;
   }
 
@@ -113,14 +116,14 @@
     event.stopPropagation();
     const highlighted = highlightedSuggestion();
     if (highlighted) {
-      select(highlighted.name);
+      select(highlighted.name, highlighted.isNew ? highlighted.description : '');
       return;
     }
     const exact = filteredLabels.find(
       (label) => label.name.toLocaleLowerCase() === search.trim().toLocaleLowerCase()
     );
     if (exact) select(exact.name);
-    else if (canCreate) select(newTagName);
+    else if (canCreate) select(newTagName, newTagDescription);
     else if (filteredLabels[0]) select(filteredLabels[0].name);
   }
 
@@ -183,9 +186,9 @@
         bind:value={search}
         on:input={() => highlightedIndex = -1}
         on:keydown={handleKeydown}
-        placeholder={$_("m.eb7b580e41")}
-        maxlength="51"
-        aria-label={$_("m.eb7b580e41")}
+        maxlength="151"
+        aria-label={$_('dynamic.tagDefinition')}
+        placeholder={$_('dynamic.tagDefinition')}
       />
       <div class="tag-dropdown-list" aria-label={$_("m.9e704d11d1")}>
         {#each filteredLabels as label, index (label.id || label.name)}
@@ -210,7 +213,7 @@
             class="create-tag"
             class:keyboard-focused={highlightedIndex === filteredLabels.length}
             on:keydown={handleKeydown}
-            on:click={() => select(newTagName)}
+            on:click={() => select(newTagName, newTagDescription)}
           >
             <span class="label-dot" style={`--label-color:#${tagColorForName(newTagName)}`}></span>
             {$_('dynamic.createTag', { values: { name: newTagName } })}

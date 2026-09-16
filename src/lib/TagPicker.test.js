@@ -117,4 +117,16 @@ describe('TagPicker', () => {
     await fireEvent.keyDown(input, { key: 'Enter' });
     expect(onSelect).toHaveBeenCalledWith('idea');
   });
+
+  it('새 태그의 첫 : 뒤 텍스트를 분류 설명으로 전달한다', async () => {
+    const onSelect = vi.fn();
+    render(TagPicker, { onSelect });
+
+    await fireEvent.click(screen.getByRole('button', { name: 'Add' }));
+    const input = screen.getByRole('textbox');
+    await fireEvent.input(input, { target: { value: 'culture: 책과 영화' } });
+    await fireEvent.keyDown(input, { key: 'Enter' });
+
+    expect(onSelect).toHaveBeenCalledWith({ name: 'culture', description: '책과 영화' });
+  });
 });
