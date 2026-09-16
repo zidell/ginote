@@ -78,6 +78,9 @@
   export let onSaved = () => {};
   export let onCreated = () => {};
   export let onDraftChange = () => {};
+  // 새 노트는 번호를 할당받는 순간 정식 편집기로 교체된다. 그 전에 들어온
+  // 파일은 이 인스턴스가 아니라 교체 뒤의 편집기에서 처리해야 한다.
+  export let onFileUploadRequested = () => {};
   export let onExternalPasteHandled = () => {};
   export let onRefreshed = () => {};
   export let onRefreshStateChange = () => {};
@@ -285,7 +288,12 @@
   $: if (mounted && !paused && refreshRequest > handledRefreshRequest) {
     handleBackgroundRefreshRequest();
   }
-  $: if (mounted && !paused && externalPasteRequest?.id > handledExternalPasteRequest) {
+  $: if (
+    mounted
+    && !paused
+    && remoteIssue?.number
+    && externalPasteRequest?.id > handledExternalPasteRequest
+  ) {
     handleExternalPasteRequest();
   }
   $: lockSessionLabel = lockSessionMinutes % 60 === 0
@@ -1569,12 +1577,19 @@
 
   async function uploadFiles(fileList) {
     if (!editable) return;
+    const requestedFiles = Array.from(fileList || []);
+    // 번호 할당을 기다리며 업로드를 계속하면, 할당 완료 때 부모가 이 편집기를
+    // 정식 노트 편집기로 교체해 결과가 유실된다. 부모에 요청을 보관해 새
+    // 편집기가 받은 뒤 업로드하게 한다.
+    if (!remoteIssue?.number && allocationPromise) {
+      onFileUploadRequested(requestedFiles);
+      return;
+    }
     if (uploadBatchActive) {
       error = $_("m.12c0dff05d");
       return;
     }
     uploadBatchActive = true;
-    const requestedFiles = Array.from(fileList || []);
     const remainingSlots = Math.max(0, MAX_ATTACHMENTS - issueAttachmentCount);
     const files = requestedFiles.slice(0, remainingSlots);
     const limitReached = requestedFiles.length > remainingSlots;
