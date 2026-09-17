@@ -1332,6 +1332,7 @@
     query = `#${label.name}`;
     sidebarSearchFocused = false;
     sidebarSuggestionIndex = -1;
+    void submitSearch();
   }
 
   function handleSidebarSearchKeydown(event) {
