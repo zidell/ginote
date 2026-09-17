@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<artifact-configuration xmlns="http://signpath.io/artifact-configuration/v1">
+  <parameters>
+    <parameter name="version" required="true" />
+  </parameters>
+  <!-- GitHub's upload-artifact wraps the MSI in a ZIP archive. -->
+  <zip-file>
+    <msi-file path="Ginote_${version}_x64_en-US.msi" subject="Ginote" author="gitools">
+      <pe-file path="**/ginote.exe" product-name="Ginote" product-version="${version}" file-version="${version}" company-name="gitools">
+        <authenticode-sign />
+      </pe-file>
+      <authenticode-sign />
+    </msi-file>
+  </zip-file>
+</artifact-configuration>

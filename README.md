@@ -128,8 +128,12 @@ API 사용량에 따라 OpenAI 비용이 발생할 수 있습니다.
 ### 데스크톱 앱 다운로드
 
 macOS·Windows·Linux용 설치 파일은 [GitHub Releases](https://github.com/zidell/ginote/releases)에서
-내려받을 수 있습니다. 데스크톱 앱도 별도 앱 서버 없이 GitHub API에 직접
-연결합니다.
+내려받을 수 있습니다. macOS는 DMG, Windows 10/11은 MSI를 사용합니다. 새 Windows
+릴리스는 SignPath Foundation 서명이 설정된 뒤 서명된 MSI로 게시됩니다.
+데스크톱 앱은 [note.gitools.net](https://note.gitools.net)을 열며 인터넷 연결이
+필요합니다. 앱 화면과 일반적인 기능 수정은 웹 배포로 적용됩니다.
+
+[Code signing policy](docs/CODE_SIGNING.md)
 
 macOS Homebrew 설치, 로컬 실행, 플랫폼별 패키징과 릴리스 절차는
 [데스크톱 앱 문서](docs/DESKTOP.md)에 정리했습니다.
@@ -203,7 +207,7 @@ GitHub API는 이슈 자체를 영구 삭제할 수 없으므로, 앱에서는 �
 
 ### 데스크톱 앱 빌드 및 릴리스
 
-Tauri 2로 프로덕션 `dist/`를 macOS·Windows·Linux용 실행 파일로 패키징합니다.
+Tauri 2로 macOS·Windows·Linux용 셸을 빌드해 웹 앱 주소를 엽니다.
 로컬 실행, 플랫폼별 빌드, GitHub Releases 서명·공증, Homebrew 배포 유지보수는
 [데스크톱 앱 문서](docs/DESKTOP.md)를 참고하세요.
 
