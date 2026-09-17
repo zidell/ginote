@@ -25,13 +25,27 @@ jobs:
     outputs:
       release_id: ${{ steps.release.outputs.release_id }}
     steps:
+      - name: Check Windows signing configuration
+        env:
+          SIGNPATH_API_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
+          SIGNPATH_ORGANIZATION_ID: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+        run: |
+          if [ -z "$SIGNPATH_API_TOKEN" ] || [ -z "$SIGNPATH_ORGANIZATION_ID" ]; then
+            echo "Configure SIGNPATH_API_TOKEN and SIGNPATH_ORGANIZATION_ID before releasing." >&2
+            exit 1
+          fi
+
       - name: Create or find draft release
         id: release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG_NAME: v${{ env.RELEASE_VERSION }}
           RELEASE_NAME: Ginote v${{ env.RELEASE_VERSION }}
-          RELEASE_BODY: Download the installer for your platform. macOS builds are signed and notarized; Windows and Linux builds are not code-signed.
+          RELEASE_BODY: >-
+            Download the installer for your platform. macOS builds are signed and notarized;
+            the Windows MSI is signed by SignPath Foundation. Linux builds are not code-signed.
+            The desktop app loads https://note.gitools.net and requires an internet connection.
+            Code signing policy: https://github.com/zidell/ginote/blob/main/docs/CODE_SIGNING.md
         run: |
           release_id="$(
             gh api --paginate "repos/${GITHUB_REPOSITORY}/releases?per_page=100" \
@@ -67,9 +81,6 @@ jobs:
             args: --target universal-apple-darwin
             rust-targets: aarch64-apple-darwin,x86_64-apple-darwin
           - platform: ubuntu-22.04
-            args: ""
-            rust-targets: ""
-          - platform: windows-latest
             args: ""
             rust-targets: ""
 
@@ -123,12 +134,14 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
           if [ -n "$APPLE_CERTIFICATE" ]; then
-            echo "APPLE_CERTIFICATE=$APPLE_CERTIFICATE" >> "$GITHUB_ENV"
-            echo "APPLE_CERTIFICATE_PASSWORD=$APPLE_CERTIFICATE_PASSWORD" >> "$GITHUB_ENV"
-            echo "APPLE_SIGNING_IDENTITY=$APPLE_SIGNING_IDENTITY" >> "$GITHUB_ENV"
-            echo "APPLE_ID=$APPLE_ID" >> "$GITHUB_ENV"
-            echo "APPLE_PASSWORD=$APPLE_PASSWORD" >> "$GITHUB_ENV"
-            echo "APPLE_TEAM_ID=$APPLE_TEAM_ID" >> "$GITHUB_ENV"
+            {
+              echo "APPLE_CERTIFICATE=$APPLE_CERTIFICATE"
+              echo "APPLE_CERTIFICATE_PASSWORD=$APPLE_CERTIFICATE_PASSWORD"
+              echo "APPLE_SIGNING_IDENTITY=$APPLE_SIGNING_IDENTITY"
+              echo "APPLE_ID=$APPLE_ID"
+              echo "APPLE_PASSWORD=$APPLE_PASSWORD"
+              echo "APPLE_TEAM_ID=$APPLE_TEAM_ID"
+            } >> "$GITHUB_ENV"
           fi
 
       - name: Build and publish desktop bundles
@@ -139,14 +152,99 @@ jobs:
           releaseId: ${{ needs.prepare-release.outputs.release_id }}
           tagName: v${{ env.RELEASE_VERSION }}
           releaseName: Ginote v${{ env.RELEASE_VERSION }}
-          releaseBody: Download the installer for your platform. macOS builds are signed and notarized; Windows and Linux builds are not code-signed.
+          releaseBody: >-
+            Download the installer for your platform. macOS builds are signed and notarized;
+            the Windows MSI is signed by SignPath Foundation. Linux builds are not code-signed.
+            The desktop app loads https://note.gitools.net and requires an internet connection.
+            Code signing policy: https://github.com/zidell/ginote/blob/main/docs/CODE_SIGNING.md
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
 
+  windows-release:
+    name: Build and sign Windows MSI
+    needs: prepare-release
+    if: github.repository == 'zidell/ginote'
+    permissions:
+      actions: read
+      contents: write
+    runs-on: windows-latest
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+
+      - name: Cache Rust build
+        uses: swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+        with:
+          workspaces: src-tauri -> target
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Set automatic release version
+        run: npm version "${{ env.RELEASE_VERSION }}" --no-git-tag-version --allow-same-version
+
+      - name: Check and test frontend
+        run: |
+          npm run check
+          npm test
+
+      # No releaseId here: unsigned Windows bundles must never reach the release.
+      - name: Build Windows MSI
+        uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f # v1
+        with:
+          args: --bundles msi
+
+      - name: Upload unsigned MSI for SignPath origin verification
+        id: unsigned-msi
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ginote-windows-msi-unsigned
+          path: src-tauri/target/release/bundle/msi/*.msi
+          if-no-files-found: error
+
+      - name: Sign installer and embedded executable
+        uses: signpath/github-action-submit-signing-request@f6d04783b4569d051e0c80105fe66e82819d0092 # v3
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ginote
+          signing-policy-slug: release-signing
+          artifact-configuration-slug: windows-msi
+          github-artifact-id: ${{ steps.unsigned-msi.outputs.artifact-id }}
+          wait-for-completion: true
+          wait-for-completion-timeout-in-seconds: '7200'
+          output-artifact-directory: signed-msi
+          parameters: |
+            version: "${{ env.RELEASE_VERSION }}"
+
+      - name: Verify and upload signed MSI to draft release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $files = @(Get-ChildItem signed-msi -Recurse -File -Filter *.msi)
+          if ($files.Count -ne 1) { throw "Expected one signed MSI, found $($files.Count)." }
+          $msi = $files[0]
+          $signature = Get-AuthenticodeSignature $msi.FullName
+          if ($signature.Status -ne 'Valid') { throw "MSI signature is $($signature.Status)." }
+          if ($signature.SignerCertificate.Subject -notmatch 'SignPath Foundation') {
+            throw "Unexpected MSI signer: $($signature.SignerCertificate.Subject)"
+          }
+          gh release upload "v$env:RELEASE_VERSION" $msi.FullName --repo $env:GITHUB_REPOSITORY
+          if ($LASTEXITCODE -ne 0) { throw "Failed to upload signed MSI." }
+
   publish-release:
     name: Publish desktop release
-    needs: [prepare-release, release]
+    needs: [prepare-release, release, windows-release]
     if: github.repository == 'zidell/ginote'
     permissions:
       contents: write
