@@ -8,6 +8,13 @@ Ginote는 GitHub의 Issues(이슈)를 개인 노트처럼 쓰는 간단하고 �
 
 서비스 주소(누구나 바로 사용 가능): [https://note.gitools.net](https://note.gitools.net)
 
+## 화면
+
+![Ginote 사용 미리보기](docs/preview.gif)
+
+미리보기 GIF를 다시 만드는 방법은 [docs/screencasting.md](docs/screencasting.md)에
+정리했습니다.
+
 ## 주요 특징
 
 - **비공개 저장소에 직접 저장:** 별도 앱 서버나 데이터베이스 없이, 비공개(Private)
@@ -57,13 +64,6 @@ JavaScript 같은 앱 파일만 전달합니다. 로그인이나 노트 저장�
 즉, 앱 파일을 내려받는 요청 외에는 사용자의 추가 데이터가 GitHub 이외의 앱
 운영자나 다른 서버로 전송되지 않습니다. 실제 노트 데이터가 존재하는 곳은
 **본인의 브라우저와 본인이 선택한 GitHub 저장소뿐**입니다.
-
-### 화면
-
-![Ginote 사용 미리보기](docs/preview.gif)
-
-미리보기 GIF를 다시 만드는 방법은 [docs/screencasting.md](docs/screencasting.md)에
-정리했습니다.
 
 ### 음성 녹음 사용하기
 
