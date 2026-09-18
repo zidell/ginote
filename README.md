@@ -8,17 +8,6 @@ Ginote는 GitHub의 Issues(이슈)를 개인 노트처럼 쓰는 간단하고 �
 
 서비스 주소(누구나 바로 사용 가능): [https://note.gitools.net](https://note.gitools.net)
 
-## 바로 사용하기
-
-1. [Ginote 열기](https://note.gitools.net)를 엽니다.
-2. GitHub에서 fine-grained personal access token(PAT)을 만들고, 노트로 쓸 저장소에
-   다음 권한을 부여합니다: **Issues: Read and write**, **Metadata: Read**. 파일·이미지를
-   첨부하려면 **Contents: Read and write**도 추가합니다.
-3. Ginote에서 PAT와 저장소를 설정한 뒤 새 노트를 만듭니다.
-
-PAT는 권한을 저장소 하나로 제한하고 개인 기기에서 사용하세요. 저장하도록 선택한
-PAT는 이 브라우저에 보관됩니다.
-
 ## 주요 특징
 
 - **비공개 저장소에 직접 저장:** 별도 앱 서버나 데이터베이스 없이, 비공개(Private)
@@ -147,7 +136,7 @@ macOS·Windows·Linux용 설치 파일은 [GitHub Releases](https://github.com/z
 macOS Homebrew 설치, 로컬 실행, 플랫폼별 패키징과 릴리스 절차는
 [데스크톱 앱 문서](docs/DESKTOP.md)에 정리했습니다.
 
-## 개발·운영 안내
+## 운영·개발 안내
 
 웹 앱을 변경할 때는 의존성을 잠금 파일 기준으로 설치하고, 정적 검사·테스트·프로덕션
 빌드를 모두 통과시킨 뒤 배포합니다. 앱은 정적 파일로 배포하며, 데스크톱 앱의 패키징과
