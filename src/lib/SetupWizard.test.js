@@ -15,7 +15,8 @@ describe('SetupWizard', () => {
     expect(screen.getByText('Step 1 of 4')).toBeTruthy();
     expect(screen.getByRole('heading', { name: /GitHub repository/ })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Cancel' })).toBeNull();
-    expect(screen.getByText('View source code on GitHub')).toBeTruthy();
+    expect(screen.getByRole('link', { name: /Github/ })).toHaveProperty('href', 'https://github.com/zidell/ginote');
+    expect(screen.getByRole('link', { name: '앱 설치' })).toHaveProperty('href', 'https://github.com/zidell/ginote/releases');
   });
 
   it('initialStep=3이면 저장소 입력 화면부터 시작하고 이전 두 단계는 완료 표시된다', () => {
@@ -33,7 +34,8 @@ describe('SetupWizard', () => {
     const onCancel = vi.fn();
     render(SetupWizard, { initialStep: 3, allowCancel: true, onCancel });
 
-    expect(screen.queryByText('View source code on GitHub')).toBeNull();
+    expect(screen.queryByRole('link', { name: /Github/ })).toBeNull();
+    expect(screen.queryByRole('link', { name: '앱 설치' })).toBeNull();
     const closeButton = screen.getByRole('button', { name: 'Close' });
     await fireEvent.click(closeButton);
     expect(onCancel).toHaveBeenCalled();
