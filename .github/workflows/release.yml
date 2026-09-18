@@ -1,7 +1,8 @@
 name: Desktop release
 
 on:
-  workflow_dispatch:
+  push:
+    branches: [release]
 
 concurrency:
   group: desktop-release
