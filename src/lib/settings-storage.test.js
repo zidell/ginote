@@ -5,6 +5,7 @@ import {
   loadSettingsDocument,
   normalizeLockSessionMinutes,
   normalizeWorkspaceCacheMinutes,
+  finalizePreferences,
   normalizePreferences,
   preferenceSignature,
   removeSettingsDocument,
@@ -276,5 +277,39 @@ describe('loadSettingsDocument 구버전 마이그레이션', () => {
     );
     const loaded = loadSettingsDocument();
     expect(loaded.activeWorkspaceId).toBe(workspace.id);
+  });
+});
+
+describe('finalizePreferences', () => {
+  it('환경설정 입력값을 허용 범위와 정수 단위로 맞추고 나머지 값은 그대로 둔다', () => {
+    const finalized = finalizePreferences({
+      ...normalizePreferences(),
+      theme: 'sepia',
+      titleMode: 'separate',
+      editorFontSize: 40.6,
+      editorLineHeight: 0.5,
+      editorMaxWidth: 999.4,
+      autoSaveSeconds: '7.6',
+      issuePageSize: 5,
+      lockSessionMinutes: 7,
+      workspaceCacheMinutes: 180
+    });
+    expect(finalized).toMatchObject({
+      theme: 'dark',
+      titleMode: 'separate',
+      editorFontSize: 32,
+      editorLineHeight: 1.2,
+      editorMaxWidth: 999,
+      autoSaveSeconds: 8,
+      issuePageSize: 10,
+      lockSessionMinutes: 60,
+      workspaceCacheMinutes: 180
+    });
+  });
+
+  it('숫자가 아닌 값은 기본값으로 되돌린다', () => {
+    const finalized = finalizePreferences({ ...normalizePreferences(), editorFontSize: '', issuePageSize: 'many' });
+    expect(finalized.editorFontSize).toBe(12);
+    expect(finalized.issuePageSize).toBe(30);
   });
 });

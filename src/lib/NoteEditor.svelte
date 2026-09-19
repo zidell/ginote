@@ -12,6 +12,7 @@
   import TagPicker from './TagPicker.svelte';
   import { automaticTitle, linkAtCursor, shortenMiddle } from './notes.js';
   import { loadPendingWork, pendingWorkScope, updatePendingWork } from './pending-work.js';
+  import { readDraftStore, writeDraftStore } from './draft-store.js';
   import {
     ATTACHMENT_BRANCH,
     ATTACHMENT_LINK_PLACEHOLDER,
@@ -103,7 +104,6 @@
   export let onSetLockSession = () => {};
   export let currentUserLogin = '';
 
-  const DRAFTS_KEY = 'issue-note.drafts.v1';
   const LIST_PREVIEW_DEBOUNCE_MS = 500;
   const MAX_ATTACHMENTS = 30;
   const ATTACHMENT_DELETE_DELAY_MS = 5000;
@@ -456,17 +456,9 @@
     voiceAudioPreviewErrors = {};
   });
 
-  function draftStore() {
-    try {
-      return JSON.parse(localStorage.getItem(DRAFTS_KEY) || '{}');
-    } catch {
-      return {};
-    }
-  }
-
   function readDraft() {
     const pendingDraft = loadPendingWork(repo, issue?.number || remoteIssue?.number)?.noteDraft;
-    return pendingDraft || draftStore()[repo]?.[draftId] || null;
+    return pendingDraft || readDraftStore()[repo]?.[draftId] || null;
   }
 
   function persistLocalDraft() {
@@ -478,22 +470,22 @@
       removeLocalDraft();
       return;
     }
-    const store = draftStore();
+    const store = readDraftStore();
     store[repo] ||= {};
     const draft = { title, body, labels, savedAt: Date.now() };
     store[repo][draftId] = draft;
-    localStorage.setItem(DRAFTS_KEY, JSON.stringify(store));
+    writeDraftStore(store);
     if (issue?.number || remoteIssue?.number) {
       updatePendingWork(repo, issue?.number || remoteIssue?.number, { noteDraft: draft });
     }
   }
 
   function removeLocalDraft() {
-    const store = draftStore();
+    const store = readDraftStore();
     if (store[repo]) {
       delete store[repo][draftId];
       if (!Object.keys(store[repo]).length) delete store[repo];
-      localStorage.setItem(DRAFTS_KEY, JSON.stringify(store));
+      writeDraftStore(store);
     }
     if (issue?.number || remoteIssue?.number) {
       updatePendingWork(repo, issue?.number || remoteIssue?.number, { noteDraft: null });

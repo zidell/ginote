@@ -28,6 +28,28 @@ npm run build
 ```
 
 `main` 브랜치 푸시와 pull request에서도 같은 검사를 GitHub Actions가 수행합니다.
+CI는 `npm run test:coverage`로 커버리지를 만들어 Codecov에 올립니다.
+
+## 코드 구조
+
+- `src/App.svelte`: 화면 전체의 상태(워크스페이스, 노트 목록, 선택, 라우트)를 들고
+  하위 컴포넌트와 모듈을 잇는 조립 지점입니다. 새 기능의 계산 로직이나 독립된 UI는
+  여기에 직접 넣지 말고 아래 위치로 분리합니다.
+- `src/lib/*.svelte`: 화면 조각입니다. 사이드바 목록(`NoteList`), 검색(`SidebarSearch`),
+  다중 선택 도구(`SelectionToolbar`, `SelectionTagPanel`), 환경설정(`DisplaySettings`,
+  `VoiceSettings`), 도움말(`HelpOverlay`), 저장소 추가(`AddWorkspaceDialog`), 노트
+  편집기(`NoteEditor`) 등이 있습니다.
+- `src/lib/*.js`: 화면과 무관한 로직입니다.
+  - GitHub API 호출: `github.js`
+  - 순수 계산: `app-routes.js`, `issue-labels.js`, `issue-selection.js`, `pinned-issues.js`,
+    `keyboard-shortcuts.js`, `voice-notes.js` 등
+  - 여러 API 호출을 묶은 작업: `merge-notes.js`, `attachment-prune.js`
+  - 타이머나 비동기 상태를 가진 컨트롤러: `deletion-queue.js`, `long-press.js`, `toast.js`,
+    `transcription-hints.js`, `keyboard-ready-class.js`
+  - 브라우저 저장소: `settings-storage.js`, `draft-store.js`, `sidebar-width.js` 등
+- 테스트는 대상 파일 옆에 `*.test.js`로 둡니다. `src/App.test.js`는 GitHub를 메모리
+  가짜 저장소로 바꿔 화면 흐름 전체를 검증하며, 녹음기는
+  `src/lib/__mocks__/VoiceRecorder.svelte` 대역을 씁니다.
 
 ## 웹 배포
 

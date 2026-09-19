@@ -74,6 +74,21 @@ export function normalizePreferences(raw) {
   };
 }
 
+// 환경설정 화면에서 입력한 값을 확정할 때 허용 범위와 정수 단위로 맞춘다.
+export function finalizePreferences(preferences) {
+  return {
+    ...preferences,
+    theme: normalizeTheme(preferences.theme),
+    editorFontSize: Math.round(clampNumber(preferences.editorFontSize, 12, 32, 17)),
+    editorLineHeight: clampNumber(preferences.editorLineHeight, 1.2, 2.5, 1.8),
+    editorMaxWidth: Math.round(clampNumber(preferences.editorMaxWidth, 480, 1600, 840)),
+    autoSaveSeconds: Math.round(clampNumber(preferences.autoSaveSeconds, 3, 30, 5)),
+    issuePageSize: Math.round(clampNumber(preferences.issuePageSize, 10, 100, 30)),
+    lockSessionMinutes: normalizeLockSessionMinutes(preferences.lockSessionMinutes),
+    workspaceCacheMinutes: normalizeWorkspaceCacheMinutes(preferences.workspaceCacheMinutes)
+  };
+}
+
 export function preferenceSignature(preferences) {
   return JSON.stringify([
     preferences.theme,

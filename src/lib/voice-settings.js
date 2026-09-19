@@ -99,6 +99,38 @@ export function saveVoiceModelLists({ transcription, refinement }) {
   }));
 }
 
+// OpenAI 모델 목록을 전사용과 정제용으로 나눈다. 날짜가 붙은 스냅샷은 뺀다.
+export function classifyVoiceModels(modelIds) {
+  const sorted = [...new Set(modelIds.filter((id) => !isDatedModelSnapshot(id)))]
+    .sort((left, right) => left.localeCompare(right));
+  return {
+    transcription: sorted.filter((id) => /(?:^|-)transcribe(?:-|$)|^whisper-/.test(id)),
+    // chat/completions로 정제할 수 있는 범용 텍스트 계열만 보여 준다.
+    refinement: sorted.filter((id) => /^(gpt-(?:4|5)|o[1-4])/.test(id)
+      && !/(audio|realtime|transcribe|tts|image|moderation|embedding)/.test(id))
+  };
+}
+
+// 선택 중인 모델이 새 목록에서 사라져도 설정값을 조용히 바꾸지 않도록 목록에 남긴다.
+export function withSelectedModels(lists, { transcriptionModel, refinementModel }) {
+  const keep = (models, selected) => {
+    const next = [...models];
+    if (!isDatedModelSnapshot(selected) && selected && !next.includes(selected)) next.push(selected);
+    return next.sort((left, right) => left.localeCompare(right));
+  };
+  return {
+    transcription: keep(lists.transcription, transcriptionModel),
+    refinement: keep(lists.refinement, refinementModel)
+  };
+}
+
+export function maskApiKey(value) {
+  const key = String(value || '');
+  if (!key) return '';
+  if (key.length <= 20) return '••••••••••••';
+  return `${key.slice(0, 10)}...${key.slice(-10)}`;
+}
+
 function loadPendingVoiceHintsStore() {
   try {
     const value = JSON.parse(localStorage.getItem(VOICE_HINTS_PENDING_STORAGE_KEY) || '{}');

@@ -1,47 +1,92 @@
 <script>
   import { onMount, tick } from 'svelte';
   import { createStackRouter } from 'spa-stack-router';
-  import { externalLinkTarget } from './lib/external-links.js';
-  import McpGuide from './lib/McpGuide.svelte';
+  import AddWorkspaceDialog from './lib/AddWorkspaceDialog.svelte';
   import BrailleSpinner from './lib/BrailleSpinner.svelte';
+  import DisplaySettings from './lib/DisplaySettings.svelte';
+  import HelpOverlay from './lib/HelpOverlay.svelte';
   import NoteEditor from './lib/NoteEditor.svelte';
-  import NoteListRow from './lib/NoteListRow.svelte';
+  import NoteList from './lib/NoteList.svelte';
+  import SelectionTagPanel from './lib/SelectionTagPanel.svelte';
+  import SelectionToolbar from './lib/SelectionToolbar.svelte';
   import SetupWizard from './lib/SetupWizard.svelte';
   import TagSettings from './lib/TagSettings.svelte';
   import WorkspaceList from './lib/WorkspaceList.svelte';
   import WorkspaceSwitcher from './lib/WorkspaceSwitcher.svelte';
   import VoiceRecorder from './lib/VoiceRecorder.svelte';
+  import VoiceSettings from './lib/VoiceSettings.svelte';
   import {
     DEFAULT_REFINEMENT_MODEL,
     DEFAULT_REFINEMENT_PROMPT,
     DEFAULT_TRANSCRIPTION_MODEL,
-    TYPO_CORRECTION_REFINEMENT_PROMPT,
-    WRITTEN_STYLE_REFINEMENT_PROMPT,
-    CONCLUSION_FOCUSED_REFINEMENT_PROMPT,
-    clearPendingVoiceTranscriptionHints,
-    isDatedModelSnapshot,
-    loadPendingVoiceTranscriptionHints,
-    loadVoiceSettings,
-    loadVoiceModelLists,
-    saveVoiceSettings,
-    savePendingVoiceTranscriptionHints,
-    saveVoiceModelLists
+    loadVoiceSettings
   } from './lib/voice-settings.js';
-  import { listAvailableVoiceModels } from './lib/openai-voice.js';
-  import { tagColorForName } from './lib/colors.js';
-  import {
-    CODING_FONT_OPTIONS,
-    isWebFont,
-    loadWebFont,
-    localFontFamily,
-    localFontValue
-  } from './lib/editor-fonts.js';
+  import { createDeletionQueue, findEntryForIssue, queuedIssueIds } from './lib/deletion-queue.js';
+  import { createLongPress } from './lib/long-press.js';
+  import { createToast } from './lib/toast.js';
+  import { createTranscriptionHints } from './lib/transcription-hints.js';
+  import { createKeyboardReadyClass } from './lib/keyboard-ready-class.js';
+  import { isWebFont, loadWebFont } from './lib/editor-fonts.js';
   import { _, locale as activeLocale } from 'svelte-i18n';
-  import { LOCALE_OPTIONS, setAppLocale } from './lib/i18n.js';
-  import { automaticTitle, normalizeTagName } from './lib/notes.js';
-  import { attachmentRawUrl } from './lib/attachments.js';
-  import { earliestIssue, formatMergedBody, mergeTimeline, replaceAttachmentUrls } from './lib/note-merge.js';
-  import { MAX_ISSUE_BODY_LENGTH } from './lib/github-limits.js';
+  import { setAppLocale } from './lib/i18n.js';
+  import {
+    hasScreen,
+    helpTopicFromRoute,
+    HELP_TOPICS,
+    isContentRoute,
+    isHomeOrNoteHash,
+    labelFromRoutes,
+    queryMatchesLabel,
+    segmentsWithPromotedNote,
+    segmentsWithRenamedTag,
+    tagRouteSegment
+  } from './lib/app-routes.js';
+  import {
+    arrowDirection,
+    hasNoModifier,
+    isDeleteShortcut,
+    isEditableElement,
+    isFormControl,
+    isNewNoteShortcut,
+    isNoteRowButton,
+    isShiftOnly,
+    isTextControl,
+    workspaceNumberFromEvent
+  } from './lib/keyboard-shortcuts.js';
+  import { rangeSelection, reconcileSelection, toggleSelection } from './lib/issue-selection.js';
+  import {
+    hasIssueLabel,
+    limitTagInput,
+    mergeLabels,
+    replaceIssueLabel,
+    sortLabels
+  } from './lib/issue-labels.js';
+  import {
+    applyPendingPin,
+    applyPendingPinToList,
+    restorePinnedList,
+    samePinIssue,
+    syncPinnedList,
+    uniquePinnedIssues
+  } from './lib/pinned-issues.js';
+  import { renameDraftLabels } from './lib/draft-store.js';
+  import {
+    appendVoiceAttachmentLink,
+    composeVoiceIssue,
+    knownTagNames,
+    normalizeSuggestedTitle,
+    normalizeVoiceParagraphs,
+    voiceAttachmentLink,
+    voiceAudioFile
+  } from './lib/voice-notes.js';
+  import { friendlyError } from './lib/error-messages.js';
+  import { clampSidebarWidth, loadSidebarWidth, saveSidebarWidth, SIDEBAR_WIDTH_DEFAULT } from './lib/sidebar-width.js';
+  import {
+    markExpiredAttachmentsPruned,
+    purgeExpiredAttachments,
+    shouldPruneExpiredAttachments
+  } from './lib/attachment-prune.js';
+  import { MergeError, mergeIssues } from './lib/merge-notes.js';
   import {
     hasPinLabel,
     isPinLabel,
@@ -51,19 +96,11 @@
   } from './lib/pin-label.js';
   import { makePatCreationUrl, normalizeToken, parseRepositoryAddress } from './lib/repo-address.js';
   import {
-    LOCK_SESSION_DEFAULT_MINUTES,
-    LOCK_SESSION_OPTIONS,
-    THEME_DEFAULT,
-    THEME_OPTIONS,
-    WORKSPACE_CACHE_DEFAULT_MINUTES,
-    WORKSPACE_CACHE_OPTIONS,
     applyTheme,
-    clampNumber,
     createWorkspaceRecord,
+    finalizePreferences,
     loadSettingsDocument,
-    normalizeLockSessionMinutes,
-    normalizeTheme,
-    normalizeWorkspaceCacheMinutes,
+    normalizePreferences,
     preferenceSignature,
     renameWorkspace as renameWorkspaceRecord,
     reorderWorkspace,
@@ -80,49 +117,28 @@
     createIssue,
     createIssueComment,
     createLabel,
-    downloadAttachment,
-    getIssue,
-    loadVoiceTranscriptionHints,
-    listExpiredClosedIssues,
-    listAllIssueAttachmentFiles,
-    listIssueAttachmentFiles,
-    listIssueComments,
     listIssuesPage,
     listLabels,
     removeIssueLabel,
     removeLabel,
     renameLabel,
-    purgeIssueAttachments,
     searchIssuesPage,
     setIssueLabels,
     setIssueState,
-    saveVoiceTranscriptionHints,
-    updateIssue,
     uploadAttachment,
     verifyConnection
   } from './lib/github.js';
 
-  const ATTACHMENT_PRUNE_STORAGE_KEY = 'issue-note.attachment-prune.v1';
-  const SIDEBAR_WIDTH_STORAGE_KEY = 'issue-note.sidebar-width.v1';
-  const LONG_PRESS_MS = 500;
   const DELETE_DELAY_MS = 3000;
-  const LONG_PRESS_MOVE_TOLERANCE_PX = 10;
-  const ATTACHMENT_PRUNE_INTERVAL_MS = 24 * 60 * 60 * 1000;
   // 창/탭 전환은 짧은 시간에 focus와 visibilitychange를 모두 일으킬 수 있다.
   // GitHub API를 중복 호출하지 않도록 활성화 갱신은 이 간격 안에서 한 번만 한다.
   const ACTIVE_PAGE_REFRESH_COOLDOWN_MS = 30 * 1000;
-  const SIDEBAR_LOAD_MORE_THRESHOLD_PX = 160;
-  const SIDEBAR_WIDTH_MIN = 200;
-  const SIDEBAR_WIDTH_MAX = 600;
-  const SIDEBAR_WIDTH_DEFAULT = 340;
   const PINNED_ISSUE_PAGE_SIZE = 100;
-  const HELP_TOPICS = new Set(['security', 'mcp', 'app', 'keyboard']);
   // Escape는 열린 UI와 포커스를 먼저 정리한 뒤, 남은 경우에만 아래 전역
   // 핸들러가 뒤로가기를 수행한다. 라우터의 자동 keyup 뒤로가기를 켜두면
   // 드롭다운이 keydown에서 닫힌 뒤에도 같은 Escape의 keyup이 라우터에
   // 도달해 게시물까지 빠져나가 버린다.
   const router = createStackRouter({ mode: 'hashbang', escToBack: false });
-  const newContextTarget = externalLinkTarget();
 
   let token = '';
   let tokenInputValue = '';
@@ -132,12 +148,6 @@
   let activeWorkspaceId = '';
   let workspaceNoteCounts = {};
   let workspaceWizardOpen = false;
-  let workspaceWizardKey = 0;
-  let workspaceWizardRepo = '';
-  let workspaceWizardToken = '';
-  let workspaceWizardRememberToken = true;
-  let workspaceWizardBusy = false;
-  let workspaceWizardError = '';
   let appState = 'booting';
   let user = null;
   let repository = null;
@@ -183,21 +193,9 @@
   let notice = '';
   let routeStack = [];
   let helpTopic = null;
-  let titleMode = 'first-line';
-  let listRowFields = { title: true, summary: true, meta: true, tags: true };
-  let editorFont = 'system';
-  let localFontFamilies = [];
-  let localFontLoadState = 'idle';
-  let editorFontSize = 17;
-  let editorLineHeight = 1.8;
-  let editorMaxWidth = 840;
-  let autoSaveSeconds = 5;
-  let issuePageSize = 30;
-  let lockSessionMinutes = LOCK_SESSION_DEFAULT_MINUTES;
-  let workspaceCacheMinutes = WORKSPACE_CACHE_DEFAULT_MINUTES;
+  // 표시·편집 환경설정이다. 저장 형식(settings-storage.js의 normalizePreferences)과 같은 모양이다.
+  let preferences = normalizePreferences();
   let touchDevice = false;
-  let themePreference = THEME_DEFAULT;
-  let languagePreference = 'auto';
   let activePageRefreshInFlight = false;
   let lastActivePageRefreshAt = 0;
   let labelBusy = {};
@@ -207,25 +205,12 @@
   let settingsRouteOverride = '';
   let settingsEntryPageSize = 0;
   let settingsEntrySignature = '';
-  let toastMessage = '';
-  let toastTimer;
-  let toastSequence = 0;
-  let pendingIssueDeletionQueue = [];
-  let pendingIssueDeletionSequence = 0;
   let pinBusyIssueNumber = null;
   let pendingPinMutation = null;
   let nextPinMutationId = 0;
   let sidebarWidth = SIDEBAR_WIDTH_DEFAULT;
   let sidebarResizing = false;
-  let sidebarScrollElement;
-  let sidebarToolsElement;
-  let sidebarToolsOffset = 0;
-  let sidebarToolsRevealing = false;
-  let sidebarToolsInitialized = false;
-  let sidebarToolsInitializing = false;
-  let sidebarSearchFocused = false;
-  let sidebarSuggestionIndex = -1;
-  let lastSidebarScrollTop = 0;
+  let noteList;
   let issueRefreshSequence = 0;
   let issueRefreshRequests = {};
   let refreshingIssueNumber = null;
@@ -236,35 +221,15 @@
   let selectedIssueIds = new Set();
   let selectionAnchorId = null;
   let selectionTagPanelOpen = false;
-  let selectionTagSearch = '';
   let selectionTagBusy = false;
   let mergeBusy = false;
-  let longPressTimer;
-  let longPressStart = null;
-  let suppressIssueClickId = null;
-  let suppressIssueClickTimer;
-  let keyboardShortcutFocusFrame;
   let voiceApiKey = '';
-  let voiceApiKeyEditing = false;
   let voiceRefinementPrompt = DEFAULT_REFINEMENT_PROMPT;
   let voiceTranscriptionModel = DEFAULT_TRANSCRIPTION_MODEL;
   let voiceRefinementModel = DEFAULT_REFINEMENT_MODEL;
-  let voiceTranscriptionHints = '';
-  let voiceHintsLoadedRepo = '';
-  let voiceHintsLoading = false;
-  let voiceHintsSaving = false;
-  let voiceHintsError = '';
-  let voiceHintsLoadPromise = null;
   let preserveOriginalVoiceAudio = false;
-  let voiceModelLists = { transcription: [], refinement: [] };
-  let voiceModelsRefreshing = false;
-  let voiceModelsError = '';
-  let voiceModelsRefreshTimer;
-  let voiceModelsAbortController;
-  let fetchedVoiceApiKey = '';
   let openVoiceAfterSettings = false;
   let focusVoiceSettingsAfterOpen = false;
-  let voiceSettingsHighlighted = false;
   let voiceHasUnrecordedAudio = false;
   let allowVoiceRouteExit = false;
   let voiceRecordingDestination = null;
@@ -274,23 +239,17 @@
   let voiceBody = null;
   let voiceCommentEditSequence = 0;
   let voiceCommentEdit = null;
-  let voiceSettingsSection;
-  let voiceApiKeyInput;
+  let voiceSettings;
+
+  const toast = createToast();
+  const deletionQueue = createDeletionQueue({ delayMs: DELETE_DELAY_MS, onExpire: runPendingIssueDeletion });
+  const longPress = createLongPress({ onLongPress: selectIssueByLongPress });
+  const transcriptionHints = createTranscriptionHints(() => ({ token, repo }));
+  const keyboardReadyClass = createKeyboardReadyClass(() => touchDevice);
 
   $: selectionMode = selectedIssueIds.size > 0;
   $: selectedIssues = visibleIssues.filter((issue) => !issue.local && selectedIssueIds.has(issue.id));
-  $: pendingIssueDeletionIds = new Set(
-    pendingIssueDeletionQueue.flatMap((entry) => entry.issues.map((issue) => issue.id))
-  );
-  $: selectionTagCounts = countSelectionTags(selectedIssues);
-  $: selectionTagOptions = buildSelectionTagOptions(
-    visibleRepositoryLabels,
-    selectionTagCounts,
-    selectionTagSearch
-  );
-  $: selectionNewTagName = normalizeTagName(selectionTagSearch);
-  $: canCreateSelectionTag = Boolean(selectionNewTagName)
-    && !selectionTagOptions.some((option) => option.name.toLocaleLowerCase() === selectionNewTagName.toLocaleLowerCase());
+  $: pendingIssueDeletionIds = queuedIssueIds($deletionQueue);
   $: if (!selectionMode && selectionTagPanelOpen) closeSelectionTagPanel();
 
   $: emptyMessage = appliedQuery
@@ -311,13 +270,11 @@
   }
   // 안내 화면도 다른 화면과 마찬가지로 URL 스택의 한 레이어다. 따라서 새로고침,
   // 공유 URL, 브라우저 뒤로가기 모두 같은 방식으로 동작한다.
-  $: helpTopic = topRoute?.screen === 'help' && HELP_TOPICS.has(topRoute.value)
-    ? topRoute.value
-    : null;
-  $: contentRoutes = routeStack.filter((route) => ['note', 'new'].includes(route.screen));
+  $: helpTopic = helpTopicFromRoute(topRoute);
+  $: contentRoutes = routeStack.filter(isContentRoute);
   $: contentRoute = contentRoutes.at(-1);
   $: isNewRoute = contentRoute?.screen === 'new';
-  $: queryIsLabelFilter = queryMatchesActiveLabel(appliedQuery, activeLabel);
+  $: queryIsLabelFilter = queryMatchesLabel(appliedQuery, activeLabel);
   $: pendingMatchesLabel = !activeLabel || hasIssueLabel(pendingNote, activeLabel);
   $: visibleIssues = pendingNote && state === 'open' && (!appliedQuery || queryIsLabelFilter) && pendingMatchesLabel
     ? [pendingNote, ...issues.filter((issue) => issue.number !== pendingNote.number)]
@@ -325,17 +282,6 @@
   $: pinnedIssueIds = new Set(pinnedIssues.map((issue) => issue.id));
   $: unpinnedVisibleIssues = visibleIssues.filter((issue) => !pinnedIssueIds.has(issue.id));
   $: visibleRepositoryLabels = filterVisibleLabels(repositoryLabels);
-  $: sidebarLabelSuggestions = visibleRepositoryLabels.filter((label) =>
-    label.name.toLocaleLowerCase().includes(query.trim().replace(/^#/, '').toLocaleLowerCase())
-  );
-  $: if (sidebarScrollElement && sidebarToolsElement && !sidebarToolsInitialized && !sidebarToolsInitializing) {
-    initializeSidebarTools();
-  }
-  $: if (!sidebarScrollElement && sidebarToolsInitialized) {
-    sidebarToolsInitialized = false;
-    sidebarToolsOffset = 0;
-    lastSidebarScrollTop = 0;
-  }
 
   function setLockSession(pin) {
     clearTimeout(lockSessionTimer);
@@ -343,14 +289,14 @@
     if (!pin) return;
     lockSessionTimer = setTimeout(() => {
       lockPin = '';
-    }, lockSessionMinutes * 60 * 1000);
+    }, preferences.lockSessionMinutes * 60 * 1000);
   }
 
   onMount(() => {
     const touchMedia = matchMedia('(pointer: coarse)');
     const updateTouchDevice = () => {
       touchDevice = touchMedia.matches;
-      scheduleKeyboardShortcutClass();
+      keyboardReadyClass.schedule();
     };
     updateTouchDevice();
     touchMedia.addEventListener('change', updateTouchDevice);
@@ -358,10 +304,7 @@
     router.init();
     window.addEventListener('keydown', handleGlobalKeydown);
     window.addEventListener('paste', handleGlobalPaste);
-    document.addEventListener('focusin', scheduleKeyboardShortcutClass);
-    document.addEventListener('focusout', scheduleKeyboardShortcutClass);
-    window.addEventListener('focus', scheduleKeyboardShortcutClass);
-    window.addEventListener('blur', clearKeyboardShortcutClass);
+    const detachKeyboardReadyClass = keyboardReadyClass.attach();
     window.addEventListener('focus', refreshWhenPageBecomesActive);
     document.addEventListener('visibilitychange', refreshWhenPageBecomesActive);
     // iOS의 엣지 스와이프는 라우터가 스택을 갱신하기 전에 기존 textarea의
@@ -370,12 +313,11 @@
     window.addEventListener('popstate', blurFocusedTextControl);
     window.addEventListener('hashchange', blurFocusedTextControl);
     document.addEventListener('touchstart', blurForEdgeBackSwipe, true);
-    scheduleKeyboardShortcutClass();
     const unsubscribe = router.subscribe((stack) => {
       const targetSignature = stack.map((route) => route.segment).join('/');
       if (targetSignature === pendingRouteTransition) return;
-      const hadContent = routeStack.some((route) => ['note', 'new'].includes(route.screen));
-      const hasContent = stack.some((route) => ['note', 'new'].includes(route.screen));
+      const hadContent = routeStack.some(isContentRoute);
+      const hasContent = stack.some(isContentRoute);
       // 목록으로 나갈 때의 모든 경로(버튼, Esc, 브라우저 뒤로가기)에서 현재
       // 입력 포커스를 전환 스냅샷 전에 해제한다.
       if (hadContent && !hasContent) document.activeElement?.blur?.();
@@ -405,10 +347,10 @@
     function updateRouteStack(stack) {
       // 설정 위에 안내 레이어를 쌓았다가 닫아도 설정을 떠난 것이 아니므로,
       // 최상단이 아니라 스택 전체에서 설정 경로의 유무를 비교한다.
-      const wasInSettings = routeStack.some((route) => route.screen === 'settings');
-      const isInSettings = stack.some((route) => route.screen === 'settings');
-      const wasInVoice = routeStack.some((route) => route.screen === 'voice');
-      const isInVoice = stack.some((route) => route.screen === 'voice');
+      const wasInSettings = hasScreen(routeStack, 'settings');
+      const isInSettings = hasScreen(stack, 'settings');
+      const wasInVoice = hasScreen(routeStack, 'voice');
+      const isInVoice = hasScreen(stack, 'voice');
       const previousLabel = labelFromRoutes(routeStack);
       const nextLabel = labelFromRoutes(stack);
       routeStack = stack;
@@ -428,8 +370,8 @@
           query = `#${nextLabel}`;
           appliedQuery = query;
         } else {
-          if (queryMatchesActiveLabel(query, previousLabel)) query = '';
-          if (queryMatchesActiveLabel(appliedQuery, previousLabel)) appliedQuery = '';
+          if (queryMatchesLabel(query, previousLabel)) query = '';
+          if (queryMatchesLabel(appliedQuery, previousLabel)) appliedQuery = '';
         }
       }
       if (wasInSettings && !isInSettings) {
@@ -460,27 +402,13 @@
       refinementModel: voiceRefinementModel,
       preserveOriginalAudio: preserveOriginalVoiceAudio
     } = loadVoiceSettings());
-    voiceModelLists = loadVoiceModelLists();
     if (settingsDocument) {
       workspaces = settingsDocument.workspaces;
       activeWorkspaceId = settingsDocument.activeWorkspaceId;
-      ({
-        titleMode,
-        listRowFields,
-        editorFont,
-        editorFontSize,
-        editorLineHeight,
-        editorMaxWidth,
-        autoSaveSeconds,
-        issuePageSize,
-        lockSessionMinutes,
-        workspaceCacheMinutes,
-        theme: themePreference,
-        language: languagePreference
-      } = settingsDocument.preferences);
-      applyTheme(themePreference);
-      setAppLocale(languagePreference);
-      if (isWebFont(editorFont)) void loadWebFont(editorFont);
+      preferences = settingsDocument.preferences;
+      applyTheme(preferences.theme);
+      setAppLocale(preferences.language);
+      if (isWebFont(preferences.editorFont)) void loadWebFont(preferences.editorFont);
       const activeWorkspace = workspaces.find((workspace) => workspace.id === activeWorkspaceId);
       if (activeWorkspace) {
         repo = activeWorkspace.repo;
@@ -500,25 +428,18 @@
 
     return () => {
       clearTimeout(lockSessionTimer);
-      clearTimeout(longPressTimer);
-      clearTimeout(suppressIssueClickTimer);
-      clearTimeout(toastTimer);
-      cancelAllPendingIssueDeletions(true);
+      longPress.destroy();
+      toast.destroy();
+      deletionQueue.cancelAll(true);
       touchMedia.removeEventListener('change', updateTouchDevice);
       window.removeEventListener('keydown', handleGlobalKeydown);
       window.removeEventListener('paste', handleGlobalPaste);
-      document.removeEventListener('focusin', scheduleKeyboardShortcutClass);
-      document.removeEventListener('focusout', scheduleKeyboardShortcutClass);
-      window.removeEventListener('focus', scheduleKeyboardShortcutClass);
-      window.removeEventListener('blur', clearKeyboardShortcutClass);
+      detachKeyboardReadyClass();
       window.removeEventListener('focus', refreshWhenPageBecomesActive);
       document.removeEventListener('visibilitychange', refreshWhenPageBecomesActive);
       window.removeEventListener('popstate', blurFocusedTextControl);
       window.removeEventListener('hashchange', blurFocusedTextControl);
       document.removeEventListener('touchstart', blurForEdgeBackSwipe, true);
-      clearTimeout(voiceModelsRefreshTimer);
-      voiceModelsAbortController?.abort();
-      clearKeyboardShortcutClass();
       unsubscribe();
       router.destroy();
     };
@@ -534,7 +455,7 @@
   }
 
   function applyRoute() {
-    const route = [...routeStack].reverse().find((item) => ['note', 'new'].includes(item.screen));
+    const route = routeStack.findLast(isContentRoute);
 
     // 새 노트는 번호 할당 직후 주소가 note.{번호}로 바뀌지만 issues 목록에는
     // 아직 없다. 이 경우를 "삭제된 옛날 URL"로 오인해 홈으로 되돌리면 안 되므로
@@ -599,55 +520,6 @@
     return route.screen === 'note' && pendingNote != null && Number(route.value) === pendingNote.number;
   }
 
-  function labelFromRoutes(routes) {
-    const route = routes.find((item) => item.screen === 'tag');
-    if (!route?.value) return '';
-    try {
-      return decodeURIComponent(route.value);
-    } catch {
-      return route.value;
-    }
-  }
-
-  function queryMatchesActiveLabel(queryValue, labelName) {
-    return Boolean(
-      labelName
-      && queryValue.trim().toLocaleLowerCase() === `#${labelName}`.toLocaleLowerCase()
-    );
-  }
-
-  function currentPreferences() {
-    return {
-      theme: themePreference,
-      titleMode,
-      listRowFields,
-      editorFont,
-      editorFontSize,
-      editorLineHeight,
-      editorMaxWidth,
-      autoSaveSeconds,
-      issuePageSize,
-      lockSessionMinutes,
-      workspaceCacheMinutes,
-      language: languagePreference
-    };
-  }
-
-  function persistVoiceSettings() {
-    saveVoiceSettings({
-      apiKey: voiceApiKey,
-      refinementPrompt: voiceRefinementPrompt,
-      transcriptionModel: voiceTranscriptionModel,
-      refinementModel: voiceRefinementModel,
-      preserveOriginalAudio: preserveOriginalVoiceAudio
-    });
-  }
-
-  function applyVoiceRefinementPreset(prompt) {
-    voiceRefinementPrompt = prompt;
-    persistVoiceSettings();
-  }
-
   function persistSettings(normalizedRepo) {
     const existingIndex = workspaces.findIndex((workspace) => workspace.id === activeWorkspaceId);
     const existingDisplayName = existingIndex === -1 ? '' : workspaces[existingIndex].displayName;
@@ -662,7 +534,11 @@
       ? [...workspaces, workspaceRecord]
       : workspaces.map((workspace, index) => (index === existingIndex ? workspaceRecord : workspace));
     activeWorkspaceId = workspaceRecord.id;
-    saveSettingsDocument({ workspaces, activeWorkspaceId, preferences: currentPreferences() });
+    saveSettings();
+  }
+
+  function saveSettings() {
+    saveSettingsDocument({ workspaces, activeWorkspaceId, preferences });
   }
 
   function refreshWhenPageBecomesActive() {
@@ -698,24 +574,6 @@
     }
   }
 
-  function loadSidebarWidth() {
-    try {
-      const raw = localStorage.getItem(SIDEBAR_WIDTH_STORAGE_KEY);
-      if (raw === null) return SIDEBAR_WIDTH_DEFAULT;
-      return clampNumber(raw, SIDEBAR_WIDTH_MIN, SIDEBAR_WIDTH_MAX, SIDEBAR_WIDTH_DEFAULT);
-    } catch {
-      return SIDEBAR_WIDTH_DEFAULT;
-    }
-  }
-
-  function persistSidebarWidth(width) {
-    try {
-      localStorage.setItem(SIDEBAR_WIDTH_STORAGE_KEY, String(width));
-    } catch {
-      // 폭 저장에 실패해도 현재 세션 사용에는 지장이 없다.
-    }
-  }
-
   function startSidebarResize(event) {
     if (event.button !== 0) return;
     event.preventDefault();
@@ -724,88 +582,30 @@
     sidebarResizing = true;
 
     function handleMove(moveEvent) {
-      sidebarWidth = clampNumber(
-        startWidth + (moveEvent.clientX - startX),
-        SIDEBAR_WIDTH_MIN,
-        SIDEBAR_WIDTH_MAX,
-        SIDEBAR_WIDTH_DEFAULT
-      );
+      sidebarWidth = clampSidebarWidth(startWidth + (moveEvent.clientX - startX));
     }
 
     function handleUp() {
       sidebarResizing = false;
       window.removeEventListener('pointermove', handleMove);
       window.removeEventListener('pointerup', handleUp);
-      persistSidebarWidth(sidebarWidth);
+      saveSidebarWidth(sidebarWidth);
     }
 
     window.addEventListener('pointermove', handleMove);
     window.addEventListener('pointerup', handleUp);
   }
 
-  function shouldPruneExpiredAttachments() {
-    try {
-      const lastPruned = Number(JSON.parse(localStorage.getItem(ATTACHMENT_PRUNE_STORAGE_KEY) || '{}')[repo]);
-      return !Number.isFinite(lastPruned) || Date.now() - lastPruned >= ATTACHMENT_PRUNE_INTERVAL_MS;
-    } catch {
-      return true;
-    }
-  }
-
-  function markExpiredAttachmentsPruned() {
-    try {
-      const prunedByRepository = JSON.parse(localStorage.getItem(ATTACHMENT_PRUNE_STORAGE_KEY) || '{}');
-      prunedByRepository[repo] = Date.now();
-      localStorage.setItem(ATTACHMENT_PRUNE_STORAGE_KEY, JSON.stringify(prunedByRepository));
-    } catch {
-      // 정리 완료 시각을 기록하지 못해도 다음 연결 시 안전하게 다시 확인한다.
-    }
-  }
-
   async function pruneExpiredAttachments() {
-    if (pruningExpiredAttachments || !shouldPruneExpiredAttachments()) return;
+    if (pruningExpiredAttachments || !shouldPruneExpiredAttachments(repo)) return;
     pruningExpiredAttachments = true;
     const requestedToken = token;
     const requestedRepo = repo;
-    try {
-      const expiredIssues = await listExpiredClosedIssues(requestedToken, requestedRepo);
-      for (const expiredIssue of expiredIssues) {
-        if (selectedIssue?.number === expiredIssue.number) continue;
-        await purgeIssueAttachments(requestedToken, requestedRepo, expiredIssue.number);
-      }
-      if (token === requestedToken && repo === requestedRepo) markExpiredAttachmentsPruned();
-    } catch {
-      // 백그라운드 정리 실패는 노트 사용 흐름을 방해하지 않고 다음 연결 때 재시도한다.
-    } finally {
-      pruningExpiredAttachments = false;
-    }
-  }
-
-  function friendlyError(reason) {
-    if (reason?.status === 401) return $_("m.faea518485");
-    if (reason?.status === 404) return $_("m.ff34a34522");
-    if (reason?.status === 403 && reason?.remaining === '0') {
-      return $_("m.27ef201e27");
-    }
-    if (reason?.status === 403) return $_("m.26096781ad");
-    return reason?.message || $_("m.285cc7fd9a");
-  }
-
-  function mergePinnedIssueLists(remotePins) {
-    const seen = new Set();
-    return remotePins.filter((issue) => {
-      const key = String(issue?.id ?? issue?.number ?? '');
-      if (!key || seen.has(key)) return false;
-      seen.add(key);
-      return true;
+    const completed = await purgeExpiredAttachments(requestedToken, requestedRepo, {
+      isOpen: (issueNumber) => selectedIssue?.number === issueNumber
     });
-  }
-
-  function samePinIssue(left, right) {
-    if (!left || !right) return false;
-    if (left.id != null && right.id != null) return String(left.id) === String(right.id);
-    return left.number != null && right.number != null
-      && Number(left.number) === Number(right.number);
+    if (completed && token === requestedToken && repo === requestedRepo) markExpiredAttachmentsPruned(requestedRepo);
+    pruningExpiredAttachments = false;
   }
 
   function pinMutationMatchesContext(mutation, workspaceId = activeWorkspaceId, requestedToken = token, requestedRepo = repo) {
@@ -827,23 +627,6 @@
     )
       ? pendingPinMutation
       : null;
-  }
-
-  function applyPendingPinToIssue(issue, mutation) {
-    return mutation && samePinIssue(issue, mutation.issue)
-      ? withPinState(issue, mutation.desiredPinned)
-      : issue;
-  }
-
-  function applyPendingPinToList(pinList, mutation) {
-    if (!mutation) return pinList;
-    const existing = pinList.find((issue) => samePinIssue(issue, mutation.issue));
-    const withoutTarget = pinList.filter((issue) => !samePinIssue(issue, mutation.issue));
-    if (!mutation.desiredPinned) return withoutTarget;
-    return [
-      withPinState(existing || mutation.optimisticIssue, true),
-      ...withoutTarget
-    ];
   }
 
   function currentIssueForPinMutation(mutation) {
@@ -876,16 +659,7 @@
       selectedIssue = restoreIssue(selectedIssue);
     }
 
-    const currentPinned = pinnedIssues.find((item) => samePinIssue(item, mutation.issue));
-    if (mutation.wasPinned) {
-      const restored = restoreIssue(currentPinned || mutation.previousPinnedIssue);
-      pinnedIssues = currentPinned
-        ? pinnedIssues.map((item) => samePinIssue(item, mutation.issue) ? restored : item)
-        : [restored, ...pinnedIssues];
-    } else {
-      pinnedIssues = pinnedIssues.filter((item) => !samePinIssue(item, mutation.issue));
-    }
-
+    pinnedIssues = restorePinnedList(pinnedIssues, mutation, restoreIssue);
   }
 
   function invalidatePendingPinMutation() {
@@ -914,7 +688,7 @@
       if (showSuccess) notice = $_("m.2273eb0763");
       await Promise.all([loadIssues(), loadRepositoryLabels()]);
       appState = 'ready';
-      void flushPendingVoiceTranscriptionHints();
+      void transcriptionHints.flush();
       applyRoute();
       pruneExpiredAttachments();
     } catch (reason) {
@@ -961,12 +735,10 @@
       state, query, appliedQuery, activeLabel,
       noteCount: workspaceNoteCounts[activeWorkspaceId],
       openNoteSegment: contentRoute?.screen === 'note' ? contentRoute.segment : '',
-      sidebarScrollTop: sidebarScrollElement?.scrollTop || 0,
-      sidebarToolsOffset,
-      sidebarToolsRevealing
+      sidebarScroll: noteList?.captureScroll()
     });
 
-    cancelAllPendingIssueDeletions(true);
+    deletionQueue.cancelAll(true);
     clearIssueSelection();
     selectedIssue = null;
     keyboardFocusedIssueId = '';
@@ -987,17 +759,15 @@
     pinnedIssues = [];
     token = target.token;
     repo = target.repo;
-    voiceTranscriptionHints = '';
-    voiceHintsLoadedRepo = '';
-    voiceHintsError = '';
+    transcriptionHints.reset();
     rememberToken = target.rememberToken;
     user = null;
     repository = null;
     error = '';
     notice = '';
-    saveSettingsDocument({ workspaces, activeWorkspaceId, preferences: currentPreferences() });
+    saveSettings();
 
-    const cached = getCachedIssueList(workspaceId, workspaceCacheMinutes);
+    const cached = getCachedIssueList(workspaceId, preferences.workspaceCacheMinutes);
     if (cached) {
       ({ issues, repositoryLabels, issuePage, hasMoreIssues, totalIssues, state, query, appliedQuery, activeLabel } = cached);
       setWorkspaceNoteCount(workspaceId, cached.noteCount);
@@ -1005,12 +775,7 @@
       // 유효 기간 안의 캐시라면 그 워크스페이스에서 마지막으로 열던 노트도 되돌린다.
       router.navigate(cached.openNoteSegment ? `/${cached.openNoteSegment}` : '/');
       await tick();
-      if (sidebarScrollElement) {
-        sidebarScrollElement.scrollTop = cached.sidebarScrollTop || 0;
-        lastSidebarScrollTop = Math.max(0, sidebarScrollElement.scrollTop);
-        sidebarToolsOffset = cached.sidebarToolsOffset || 0;
-        sidebarToolsRevealing = Boolean(cached.sidebarToolsRevealing);
-      }
+      noteList?.restoreScroll(cached.sidebarScroll);
     } else {
       issues = [];
       pinnedIssues = [];
@@ -1030,7 +795,7 @@
       // 캐시로 이미 목록을 보여준 상태라면 로딩 스피너 없이 조용히 갱신한다.
       await Promise.all([loadIssues(Boolean(cached)), loadRepositoryLabels()]);
       applyRoute();
-      void flushPendingVoiceTranscriptionHints();
+      void transcriptionHints.flush();
       pruneExpiredAttachments();
     } catch (reason) {
       appState = cached ? 'ready' : 'setup';
@@ -1046,34 +811,7 @@
   }
 
   function openAddWorkspaceWizard() {
-    workspaceWizardKey += 1;
-    workspaceWizardRepo = '';
-    workspaceWizardToken = '';
-    workspaceWizardRememberToken = true;
-    workspaceWizardError = '';
     workspaceWizardOpen = true;
-  }
-
-  function closeAddWorkspaceWizard() {
-    if (workspaceWizardBusy) return;
-    workspaceWizardOpen = false;
-  }
-
-  async function submitAddWorkspace() {
-    workspaceWizardBusy = true;
-    workspaceWizardError = '';
-    try {
-      await completeAddWorkspace({
-        repo: workspaceWizardRepo,
-        token: normalizeToken(workspaceWizardToken),
-        rememberToken: workspaceWizardRememberToken
-      });
-      workspaceWizardOpen = false;
-    } catch (reason) {
-      workspaceWizardError = friendlyError(reason);
-    } finally {
-      workspaceWizardBusy = false;
-    }
   }
 
   function forgetWorkspace(workspaceId) {
@@ -1081,7 +819,7 @@
     workspaces = workspaces.filter((workspace) => workspace.id !== workspaceId);
     invalidateCachedIssueList(workspaceId);
     removeWorkspaceNoteCount(workspaceId);
-    saveSettingsDocument({ workspaces, activeWorkspaceId, preferences: currentPreferences() });
+    saveSettings();
     if (activeWorkspaceId !== workspaceId) return;
     const next = workspaces[0];
     if (next) {
@@ -1106,12 +844,12 @@
 
   function moveWorkspace(workspaceId, direction) {
     workspaces = reorderWorkspace(workspaces, workspaceId, direction);
-    saveSettingsDocument({ workspaces, activeWorkspaceId, preferences: currentPreferences() });
+    saveSettings();
   }
 
   function renameWorkspace(workspaceId, displayName) {
     workspaces = renameWorkspaceRecord(workspaces, workspaceId, displayName);
-    saveSettingsDocument({ workspaces, activeWorkspaceId, preferences: currentPreferences() });
+    saveSettings();
   }
 
   function leaveWorkspace(workspaceId) {
@@ -1123,57 +861,72 @@
     notice = $_('workspace.leftNotice', { values: { repo: repoLabel } });
   }
 
+  // 목록 요청을 보낸 시점의 조건이다. 응답이 왔을 때 조건이 바뀌었으면 그 응답은 버린다.
+  function snapshotListRequest() {
+    const request = {
+      workspaceId: activeWorkspaceId,
+      token,
+      repo,
+      query: appliedQuery,
+      state,
+      label: activeLabel,
+      mutationVersion: issueListMutationVersion
+    };
+    // #태그 검색어는 태그 필터로 처리하므로 본문 검색어로 쓰지 않는다.
+    request.term = queryMatchesLabel(request.query, request.label) ? '' : request.query;
+    return request;
+  }
+
+  function isCurrentListRequest(request) {
+    return request.workspaceId === activeWorkspaceId
+      && request.token === token
+      && request.repo === repo
+      && request.query === appliedQuery
+      && request.state === state
+      && request.label === activeLabel
+      && request.mutationVersion === issueListMutationVersion;
+  }
+
+  function fetchIssuePage(request, page) {
+    return request.term.trim()
+      ? searchIssuesPage(request.token, request.repo, request.state, request.term, request.label, page, Date.now(), preferences.issuePageSize)
+      : listIssuesPage(request.token, request.repo, request.state, request.label, page, Date.now(), preferences.issuePageSize);
+  }
+
   async function loadIssues(background = false) {
     if (background && loading) return;
-    const requestedWorkspaceId = activeWorkspaceId;
-    const requestedToken = token;
-    const requestedRepo = repo;
-    const requestedQuery = appliedQuery;
-    const requestedState = state;
-    const requestedLabel = activeLabel;
-    const requestedListMutationVersion = issueListMutationVersion;
-    const requestedTerm = queryMatchesActiveLabel(requestedQuery, requestedLabel) ? '' : requestedQuery;
+    const request = snapshotListRequest();
     if (!background) {
       error = '';
       loading = true;
     }
     try {
       const [result, pinnedResult] = await Promise.all([
-        requestedTerm.trim()
-          ? searchIssuesPage(requestedToken, requestedRepo, requestedState, requestedTerm, requestedLabel, 1, Date.now(), issuePageSize)
-          : listIssuesPage(requestedToken, requestedRepo, requestedState, requestedLabel, 1, Date.now(), issuePageSize),
+        fetchIssuePage(request, 1),
         listIssuesPage(
-          requestedToken,
-          requestedRepo,
-          requestedState,
+          request.token,
+          request.repo,
+          request.state,
           PIN_LABEL_NAME,
           1,
           Date.now(),
           PINNED_ISSUE_PAGE_SIZE
         )
       ]);
-      if (
-        requestedWorkspaceId !== activeWorkspaceId
-        || requestedToken !== token
-        || requestedRepo !== repo
-        || requestedQuery !== appliedQuery
-        || requestedState !== state
-        || requestedLabel !== activeLabel
-        || requestedListMutationVersion !== issueListMutationVersion
-      ) return;
+      if (!isCurrentListRequest(request)) return;
       const pendingPin = pendingPinMutationFor(
-        requestedWorkspaceId,
-        requestedToken,
-        requestedRepo
+        request.workspaceId,
+        request.token,
+        request.repo
       );
-      const allSearchItems = requestedTerm.trim()
-        ? result.items.map((issue) => applyPendingPinToIssue(issue, pendingPin))
+      const allSearchItems = request.term.trim()
+        ? result.items.map((issue) => applyPendingPin(issue, pendingPin))
         : [];
-      const fetchedResultItems = requestedTerm.trim()
-        ? allSearchItems.slice(0, issuePageSize)
-        : result.items.map((issue) => applyPendingPinToIssue(issue, pendingPin));
-      const pendingStateIssues = !requestedTerm.trim() && !requestedLabel
-        ? requestedState === 'open' ? pendingRestoredIssues : pendingTrashedIssues
+      const fetchedResultItems = request.term.trim()
+        ? allSearchItems.slice(0, preferences.issuePageSize)
+        : result.items.map((issue) => applyPendingPin(issue, pendingPin));
+      const pendingStateIssues = !request.term.trim() && !request.label
+        ? request.state === 'open' ? pendingRestoredIssues : pendingTrashedIssues
         : [];
       const fetchedIssueIds = new Set(fetchedResultItems.map((issue) => issue.id));
       const resultItems = pendingStateIssues.length
@@ -1183,18 +936,18 @@
         ]
         : fetchedResultItems;
       if (pendingStateIssues.length) {
-        if (requestedState === 'open') {
+        if (request.state === 'open') {
           pendingRestoredIssues = pendingRestoredIssues.filter((issue) => !fetchedIssueIds.has(issue.id));
         } else {
           pendingTrashedIssues = pendingTrashedIssues.filter((issue) => !fetchedIssueIds.has(issue.id));
         }
       }
-      if (requestedTerm.trim()) {
+      if (request.term.trim()) {
         searchResultItems = allSearchItems;
         searchResultLimitReached = result.totalCount > allSearchItems.length;
         issues = resultItems;
         issuePage = 1;
-        hasMoreIssues = allSearchItems.length > issuePageSize;
+        hasMoreIssues = allSearchItems.length > preferences.issuePageSize;
       } else if (background && issuePage > 1) {
         searchResultItems = [];
         searchResultLimitReached = false;
@@ -1208,43 +961,36 @@
         hasMoreIssues = result.hasMore;
       }
       pinnedIssues = applyPendingPinToList(
-        mergePinnedIssueLists(pinnedResult.items),
+        uniquePinnedIssues(pinnedResult.items),
         pendingPin
       );
       reconcileIssueSelection(issues);
       if (result.totalCount !== null) {
-        const displayedTotal = requestedTerm.trim()
+        const displayedTotal = request.term.trim()
           ? Math.min(result.totalCount, allSearchItems.length)
           : result.totalCount + pendingStateIssues.filter((issue) => !fetchedIssueIds.has(issue.id)).length;
         totalIssues = displayedTotal;
-        if (isUnfilteredNoteView(requestedState, requestedQuery, requestedLabel)) {
-          setWorkspaceNoteCount(requestedWorkspaceId, displayedTotal);
+        if (isUnfilteredNoteView(request.state, request.query, request.label)) {
+          setWorkspaceNoteCount(request.workspaceId, displayedTotal);
         }
       }
       applyRoute();
     } catch (reason) {
-      if (!background && requestedWorkspaceId === activeWorkspaceId) error = friendlyError(reason);
+      if (!background && request.workspaceId === activeWorkspaceId) error = friendlyError(reason);
     } finally {
-      if (!background && requestedWorkspaceId === activeWorkspaceId) loading = false;
+      if (!background && request.workspaceId === activeWorkspaceId) loading = false;
     }
   }
 
   async function loadMoreIssues() {
     if (loading || loadingMore || !hasMoreIssues) return;
-    const requestedWorkspaceId = activeWorkspaceId;
-    const requestedToken = token;
-    const requestedRepo = repo;
-    const requestedQuery = appliedQuery;
-    const requestedState = state;
-    const requestedLabel = activeLabel;
-    const requestedListMutationVersion = issueListMutationVersion;
-    const requestedTerm = queryMatchesActiveLabel(requestedQuery, requestedLabel) ? '' : requestedQuery;
+    const request = snapshotListRequest();
     const nextPage = issuePage + 1;
     loadingMore = true;
     error = '';
     try {
-      if (requestedTerm.trim() && searchResultItems.length) {
-        const nextItems = searchResultItems.slice(issues.length, issues.length + issuePageSize);
+      if (request.term.trim() && searchResultItems.length) {
+        const nextItems = searchResultItems.slice(issues.length, issues.length + preferences.issuePageSize);
         issues = [...issues, ...nextItems];
         issuePage = nextPage;
         hasMoreIssues = issues.length < searchResultItems.length;
@@ -1252,45 +998,33 @@
         applyRoute();
         return;
       }
-      const result = requestedTerm.trim()
-        ? await searchIssuesPage(requestedToken, requestedRepo, requestedState, requestedTerm, requestedLabel, nextPage, Date.now(), issuePageSize)
-        : await listIssuesPage(requestedToken, requestedRepo, requestedState, requestedLabel, nextPage, Date.now(), issuePageSize);
-      if (
-        requestedWorkspaceId !== activeWorkspaceId
-        || requestedToken !== token
-        || requestedRepo !== repo
-        || requestedQuery !== appliedQuery
-        || requestedState !== state
-        || requestedLabel !== activeLabel
-        || requestedListMutationVersion !== issueListMutationVersion
-      ) return;
+      const result = await fetchIssuePage(request, nextPage);
+      if (!isCurrentListRequest(request)) return;
       const pendingPin = pendingPinMutationFor(
-        requestedWorkspaceId,
-        requestedToken,
-        requestedRepo
+        request.workspaceId,
+        request.token,
+        request.repo
       );
-      const resultItems = result.items.map((issue) => applyPendingPinToIssue(issue, pendingPin));
+      const resultItems = result.items.map((issue) => applyPendingPin(issue, pendingPin));
       const knownIds = new Set(issues.map((issue) => issue.id));
       issues = [...issues, ...resultItems.filter((issue) => !knownIds.has(issue.id))];
       issuePage = nextPage;
       hasMoreIssues = result.hasMore;
       if (result.totalCount !== null) {
         totalIssues = result.totalCount;
-        if (isUnfilteredNoteView(requestedState, requestedQuery, requestedLabel)) {
-          setWorkspaceNoteCount(requestedWorkspaceId, result.totalCount);
+        if (isUnfilteredNoteView(request.state, request.query, request.label)) {
+          setWorkspaceNoteCount(request.workspaceId, result.totalCount);
         }
       }
       applyRoute();
     } catch (reason) {
       error = friendlyError(reason);
     } finally {
-      if (requestedWorkspaceId === activeWorkspaceId) loadingMore = false;
+      if (request.workspaceId === activeWorkspaceId) loadingMore = false;
     }
   }
 
   async function submitSearch() {
-    sidebarSearchFocused = false;
-    sidebarSuggestionIndex = -1;
     const normalizedQuery = query.trim();
     if (!normalizedQuery) {
       query = '';
@@ -1330,31 +1064,7 @@
 
   function selectSidebarLabel(label) {
     query = `#${label.name}`;
-    sidebarSearchFocused = false;
-    sidebarSuggestionIndex = -1;
     void submitSearch();
-  }
-
-  function handleSidebarSearchKeydown(event) {
-    if (event.key === 'Escape') {
-      sidebarSearchFocused = false;
-      sidebarSuggestionIndex = -1;
-      return;
-    }
-    if (!sidebarLabelSuggestions.length || !['ArrowDown', 'ArrowUp', 'Enter'].includes(event.key)) return;
-    if (event.key === 'Enter' && sidebarSuggestionIndex < 0) return;
-    event.preventDefault();
-    if (event.key === 'ArrowDown') {
-      sidebarSearchFocused = true;
-      sidebarSuggestionIndex = (sidebarSuggestionIndex + 1) % sidebarLabelSuggestions.length;
-    } else if (event.key === 'ArrowUp') {
-      sidebarSearchFocused = true;
-      sidebarSuggestionIndex = sidebarSuggestionIndex <= 0
-        ? sidebarLabelSuggestions.length - 1
-        : sidebarSuggestionIndex - 1;
-    } else {
-      selectSidebarLabel(sidebarLabelSuggestions[sidebarSuggestionIndex]);
-    }
   }
 
   async function loadRepositoryLabels() {
@@ -1378,52 +1088,6 @@
     const labelWillChange = Boolean(activeLabel);
     if (router.getDepth()) router.navigate('/');
     if (!labelWillChange) await loadIssues();
-  }
-
-  async function initializeSidebarTools() {
-    sidebarToolsInitializing = true;
-    await tick();
-
-    const scrollElement = sidebarScrollElement;
-    const toolsHeight = sidebarToolsElement?.offsetHeight || 0;
-    if (!scrollElement || !toolsHeight) {
-      sidebarToolsInitializing = false;
-      return;
-    }
-
-    const previousScrollBehavior = scrollElement.style.scrollBehavior;
-    scrollElement.style.scrollBehavior = 'auto';
-    scrollElement.scrollTop = toolsHeight;
-    lastSidebarScrollTop = Math.max(0, scrollElement.scrollTop);
-    sidebarToolsOffset = Math.min(toolsHeight, lastSidebarScrollTop);
-    sidebarToolsRevealing = false;
-    sidebarToolsInitialized = true;
-
-    requestAnimationFrame(() => {
-      scrollElement.style.scrollBehavior = previousScrollBehavior;
-      sidebarToolsInitializing = false;
-    });
-  }
-
-  function handleSidebarScroll(event) {
-    const scrollElement = event.currentTarget;
-    const nextScrollTop = Math.max(0, scrollElement.scrollTop);
-    const delta = nextScrollTop - lastSidebarScrollTop;
-    const toolsHeight = sidebarToolsElement?.offsetHeight || 0;
-
-    if (nextScrollTop <= 0) {
-      sidebarToolsOffset = 0;
-      sidebarToolsRevealing = true;
-    } else if (delta !== 0) {
-      sidebarToolsRevealing = false;
-      sidebarToolsOffset = Math.max(0, Math.min(toolsHeight, sidebarToolsOffset + delta));
-    }
-    lastSidebarScrollTop = nextScrollTop;
-
-    if (sidebarToolsInitializing) return;
-
-    const distanceFromBottom = scrollElement.scrollHeight - nextScrollTop - scrollElement.clientHeight;
-    if (distanceFromBottom <= SIDEBAR_LOAD_MORE_THRESHOLD_PX) void loadMoreIssues();
   }
 
   function newNote(initialBody = '', { ignoreRecoveredDraft = true } = {}) {
@@ -1478,7 +1142,7 @@
     if (event.key === 'Escape') {
       // 삭제 유예는 Esc로 가장 최근 것부터 되돌린다. 목록 행 버튼에 포커스가
       // 남아 있어도 첫 Esc가 단순 blur로 소비되지 않게 이보다 먼저 처리한다.
-      if (cancelMostRecentPendingIssueDeletion()) {
+      if (deletionQueue.cancelMostRecent()) {
         event.preventDefault();
         return;
       }
@@ -1519,31 +1183,21 @@
       return;
     }
 
-    const workspaceNumber = workspaceNumberFromEvent(event);
-    if (
-      canUseKeyboardListNavigation()
-      && isNoteRowButton(document.activeElement)
-      && !event.altKey
-      && !event.ctrlKey
-      && !event.metaKey
-      && event.shiftKey
-      && ['ArrowDown', 'ArrowUp'].includes(event.key)
-    ) {
+    const activeElement = document.activeElement;
+    const direction = arrowDirection(event);
+    const plainKey = hasNoModifier(event);
+    const freshPlainKey = plainKey && !event.repeat;
+    const canNavigate = canUseKeyboardListNavigation();
+    const canUseShortcuts = !selectionMode && canNavigate;
+
+    // Shift+↑/↓: 목록 행에서 범위 선택을 넓힌다.
+    if (canNavigate && isNoteRowButton(activeElement) && isShiftOnly(event) && direction) {
       event.preventDefault();
-      extendIssueSelection(event.key === 'ArrowDown' ? 1 : -1);
+      extendIssueSelection(direction);
       return;
     }
-    if (
-      !selectionMode
-      && canUseKeyboardListNavigation()
-      && isNoteRowButton(document.activeElement)
-      && !event.repeat
-      && !event.altKey
-      && !event.ctrlKey
-      && !event.metaKey
-      && !event.shiftKey
-      && event.key === ' '
-    ) {
+    // Space: 포커스된 목록 행을 골라 다중 선택을 시작한다.
+    if (!selectionMode && canNavigate && isNoteRowButton(activeElement) && freshPlainKey && event.key === ' ') {
       const issue = keyboardFocusedListIssue();
       if (!issue || issue.local) return;
       event.preventDefault();
@@ -1551,80 +1205,43 @@
       selectionAnchorId = issue.id;
       return;
     }
-    if (
-      selectionMode
-      && canUseKeyboardListNavigation()
-      && hasNoInteractiveFocus()
-      && !event.altKey
-      && !event.ctrlKey
-      && !event.metaKey
-      && !event.shiftKey
-      && ['ArrowDown', 'ArrowUp'].includes(event.key)
-    ) {
-      event.preventDefault();
-      moveNoteRowFocus(event.key === 'ArrowDown' ? 1 : -1);
-      return;
+    // 다중 선택 중: ↑/↓로 이동하고 Enter/Space로 선택을 뒤집는다.
+    if (selectionMode && canNavigate && hasNoInteractiveFocus()) {
+      if (plainKey && direction) {
+        event.preventDefault();
+        moveNoteRowFocus(direction);
+        return;
+      }
+      if (freshPlainKey && ['Enter', ' '].includes(event.key)) {
+        const issue = keyboardFocusedListIssue();
+        if (!issue) return;
+        event.preventDefault();
+        toggleIssueSelection(issue);
+        return;
+      }
     }
-    if (
-      selectionMode
-      && canUseKeyboardListNavigation()
-      && hasNoInteractiveFocus()
-      && !event.repeat
-      && !event.altKey
-      && !event.ctrlKey
-      && !event.metaKey
-      && !event.shiftKey
-      && ['Enter', ' '].includes(event.key)
-    ) {
-      const issue = keyboardFocusedListIssue();
-      if (!issue) return;
-      event.preventDefault();
-      toggleIssueSelection(issue);
-      return;
+    // Delete/Backspace: 선택한(또는 포커스된) 노트를 휴지통으로 보낸다.
+    if (state === 'open' && hasNoInteractiveFocus() && freshPlainKey && isDeleteShortcut(event)) {
+      const targets = keyboardDeletionTargets();
+      if (targets.length > 0) {
+        event.preventDefault();
+        moveIssues(targets);
+        return;
+      }
     }
-    if (
-      state === 'open'
-      && hasNoInteractiveFocus()
-      && keyboardDeletionTargets().length > 0
-      && !event.repeat
-      && !event.altKey
-      && !event.ctrlKey
-      && !event.metaKey
-      && !event.shiftKey
-      && isDeleteShortcut(event)
-    ) {
-      event.preventDefault();
-      moveIssues(keyboardDeletionTargets());
-      return;
-    }
-    if (
-      canUseListKeyboardShortcuts()
-      && hasNoInteractiveFocus()
-      && !event.repeat
-      && !event.altKey
-      && !event.ctrlKey
-      && !event.metaKey
-      && !event.shiftKey
-      && !event.isComposing
-      && workspaceNumber
-    ) {
+    if (!canUseShortcuts || !freshPlainKey) return;
+    // 1~9: 등록 순서의 저장소로 전환한다.
+    const workspaceNumber = workspaceNumberFromEvent(event);
+    if (hasNoInteractiveFocus() && !event.isComposing && workspaceNumber) {
       const workspace = workspaces[workspaceNumber - 1];
       if (!workspace) return;
       event.preventDefault();
       switchWorkspace(workspace.id);
       return;
     }
-    if (
-      canUseListKeyboardShortcuts()
-      && !event.repeat
-      && !event.altKey
-      && !event.ctrlKey
-      && !event.metaKey
-      && !event.shiftKey
-      && event.key === 'Enter'
-      && isNoteRowButton(document.activeElement)
-    ) {
-      const issueId = document.activeElement.dataset.issueId;
+    // Enter: 목록 행이면 열고, 이미 키보드로 연 노트면 편집으로 들어간다.
+    if (event.key === 'Enter' && isNoteRowButton(activeElement)) {
+      const issueId = activeElement.dataset.issueId;
       const issue = [...pinnedIssues, ...unpinnedVisibleIssues].find((item) => String(item.id) === issueId);
       if (!issue) return;
       event.preventDefault();
@@ -1634,53 +1251,25 @@
       }
       keyboardEnteredIssueId = issueId;
       // 열람으로 들어갈 때는 목록 행의 실제 포커스를 해제한다. 점선은 별도 상태로 유지된다.
-      document.activeElement?.blur?.();
+      activeElement.blur?.();
       selectNote(issue);
       return;
     }
-    if (
-      canUseListKeyboardShortcuts()
-      && isKeyboardEnteredNoteSelection()
-      && !event.repeat
-      && !event.altKey
-      && !event.ctrlKey
-      && !event.metaKey
-      && !event.shiftKey
-      && event.key === 'Enter'
-      && ['note', 'new'].includes(contentRoute?.screen)
-    ) {
+    if (event.key === 'Enter' && isKeyboardEnteredNoteSelection() && isContentRoute(contentRoute)) {
       event.preventDefault();
       editorFocusRequest += 1;
       return;
     }
-    if (
-      canUseListKeyboardShortcuts()
-      && !event.repeat
-      && !event.altKey
-      && !event.ctrlKey
-      && !event.metaKey
-      && !event.shiftKey
-      && ['ArrowDown', 'ArrowUp'].includes(event.key)
-      && hasNoInteractiveFocus()
-    ) {
+    // ↑/↓: 목록 행 사이를 이동한다.
+    if (direction && hasNoInteractiveFocus()) {
       event.preventDefault();
-      moveNoteRowFocus(event.key === 'ArrowDown' ? 1 : -1);
+      moveNoteRowFocus(direction);
       return;
     }
-    if (
-      canUseListKeyboardShortcuts()
-      && hasNoInteractiveFocus()
-      && !event.repeat
-      && !event.altKey
-      && !event.ctrlKey
-      && !event.metaKey
-      && !event.shiftKey
-      && !event.isComposing
-      && isNewNoteShortcut(event)
-    ) {
+    // N: 새 노트를 만든다.
+    if (hasNoInteractiveFocus() && !event.isComposing && isNewNoteShortcut(event)) {
       event.preventDefault();
       newNote();
-      return;
     }
   }
 
@@ -1690,9 +1279,8 @@
 
   function canUseKeyboardListNavigation() {
     const isHomeOrNote = routeStack.length === 0
-      || /^#!\/?$/.test(window.location.hash)
       || contentRoute?.screen === 'note'
-      || /^#!\/note\.\d+$/.test(window.location.hash);
+      || isHomeOrNoteHash(window.location.hash);
     return (
       appState === 'ready'
       && topRoute?.screen !== 'settings'
@@ -1703,32 +1291,7 @@
   }
 
   function hasNoInteractiveFocus() {
-    const activeElement = document.activeElement;
-    return !(
-      activeElement instanceof HTMLInputElement
-      || activeElement instanceof HTMLTextAreaElement
-      || activeElement instanceof HTMLSelectElement
-      || Boolean(activeElement?.isContentEditable)
-    );
-  }
-
-  function syncKeyboardShortcutClass() {
-    keyboardShortcutFocusFrame = 0;
-    document.body?.classList.toggle(
-      'keyboard-shortcuts-ready',
-      !touchDevice && hasNoInteractiveFocus()
-    );
-  }
-
-  function scheduleKeyboardShortcutClass() {
-    if (keyboardShortcutFocusFrame) cancelAnimationFrame(keyboardShortcutFocusFrame);
-    keyboardShortcutFocusFrame = requestAnimationFrame(syncKeyboardShortcutClass);
-  }
-
-  function clearKeyboardShortcutClass() {
-    if (keyboardShortcutFocusFrame) cancelAnimationFrame(keyboardShortcutFocusFrame);
-    keyboardShortcutFocusFrame = 0;
-    document.body?.classList.remove('keyboard-shortcuts-ready');
+    return !isFormControl(document.activeElement);
   }
 
   function isKeyboardEnteredNoteSelection() {
@@ -1737,35 +1300,13 @@
       && keyboardEnteredIssueId === keyboardFocusedIssueId;
   }
 
-  function workspaceNumberFromEvent(event) {
-    const keyMatch = /^[1-9]$/.exec(event.key);
-    const codeMatch = /^(?:Digit|Numpad)([1-9])$/.exec(event.code);
-    return Number(keyMatch?.[0] || codeMatch?.[1] || 0);
-  }
-
-  function isDeleteShortcut(event) {
-    return ['Delete', 'Backspace'].includes(event.key)
-      || ['Delete', 'Backspace'].includes(event.code);
-  }
-
-  function isNewNoteShortcut(event) {
-    // event.key는 현재 입력 소스를 반영하지만 event.code는 물리 키 위치를 유지한다.
-    return event.key.toLocaleLowerCase() === 'n' || event.code === 'KeyN';
-  }
-
-  function isNoteRowButton(element) {
-    return element instanceof HTMLElement && element.classList.contains('note-row-hit-area');
-  }
-
   function keyboardFocusedListIssue() {
     return [...pinnedIssues, ...unpinnedVisibleIssues]
       .find((issue) => String(issue.id) === keyboardFocusedIssueId);
   }
 
   function noteRowButtons() {
-    return sidebarScrollElement
-      ? Array.from(sidebarScrollElement.querySelectorAll('.note-row-hit-area'))
-      : [];
+    return noteList?.rowButtons() || [];
   }
 
   function moveNoteRowFocus(direction) {
@@ -1788,7 +1329,7 @@
         if (lastOpenedIndex !== -1) {
           targetIndex = lastOpenedIndex + direction;
         } else {
-          const containerBounds = sidebarScrollElement.getBoundingClientRect();
+          const containerBounds = noteList.viewportBounds();
           targetIndex = buttons.findIndex((button) => {
             const bounds = button.getBoundingClientRect();
             return bounds.bottom > containerBounds.top && bounds.top < containerBounds.bottom;
@@ -1822,13 +1363,7 @@
       return;
     }
 
-    const [start, end] = [anchorIndex, targetIndex].sort((a, b) => a - b);
-    selectedIssueIds = new Set(
-      orderedIssues
-        .slice(start, end + 1)
-        .filter((issue) => !issue.local)
-        .map((issue) => issue.id)
-    );
+    selectedIssueIds = rangeSelection(orderedIssues, anchorIndex, targetIndex);
 
     const target = buttons[targetIndex];
     keyboardFocusedIssueId = target.dataset.issueId || '';
@@ -1861,12 +1396,6 @@
     notice = '';
     newNote(text, { ignoreRecoveredDraft: true });
     if (files.length) queueExternalPaste(files);
-  }
-
-  function isEditableElement(element) {
-    return element instanceof HTMLTextAreaElement
-      || element instanceof HTMLInputElement
-      || Boolean(element?.isContentEditable);
   }
 
   function queueExternalPaste(files) {
@@ -1922,56 +1451,25 @@
 
   function beginIssueLongPress(event, issue) {
     if (selectionMode || issue.local || !event.isPrimary || (event.pointerType === 'mouse' && event.button !== 0)) return;
-    cancelIssueLongPress();
-    longPressStart = {
-      pointerId: event.pointerId,
-      issueId: issue.id,
-      x: event.clientX,
-      y: event.clientY
-    };
-    longPressTimer = setTimeout(() => {
-      if (longPressStart?.issueId !== issue.id) return;
-      selectedIssueIds = new Set([issue.id]);
-      selectionAnchorId = issue.id;
-      keyboardFocusedIssueId = String(issue.id);
-      keyboardEnteredIssueId = '';
-      suppressIssueClickId = issue.id;
-      clearTimeout(suppressIssueClickTimer);
-      suppressIssueClickTimer = setTimeout(() => {
-        suppressIssueClickId = null;
-      }, 1000);
-      navigator.vibrate?.(20);
-      previewSelectedIssue(issue);
-    }, LONG_PRESS_MS);
+    longPress.begin(event, issue);
   }
 
-  function trackIssueLongPress(event) {
-    if (!longPressStart || event.pointerId !== longPressStart.pointerId) return;
-    if (
-      Math.abs(event.clientX - longPressStart.x) > LONG_PRESS_MOVE_TOLERANCE_PX
-      || Math.abs(event.clientY - longPressStart.y) > LONG_PRESS_MOVE_TOLERANCE_PX
-    ) cancelIssueLongPress();
-  }
-
-  function cancelIssueLongPress() {
-    clearTimeout(longPressTimer);
-    longPressTimer = null;
-    longPressStart = null;
-  }
-
-  function finishIssueLongPress(event) {
-    if (longPressStart?.pointerId === event.pointerId) cancelIssueLongPress();
+  function selectIssueByLongPress(issue) {
+    selectedIssueIds = new Set([issue.id]);
+    selectionAnchorId = issue.id;
+    keyboardFocusedIssueId = String(issue.id);
+    keyboardEnteredIssueId = '';
+    navigator.vibrate?.(20);
+    previewSelectedIssue(issue);
   }
 
   function handleIssueContextMenu(event, issue) {
-    if (selectionMode || suppressIssueClickId === issue.id) event.preventDefault();
+    if (selectionMode || longPress.isSuppressed(issue)) event.preventDefault();
   }
 
   function handleIssueClick(event, issue) {
-    if (suppressIssueClickId === issue.id) {
+    if (longPress.consumeClick(issue)) {
       event.preventDefault();
-      suppressIssueClickId = null;
-      clearTimeout(suppressIssueClickTimer);
       return;
     }
     if (selectionMode) {
@@ -2004,27 +1502,16 @@
     // 마우스 선택 뒤에도 이후 키보드 조작의 기준은 마지막으로 고른 항목이다.
     keyboardFocusedIssueId = String(issue.id);
     keyboardEnteredIssueId = '';
-    const nextSelected = new Set(selectedIssueIds);
-    if (selectRange && selectionAnchorId !== null) {
-      const selectableIssues = visibleIssues.filter((item) => !item.local);
-      const anchorIndex = selectableIssues.findIndex((item) => item.id === selectionAnchorId);
-      const issueIndex = selectableIssues.findIndex((item) => item.id === issue.id);
-      if (anchorIndex >= 0 && issueIndex >= 0) {
-        const [start, end] = [anchorIndex, issueIndex].sort((a, b) => a - b);
-        for (const item of selectableIssues.slice(start, end + 1)) nextSelected.add(item.id);
-      } else {
-        nextSelected.add(issue.id);
-      }
-    } else if (nextSelected.has(issue.id)) {
-      nextSelected.delete(issue.id);
-    } else {
-      nextSelected.add(issue.id);
-    }
-
-    selectedIssueIds = nextSelected;
-    if (nextSelected.size === 0) selectionAnchorId = null;
-    else if (!selectRange) selectionAnchorId = issue.id;
-    return nextSelected.has(issue.id);
+    const next = toggleSelection({
+      selectedIds: selectedIssueIds,
+      anchorId: selectionAnchorId,
+      issues: visibleIssues,
+      issue,
+      range: selectRange
+    });
+    selectedIssueIds = next.selectedIds;
+    selectionAnchorId = next.anchorId;
+    return next.selected;
   }
 
   function handleIssueSelectionClick(event, issue) {
@@ -2037,21 +1524,18 @@
   }
 
   function clearIssueSelection() {
-    cancelIssueLongPress();
+    longPress.cancel();
+    longPress.clearSuppression();
     closeSelectionTagPanel();
     selectedIssueIds = new Set();
     selectionAnchorId = null;
-    suppressIssueClickId = null;
-    clearTimeout(suppressIssueClickTimer);
   }
 
   function reconcileIssueSelection(nextIssues) {
-    if (!selectedIssueIds.size) return;
-    const availableIds = new Set(nextIssues.filter((issue) => !issue.local).map((issue) => issue.id));
-    const nextSelected = new Set([...selectedIssueIds].filter((id) => availableIds.has(id)));
-    if (nextSelected.size === selectedIssueIds.size) return;
-    selectedIssueIds = nextSelected;
-    if (!nextSelected.has(selectionAnchorId)) selectionAnchorId = nextSelected.values().next().value ?? null;
+    const next = reconcileSelection({ selectedIds: selectedIssueIds, anchorId: selectionAnchorId, issues: nextIssues });
+    if (!next) return;
+    selectedIssueIds = next.selectedIds;
+    selectionAnchorId = next.anchorId;
   }
 
   function keyboardDeletionTargets() {
@@ -2061,58 +1545,8 @@
     return focusedIssue && !focusedIssue.local ? [focusedIssue] : [];
   }
 
-  function removePendingIssueDeletion(entryId) {
-    pendingIssueDeletionQueue = pendingIssueDeletionQueue.filter((entry) => entry.id !== entryId);
-  }
-
-  function cancelPendingIssueDeletion(entryId) {
-    const entry = pendingIssueDeletionQueue.find((item) => item.id === entryId);
-    if (!entry || entry.inFlight) return false;
-    clearTimeout(entry.timer);
-    removePendingIssueDeletion(entryId);
-    return true;
-  }
-
-  function cancelMostRecentPendingIssueDeletion() {
-    const entry = [...pendingIssueDeletionQueue].reverse().find((item) => !item.inFlight);
-    return entry ? cancelPendingIssueDeletion(entry.id) : false;
-  }
-
-  function pendingIssueDeletionForIssue(issueId) {
-    return pendingIssueDeletionQueue.find((entry) => (
-      entry.issues.some((issue) => issue.id === issueId)
-    ));
-  }
-
-  function cancelAllPendingIssueDeletions(force = false) {
-    for (const entry of pendingIssueDeletionQueue) {
-      if (!entry.inFlight || force) clearTimeout(entry.timer);
-    }
-    pendingIssueDeletionQueue = force
-      ? []
-      : pendingIssueDeletionQueue.filter((entry) => entry.inFlight);
-  }
-
-  function settlePendingIssueDeletion(entryId, issueId) {
-    const entry = pendingIssueDeletionQueue.find((item) => item.id === entryId);
-    if (!entry) return;
-    const remainingIssues = entry.issues.filter((issue) => issue.id !== issueId);
-    if (!remainingIssues.length) {
-      removePendingIssueDeletion(entryId);
-      return;
-    }
-    pendingIssueDeletionQueue = pendingIssueDeletionQueue.map((item) => (
-      item.id === entryId ? { ...item, issues: remainingIssues } : item
-    ));
-  }
-
-  async function runPendingIssueDeletion(entryId) {
-    const entry = pendingIssueDeletionQueue.find((item) => item.id === entryId);
-    if (!entry) return;
-    pendingIssueDeletionQueue = pendingIssueDeletionQueue.map((item) => (
-      item.id === entryId ? { ...item, timer: null, inFlight: true } : item
-    ));
-
+  // 유예가 끝난 휴지통 이동을 실행한다. 편집 중이던 노트는 저장이 끝난 뒤에만 옮긴다.
+  async function runPendingIssueDeletion(entry) {
     let saved = true;
     try {
       saved = entry.savePromise ? await entry.savePromise : true;
@@ -2120,11 +1554,11 @@
       saved = false;
     }
     if (!saved) {
-      removePendingIssueDeletion(entryId);
+      deletionQueue.remove(entry.id);
       error = $_('m.3a743b0e61');
       return;
     }
-    moveIssuesImmediately(entry.issues, { deletionEntryId: entryId, nextState: entry.nextState });
+    moveIssuesImmediately(entry.issues, { deletionEntryId: entry.id, nextState: entry.nextState });
   }
 
   function moveIssues(issuesToMove, { savePromise = null } = {}) {
@@ -2135,19 +1569,7 @@
     if (state === 'open') {
       // 이미 대기열에 든 항목은 다시 넣지 않는다. 나머지는 각각 독립적인
       // 3초 유예를 가지므로 Delete를 연달아 눌러도 모두 접수된다.
-      const queuedIssueIds = pendingIssueDeletionIds;
-      const uniqueIssues = issuesToMove.filter((issue) => !queuedIssueIds.has(issue.id));
-      if (!uniqueIssues.length) return;
-      const entry = {
-        id: ++pendingIssueDeletionSequence,
-        issues: [...uniqueIssues],
-        nextState: 'closed',
-        timer: null,
-        inFlight: false,
-        savePromise
-      };
-      entry.timer = setTimeout(() => runPendingIssueDeletion(entry.id), DELETE_DELAY_MS);
-      pendingIssueDeletionQueue = [...pendingIssueDeletionQueue, entry];
+      if (!deletionQueue.enqueue(issuesToMove, { nextState: 'closed', savePromise })) return;
       clearIssueSelection();
       return;
     }
@@ -2162,45 +1584,13 @@
     }
   }
 
-  function countSelectionTags(issues) {
-    const counts = new Map();
-    for (const issue of issues) {
-      for (const label of issue.labels || []) {
-        if (isPinLabel(label)) continue;
-        const key = label.name.toLocaleLowerCase();
-        counts.set(key, (counts.get(key) || 0) + 1);
-      }
-    }
-    return counts;
-  }
-
-  function buildSelectionTagOptions(labels, counts, search) {
-    const term = search.trim().replace(/^#+/, '').toLocaleLowerCase();
-    return labels
-      .map((label) => ({ name: label.name, count: counts.get(label.name.toLocaleLowerCase()) || 0 }))
-      .filter((option) => option.name.toLocaleLowerCase().includes(term))
-      // 선택에 이미 붙은 태그를 위로 올려, 떼는 조작을 먼저 만나게 한다.
-      .sort((a, b) => (b.count > 0) - (a.count > 0) || a.name.localeCompare(b.name, $activeLocale));
-  }
-
-  function autofocus(node) {
-    requestAnimationFrame(() => node.focus());
-  }
-
   function closeSelectionTagPanel() {
     selectionTagPanelOpen = false;
-    selectionTagSearch = '';
   }
 
   function toggleSelectionTagPanel() {
     if (selectionTagPanelOpen) closeSelectionTagPanel();
     else selectionTagPanelOpen = true;
-  }
-
-  function toggleSelectionTag(name) {
-    const applied = selectionTagCounts.get(name.toLocaleLowerCase()) || 0;
-    // 선택한 노트 전부에 붙어 있을 때만 떼고, 일부만 붙어 있으면 나머지에 마저 붙인다.
-    applySelectionTag(name, applied > 0 && applied === selectedIssues.length ? 'remove' : 'add');
   }
 
   async function applySelectionTag(name, mode) {
@@ -2243,18 +1633,6 @@
     }
   }
 
-  function mergedIssueLabels(sourceIssues) {
-    const names = new Map();
-    for (const issue of sourceIssues) {
-      for (const label of issue.labels || []) {
-        if (isPinLabel(label)) continue;
-        const name = String(label.name || '').trim();
-        if (name) names.set(name.toLocaleLowerCase(), name);
-      }
-    }
-    return [...names.values()];
-  }
-
   async function mergeSelectedIssues() {
     const sources = [...selectedIssues];
     if (mergeBusy || state !== 'open' || sources.length < 2) return;
@@ -2262,84 +1640,13 @@
     error = '';
     notice = '';
     mergeBusy = true;
-    let mergedIssue = null;
-    let mergedBodySaved = false;
     try {
-      // 목록 항목은 검색 결과일 수 있으므로, 병합 전에 본문·댓글·첨부의 최신 원본을
-      // 모두 다시 읽는다. 이 단계에서는 원본을 전혀 변경하지 않는다.
-      const sourceDetails = [];
-      for (const source of sources) {
-        const issue = await getIssue(token, repo, source.number);
-        const [comments, attachments] = await Promise.all([
-          listIssueComments(token, repo, source.number),
-          listAllIssueAttachmentFiles(token, repo, source.number)
-        ]);
-        sourceDetails.push({ ...issue, comments, attachments });
-      }
-
-      const earliest = earliestIssue(sourceDetails);
-      const labels = mergedIssueLabels(sourceDetails);
-      const initialBody = formatMergedBody(mergeTimeline(sourceDetails));
-      if (initialBody.length > MAX_ISSUE_BODY_LENGTH) {
-        throw new Error($_('dynamic.mergeTooLong', { values: { limit: MAX_ISSUE_BODY_LENGTH } }));
-      }
-
-      // 새 이슈가 완성되기 전에는 원본을 닫지 않는다. 따라서 첨부 이전, 본문 저장 등
-      // 어느 단계가 실패해도 원본 기록은 그대로 남는다.
-      mergedIssue = await createIssue(token, repo, {
-        title: earliest.title || $_('dynamic.mergedNoteTitle'),
-        body: '> 병합 기록을 준비하는 중입니다.',
-        labels
-      });
-
-      const attachmentPaths = new Map();
-      for (const source of sourceDetails) {
-        for (const attachment of source.attachments) {
-          const blob = await downloadAttachment(token, repo, attachment);
-          const copied = await uploadAttachment(token, repo, mergedIssue.number, new File(
-            [blob],
-            attachment.name,
-            { type: blob.type || attachment.type || 'application/octet-stream' }
-          ));
-          attachmentPaths.set(attachment.path, copied.path);
-        }
-      }
-
-      const copiedSources = sourceDetails.map((source) => ({
-        ...source,
-        body: replaceAttachmentUrls(source.body, repo, attachmentPaths),
-        comments: source.comments.map((comment) => ({
-          ...comment,
-          body: replaceAttachmentUrls(comment.body, repo, attachmentPaths)
-        }))
-      }));
-      const body = formatMergedBody(mergeTimeline(copiedSources));
-      if (body.length > MAX_ISSUE_BODY_LENGTH) {
-        throw new Error($_('dynamic.mergeTooLong', { values: { limit: MAX_ISSUE_BODY_LENGTH } }));
-      }
-      const savedMergedIssue = await updateIssue(token, repo, mergedIssue.number, {
-        title: earliest.title || $_('dynamic.mergedNoteTitle'),
-        body,
-        labels
-      });
-      mergedBodySaved = true;
-
-      const closeFailures = [];
-      const closedSourceIds = new Set();
-      for (const source of sourceDetails) {
-        try {
-          await setIssueState(token, repo, source.number, 'closed');
-          closedSourceIds.add(source.id);
-        } catch {
-          closeFailures.push(source.number);
-        }
-      }
-
+      const { mergedIssue, closedSourceIds, closeFailures } = await mergeIssues(token, repo, sources);
       invalidateCachedIssueList(activeWorkspaceId);
       clearIssueSelection();
       // GitHub 검색 인덱스나 목록 요청이 잠시 늦어도, 성공적으로 닫은 원본을
       // 현재 화면에 다시 남겨 두지 않는다. 저장한 병합 이슈도 즉시 표시한다.
-      issues = [savedMergedIssue, ...issues.filter((issue) => !closedSourceIds.has(issue.id))];
+      issues = [mergedIssue, ...issues.filter((issue) => !closedSourceIds.has(issue.id))];
       pinnedIssues = pinnedIssues.filter((issue) => !closedSourceIds.has(issue.id));
       // 병합 전 목록을 이어 붙이면, 두 번째 페이지부터 남아 있던 원본이 열린
       // 목록에 다시 나타날 수 있다. 전체 목록을 다시 읽어 닫힌 원본을 확실히 제거한다.
@@ -2351,18 +1658,10 @@
         notice = $_('dynamic.mergeComplete', { values: { number: mergedIssue.number } });
       }
     } catch (reason) {
-      // 완성 전의 결과물은 휴지통으로 보내고, 원본 이슈는 열어 둔다. 복사된 파일은
-      // 그 이슈의 첨부로 남았다가 기존 휴지통 정리 정책에 따라 함께 제거된다.
-      if (mergedIssue && !mergedBodySaved) {
-        try {
-          await setIssueState(token, repo, mergedIssue.number, 'closed');
-        } catch {
-          // 원본은 여전히 안전하며, 닫지 못한 임시 이슈 번호는 오류 문구로 안내한다.
-        }
-      }
-      error = mergedIssue && !mergedBodySaved
-        ? $_('dynamic.mergeFailedWithDraft', { values: { number: mergedIssue.number, error: friendlyError(reason) } })
-        : $_('dynamic.mergeFailed', { values: { error: friendlyError(reason) } });
+      const cause = reason instanceof MergeError ? reason.cause : reason;
+      error = reason?.draftNumber
+        ? $_('dynamic.mergeFailedWithDraft', { values: { number: reason.draftNumber, error: friendlyError(cause) } })
+        : $_('dynamic.mergeFailed', { values: { error: friendlyError(cause) } });
     } finally {
       mergeBusy = false;
     }
@@ -2427,15 +1726,8 @@
   function syncPinnedIssue(issue) {
     if (!issue) return;
     const pendingPin = pendingPinMutationFor(activeWorkspaceId, token, repo);
-    const syncedIssue = applyPendingPinToIssue(issue, pendingPin);
-    const index = pinnedIssues.findIndex((item) => samePinIssue(item, syncedIssue));
-    if (hasPinLabel(syncedIssue)) {
-      pinnedIssues = index >= 0
-        ? pinnedIssues.map((item) => samePinIssue(item, syncedIssue) ? syncedIssue : item)
-        : [syncedIssue, ...pinnedIssues];
-    } else if (index >= 0) {
-      pinnedIssues = pinnedIssues.filter((item) => !samePinIssue(item, syncedIssue));
-    }
+    const syncedIssue = applyPendingPin(issue, pendingPin);
+    pinnedIssues = syncPinnedList(pinnedIssues, syncedIssue);
     return syncedIssue;
   }
 
@@ -2539,17 +1831,8 @@
     if (newNoteIsActive && activeLabel && !hasIssueLabel(savedIssue, activeLabel)) {
       router.navigate(`/note.${savedIssue.number}`);
     } else {
-      const nextStack = routeStack.map((route) => route.screen === 'new'
-        ? `note.${savedIssue.number}`
-        : route.segment);
-      router.navigate(`/${nextStack.join('/')}`);
+      router.navigate(`/${segmentsWithPromotedNote(routeStack, savedIssue.number).join('/')}`);
     }
-  }
-
-  function hasIssueLabel(issue, labelName) {
-    return issue?.labels?.some(
-      (label) => label.name.toLocaleLowerCase() === labelName.toLocaleLowerCase()
-    );
   }
 
   function noteDraftChanged(sourceIssue, draft) {
@@ -2566,54 +1849,27 @@
   }
 
   function mergeRepositoryLabels(nextLabels) {
-    const labelsByName = new Map(
-      [...repositoryLabels, ...nextLabels].map((label) => [label.name.toLocaleLowerCase(), label])
-    );
-    repositoryLabels = [...labelsByName.values()].sort((a, b) => a.name.localeCompare(b.name, $activeLocale));
-  }
-
-  function replaceLabelInIssue(issue, currentName, nextName = '') {
-    if (!issue) return issue;
-    const nextLabels = (issue.labels || [])
-      .filter((label) => nextName || label.name.toLocaleLowerCase() !== currentName.toLocaleLowerCase())
-      .map((label) => label.name.toLocaleLowerCase() === currentName.toLocaleLowerCase()
-        ? { ...label, name: nextName }
-        : label);
-    return { ...issue, labels: nextLabels };
-  }
-
-  function updateDraftLabels(repoName, currentName, nextName = '') {
-    const draftsKey = 'issue-note.drafts.v1';
-    try {
-      const store = JSON.parse(localStorage.getItem(draftsKey) || '{}');
-      const repoDrafts = store[repoName];
-      if (!repoDrafts) return;
-      for (const draft of Object.values(repoDrafts)) {
-        if (!Array.isArray(draft.labels)) continue;
-        draft.labels = draft.labels
-          .filter((name) => nextName || name.toLocaleLowerCase() !== currentName.toLocaleLowerCase())
-          .map((name) => name.toLocaleLowerCase() === currentName.toLocaleLowerCase() ? nextName : name);
-      }
-      localStorage.setItem(draftsKey, JSON.stringify(store));
-    } catch {
-      // 손상된 초안 저장소는 편집기가 자체적으로 무시한다.
-    }
+    repositoryLabels = mergeLabels(repositoryLabels, nextLabels, $activeLocale);
   }
 
   function rewriteActiveTagRoute(nextName = '') {
-    const nextSegments = routeStack
-      .filter((route) => route.screen !== 'settings')
-      .filter((route) => nextName || route.screen !== 'tag')
-      .map((route) => route.screen === 'tag'
-        ? `tag.${encodeURIComponent(nextName)}`
-        : route.segment);
+    const nextSegments = segmentsWithRenamedTag(routeStack, nextName);
     settingsRouteOverride = nextSegments.join('/');
     router.navigate(`/${[...nextSegments, 'settings'].join('/')}`);
   }
 
+  // 저장소 태그 이름이 바뀌거나(nextName) 지워지면 화면의 노트·초안과 열린 편집기에 반영한다.
+  function applyLabelChangeToNotes(connectedRepo, currentName, nextName = '') {
+    issues = issues.map((issue) => replaceIssueLabel(issue, currentName, nextName));
+    pinnedIssues = pinnedIssues.map((issue) => replaceIssueLabel(issue, currentName, nextName));
+    pendingNote = replaceIssueLabel(pendingNote, currentName, nextName);
+    selectedIssue = replaceIssueLabel(selectedIssue, currentName, nextName);
+    renameDraftLabels(connectedRepo, currentName, nextName);
+    labelMutation = { id: ++labelMutationSequence, from: currentName, to: nextName };
+  }
+
   async function renameRepositoryLabel(label, nextTag) {
-    const normalizedName = Array.from(String(nextTag?.name || '').trim()).slice(0, 50).join('');
-    const normalizedDescription = Array.from(String(nextTag?.description || '').trim()).slice(0, 100).join('');
+    const { name: normalizedName, description: normalizedDescription } = limitTagInput(nextTag);
     if (isPinLabel(label) || !normalizedName || isPinLabel(normalizedName)) {
       error = $_('dynamic.tagNameRequired', { values: { name: label.name } });
       return false;
@@ -2628,15 +1884,11 @@
       try {
         const connectedRepo = repository?.full_name || repo;
         const savedLabel = await renameLabel(token, connectedRepo, currentLabel.name, normalizedName, normalizedDescription);
-        repositoryLabels = repositoryLabels
-          .map((item) => item.name === currentLabel.name ? savedLabel : item)
-          .sort((a, b) => a.name.localeCompare(b.name, $activeLocale));
-        issues = issues.map((issue) => replaceLabelInIssue(issue, currentLabel.name, savedLabel.name));
-        pinnedIssues = pinnedIssues.map((issue) => replaceLabelInIssue(issue, currentLabel.name, savedLabel.name));
-        pendingNote = replaceLabelInIssue(pendingNote, currentLabel.name, savedLabel.name);
-        selectedIssue = replaceLabelInIssue(selectedIssue, currentLabel.name, savedLabel.name);
-        updateDraftLabels(connectedRepo, currentLabel.name, savedLabel.name);
-        labelMutation = { id: ++labelMutationSequence, from: currentLabel.name, to: savedLabel.name };
+        repositoryLabels = sortLabels(
+          repositoryLabels.map((item) => item.name === currentLabel.name ? savedLabel : item),
+          $activeLocale
+        );
+        applyLabelChangeToNotes(connectedRepo, currentLabel.name, savedLabel.name);
         if (currentLabel.name !== savedLabel.name) {
           notice = $_('dynamic.tagRenamed', { values: { from: currentLabel.name, to: savedLabel.name } });
           if (activeLabel.toLocaleLowerCase() === currentLabel.name.toLocaleLowerCase()) rewriteActiveTagRoute(savedLabel.name);
@@ -2657,88 +1909,33 @@
     return queued;
   }
 
-  function showToast(message) {
-    clearTimeout(toastTimer);
-    const sequence = ++toastSequence;
-    toastMessage = message;
-    toastTimer = setTimeout(() => {
-      if (sequence !== toastSequence) return;
-      toastMessage = '';
-    }, 2400);
-  }
-
   // 환경설정은 화면을 벗어날 때(닫기·뒤로) 한 번에 확정한다.
   function applySettingsChanges() {
     if (appState !== 'ready') return;
-    themePreference = normalizeTheme(themePreference);
-    applyTheme(themePreference);
-    editorFontSize = Math.round(clampNumber(editorFontSize, 12, 32, 17));
-    editorLineHeight = clampNumber(editorLineHeight, 1.2, 2.5, 1.8);
-    editorMaxWidth = Math.round(clampNumber(editorMaxWidth, 480, 1600, 840));
-    autoSaveSeconds = Math.round(clampNumber(autoSaveSeconds, 3, 30, 5));
-    issuePageSize = Math.round(clampNumber(issuePageSize, 10, 100, 30));
-    lockSessionMinutes = normalizeLockSessionMinutes(lockSessionMinutes);
-    workspaceCacheMinutes = normalizeWorkspaceCacheMinutes(workspaceCacheMinutes);
-    const preferencesChanged = preferenceSignature(currentPreferences()) !== settingsEntrySignature;
+    preferences = finalizePreferences(preferences);
+    applyTheme(preferences.theme);
+    const preferencesChanged = preferenceSignature(preferences) !== settingsEntrySignature;
     // 전사 단어는 다른 기기와 공유하는 저장소 설정이므로, 환경설정을 닫을 때
     // 한 번만 저장한다. 태그 변경처럼 매번 즉시 저장할 필요는 없다.
-    void flushPendingVoiceTranscriptionHints();
+    void transcriptionHints.flush();
     // 그냥 들여다보기만 하고 나온 경우에는 저장도 알림도 하지 않는다.
     if (!preferencesChanged) return;
     persistSettings(repo);
     // 유지 시간을 바꾸면 이미 열려 있는 잠금 세션도 새 길이로 다시 센다.
     if (lockPin) setLockSession(lockPin);
     // 페이지 크기는 목록 요청에 그대로 들어가므로, 바뀌었으면 다시 불러온다.
-    if (issuePageSize !== settingsEntryPageSize) loadIssues();
-    settingsEntryPageSize = issuePageSize;
-    settingsEntrySignature = preferenceSignature(currentPreferences());
+    if (preferences.issuePageSize !== settingsEntryPageSize) loadIssues();
+    settingsEntryPageSize = preferences.issuePageSize;
+    settingsEntrySignature = preferenceSignature(preferences);
   }
 
   function announceDeferredApply() {
-    showToast($_("m.be71371eed"));
+    toast.show($_("m.be71371eed"));
   }
-
-  function handleThemeChange() {
-    themePreference = applyTheme(themePreference);
-    announceDeferredApply();
-  }
-
-  function handleEditorFontChange(event) {
-    announceDeferredApply();
-    const selectedFont = event.currentTarget?.value || editorFont;
-    if (isWebFont(selectedFont)) void loadWebFont(selectedFont);
-  }
-
-  async function loadLocalFonts() {
-    if (localFontLoadState === 'loading') return;
-    if (typeof window.queryLocalFonts !== 'function') {
-      localFontLoadState = 'unsupported';
-      return;
-    }
-
-    localFontLoadState = 'loading';
-    try {
-      const faces = await window.queryLocalFonts();
-      localFontFamilies = [...new Set(
-        faces.map((face) => String(face.family || '').trim()).filter(Boolean)
-      )].sort((left, right) => left.localeCompare(right));
-      localFontLoadState = 'ready';
-    } catch {
-      // 권한 거부와 보안 컨텍스트 오류 모두 사용자가 다시 시도할 수 있게 처리한다.
-      localFontLoadState = 'unavailable';
-    }
-  }
-
-  $: selectedLocalFont = localFontFamily(editorFont);
-  $: visibleLocalFontFamilies = [...new Set([
-    ...localFontFamilies,
-    ...(selectedLocalFont ? [selectedLocalFont] : [])
-  ])].sort((left, right) => left.localeCompare(right));
 
   async function createRepositoryLabel(tag) {
     if (labelBusy.creating) return;
-    const normalizedName = Array.from(String(tag?.name || '').trim()).slice(0, 50).join('');
-    const normalizedDescription = Array.from(String(tag?.description || '').trim()).slice(0, 100).join('');
+    const { name: normalizedName, description: normalizedDescription } = limitTagInput(tag);
     if (!normalizedName || isPinLabel(normalizedName)) return;
     labelBusy = { ...labelBusy, creating: true };
     error = '';
@@ -2765,12 +1962,7 @@
       const connectedRepo = repository?.full_name || repo;
       await removeLabel(token, connectedRepo, label.name);
       repositoryLabels = repositoryLabels.filter((item) => item.name !== label.name);
-      issues = issues.map((issue) => replaceLabelInIssue(issue, label.name));
-      pinnedIssues = pinnedIssues.map((issue) => replaceLabelInIssue(issue, label.name));
-      pendingNote = replaceLabelInIssue(pendingNote, label.name);
-      selectedIssue = replaceLabelInIssue(selectedIssue, label.name);
-      updateDraftLabels(connectedRepo, label.name);
-      labelMutation = { id: ++labelMutationSequence, from: label.name, to: '' };
+      applyLabelChangeToNotes(connectedRepo, label.name);
       notice = $_('dynamic.tagDeleted', { values: { name: label.name } });
       if (activeLabel.toLocaleLowerCase() === label.name.toLocaleLowerCase()) rewriteActiveTagRoute();
     } catch (reason) {
@@ -2785,9 +1977,9 @@
     query = `#${labelName}`;
     appliedQuery = query;
     selectedIssue = null;
-    const route = `tag.${encodeURIComponent(labelName)}`;
-    if (routeStack.some((item) => item.screen === 'tag')) router.navigate(route);
-    else if (['note', 'new'].includes(topRoute?.screen)) router.navigate(`/${route}`);
+    const route = tagRouteSegment(labelName);
+    if (hasScreen(routeStack, 'tag')) router.navigate(route);
+    else if (isContentRoute(topRoute)) router.navigate(`/${route}`);
     else router.push(route);
   }
 
@@ -2807,9 +1999,7 @@
     const noteCountDelta = nextState === 'open' ? 1 : -1;
     const shouldSettlePendingDeletion = nextState === 'closed'
       && deletionEntryId !== null
-      && pendingIssueDeletionQueue.some((entry) => (
-        entry.id === deletionEntryId && entry.inFlight && entry.issues.some((item) => item.id === issue.id)
-      ));
+      && deletionQueue.isInFlight(deletionEntryId, issue.id);
     const isCurrentContext = () => requestedWorkspaceId === activeWorkspaceId
       && requestedToken === token
       && requestedRepo === repo
@@ -2860,19 +2050,19 @@
     } catch (reason) {
       if (isCurrentContext()) error = friendlyError(reason);
     } finally {
-      if (shouldSettlePendingDeletion) settlePendingIssueDeletion(deletionEntryId, issue.id);
+      if (shouldSettlePendingDeletion) deletionQueue.settle(deletionEntryId, issue.id);
     }
   }
 
   function openSettings() {
     clearIssueSelection();
     settingsRouteOverride = '';
-    settingsEntryPageSize = issuePageSize;
-    settingsEntrySignature = preferenceSignature(currentPreferences());
+    settingsEntryPageSize = preferences.issuePageSize;
+    settingsEntrySignature = preferenceSignature(preferences);
     error = '';
     notice = '';
     // 환경설정을 열 때는 다른 기기에서 바꾼 용어집도 즉시 반영한다.
-    void loadVoiceTranscriptionHintsForCurrentRepo(true);
+    void transcriptionHints.load(true);
     router.push('settings');
   }
 
@@ -2887,7 +2077,7 @@
     }
     // 녹음 진입 시에는 현재 저장소의 용어집을 한 번만 읽는다. 이후 녹음은
     // 메모리에 둔 값을 쓰므로 전사할 때마다 GitHub 요청을 보내지 않는다.
-    await loadVoiceTranscriptionHintsForCurrentRepo();
+    await transcriptionHints.load();
     beginVoiceRecording({ ...target, issueNumber: issue?.number || null });
   }
 
@@ -2898,99 +2088,9 @@
     router.push('voice');
   }
 
-  async function loadVoiceTranscriptionHintsForCurrentRepo(force = false) {
-    const requestedToken = token;
-    const requestedRepo = repo;
-    if (!requestedToken || !requestedRepo) return;
-    if (!force && voiceHintsLoadedRepo === requestedRepo) return;
-    if (voiceHintsLoadPromise) return voiceHintsLoadPromise;
-
-    const pending = loadPendingVoiceTranscriptionHints(requestedRepo);
-    if (pending !== null) {
-      voiceTranscriptionHints = pending;
-      voiceHintsLoadedRepo = requestedRepo;
-      return;
-    }
-
-    voiceHintsLoading = true;
-    voiceHintsError = '';
-    const task = loadVoiceTranscriptionHints(requestedToken, requestedRepo)
-      .then((hints) => {
-        if (requestedToken !== token || requestedRepo !== repo) return;
-        voiceTranscriptionHints = hints;
-        voiceHintsLoadedRepo = requestedRepo;
-      })
-      .catch((reason) => {
-        if (requestedToken === token && requestedRepo === repo) {
-          voiceHintsError = reason?.message || '전사 힌트를 불러오지 못했습니다.';
-        }
-      })
-      .finally(() => {
-        if (requestedToken === token && requestedRepo === repo) voiceHintsLoading = false;
-        if (voiceHintsLoadPromise === task) voiceHintsLoadPromise = null;
-      });
-    voiceHintsLoadPromise = task;
-    return task;
-  }
-
-  async function flushPendingVoiceTranscriptionHints() {
-    const requestedToken = token;
-    const requestedRepo = repo;
-    if (!requestedToken || !requestedRepo || voiceHintsSaving) return;
-    const value = loadPendingVoiceTranscriptionHints(requestedRepo);
-    if (value === null) return;
-    voiceHintsSaving = true;
-    voiceHintsError = '';
-    try {
-      const saved = await saveVoiceTranscriptionHints(requestedToken, requestedRepo, value);
-      if (requestedToken === token && requestedRepo === repo) {
-        clearPendingVoiceTranscriptionHints(requestedRepo);
-        voiceHintsLoadedRepo = requestedRepo;
-      }
-    } catch (reason) {
-      if (requestedToken === token && requestedRepo === repo) {
-        voiceHintsError = reason?.message || '전사 힌트를 저장하지 못했습니다.';
-      }
-    } finally {
-      if (requestedToken === token && requestedRepo === repo) voiceHintsSaving = false;
-    }
-  }
-
-  function stageVoiceTranscriptionHints(event) {
-    const value = event.currentTarget.value;
-    voiceTranscriptionHints = value;
-    savePendingVoiceTranscriptionHints(repo, value);
-  }
-
-  function maskedVoiceApiKey(value) {
-    const key = String(value || '');
-    if (!key) return '';
-    if (key.length <= 20) return '••••••••••••';
-    return `${key.slice(0, 10)}...${key.slice(-10)}`;
-  }
-
-  function beginVoiceApiKeyEdit() {
-    voiceApiKeyEditing = true;
-  }
-
-  function finishVoiceApiKeyEdit() {
-    voiceApiKeyEditing = false;
-  }
-
-  function handleVoiceApiKeyInput(event) {
-    const previousKey = voiceApiKey.trim();
-    voiceApiKey = event.currentTarget.value;
-    persistVoiceSettings();
-    if (voiceApiKey.trim() && voiceApiKey.trim() !== previousKey) {
-      scheduleVoiceModelRefresh();
-    }
-  }
-
   function blurFocusedTextControl() {
     const active = document.activeElement;
-    if (!(active instanceof HTMLElement)) return;
-    const isTextControl = active.matches('textarea, input:not([type]), input[type="text"], input[type="search"], input[type="password"], [contenteditable="true"]');
-    if (isTextControl) active.blur();
+    if (isTextControl(active)) active.blur();
   }
 
   function blurForEdgeBackSwipe(event) {
@@ -2998,69 +2098,15 @@
     blurFocusedTextControl();
   }
 
-  function classifyVoiceModels(modelIds) {
-    const sorted = [...new Set(modelIds.filter((id) => !isDatedModelSnapshot(id)))]
-      .sort((left, right) => left.localeCompare(right));
-    return {
-      transcription: sorted.filter((id) => /(?:^|-)transcribe(?:-|$)|^whisper-/.test(id)),
-      // chat/completions로 정제할 수 있는 범용 텍스트 계열만 보여 준다.
-      refinement: sorted.filter((id) => /^(gpt-(?:4|5)|o[1-4])/.test(id)
-        && !/(audio|realtime|transcribe|tts|image|moderation|embedding)/.test(id))
-    };
-  }
-
-  async function refreshVoiceModelLists() {
-    const apiKey = voiceApiKey.trim();
-    if (!apiKey || voiceModelsRefreshing) return;
-    voiceModelsAbortController?.abort();
-    voiceModelsAbortController = new AbortController();
-    voiceModelsRefreshing = true;
-    voiceModelsError = '';
-    try {
-      const lists = classifyVoiceModels(await listAvailableVoiceModels(apiKey, voiceModelsAbortController.signal));
-      // 선택 중인 모델이 목록에서 사라져도 설정값을 조용히 바꾸지 않는다.
-      if (!isDatedModelSnapshot(voiceTranscriptionModel)
-        && voiceTranscriptionModel && !lists.transcription.includes(voiceTranscriptionModel)) {
-        lists.transcription.push(voiceTranscriptionModel);
-      }
-      if (!isDatedModelSnapshot(voiceRefinementModel)
-        && voiceRefinementModel && !lists.refinement.includes(voiceRefinementModel)) {
-        lists.refinement.push(voiceRefinementModel);
-      }
-      lists.transcription.sort((left, right) => left.localeCompare(right));
-      lists.refinement.sort((left, right) => left.localeCompare(right));
-      voiceModelLists = lists;
-      saveVoiceModelLists(lists);
-      fetchedVoiceApiKey = apiKey;
-    } catch (reason) {
-      if (reason?.name !== 'AbortError') voiceModelsError = reason?.message || '모델 목록을 가져오지 못했습니다.';
-    } finally {
-      if (voiceModelsAbortController?.signal.aborted === false) voiceModelsAbortController = null;
-      voiceModelsRefreshing = false;
-    }
-  }
-
-  function scheduleVoiceModelRefresh() {
-    const apiKey = voiceApiKey.trim();
-    if (!apiKey || apiKey === fetchedVoiceApiKey) return;
-    clearTimeout(voiceModelsRefreshTimer);
-    voiceModelsRefreshTimer = setTimeout(() => void refreshVoiceModelLists(), 600);
-  }
-
   async function focusVoiceSettings() {
     await tick();
-    voiceSettingsHighlighted = true;
-    voiceSettingsSection?.scrollIntoView({ behavior: 'smooth', block: 'end' });
-    voiceApiKeyInput?.focus();
-    setTimeout(() => voiceSettingsHighlighted = false, 1800);
+    await voiceSettings?.focusApiKey();
   }
 
   async function recordVoiceNote(body, audio, selectedTags = [], suggestedTitle = '') {
     const normalizedBody = normalizeVoiceParagraphs(body);
-    const normalizedSuggestedTitle = String(suggestedTitle || '').replace(/\s+/g, ' ').trim().slice(0, 50);
-    const selectedTagNames = selectedTags.filter((name) => visibleRepositoryLabels.some(
-      (label) => label.name.toLocaleLowerCase() === String(name).toLocaleLowerCase()
-    ));
+    const normalizedSuggestedTitle = normalizeSuggestedTitle(suggestedTitle);
+    const selectedTagNames = knownTagNames(selectedTags, visibleRepositoryLabels);
     const requestedWorkspaceId = activeWorkspaceId;
     const requestedToken = token;
     const requestedRepo = repo;
@@ -3100,12 +2146,11 @@
       router.pop();
       return;
     }
-    const issueBody = titleMode === 'first-line' && normalizedBody && normalizedSuggestedTitle
-      ? `${normalizedSuggestedTitle}\n\n${normalizedBody}`
-      : normalizedBody;
-    const title = titleMode === 'separate'
-      ? normalizedSuggestedTitle || automaticTitle(normalizedBody) || '음성 기록'
-      : automaticTitle(issueBody) || '음성 기록';
+    const { title, body: issueBody } = composeVoiceIssue({
+      titleMode: preferences.titleMode,
+      body: normalizedBody,
+      suggestedTitle: normalizedSuggestedTitle
+    });
     const created = await createIssue(requestedToken, requestedRepo, { title, body: issueBody, labels: selectedTagNames });
     if (preserveOriginalVoiceAudio) await uploadVoiceAttachment(audio, requestedToken, requestedRepo, created.number);
     if (requestedWorkspaceId !== activeWorkspaceId || requestedToken !== token || requestedRepo !== repo) return;
@@ -3125,26 +2170,7 @@
 
   async function uploadVoiceAttachment(audio, requestedToken, requestedRepo, issueNumber) {
     if (!audio) return null;
-    const extension = audio.type.includes('mp4') ? 'mp4' : 'webm';
-    return uploadAttachment(requestedToken, requestedRepo, issueNumber, new File(
-      [audio], `voice-${new Date().toISOString().replace(/[:.]/g, '-')}.${extension}`,
-      { type: audio.type || 'audio/webm' }
-    ));
-  }
-
-  function voiceAttachmentLink(targetRepo, attachment) {
-    if (!attachment) return '';
-    const url = attachmentRawUrl(targetRepo, attachment.path);
-    return `<audio controls preload="metadata" src="${url}"><a href="${url}">🎙 원본 음성 다운로드</a></audio>`;
-  }
-
-  function appendVoiceAttachmentLink(body, targetRepo, attachment) {
-    const link = voiceAttachmentLink(targetRepo, attachment);
-    return link ? `${body}\n\n${link}` : body;
-  }
-
-  function normalizeVoiceParagraphs(body) {
-    return String(body || '').replace(/\r\n?/g, '\n').replace(/\n+/g, '\n\n').trim();
+    return uploadAttachment(requestedToken, requestedRepo, issueNumber, voiceAudioFile(audio));
   }
 
   function voiceBodyHandled(id) {
@@ -3167,9 +2193,9 @@
   async function copyMcpText(value, successMessage) {
     try {
       await navigator.clipboard.writeText(value);
-      showToast(successMessage);
+      toast.show(successMessage);
     } catch {
-      showToast($_("m.da21b2386d"));
+      toast.show($_("m.da21b2386d"));
     }
   }
 
@@ -3246,257 +2272,20 @@
               </div>
             {/if}
 
-            <fieldset class="editor-settings mb-4">
-              <legend>{$_("m.cf8e8136d8")}</legend>
-              <div class="mb-3">
-                <label class="form-label" for="theme">{$_('settings.theme')}</label>
-                <select
-                  id="theme"
-                  class="form-select"
-                  bind:value={themePreference}
-                  on:change={handleThemeChange}
-                >
-                  {#each THEME_OPTIONS as option}
-                    <option value={option}>{$_(`settings.theme${option === 'dark' ? 'Dark' : 'Light'}`)}</option>
-                  {/each}
-                </select>
-              </div>
-              <div class="mb-3">
-                <label class="form-label" for="language">{$_('settings.language')}</label>
-                <select
-                  id="language"
-                  class="form-select"
-                  bind:value={languagePreference}
-                  on:change={() => setAppLocale(languagePreference)}
-                >
-                  {#each LOCALE_OPTIONS as option (option.value)}
-                    <option value={option.value}>{option.label}</option>
-                  {/each}
-                </select>
-              </div>
-              <div class="mb-3">
-                <label class="form-label" for="title-mode">{$_("m.871b7ed110")}</label>
-                <select id="title-mode" class="form-select" bind:value={titleMode} on:change={announceDeferredApply}>
-                  <option value="first-line">{$_("m.7358ee0f0a")}</option>
-                  <option value="separate">{$_("m.4a13beb6d6")}</option>
-                </select>
-              </div>
-              <div class="mb-3">
-                <span class="form-label d-block">{$_("m.62c6f9ddb9")}</span>
-                <div class="form-check form-check-inline">
-                  <input class="form-check-input" type="checkbox" id="list-field-title" bind:checked={listRowFields.title} on:change={announceDeferredApply} />
-                  <label class="form-check-label" for="list-field-title">{$_("m.768e0c1c69")}</label>
-                </div>
-                <div class="form-check form-check-inline">
-                  <input class="form-check-input" type="checkbox" id="list-field-summary" bind:checked={listRowFields.summary} on:change={announceDeferredApply} />
-                  <label class="form-check-label" for="list-field-summary">{$_("m.12b71c3e0f")}</label>
-                </div>
-                <div class="form-check form-check-inline">
-                  <input class="form-check-input" type="checkbox" id="list-field-meta" bind:checked={listRowFields.meta} on:change={announceDeferredApply} />
-                  <label class="form-check-label" for="list-field-meta">{$_("m.e2a9becb94")}</label>
-                </div>
-                <div class="form-check form-check-inline">
-                  <input class="form-check-input" type="checkbox" id="list-field-tags" bind:checked={listRowFields.tags} on:change={announceDeferredApply} />
-                  <label class="form-check-label" for="list-field-tags">{$_("m.848eed0fbd")}</label>
-                </div>
-              </div>
-              <div class="row g-2">
-                <div class="col-sm-6">
-                  <label class="form-label" for="editor-font">{$_("m.b97c4d4cdd")}</label>
-                  <select
-                    id="editor-font"
-                    class="form-select"
-                    bind:value={editorFont}
-                    on:focus={loadLocalFonts}
-                    on:change={handleEditorFontChange}
-                  >
-                    <option value="system">{$_("m.9d8d380806")}</option>
-                    <option value="sans">{$_("m.ecc39dc539")}</option>
-                    <option value="serif">{$_("m.a5c78a86fa")}</option>
-                    <option value="mono">{$_("m.216fcddff2")}</option>
-                    {#if visibleLocalFontFamilies.length}
-                      <optgroup label="Local Fonts">
-                        {#each visibleLocalFontFamilies as family}
-                          <option value={localFontValue(family)}>{family}</option>
-                        {/each}
-                      </optgroup>
-                    {/if}
-                    <optgroup label="Coding Fonts">
-                      {#each CODING_FONT_OPTIONS as option (option.value)}
-                        <option value={option.value}>{option.label}</option>
-                      {/each}
-                    </optgroup>
-                  </select>
-                </div>
-                <div class="col-6 col-sm-3">
-                  <label class="form-label" for="font-size">{$_("m.b7152342a2")}</label>
-                  <input id="font-size" class="form-control" type="number" min="12" max="32" step="1" bind:value={editorFontSize} on:change={announceDeferredApply} />
-                </div>
-                <div class="col-6 col-sm-3">
-                  <label class="form-label" for="line-height">{$_("m.65be5133e7")}</label>
-                  <input id="line-height" class="form-control" type="number" min="1.2" max="2.5" step="0.1" bind:value={editorLineHeight} on:change={announceDeferredApply} />
-                </div>
-              </div>
-              <div class="row g-2 mt-1">
-                <div class="col-6">
-                  <label class="form-label" for="auto-save-seconds">{$_("m.41380d4108")}</label>
-                  <div class="input-group">
-                    <input id="auto-save-seconds" class="form-control" type="number" min="3" max="30" step="1" bind:value={autoSaveSeconds} on:change={announceDeferredApply} />
-                    <span class="input-group-text">{$_("m.920a25ef68")}</span>
-                  </div>
-                </div>
-                <div class="col-6">
-                  <label class="form-label" for="issue-page-size">{$_("m.31ec42c218")}</label>
-                  <input id="issue-page-size" class="form-control" type="number" min="10" max="100" step="1" bind:value={issuePageSize} on:change={announceDeferredApply} />
-                </div>
-              </div>
-              <div class="row g-2 mt-1">
-                <div class="col-6">
-                  <label class="form-label" for="editor-max-width">{$_('settings.editorMaxWidth')}</label>
-                  <div class="input-group">
-                    <input id="editor-max-width" class="form-control" type="number" min="480" max="1600" step="10" bind:value={editorMaxWidth} on:change={announceDeferredApply} />
-                    <span class="input-group-text">px</span>
-                  </div>
-                </div>
-              </div>
-              <div class="mt-3">
-                <label class="form-label" for="workspace-cache-minutes">{$_('settings.workspaceCacheDuration')}</label>
-                <select
-                  id="workspace-cache-minutes"
-                  class="form-select"
-                  bind:value={workspaceCacheMinutes}
-                  on:change={announceDeferredApply}
-                >
-                  {#each WORKSPACE_CACHE_OPTIONS as minutes}
-                    <option value={minutes}>
-                      {minutes % 60 === 0
-                        ? `${minutes / 60} ${$_('settings.hours')}`
-                        : `${minutes} ${$_('settings.minutes')}`}
-                    </option>
-                  {/each}
-                </select>
-                <div class="settings-help-note">※ {$_('settings.workspaceCacheHelp')}</div>
-              </div>
-              <div class="mt-3">
-                <label class="form-label" for="lock-session-minutes">{$_('settings.lockSessionDuration')}</label>
-                <select
-                  id="lock-session-minutes"
-                  class="form-select"
-                  bind:value={lockSessionMinutes}
-                  on:change={announceDeferredApply}
-                >
-                  {#each LOCK_SESSION_OPTIONS as minutes}
-                    <option value={minutes}>
-                      {minutes % 60 === 0
-                        ? `${minutes / 60} ${$_('settings.hours')}`
-                        : `${minutes} ${$_('settings.minutes')}`}
-                    </option>
-                  {/each}
-                </select>
-                <div class="settings-help-note">※ {$_('settings.lockSessionHelp')}</div>
-              </div>
-              </fieldset>
+            <DisplaySettings bind:preferences onDeferredChange={announceDeferredApply} />
 
-              <fieldset class="editor-settings voice-settings mb-4" class:is-highlighted={voiceSettingsHighlighted} bind:this={voiceSettingsSection}>
-                <legend>음성 녹음</legend>
-                <label class="form-label" for="voice-api-key">OpenAI API 키</label>
-                <input
-                  id="voice-api-key"
-                  class="form-control"
-                  type={voiceApiKeyEditing ? 'password' : 'text'}
-                  autocomplete="off"
-                  placeholder="sk-..."
-                  bind:this={voiceApiKeyInput}
-                  value={voiceApiKeyEditing ? voiceApiKey : maskedVoiceApiKey(voiceApiKey)}
-                  readonly={!voiceApiKeyEditing}
-                  aria-label="OpenAI API 키"
-                  on:input={handleVoiceApiKeyInput}
-                  on:focus={beginVoiceApiKeyEdit}
-                  on:blur={finishVoiceApiKeyEdit}
-                />
-                <div class="settings-help-note">녹음과 전사문은 OpenAI로 직접 전송됩니다. 키는 이 기기의 localStorage에 평문으로 저장되므로 전용 프로젝트 키·사용 한도·정기 교체를 권장합니다.</div>
-                <div class="row g-2 mt-2">
-                  <div class="col-sm-6">
-                    <div class="d-flex align-items-center justify-content-between mb-2">
-                      <label class="form-label mb-0" for="voice-transcription-model">음성 전사 모델</label>
-                      <button type="button" class="btn btn-link p-0 voice-label-action" on:click={refreshVoiceModelLists} disabled={!voiceApiKey.trim() || voiceModelsRefreshing} title="모델 목록 새로고침" aria-label="모델 목록 새로고침">
-                        <i class:spin={voiceModelsRefreshing} class="bi bi-arrow-clockwise" aria-hidden="true"></i>
-                      </button>
-                    </div>
-                    <select id="voice-transcription-model" class="form-select" bind:value={voiceTranscriptionModel} on:change={persistVoiceSettings}>
-                      {#each voiceModelLists.transcription as model}
-                        <option value={model}>{model}</option>
-                      {/each}
-                    </select>
-                  </div>
-                  <div class="col-sm-6">
-                    <div class="d-flex align-items-center justify-content-between mb-2">
-                      <label class="form-label mb-0" for="voice-refinement-model">텍스트 정제 모델</label>
-                      <button type="button" class="btn btn-link p-0 voice-label-action" on:click={refreshVoiceModelLists} disabled={!voiceApiKey.trim() || voiceModelsRefreshing} title="모델 목록 새로고침" aria-label="모델 목록 새로고침">
-                        <i class:spin={voiceModelsRefreshing} class="bi bi-arrow-clockwise" aria-hidden="true"></i>
-                      </button>
-                    </div>
-                    <select id="voice-refinement-model" class="form-select" bind:value={voiceRefinementModel} on:change={persistVoiceSettings}>
-                      <option value="">없음</option>
-                      {#each voiceModelLists.refinement as model}
-                        <option value={model}>{model}</option>
-                      {/each}
-                    </select>
-                  </div>
-                </div>
-                <div class="form-check mt-3">
-                  <input id="voice-preserve-original" class="form-check-input" type="checkbox" bind:checked={preserveOriginalVoiceAudio} on:change={persistVoiceSettings} />
-                  <label class="form-check-label" for="voice-preserve-original">원본 음성 보존</label>
-                  <div class="settings-help-note">녹음이 성공하면 해당 노트의 첨부파일로 원본 음성을 저장합니다.</div>
-                </div>
-                {#if voiceModelsError}<div class="text-danger small mt-2" role="alert">{voiceModelsError}</div>{/if}
-                {#if voiceRefinementModel.trim()}
-                  <div class="d-flex align-items-center justify-content-between mt-3 mb-2">
-                    <label class="form-label mb-0" for="voice-refinement-prompt">정제 규칙</label>
-                    <div class="voice-refinement-presets" aria-label="정제 규칙 프리셋">
-                      <button
-                        type="button"
-                        class="btn btn-link p-0 voice-label-action voice-default-action"
-                        on:click={() => applyVoiceRefinementPreset(TYPO_CORRECTION_REFINEMENT_PROMPT)}
-                      >약함</button>
-                      <span class="voice-preset-separator" aria-hidden="true">|</span>
-                      <button
-                        type="button"
-                        class="btn btn-link p-0 voice-label-action voice-default-action"
-                        on:click={() => applyVoiceRefinementPreset(WRITTEN_STYLE_REFINEMENT_PROMPT)}
-                      >중간</button>
-                      <span class="voice-preset-separator" aria-hidden="true">|</span>
-                      <button
-                        type="button"
-                        class="btn btn-link p-0 voice-label-action voice-default-action"
-                        on:click={() => applyVoiceRefinementPreset(CONCLUSION_FOCUSED_REFINEMENT_PROMPT)}
-                      >강함</button>
-                    </div>
-                  </div>
-                  <textarea
-                    id="voice-refinement-prompt"
-                    class="form-control"
-                    rows="5"
-                    maxlength="1000"
-                    bind:value={voiceRefinementPrompt}
-                    on:input={persistVoiceSettings}
-                  ></textarea>
-                {/if}
-                <div class="mt-3">
-                  <label class="form-label" for="voice-transcription-hints">자주 쓰는 전사 단어</label>
-                  <input
-                    id="voice-transcription-hints"
-                    class="form-control"
-                    type="text"
-                    maxlength="3000"
-                    placeholder="Ginote, Svelte, OpenAI, 프로젝트명"
-                    bind:value={voiceTranscriptionHints}
-                    disabled={voiceHintsLoading}
-                    on:input={stageVoiceTranscriptionHints}
-                  />
-                  {#if voiceHintsError}<div class="text-danger small mt-1" role="alert">{voiceHintsError}</div>{/if}
-                </div>
-              </fieldset>
+              <VoiceSettings
+                bind:this={voiceSettings}
+                bind:apiKey={voiceApiKey}
+                bind:refinementPrompt={voiceRefinementPrompt}
+                bind:transcriptionModel={voiceTranscriptionModel}
+                bind:refinementModel={voiceRefinementModel}
+                bind:preserveOriginalAudio={preserveOriginalVoiceAudio}
+                transcriptionHints={$transcriptionHints.value}
+                hintsLoading={$transcriptionHints.loading}
+                hintsError={$transcriptionHints.error}
+                onHintsInput={transcriptionHints.stage}
+              />
 
           </div>
         </div>
@@ -3510,8 +2299,8 @@
     class:mobile-detail-active={Boolean(contentRoute)}
     class:touch-device={touchDevice}
   >
-    {#if toastMessage}
-      <div class="app-toast" role="status">{toastMessage}</div>
+    {#if $toast}
+      <div class="app-toast" role="status">{$toast}</div>
     {/if}
     <main class="note-workspace" class:sidebar-resizing={sidebarResizing} style="--sidebar-width: {sidebarWidth}px">
       <aside class="note-sidebar">
@@ -3539,242 +2328,70 @@
           >
             <i class="bi bi-gear" aria-hidden="true"></i> {$_('settings.sidebarLabel')}
           </button>
-          <div class="sidebar-selection-toolbar" class:active={selectionMode} aria-hidden={!selectionMode}>
-            <button
-              type="button"
-              class="btn btn-sm btn-outline-secondary"
-              class:active={selectionTagPanelOpen}
-              aria-expanded={selectionTagPanelOpen}
-              on:click={toggleSelectionTagPanel}
-              tabindex={selectionMode ? 0 : -1}
-            >
-              <i class="bi bi-tags" aria-hidden="true"></i> {$_("m.848eed0fbd")}
-            </button>
-            <button
-              type="button"
-              class="btn btn-sm btn-outline-secondary"
-              disabled={mergeBusy || selectionTagBusy || pendingIssueDeletionQueue.length > 0 || state !== 'open' || selectedIssues.length < 2}
-              on:click={mergeSelectedIssues}
-              tabindex={selectionMode ? 0 : -1}
-              title={state !== 'open' ? $_('dynamic.mergeOpenOnly') : selectedIssues.length < 2 ? $_('dynamic.mergeSelectMore') : undefined}
-            >
-              <i class="bi bi-intersect" aria-hidden="true"></i> {$_('dynamic.merge')}
-            </button>
-            <button
-              type="button"
-              class="btn btn-sm btn-outline-danger"
-              disabled={mergeBusy || selectionTagBusy || pendingIssueDeletionQueue.length > 0}
-              on:click={() => moveIssues(selectedIssues)}
-              tabindex={selectionMode ? 0 : -1}
-            >
-              <i class={`bi ${state === 'open' ? 'bi-trash3' : 'bi-arrow-counterclockwise'}`} aria-hidden="true"></i>
-              {state === 'open' ? $_("m.f6fdbe48dc") : $_("m.3cbe6d6b9a")}
-            </button>
-            <button type="button" class="btn btn-sm btn-outline-secondary" on:click={clearIssueSelection} tabindex={selectionMode ? 0 : -1}>
-              {$_("m.bbfa773e5a")}
-            </button>
-          </div>
+          <SelectionToolbar
+            active={selectionMode}
+            {state}
+            selectedCount={selectedIssues.length}
+            tagPanelOpen={selectionTagPanelOpen}
+            busy={mergeBusy || selectionTagBusy || $deletionQueue.length > 0}
+            onToggleTags={toggleSelectionTagPanel}
+            onMerge={mergeSelectedIssues}
+            onMove={() => moveIssues(selectedIssues)}
+            onCancel={clearIssueSelection}
+          />
         </div>
 
         {#if selectionMode && selectionTagPanelOpen}
-          <div class="sidebar-selection-tags" class:is-busy={selectionTagBusy}>
-            <div class="selection-tag-search">
-              <input
-                bind:value={selectionTagSearch}
-                placeholder={$_("m.eb7b580e41")}
-                aria-label={$_("m.eb7b580e41")}
-                maxlength="51"
-                use:autofocus
-              />
-              {#if selectionTagBusy}
-                <span class="spinner-border spinner-border-sm region-spinner" aria-hidden="true"></span>
-              {/if}
-            </div>
-            <div class="selection-tag-list" aria-label={$_("m.9e704d11d1")}>
-              {#each selectionTagOptions as option (option.name)}
-                {@const appliedToAll = option.count > 0 && option.count === selectedIssues.length}
-                <button
-                  type="button"
-                  disabled={selectionTagBusy}
-                  on:click={() => toggleSelectionTag(option.name)}
-                >
-                  <span class="label-dot" style={`--label-color:#${tagColorForName(option.name)}`}></span>
-                  <span class="selection-tag-name">#{option.name}</span>
-                  {#if option.count}
-                    <span class="selection-tag-count">{option.count}/{selectedIssues.length}</span>
-                  {/if}
-                  <i class={`bi ${appliedToAll ? 'bi-dash-lg' : 'bi-plus-lg'}`} aria-hidden="true"></i>
-                </button>
-              {/each}
-              {#if canCreateSelectionTag}
-                <button
-                  type="button"
-                  class="create-tag"
-                  disabled={selectionTagBusy}
-                  on:click={() => applySelectionTag(selectionNewTagName, 'add')}
-                >
-                  <span class="label-dot" style={`--label-color:#${tagColorForName(selectionNewTagName)}`}></span>
-                  {$_('dynamic.createTag', { values: { name: selectionNewTagName } })}
-                </button>
-              {:else if !selectionTagOptions.length}
-                <span class="tag-dropdown-empty">{$_("m.2240ffb750")}</span>
-              {/if}
-            </div>
-          </div>
+          <SelectionTagPanel
+            labels={visibleRepositoryLabels}
+            {selectedIssues}
+            busy={selectionTagBusy}
+            onApply={applySelectionTag}
+          />
         {/if}
 
         {#if error}
           <div class="sidebar-message text-danger">{error}</div>
         {/if}
 
-        <div class="note-list" class:is-loading={loading}>
-          <div class="note-list-scroll" bind:this={sidebarScrollElement} on:scroll={handleSidebarScroll}>
-            <div
-              class="sidebar-tools"
-              class:is-revealing={sidebarToolsRevealing}
-              bind:this={sidebarToolsElement}
-              style={`--sidebar-tools-offset:${sidebarToolsOffset}px`}
-            >
-              <div class="state-tabs" role="group" aria-label={$_("m.cd9fe96e05")}>
-                <button class="btn btn-sm" class:active={state === 'open'} on:click={() => changeState('open')} disabled={selectionMode}>
-                  <i class="bi bi-journal-text" aria-hidden="true"></i> {$_("m.70440046a3")}
-                </button>
-                <button class="btn btn-sm" class:active={state === 'closed'} on:click={() => changeState('closed')} disabled={selectionMode}>
-                  <i class="bi bi-trash3" aria-hidden="true"></i> {$_("m.e3bf62bb7f")}
-                </button>
-              </div>
-              <div class="sidebar-search">
-                <form class="input-group" on:submit|preventDefault={submitSearch}>
-                  <input
-                    class="form-control form-control-sm"
-                    type="search"
-                    role="combobox"
-                    bind:value={query}
-                    placeholder={$_("m.55a302a1a9")}
-                    aria-label={$_("m.2bca6e4c82")}
-                    aria-autocomplete="list"
-                    aria-controls="sidebar-label-suggestions"
-                    aria-expanded={sidebarSearchFocused && sidebarLabelSuggestions.length > 0}
-                    on:focus={() => sidebarSearchFocused = true}
-                    on:input={() => sidebarSuggestionIndex = -1}
-                    on:keydown={handleSidebarSearchKeydown}
-                    on:blur={() => sidebarSearchFocused = false}
-                    disabled={selectionMode}
-                  />
-                  <button class="btn btn-sm" disabled={loading || selectionMode}><i class="bi bi-search" aria-hidden="true"></i> {$_("m.bce0641417")}</button>
-                </form>
-                {#if !selectionMode && sidebarSearchFocused && sidebarLabelSuggestions.length > 0}
-                  <div class="sidebar-label-suggestions" id="sidebar-label-suggestions" role="listbox">
-                    {#each sidebarLabelSuggestions as label, index (label.id || label.name)}
-                      <button
-                        type="button"
-                        role="option"
-                        aria-selected={sidebarSuggestionIndex === index}
-                        class:active={sidebarSuggestionIndex === index}
-                        on:mousedown|preventDefault
-                        on:click={() => selectSidebarLabel(label)}
-                      >#{label.name}</button>
-                    {/each}
-                  </div>
-                {/if}
-              </div>
-            </div>
-            <div class="note-list-body">
-            <div class="sidebar-new-note btn-group">
-              <button
-                class="btn btn-primary btn-sm btn-block flex-grow-1"
-                on:click={newNote}
-                disabled={Boolean(pendingNote) || selectionMode}
-              >
-                <i class="bi bi-plus-lg" aria-hidden="true"></i> {$_("m.2b7b05c002")}
-                <span class="shortcut-hint sidebar-new-note-shortcut" aria-hidden="true"><span class="shortcut-key" class:is-available={canUseListKeyboardShortcuts() && !selectionMode && !pendingNote}>N</span></span>
-              </button>
-              <button
-                type="button"
-                class="btn btn-primary btn-sm sidebar-voice-button"
-                class:voice-unavailable={!voiceApiKey.trim()}
-                aria-label="음성 녹음"
-                title={voiceApiKey.trim() ? '음성 녹음' : 'OpenAI API 키를 지정하면 음성 녹음을 사용할 수 있습니다.'}
-                on:click={openVoiceRecording}
-                disabled={Boolean(pendingNote) || selectionMode}
-              ><i class="bi bi-mic-fill" aria-hidden="true"></i></button>
-            </div>
-            {#if pinnedIssues.length}
-              <div class="note-list-pinned">
-                {#each pinnedIssues as issue (issue.id)}
-                  <NoteListRow
-                    {issue}
-                    pinned
-                    selected={selectedIssue?.id === issue.id}
-                    keyboardFocused={keyboardFocusedIssueId === String(issue.id)}
-                    {selectionMode}
-                    checked={selectedIssueIds.has(issue.id)}
-                    archived={state === 'closed'}
-                    {listRowFields}
-                    refreshing={refreshingIssueNumber === issue.number}
-                    pendingDeletion={pendingIssueDeletionIds.has(issue.id)}
-                    deletionCancellable={!pendingIssueDeletionForIssue(issue.id)?.inFlight}
-                    onCancelDeletion={(pendingIssue) => cancelPendingIssueDeletion(pendingIssueDeletionForIssue(pendingIssue.id)?.id)}
-                    onPointerDown={beginIssueLongPress}
-                    onPointerMove={trackIssueLongPress}
-                    onPointerUp={finishIssueLongPress}
-                    onPointerCancel={finishIssueLongPress}
-                    onContextMenu={handleIssueContextMenu}
-                    onClick={handleIssueClick}
-                    onSelectionClick={handleIssueSelectionClick}
-                  />
-                {/each}
-              </div>
-            {/if}
-            {#if !loading && unpinnedVisibleIssues.length === 0 && pinnedIssues.length === 0}
-              <div class="list-status">{emptyMessage}</div>
-            {:else}
-              {#each unpinnedVisibleIssues as issue (issue.id)}
-                <NoteListRow
-                  {issue}
-                  selected={selectedIssue?.id === issue.id}
-                  keyboardFocused={keyboardFocusedIssueId === String(issue.id)}
-                  {selectionMode}
-                  checked={selectedIssueIds.has(issue.id)}
-                  archived={state === 'closed'}
-                  {listRowFields}
-                  refreshing={refreshingIssueNumber === issue.number}
-                  pendingDeletion={pendingIssueDeletionIds.has(issue.id)}
-                  deletionCancellable={!pendingIssueDeletionForIssue(issue.id)?.inFlight}
-                  onCancelDeletion={(pendingIssue) => cancelPendingIssueDeletion(pendingIssueDeletionForIssue(pendingIssue.id)?.id)}
-                  onPointerDown={beginIssueLongPress}
-                  onPointerMove={trackIssueLongPress}
-                  onPointerUp={finishIssueLongPress}
-                  onPointerCancel={finishIssueLongPress}
-                  onContextMenu={handleIssueContextMenu}
-                  onClick={handleIssueClick}
-                  onSelectionClick={handleIssueSelectionClick}
-                />
-              {/each}
-              {#if hasMoreIssues}
-                <div class="list-load-more">
-                  <button class="btn btn-sm btn-link text-secondary" disabled={loadingMore} on:click={loadMoreIssues}>
-                    {#if loadingMore}
-                      <span class="spinner-border spinner-border-sm region-spinner" aria-hidden="true"></span>
-                    {:else}
-                      <i class="bi bi-chevron-down" aria-hidden="true"></i>
-                    {/if}
-                    {$_("m.dfe60ca92e")}
-                  </button>
-                </div>
-              {/if}
-              {#if searchResultLimitReached && !hasMoreIssues}
-                <div class="list-status">{$_('dynamic.searchResultLimit')}</div>
-              {/if}
-            {/if}
-            </div>
-          </div>
-          {#if loading}
-            <div class="list-api-overlay" aria-label={$_("m.6e6e21803f")}>
-              <span class="spinner-border spinner-border-sm region-spinner" aria-hidden="true"></span>
-            </div>
-          {/if}
-        </div>
+        <NoteList
+          bind:this={noteList}
+          bind:query
+          {state}
+          labels={visibleRepositoryLabels}
+          {loading}
+          {loadingMore}
+          hasMore={hasMoreIssues}
+          {searchResultLimitReached}
+          {selectionMode}
+          {pinnedIssues}
+          issues={unpinnedVisibleIssues}
+          {emptyMessage}
+          selectedIssueId={selectedIssue?.id}
+          {keyboardFocusedIssueId}
+          checkedIssueIds={selectedIssueIds}
+          {refreshingIssueNumber}
+          deletionEntries={$deletionQueue}
+          listRowFields={preferences.listRowFields}
+          newNoteDisabled={Boolean(pendingNote) || selectionMode}
+          newNoteShortcutAvailable={canUseListKeyboardShortcuts() && !selectionMode && !pendingNote}
+          voiceAvailable={Boolean(voiceApiKey.trim())}
+          onChangeState={changeState}
+          onSubmitSearch={submitSearch}
+          onSelectLabel={selectSidebarLabel}
+          onNewNote={newNote}
+          onVoiceRecording={openVoiceRecording}
+          onLoadMore={loadMoreIssues}
+          onCancelDeletion={deletionQueue.cancel}
+          rowHandlers={{
+            pointerDown: beginIssueLongPress,
+            pointerMove: longPress.track,
+            pointerUp: longPress.finish,
+            contextMenu: handleIssueContextMenu,
+            click: handleIssueClick,
+            selectionClick: handleIssueSelectionClick
+          }}
+        />
       </aside>
 
       <section class="note-detail">
@@ -3800,14 +2417,14 @@
               allocationPromise={isPendingNoteRoute(route) ? pendingAllocation : null}
               editorId={route.segment.replace(/[^a-zA-Z0-9_-]/g, '-')}
               archived={state === 'closed'}
-              {titleMode}
-              font={editorFont}
-              fontSize={editorFontSize}
-              lineHeight={editorLineHeight}
-              maxWidth={editorMaxWidth}
-              {autoSaveSeconds}
+              titleMode={preferences.titleMode}
+              font={preferences.editorFont}
+              fontSize={preferences.editorFontSize}
+              lineHeight={preferences.editorLineHeight}
+              maxWidth={preferences.editorMaxWidth}
+              autoSaveSeconds={preferences.autoSaveSeconds}
               {lockPin}
-              {lockSessionMinutes}
+              lockSessionMinutes={preferences.lockSessionMinutes}
               onSetLockSession={setLockSession}
               currentUserLogin={user?.login || ''}
               paused={topRoute?.screen === 'settings' || topRoute?.screen === 'voice' || route !== contentRoute || selectionMode}
@@ -3839,7 +2456,7 @@
               onBack={() => router.pop()}
             />
             {#if state === 'open' && pendingIssueDeletionIds.has(routeIssue?.id)}
-              {@const pendingDeletionEntry = pendingIssueDeletionForIssue(routeIssue?.id)}
+              {@const pendingDeletionEntry = findEntryForIssue($deletionQueue, routeIssue?.id)}
               <div class="note-deletion-overlay" role="status" aria-live="polite">
                 <BrailleSpinner active />
                 <span>{$_('dynamic.attachmentDeleting')}</span>
@@ -3848,7 +2465,7 @@
                   class="note-deletion-cancel"
                   style:visibility={pendingDeletionEntry?.inFlight ? 'hidden' : 'visible'}
                   tabindex={pendingDeletionEntry?.inFlight ? -1 : undefined}
-                  on:click={() => cancelPendingIssueDeletion(pendingDeletionEntry?.id)}
+                  on:click={() => deletionQueue.cancel(pendingDeletionEntry?.id)}
                 >{$_('setup.cancel')}</button>
               </div>
             {/if}
@@ -3887,7 +2504,7 @@
     refinementPrompt={voiceRefinementPrompt}
     transcriptionModel={voiceTranscriptionModel.trim() || DEFAULT_TRANSCRIPTION_MODEL}
     transcriptionLanguage={$activeLocale}
-    transcriptionHints={voiceTranscriptionHints}
+    transcriptionHints={$transcriptionHints.value}
     refinementModel={voiceRefinementModel.trim()}
     availableTags={visibleRepositoryLabels.map(({ name, description }) => ({ name, description }))}
     onComplete={recordVoiceNote}
@@ -3898,117 +2515,15 @@
 
 
 {#if workspaceWizardOpen}
-  <div class="workspace-wizard-overlay">
-    {#key workspaceWizardKey}
-      <SetupWizard
-        bind:repo={workspaceWizardRepo}
-        bind:tokenInputValue={workspaceWizardToken}
-        bind:rememberToken={workspaceWizardRememberToken}
-        busy={workspaceWizardBusy}
-        error={workspaceWizardError}
-        patCreationUrl={makePatCreationUrl(workspaceWizardRepo)}
-        initialStep={3}
-        allowCancel
-        onCancel={closeAddWorkspaceWizard}
-        onConnect={submitAddWorkspace}
-      />
-    {/key}
-  </div>
+  <AddWorkspaceDialog onAdd={completeAddWorkspace} onClose={() => workspaceWizardOpen = false} />
 {/if}
 
 {#if helpTopic}
-<!-- svelte-ignore a11y_click_events_have_key_events -->
-<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-<main
-  class="setup-shell help-overlay container py-4 py-md-5"
-  on:click={(event) => { if (event.target === event.currentTarget) closeHelp(); }}
->
-  <section class="setup-card card border-0 shadow-sm mx-auto overflow-hidden">
-    <div class="row g-0">
-      <div class="col-12 bg-white p-4 p-md-5">
-        <div class="d-flex align-items-start justify-content-between gap-3 mb-4">
-          <h2 class="h4 fw-bold mb-0">
-            {#if helpTopic === 'security'}
-              {$_('help.securityTitle')}
-            {:else if helpTopic === 'mcp'}
-              {$_('m.5fe5834eaa')}
-            {:else if helpTopic === 'keyboard'}
-              {$_('help.keyboardTitle')}
-            {:else}
-              {$_('help.appTitle')}
-            {/if}
-          </h2>
-          <button
-            type="button"
-            class="btn btn-sm btn-outline-secondary flex-shrink-0"
-            aria-label={$_("m.bbfa773e5a")}
-            title={$_("m.bbfa773e5a")}
-            on:click={closeHelp}
-          ><i class="bi bi-x-lg" aria-hidden="true"></i></button>
-        </div>
-        {#if helpTopic === 'security'}
-          <p class="small help-text">{$_('help.securityIntro')}</p>
-          <div class="help-diagram">
-            <div>{$_('help.securityDiagramFlow')}</div>
-            <div class="help-diagram-note">{$_('help.securityDiagramNote')}</div>
-          </div>
-          <ul class="help-points small help-text">
-            <li>{$_('help.securityPoint1')}</li>
-            <li>{$_('help.securityPoint2')}</li>
-            <li>{$_('help.securityPoint3')}</li>
-            <li>{$_('help.securityPoint4')}</li>
-            <li>{$_('help.securityPoint5')}</li>
-          </ul>
-          <p class="small help-text">{$_('help.securityOutro')}</p>
-          <a
-            class="btn btn-sm btn-link"
-            href="https://github.com/zidell/ginote#readme"
-            target={newContextTarget}
-            rel="noreferrer"
-          ><i class="bi bi-box-arrow-up-right" aria-hidden="true"></i> {$_('help.securityLinkLabel')}</a>
-        {:else if helpTopic === 'mcp'}
-          <p class="small help-text">{$_('help.mcpIntro')}</p>
-          <McpGuide {mcpRepository} {mcpUsagePrompt} onCopy={copyMcpText} {newContextTarget} />
-        {:else if helpTopic === 'keyboard'}
-          <p class="small help-text">{$_('help.keyboardIntro')}</p>
-          <dl class="keyboard-shortcuts small help-text">
-            <div><dt><kbd>↑</kbd> <kbd>↓</kbd></dt><dd>{$_('help.keyboardMove')}</dd></div>
-            <div><dt><kbd>Enter</kbd></dt><dd>{$_('help.keyboardOpen')}</dd></div>
-            <div><dt><kbd>N</kbd></dt><dd>{$_('help.keyboardNew')}</dd></div>
-            <div><dt><kbd>Ctrl</kbd>/<kbd>Cmd</kbd> + <kbd>R</kbd></dt><dd>{$_('help.keyboardRefresh')}</dd></div>
-            <div><dt><kbd>`</kbd></dt><dd>{$_('help.keyboardWorkspaceMenu')}</dd></div>
-            <div><dt><kbd>1</kbd>~<kbd>9</kbd></dt><dd>{$_('help.keyboardWorkspace')}</dd></div>
-            <div><dt><kbd>Esc</kbd></dt><dd>{$_('help.keyboardEscape')}</dd></div>
-            <div><dt><kbd>Space</kbd></dt><dd>{$_('help.keyboardSelect')}</dd></div>
-            <div><dt><kbd>Shift</kbd> + <kbd>↑</kbd> <kbd>↓</kbd></dt><dd>{$_('help.keyboardRangeSelect')}</dd></div>
-            <div><dt><kbd>Delete</kbd> / <kbd>Backspace</kbd></dt><dd>{$_('help.keyboardTrash')}</dd></div>
-            <div><dt><kbd>R</kbd> <kbd>S</kbd> <kbd>T</kbd> <kbd>A</kbd> <kbd>E</kbd> <kbd>X</kbd> <kbd>P</kbd> <kbd>L</kbd> <kbd>Delete</kbd> <kbd>G</kbd> <kbd>M</kbd></dt><dd>{$_('help.keyboardNoteActions')}</dd></div>
-          </dl>
-          <p class="small help-text mb-0">{$_('help.keyboardNote')}</p>
-        {:else}
-          <p class="small help-text">{$_('help.appIntro')}</p>
-          <h3 class="help-section-title">{$_('help.appPwaSectionTitle')}</h3>
-          <ul class="help-points small help-text">
-            <li>{$_('help.appPwaChromeDesktop')}</li>
-            <li>{$_('help.appPwaAndroid')}</li>
-            <li>{$_('help.appPwaIOS')}</li>
-            <li>{$_('help.appPwaMacSafari')}</li>
-          </ul>
-          <p class="small help-text">{$_('help.appPwaNote')}</p>
-          <h3 class="help-section-title">{$_('help.appDesktopSectionTitle')}</h3>
-          <p class="small help-text">{$_('help.appDesktopIntro')}</p>
-          <p class="small help-text mb-1">{$_('help.appDesktopHomebrew')}</p>
-          <pre class="help-code">brew tap zidell/ginote https://github.com/zidell/ginote
-brew install --cask ginote</pre>
-          <a
-            class="btn btn-sm btn-link"
-            href="https://github.com/zidell/ginote/releases"
-            target={newContextTarget}
-            rel="noreferrer"
-          ><i class="bi bi-box-arrow-up-right" aria-hidden="true"></i> {$_('help.appDesktopLinkLabel')}</a>
-        {/if}
-      </div>
-    </div>
-  </section>
-</main>
+  <HelpOverlay
+    topic={helpTopic}
+    {mcpRepository}
+    {mcpUsagePrompt}
+    onCopy={copyMcpText}
+    onClose={closeHelp}
+  />
 {/if}

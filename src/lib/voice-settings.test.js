@@ -13,7 +13,10 @@ import {
   saveVoiceSettings,
   VOICE_HINTS_PENDING_STORAGE_KEY,
   VOICE_MODEL_LIST_STORAGE_KEY,
-  VOICE_SETTINGS_STORAGE_KEY
+  VOICE_SETTINGS_STORAGE_KEY,
+  classifyVoiceModels,
+  maskApiKey,
+  withSelectedModels
 } from './voice-settings.js';
 
 function createMemoryStorage() {
@@ -121,5 +124,50 @@ describe('voice settings', () => {
       transcription: [],
       refinement: []
     });
+  });
+});
+
+describe('음성 모델 목록', () => {
+  it('OpenAI 모델을 전사용과 정제용으로 나누고 날짜 스냅샷과 특수 모델은 뺀다', () => {
+    const lists = classifyVoiceModels([
+      'gpt-4o-transcribe',
+      'gpt-4o-mini-transcribe',
+      'whisper-1',
+      'gpt-4o-transcribe-2025-03-20',
+      'gpt-4o',
+      'gpt-5-mini',
+      'o3',
+      'gpt-4o-audio-preview',
+      'gpt-4o-realtime-preview',
+      'tts-1',
+      'text-embedding-3-small',
+      'gpt-4o'
+    ]);
+    expect(lists.transcription).toEqual(['gpt-4o-mini-transcribe', 'gpt-4o-transcribe', 'whisper-1']);
+    expect(lists.refinement).toEqual(['gpt-4o', 'gpt-5-mini', 'o3']);
+  });
+
+  it('선택 중인 모델이 새 목록에 없으면 남겨 둔다', () => {
+    const lists = withSelectedModels(
+      { transcription: ['whisper-1'], refinement: ['gpt-4o'] },
+      { transcriptionModel: 'gpt-transcribe', refinementModel: 'a-custom-model' }
+    );
+    expect(lists).toEqual({ transcription: ['gpt-transcribe', 'whisper-1'], refinement: ['a-custom-model', 'gpt-4o'] });
+  });
+
+  it('날짜 스냅샷이나 빈 선택은 목록에 더하지 않고, 원본 목록도 바꾸지 않는다', () => {
+    const original = { transcription: ['whisper-1'], refinement: ['gpt-4o'] };
+    const lists = withSelectedModels(original, { transcriptionModel: 'gpt-4o-transcribe-2025-03-20', refinementModel: '' });
+    expect(lists).toEqual(original);
+    expect(lists.transcription).not.toBe(original.transcription);
+  });
+});
+
+describe('maskApiKey', () => {
+  it('긴 키는 앞뒤 10자만 보여 주고 짧은 키는 모두 가린다', () => {
+    expect(maskApiKey('sk-proj-1234567890abcdefghij')).toBe('sk-proj-12...abcdefghij');
+    expect(maskApiKey('sk-short')).toBe('••••••••••••');
+    expect(maskApiKey('')).toBe('');
+    expect(maskApiKey(null)).toBe('');
   });
 });
