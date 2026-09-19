@@ -134,6 +134,9 @@
   // GitHub API를 중복 호출하지 않도록 활성화 갱신은 이 간격 안에서 한 번만 한다.
   const ACTIVE_PAGE_REFRESH_COOLDOWN_MS = 30 * 1000;
   const PINNED_ISSUE_PAGE_SIZE = 100;
+  // 목록을 끝내 채우지 못한 채 빈 화면으로 남지 않도록 다시 시도하는 간격이다.
+  // 오래 방치돼 브라우저가 탭을 다시 불러온 직후에는 네트워크가 아직 불안정할 수 있다.
+  const LIST_RETRY_DELAYS_MS = [2000, 5000, 15000];
   // Escape는 열린 UI와 포커스를 먼저 정리한 뒤, 남은 경우에만 아래 전역
   // 핸들러가 뒤로가기를 수행한다. 라우터의 자동 keyup 뒤로가기를 켜두면
   // 드롭다운이 keydown에서 닫힌 뒤에도 같은 Escape의 keyup이 라우터에
@@ -198,6 +201,13 @@
   let touchDevice = false;
   let activePageRefreshInFlight = false;
   let lastActivePageRefreshAt = 0;
+  // 화면에 보이는 목록 요청이 반영되지 못했다(실패했거나 조건이 바뀌어 버려졌다).
+  // 이후 어떤 목록 요청이든 반영되면 해제된다.
+  let listNeedsReload = false;
+  let listRetryAttempt = 0;
+  let listRetryTimer;
+  // 목록 로딩이 남긴 오류 문구다. 이후 목록 갱신이 성공하면 같은 문구일 때만 지운다.
+  let listLoadError = '';
   let labelBusy = {};
   const labelRenameQueues = new Map();
   let labelMutation = null;
@@ -307,6 +317,7 @@
     const detachKeyboardReadyClass = keyboardReadyClass.attach();
     window.addEventListener('focus', refreshWhenPageBecomesActive);
     document.addEventListener('visibilitychange', refreshWhenPageBecomesActive);
+    window.addEventListener('online', refreshWhenPageBecomesActive);
     // iOS의 엣지 스와이프는 라우터가 스택을 갱신하기 전에 기존 textarea의
     // 포커스를 복원할 수 있다. 제스처 시작과 history 이벤트에서 먼저 blur해
     // 뒤로 가는 순간 가상 키보드가 잠깐 나타나는 것을 막는다.
@@ -428,6 +439,7 @@
 
     return () => {
       clearTimeout(lockSessionTimer);
+      clearTimeout(listRetryTimer);
       longPress.destroy();
       toast.destroy();
       deletionQueue.cancelAll(true);
@@ -437,6 +449,7 @@
       detachKeyboardReadyClass();
       window.removeEventListener('focus', refreshWhenPageBecomesActive);
       document.removeEventListener('visibilitychange', refreshWhenPageBecomesActive);
+      window.removeEventListener('online', refreshWhenPageBecomesActive);
       window.removeEventListener('popstate', blurFocusedTextControl);
       window.removeEventListener('hashchange', blurFocusedTextControl);
       document.removeEventListener('touchstart', blurForEdgeBackSwipe, true);
@@ -561,7 +574,8 @@
     try {
       // 목록은 화면을 막지 않고 최신 항목과 태그 상태를 합친다. 열린 노트는
       // 목록 응답만으로 본문을 교체하지 않으므로 별도 조회 요청을 보낸다.
-      await loadIssues(true);
+      // 갱신에 실패하면 쿨다운을 남기지 않아, 다음 포커스나 네트워크 복구 때 바로 다시 시도한다.
+      if (!await loadIssues(true)) lastActivePageRefreshAt = 0;
       const issueNumber = selectedIssue?.local ? null : selectedIssue?.number;
       if (issueNumber) {
         issueRefreshRequests = {
@@ -893,11 +907,13 @@
       : listIssuesPage(request.token, request.repo, request.state, request.label, page, Date.now(), preferences.issuePageSize);
   }
 
+  // 응답을 목록에 반영했으면 true를 돌려준다.
   async function loadIssues(background = false) {
-    if (background && loading) return;
+    if (background && loading) return false;
     const request = snapshotListRequest();
     if (!background) {
       error = '';
+      listLoadError = '';
       loading = true;
     }
     try {
@@ -913,7 +929,10 @@
           PINNED_ISSUE_PAGE_SIZE
         )
       ]);
-      if (!isCurrentListRequest(request)) return;
+      if (!isCurrentListRequest(request)) {
+        if (!background) scheduleListRetry();
+        return false;
+      }
       const pendingPin = pendingPinMutationFor(
         request.workspaceId,
         request.token,
@@ -974,12 +993,40 @@
           setWorkspaceNoteCount(request.workspaceId, displayedTotal);
         }
       }
+      markListLoaded();
       applyRoute();
+      return true;
     } catch (reason) {
-      if (!background && request.workspaceId === activeWorkspaceId) error = friendlyError(reason);
+      if (!background && request.workspaceId === activeWorkspaceId) {
+        error = friendlyError(reason);
+        listLoadError = error;
+        // 인증·권한·요청 한도 오류는 다시 보내도 같으므로 네트워크·서버 오류만 재시도한다.
+        if (!reason?.status || reason.status >= 500) scheduleListRetry();
+      }
+      return false;
     } finally {
       if (!background && request.workspaceId === activeWorkspaceId) loading = false;
     }
+  }
+
+  function markListLoaded() {
+    listNeedsReload = false;
+    listRetryAttempt = 0;
+    clearTimeout(listRetryTimer);
+    if (listLoadError && error === listLoadError) error = '';
+    listLoadError = '';
+  }
+
+  function scheduleListRetry() {
+    listNeedsReload = true;
+    clearTimeout(listRetryTimer);
+    const delay = LIST_RETRY_DELAYS_MS[listRetryAttempt];
+    if (delay === undefined) return;
+    listRetryAttempt += 1;
+    listRetryTimer = setTimeout(() => {
+      if (!listNeedsReload || appState === 'setup' || !token || !repo) return;
+      void loadIssues(issues.length > 0);
+    }, delay);
   }
 
   async function loadMoreIssues() {

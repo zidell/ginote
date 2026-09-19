@@ -281,6 +281,41 @@ describe('App 시작', () => {
 
     expect(await screen.findByText('Set up Ginote')).toBeTruthy();
   });
+
+  it('시작할 때 목록을 못 불러오면 잠시 뒤 다시 불러오고 오류 문구를 지운다', async () => {
+    saveWorkspaces();
+    githubModule.listIssuesPage.mockRejectedValueOnce(new TypeError('Load failed'));
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    render(App);
+
+    await vi.waitFor(() => expect(document.querySelector('.sidebar-message')?.textContent).toContain('Load failed'));
+    expect(rowTitles()).toEqual([]);
+
+    await vi.advanceTimersByTimeAsync(2000);
+    vi.useRealTimers();
+
+    await waitFor(() => expect(rowTitles()).toEqual(['고정 메모', '장보기', '회의록']));
+    expect(document.querySelector('.sidebar-message')).toBeNull();
+  });
+
+  it('활성화 갱신에 실패하면 쿨다운 없이 다음 활성화 때 다시 갱신한다', async () => {
+    saveWorkspaces();
+    await renderReadyApp();
+    vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible');
+    githubModule.listIssuesPage.mockRejectedValueOnce(new TypeError('Load failed'));
+    const requestCount = () => githubModule.listIssuesPage.mock.calls.length;
+
+    const callsBeforeFocus = requestCount();
+    window.dispatchEvent(new Event('focus'));
+    await waitFor(() => expect(requestCount()).toBeGreaterThan(callsBeforeFocus));
+    // 실패한 갱신이 끝나 진행 중 잠금이 풀리기를 기다린다.
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(rowTitles()).toEqual(['고정 메모', '장보기', '회의록']);
+    github.state.issues.push(github.issue(5, { title: '새 메모', updated_at: '2026-09-21T00:00:00Z' }));
+
+    window.dispatchEvent(new Event('online'));
+    await waitFor(() => expect(rowTitles()).toContain('새 메모'));
+  });
 });
 
 describe('노트 목록 탐색', () => {
