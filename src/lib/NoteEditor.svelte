@@ -131,6 +131,8 @@
   let lockPanelError = '';
   let lockPanelBusy = false;
   let lockSessionExpiring = false;
+  // 세션 숫자로 열리지 않은 노트는 같은 숫자로 다시 시도하지 않고 직접 입력을 받는다.
+  let rejectedLockPin = '';
   let lockReuseTimer;
   let attachments = [];
   let orphanedAttachments = [];
@@ -300,7 +302,10 @@
     ? `${lockSessionMinutes / 60}시간`
     : `${lockSessionMinutes}분`;
 
-  $: if (mounted && lockState === 'locked' && lockPin && lockPin !== activeLockPin && !lockPanelBusy) {
+  $: if (
+    mounted && lockState === 'locked' && lockPin && lockPin !== activeLockPin
+    && lockPin !== rejectedLockPin && !lockPanelBusy
+  ) {
     reuseLockPin(lockPin);
   }
   $: if (mounted && lockState === 'unlocked' && !lockPin && activeLockPin && !lockSessionExpiring) {
@@ -1057,7 +1062,8 @@
     const links = [...(comment.preservedManagedAttachmentLinks || []), ...generatedLinks]
       .filter((link) => {
         const path = parseAttachmentPaths(link)[0];
-        if (!path || manuallyLinkedPaths.has(path) || seenPaths.has(path)) return false;
+        // 이미 저장돼 있던 관리 링크도 삭제 중인 파일이면 빼야 댓글에 깨진 링크가 남지 않는다.
+        if (!path || manuallyLinkedPaths.has(path) || deletingPaths.has(path) || seenPaths.has(path)) return false;
         seenPaths.add(path);
         return true;
       });
@@ -1212,6 +1218,7 @@
         .map(normalizeCommentAttachmentBody);
     } catch (reason) {
       if (!automatic) throw reason;
+      rejectedLockPin = pin;
       activeLockPin = '';
       lockPanelMode = 'unlock';
       lockPanelError = reason?.message || '6자리 숫자가 맞지 않습니다.';

@@ -1,7 +1,8 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/svelte';
-import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import NoteEditor from './NoteEditor.svelte';
-import { composeAttachmentLink } from './attachments.js';
+import LockSessionHost from './__fixtures__/LockSessionHost.svelte';
+import { composeAttachmentLink, withManagedAttachmentBlock } from './attachments.js';
 import { MAX_ISSUE_BODY_LENGTH, MAX_ISSUE_COMMENT_LENGTH } from './github-limits.js';
 import { setAppLocale } from './i18n.js';
 
@@ -68,6 +69,23 @@ vi.mock('./github.js', () => ({
     url: 'https://github.com/file'
   }))
 }));
+
+// 실제 잠금 암호화는 PBKDF2 60만 회라 테스트마다 돌리기엔 느리다. 편집기가 PIN과
+// 이슈 번호를 올바르게 넘기는지만 보면 되므로 내용을 그대로 드러내는 가짜로 바꾼다.
+vi.mock('./note-lock.js', async (importOriginal) => ({
+  ...(await importOriginal()),
+  isLockedPayload: (value) => String(value ?? '').startsWith('enc|'),
+  encryptLockedBody: vi.fn(async (body, pin, issueNumber) => `enc|${pin}|${issueNumber}|${body}`),
+  decryptLockedBody: vi.fn(async (body, pin, issueNumber) => {
+    const [marker, storedPin, storedNumber, ...rest] = String(body).split('|');
+    if (marker !== 'enc' || storedPin !== pin || Number(storedNumber) !== issueNumber) {
+      throw new Error('6자리 숫자가 맞지 않습니다.');
+    }
+    return rest.join('|');
+  })
+}));
+
+const { decryptLockedBody, encryptLockedBody } = await import('./note-lock.js');
 
 const {
   createLabel,
@@ -1756,5 +1774,427 @@ describe('NoteEditor 빠른 노트 전환 레이스', () => {
 
     const bodyB = document.querySelector('.inline-body');
     expect(bodyB.value).not.toContain('A 노트만의 내용');
+  });
+});
+
+describe('NoteEditor 노트 잠금', () => {
+  // 편집기를 닫을 때 남긴 로컬 초안이 다음 테스트의 같은 노트에 복구되지 않게 한다.
+  beforeEach(() => localStorage.clear());
+
+  const lockedIssue = { ...baseIssue, title: '🔒 비밀 노트', body: 'enc|123456|5|비밀 본문', comments: 0 };
+
+  function renderWithLockSession({ lockPin = '', ...editorProps }) {
+    const onSetLockSession = vi.fn();
+    const view = render(LockSessionHost, {
+      lockPin,
+      onSetLockSession,
+      editorProps: {
+        token: 't',
+        repo: 'owner/repo',
+        titleMode: 'separate',
+        autoSaveSeconds: 9999,
+        ...editorProps
+      }
+    });
+    return { ...view, onSetLockSession };
+  }
+
+  function menuItem(label) {
+    return [...document.querySelectorAll('.dropdown-item')]
+      .find((item) => item.textContent.trim().startsWith(label));
+  }
+
+  async function typePin(value) {
+    const input = document.querySelector('.note-lock-panel input[type="text"]');
+    await fireEvent.input(input, { target: { value } });
+  }
+
+  it('6자리 숫자로 잠그면 제목에 자물쇠를 붙이고 본문을 암호화해 저장한다', async () => {
+    const { onSetLockSession } = renderWithLockSession({ issue: baseIssue });
+
+    await fireEvent.click(menuItem('잠금'));
+    const panel = await waitFor(() => {
+      const element = document.querySelector('.note-lock-panel');
+      expect(element).toBeTruthy();
+      return element;
+    });
+
+    await typePin('12345');
+    await fireEvent.submit(panel);
+    expect(panel.querySelector('.note-lock-error').textContent).toBe('6자리 숫자를 입력해 주세요.');
+    expect(encryptLockedBody).not.toHaveBeenCalled();
+
+    await typePin('12a34-56');
+    expect(panel.querySelector('input[type="text"]').value).toBe('123456');
+    await fireEvent.click(within(panel).getByRole('button', { name: '잠그기' }));
+
+    await waitFor(() => expect(updateIssue).toHaveBeenCalledWith(
+      't',
+      'owner/repo',
+      5,
+      expect.objectContaining({ title: '🔒 노트 제목', body: 'enc|123456|5|노트 본문' }),
+      expect.any(Object)
+    ));
+    expect(onSetLockSession).toHaveBeenCalledWith('123456');
+    expect(document.querySelector('.note-lock-panel')).toBeNull();
+  });
+
+  it('잠금 패널을 취소하면 아무것도 저장하지 않는다', async () => {
+    renderWithLockSession({ issue: baseIssue });
+
+    await fireEvent.click(menuItem('잠금'));
+    const panel = await waitFor(() => {
+      const element = document.querySelector('.note-lock-panel');
+      expect(element).toBeTruthy();
+      return element;
+    });
+    await fireEvent.click(within(panel).getByRole('button', { name: '취소' }));
+
+    expect(document.querySelector('.note-lock-panel')).toBeNull();
+    expect(encryptLockedBody).not.toHaveBeenCalled();
+  });
+
+  it('잠긴 노트는 틀린 숫자면 오류를 보여주고, 맞는 숫자를 6자리 채우는 즉시 연다', async () => {
+    const { onSetLockSession } = renderWithLockSession({ issue: lockedIssue });
+
+    const bodyTextarea = document.querySelector('.inline-body');
+    await waitFor(() => expect(document.querySelector('.note-lock-panel')).toBeTruthy());
+    expect(bodyTextarea.readOnly).toBe(true);
+    expect(bodyTextarea.value).toBe(lockedIssue.body);
+
+    await typePin('000000');
+    await waitFor(() => expect(document.querySelector('.note-lock-error')?.textContent)
+      .toBe('6자리 숫자가 맞지 않습니다.'));
+    expect(document.querySelector('.note-lock-panel input[type="text"]').value).toBe('');
+
+    await typePin('123456');
+
+    await waitFor(() => expect(document.querySelector('.note-lock-panel')).toBeNull());
+    expect(bodyTextarea.value).toBe('비밀 본문');
+    expect(bodyTextarea.readOnly).toBe(false);
+    expect(document.querySelector('.inline-title').value).toBe('비밀 노트');
+    expect(onSetLockSession).toHaveBeenCalledWith('123456');
+  });
+
+  it('잠금 세션의 숫자가 있으면 잠긴 노트를 자동으로 열고, 틀리면 직접 입력을 받는다', async () => {
+    renderWithLockSession({ issue: lockedIssue, lockPin: '123456' });
+
+    await waitFor(() => expect(document.querySelector('.note-lock-panel')?.textContent).toContain('암호 재사용중'));
+    await waitFor(() => expect(document.querySelector('.inline-body').value).toBe('비밀 본문'), { timeout: 3000 });
+    expect(document.querySelector('.note-lock-panel')).toBeNull();
+
+    cleanup();
+    renderWithLockSession({ issue: lockedIssue, lockPin: '999999' });
+
+    await waitFor(() => expect(document.querySelector('.note-lock-error')?.textContent)
+      .toBe('6자리 숫자가 맞지 않습니다.'), { timeout: 3000 });
+    expect(document.querySelector('.note-lock-panel input[type="text"]')).toBeTruthy();
+    // 같은 세션 숫자로 계속 재시도하느라 입력칸을 가리지 않는다.
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    expect(document.querySelector('.note-lock-panel').textContent).not.toContain('암호 재사용중');
+    expect(decryptLockedBody).toHaveBeenCalledTimes(2);
+  });
+
+  it('잠금 세션이 끝나면 편집 중인 내용을 암호화해 저장한 뒤 다시 잠근다', async () => {
+    const { rerender } = renderWithLockSession({ issue: lockedIssue, lockPin: '123456' });
+    const bodyTextarea = document.querySelector('.inline-body');
+    await waitFor(() => expect(bodyTextarea.value).toBe('비밀 본문'), { timeout: 3000 });
+
+    await fireEvent.input(bodyTextarea, { target: { value: '만료 직전 수정' } });
+    await rerender({ lockPin: '' });
+
+    await waitFor(() => expect(updateIssue).toHaveBeenCalledWith(
+      't',
+      'owner/repo',
+      5,
+      expect.objectContaining({ title: '🔒 비밀 노트', body: 'enc|123456|5|만료 직전 수정' }),
+      expect.any(Object)
+    ));
+    await waitFor(() => expect(document.querySelector('.note-lock-error')?.textContent)
+      .toContain('잠금 시간이 만료되었습니다'));
+    expect(bodyTextarea.readOnly).toBe(true);
+    expect(bodyTextarea.value).toBe('enc|123456|5|만료 직전 수정');
+  });
+
+  it('열린 잠금 노트에서 잠금을 풀면 평문 본문과 자물쇠 없는 제목으로 저장한다', async () => {
+    renderWithLockSession({ issue: lockedIssue, lockPin: '123456' });
+    await waitFor(() => expect(document.querySelector('.inline-body').value).toBe('비밀 본문'), { timeout: 3000 });
+
+    await fireEvent.click(menuItem('잠금 풀기'));
+
+    await waitFor(() => expect(updateIssue).toHaveBeenCalledWith(
+      't',
+      'owner/repo',
+      5,
+      expect.objectContaining({ title: '비밀 노트', body: '비밀 본문' }),
+      expect.any(Object)
+    ));
+  });
+});
+
+describe('NoteEditor 원격 변경 반영', () => {
+  // 편집기를 닫을 때 남긴 로컬 초안이 다음 테스트의 같은 노트에 복구되지 않게 한다.
+  beforeEach(() => localStorage.clear());
+
+  it('백그라운드 새로고침에서 원격 내용이 바뀌었으면 편집기에 반영한다', async () => {
+    const onRefreshed = vi.fn();
+    const onRefreshStateChange = vi.fn();
+    const refreshed = { ...baseIssue, body: '다른 디바이스에서 고친 본문', labels: [{ name: 'work' }] };
+    const { rerender } = render(NoteEditor, {
+      token: 't',
+      repo: 'owner/repo',
+      issue: baseIssue,
+      autoSaveSeconds: 9999,
+      onRefreshed,
+      onRefreshStateChange
+    });
+    getIssue.mockResolvedValueOnce(refreshed);
+
+    await rerender({ refreshRequest: 1 });
+
+    await waitFor(() => expect(onRefreshed).toHaveBeenCalledWith(refreshed));
+    expect(document.querySelector('.inline-body').value).toBe('다른 디바이스에서 고친 본문');
+    expect(onRefreshStateChange.mock.calls.map(([state]) => state)).toEqual([true, false]);
+  });
+
+  it('백그라운드 새로고침에서 원격 내용이 같으면 편집기를 다시 그리지 않는다', async () => {
+    const onRefreshed = vi.fn();
+    const onRefreshStateChange = vi.fn();
+    const { rerender } = render(NoteEditor, {
+      token: 't',
+      repo: 'owner/repo',
+      issue: baseIssue,
+      autoSaveSeconds: 9999,
+      onRefreshed,
+      onRefreshStateChange
+    });
+    getIssue.mockResolvedValueOnce({ ...baseIssue, updated_at: '2026-09-02T00:00:00Z' });
+
+    await rerender({ refreshRequest: 1 });
+
+    await waitFor(() => expect(onRefreshStateChange).toHaveBeenLastCalledWith(false));
+    expect(getIssue).toHaveBeenCalledTimes(1);
+    expect(onRefreshed).not.toHaveBeenCalled();
+  });
+
+  it('편집 중인 변경이 있으면 백그라운드 새로고침을 건너뛴다', async () => {
+    const onRefreshStateChange = vi.fn();
+    const { rerender } = render(NoteEditor, {
+      token: 't',
+      repo: 'owner/repo',
+      issue: baseIssue,
+      autoSaveSeconds: 9999,
+      onRefreshStateChange
+    });
+    await fireEvent.input(document.querySelector('.inline-body'), { target: { value: '저장 전 수정' } });
+
+    await rerender({ refreshRequest: 1 });
+
+    expect(onRefreshStateChange).toHaveBeenCalledWith(false);
+    expect(getIssue).not.toHaveBeenCalled();
+    expect(document.querySelector('.inline-body').value).toBe('저장 전 수정');
+  });
+
+  it('저장 응답에서야 닫힌 걸 알았을 때 아니오를 고르면 방금 쓴 내용을 되돌린다', async () => {
+    const onRefreshed = vi.fn();
+    vi.stubGlobal('confirm', vi.fn(() => false));
+    updateIssue
+      .mockResolvedValueOnce({ ...baseIssue, body: '늦게 닫힌 노트의 수정', state: 'closed' })
+      .mockResolvedValueOnce({ ...baseIssue, state: 'closed' });
+    render(NoteEditor, { token: 't', repo: 'owner/repo', issue: baseIssue, titleMode: 'separate', autoSaveSeconds: 9999, onRefreshed });
+
+    const bodyTextarea = document.querySelector('.inline-body');
+    await fireEvent.input(bodyTextarea, { target: { value: '늦게 닫힌 노트의 수정' } });
+    await fireEvent.blur(bodyTextarea);
+
+    await waitFor(() => expect(updateIssue).toHaveBeenCalledTimes(2));
+    expect(updateIssue.mock.calls[1][3]).toEqual(expect.objectContaining({ body: '노트 본문' }));
+    await waitFor(() => expect(bodyTextarea.value).toBe('노트 본문'));
+    expect(onRefreshed).toHaveBeenCalledWith(expect.objectContaining({ state: 'closed' }));
+  });
+
+  it('저장 응답에서야 닫힌 걸 알았을 때 예를 고르면 다시 열면서 저장한다', async () => {
+    const onSaved = vi.fn();
+    vi.stubGlobal('confirm', vi.fn(() => true));
+    updateIssue.mockResolvedValueOnce({ ...baseIssue, body: '다시 열 노트의 수정', state: 'closed' });
+    render(NoteEditor, { token: 't', repo: 'owner/repo', issue: baseIssue, titleMode: 'separate', autoSaveSeconds: 9999, onSaved });
+
+    const bodyTextarea = document.querySelector('.inline-body');
+    await fireEvent.input(bodyTextarea, { target: { value: '다시 열 노트의 수정' } });
+    await fireEvent.blur(bodyTextarea);
+
+    await waitFor(() => expect(updateIssue).toHaveBeenCalledTimes(2));
+    expect(updateIssue.mock.calls[1][3]).toEqual(expect.objectContaining({
+      body: '다시 열 노트의 수정',
+      state: 'open'
+    }));
+    await waitFor(() => expect(onSaved).toHaveBeenCalledWith(expect.objectContaining({ state: 'open' }), null));
+    expect(bodyTextarea.value).toBe('다시 열 노트의 수정');
+  });
+});
+
+describe('NoteEditor 댓글 첨부 삭제', () => {
+  beforeEach(() => localStorage.clear());
+
+  const commentAttachment = {
+    name: 'comment.png',
+    type: 'image/png',
+    path: '.issue-note-assets/issues/5/comments/1/comment.png',
+    sha: 'comment-sha',
+    size: 10
+  };
+  const commentLink = composeAttachmentLink('owner/repo', commentAttachment);
+
+  async function renderCommentWithAttachment() {
+    listIssueComments.mockResolvedValueOnce([{
+      id: 1,
+      // 댓글 첨부는 업로드할 때 본문이 아니라 자동 관리 블록에 링크가 들어간다.
+      body: withManagedAttachmentBlock('댓글 내용', [commentLink]),
+      author: 'octocat',
+      avatarUrl: '',
+      createdAt: '2026-09-01T00:00:00Z',
+      updatedAt: '2026-09-01T00:00:00Z',
+      url: ''
+    }]);
+    listIssueCommentAttachmentFiles.mockResolvedValueOnce([
+      { name: commentAttachment.name, path: commentAttachment.path, sha: commentAttachment.sha, size: commentAttachment.size, url: '' }
+    ]);
+    render(NoteEditor, { token: 't', repo: 'owner/repo', issue: baseIssue, autoSaveSeconds: 9999 });
+    await waitFor(() => expect(document.querySelector('.note-comment-item .attachment-item')).toBeTruthy());
+  }
+
+  it('5초 뒤 저장돼 있던 댓글의 관리 링크를 빼 저장한 다음 파일을 지운다', async () => {
+    await renderCommentWithAttachment();
+
+    vi.useFakeTimers();
+    try {
+      await fireEvent.click(document.querySelector('.note-comment-item .attachment-delete'));
+      expect(deleteAttachment).not.toHaveBeenCalled();
+
+      await vi.advanceTimersByTimeAsync(5000);
+
+      await waitFor(() => expect(deleteAttachment).toHaveBeenCalledWith(
+        't', 'owner/repo', expect.objectContaining({ path: commentAttachment.path })
+      ));
+      const savedBody = updateIssueComment.mock.calls.at(-1)[3];
+      expect(savedBody).toBe('댓글 내용');
+      expect(updateIssueComment.mock.invocationCallOrder.at(-1))
+        .toBeLessThan(deleteAttachment.mock.invocationCallOrder[0]);
+      await waitFor(() => expect(document.querySelector('.note-comment-item .attachment-item')).toBeNull());
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('5초 안에 취소하면 댓글과 파일을 그대로 둔다', async () => {
+    await renderCommentWithAttachment();
+
+    vi.useFakeTimers();
+    try {
+      await fireEvent.click(document.querySelector('.note-comment-item .attachment-delete'));
+      await fireEvent.click(within(document.querySelector('.note-comment-item')).getByRole('button', { name: 'Cancel' }));
+      await vi.advanceTimersByTimeAsync(5000);
+    } finally {
+      vi.useRealTimers();
+    }
+
+    expect(updateIssueComment).not.toHaveBeenCalled();
+    expect(deleteAttachment).not.toHaveBeenCalled();
+    expect(document.querySelector('.note-comment-item .attachment-pending-delete')).toBeNull();
+  });
+
+  it('댓글 저장이 실패하면 링크가 남은 파일을 지우지 않는다', async () => {
+    await renderCommentWithAttachment();
+    updateIssueComment.mockRejectedValueOnce(Object.assign(new Error('Server Error'), { status: 500 }));
+
+    vi.useFakeTimers();
+    try {
+      await fireEvent.click(document.querySelector('.note-comment-item .attachment-delete'));
+      await vi.advanceTimersByTimeAsync(5000);
+      await waitFor(() => expect(updateIssueComment).toHaveBeenCalled());
+      await vi.advanceTimersByTimeAsync(0);
+    } finally {
+      vi.useRealTimers();
+    }
+
+    expect(deleteAttachment).not.toHaveBeenCalled();
+    expect(document.querySelector('.note-comment-item .attachment-item')).toBeTruthy();
+  });
+
+  it('파일 삭제가 실패하면 오류를 보여주고 첨부를 목록에 남긴다', async () => {
+    await renderCommentWithAttachment();
+    deleteAttachment.mockRejectedValueOnce(new Error('첨부를 지우지 못했습니다'));
+
+    vi.useFakeTimers();
+    try {
+      await fireEvent.click(document.querySelector('.note-comment-item .attachment-delete'));
+      await vi.advanceTimersByTimeAsync(5000);
+    } finally {
+      vi.useRealTimers();
+    }
+
+    await waitFor(() => expect(screen.getByText('첨부를 지우지 못했습니다')).toBeTruthy());
+    expect(document.querySelector('.note-comment-item .attachment-item')).toBeTruthy();
+  });
+});
+
+describe('NoteEditor 첨부 뷰어', () => {
+  beforeEach(() => localStorage.clear());
+
+  const first = { name: 'first.png', type: 'image/png', path: '.issue-note-assets/issues/5/first.png', sha: 'sha-first', size: 10 };
+  const second = { name: 'second.png', type: 'image/png', path: '.issue-note-assets/issues/5/second.png', sha: 'sha-second', size: 20 };
+
+  async function renderWithAttachments() {
+    listIssueAttachmentFiles.mockResolvedValueOnce([first, second].map((item) => ({
+      name: item.name, path: item.path, sha: item.sha, size: item.size, url: ''
+    })));
+    downloadAttachment.mockResolvedValue(new Blob(['image']));
+    const issue = {
+      ...baseIssue,
+      body: `노트 본문\n\n${composeAttachmentLink('owner/repo', first)}\n\n${composeAttachmentLink('owner/repo', second)}`
+    };
+    render(NoteEditor, { token: 't', repo: 'owner/repo', issue, autoSaveSeconds: 9999 });
+    await waitFor(() => expect(document.querySelectorAll('.attachment-section .attachment-open')).toHaveLength(2));
+  }
+
+  function viewerFileName() {
+    return document.querySelector('.attachment-viewer .viewer-file-name')?.textContent;
+  }
+
+  it('첨부를 누르면 뷰어로 열고 화살표 키로 순환 이동하며 Escape로 닫는다', async () => {
+    await renderWithAttachments();
+
+    await fireEvent.click(document.querySelectorAll('.attachment-section .attachment-open')[0]);
+    const viewer = document.querySelector('.attachment-viewer');
+    expect(viewerFileName()).toBe('first.png');
+    expect(viewer.textContent).toContain('1 / 2');
+
+    await fireEvent.keyDown(viewer, { key: 'ArrowRight' });
+    expect(viewerFileName()).toBe('second.png');
+    await fireEvent.keyDown(viewer, { key: 'ArrowRight' });
+    expect(viewerFileName()).toBe('first.png');
+    await fireEvent.keyDown(viewer, { key: 'ArrowLeft' });
+    expect(viewerFileName()).toBe('second.png');
+    await waitFor(() => expect(downloadAttachment).toHaveBeenCalledWith(
+      't', 'owner/repo', expect.objectContaining({ path: second.path })
+    ));
+
+    await fireEvent.keyDown(viewer, { key: 'Escape' });
+    expect(document.querySelector('.attachment-viewer')).toBeNull();
+  });
+
+  it('뷰어의 Markdown 복사는 편집기용 첨부 링크를 클립보드에 넣고, 실패하면 오류를 보여준다', async () => {
+    const writeText = vi.fn().mockResolvedValueOnce().mockRejectedValueOnce(new Error('denied'));
+    vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText } });
+    await renderWithAttachments();
+    await fireEvent.click(document.querySelectorAll('.attachment-section .attachment-open')[1]);
+    const copyButton = within(document.querySelector('.attachment-viewer')).getByRole('button', { name: /Markdown 복사/ });
+
+    await fireEvent.click(copyButton);
+    expect(writeText).toHaveBeenCalledWith(composeAttachmentLink('owner/repo', second));
+    expect(screen.queryByText('Could not copy to the clipboard.')).toBeNull();
+
+    await fireEvent.click(copyButton);
+    await waitFor(() => expect(screen.getByText('Could not copy to the clipboard.')).toBeTruthy());
   });
 });
