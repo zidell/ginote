@@ -42,9 +42,10 @@ MSI만 만들려면 `npm run tauri:build -- --bundles msi`를 사용합니다. �
 
 ## GitHub Releases
 
-릴리스 워크플로는 수동 실행 시에만 데스크톱 바이너리를 빌드합니다. GitHub
-Actions 실행 번호를 `0.1.<run_number>` 버전에 넣으며, 저장소에는 버전 변경을
-커밋하지 않습니다.
+데스크톱 릴리스는 `main`에서 `release`로 여는 배포 PR을 병합할 때만 실행됩니다.
+웹 앱은 `main`의 정적 배포 흐름으로 별도로 갱신되므로, 일반적인 웹 기능 수정은
+데스크톱 릴리스를 만들 필요가 없습니다. GitHub Actions 실행 번호를
+`0.1.<run_number>` 버전에 넣으며, 저장소에는 버전 변경을 커밋하지 않습니다.
 
 macOS DMG와 Linux 패키지를 초안 릴리스에 올립니다. Windows MSI는 GitHub가
 호스팅하는 Windows 러너에서 빌드해 SignPath에 한 번 제출합니다. SignPath가 MSI와
@@ -77,9 +78,10 @@ Windows 서명을 처음 설정할 때는 [SignPath Foundation에 신청](https:
 저장소에는 `SIGNPATH_API_TOKEN` 시크릿과 `SIGNPATH_ORGANIZATION_ID` 변수를
 설정합니다. API 토큰에는 해당 정책의 서명 요청 권한이 필요합니다.
 
-설정 후 `./release.sh`를 실행하면 워크플로가 서명 승인까지 기다립니다. 승인한
-바이너리 릴리스가 성공한 뒤에는 웹 앱의 일반적인 수정은 웹 배포만 하면 됩니다.
-서명 정책과 개인정보 안내는 [Code signing policy](CODE_SIGNING.md)에 있습니다.
+설정 후 배포할 `main`의 변경으로 `release` 대상 PR을 열고 병합하면 워크플로가
+서명 승인까지 기다립니다. 승인한 바이너리 릴리스가 성공한 뒤에는 웹 앱의
+일반적인 수정은 웹 배포만 하면 됩니다. 서명 정책과 개인정보 안내는
+[Code signing policy](CODE_SIGNING.md)에 있습니다.
 
 ## Homebrew 배포 유지보수
 
