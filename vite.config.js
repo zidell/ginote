@@ -15,6 +15,9 @@ export default defineConfig({
   resolve: process.env.VITEST ? { conditions: ['browser'] } : undefined,
   test: {
     environment: 'jsdom',
+    // 기본값인 forks는 워커가 별도 프로세스라, 테스트가 무한 루프에 빠진 채 vitest가 죽으면
+    // 워커가 고아로 남아 CPU를 계속 쓴다. threads는 같은 프로세스 안이라 함께 종료된다.
+    pool: 'threads',
     coverage: {
       provider: 'v8',
       include: ['src/**/*.{js,svelte}'],
