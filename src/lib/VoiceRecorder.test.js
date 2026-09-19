@@ -314,7 +314,8 @@ describe('VoiceRecorder', () => {
   });
 
   it('최대 녹음 시간(1시간)에 도달하면 자동으로 멈추고 기록한다', async () => {
-    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'] });
+    // 경과 시간 표시용 250ms 인터벌까지 가짜로 돌리면 1시간 동안 14,400번 실행돼 느려지므로 제한 타이머만 가짜로 돌린다.
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
     transcribeAudio.mockResolvedValue('긴 회의');
     const { onComplete } = renderRecorder({ refinementModel: '' });
     const recorder = await waitForRecording();

@@ -18,6 +18,8 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       include: ['src/**/*.{js,svelte}'],
+      // main.js는 앱을 마운트하기만 하는 진입점이라 단위 테스트 대상에서 뺀다.
+      exclude: ['src/main.js', 'src/**/*.test.js', 'src/**/__mocks__/**', 'src/**/__fixtures__/**'],
       reporter: ['text-summary', 'lcov']
     }
   }
