@@ -1,7 +1,9 @@
 name: Desktop release
 
 on:
-  workflow_dispatch:
+  pull_request:
+    branches: [release]
+    types: [closed]
 
 concurrency:
   group: desktop-release
@@ -12,13 +14,18 @@ permissions:
 
 env:
   RELEASE_VERSION: 0.1.${{ github.run_number }}
+  RELEASE_SHA: ${{ github.event.pull_request.merge_commit_sha }}
 
 jobs:
-  # Publishing is intentionally restricted to the canonical repository. Forks
-  # may run CI, but must not create releases or update distribution channels.
+  # A release is created only when the canonical main branch is merged into
+  # release. Direct pushes and PRs from other branches cannot start it.
   prepare-release:
     name: Prepare draft release
-    if: github.repository == 'zidell/ginote'
+    if: >-
+      github.repository == 'zidell/ginote' &&
+      github.event.pull_request.merged == true &&
+      github.event.pull_request.head.ref == 'main' &&
+      github.event.pull_request.head.repo.full_name == github.repository
     permissions:
       contents: write
     runs-on: ubuntu-22.04
@@ -57,7 +64,7 @@ jobs:
             release_id="$(
               gh api --method POST "repos/${GITHUB_REPOSITORY}/releases" \
               -f tag_name="$TAG_NAME" \
-              -f target_commitish="$GITHUB_SHA" \
+              -f target_commitish="$RELEASE_SHA" \
               -f name="$RELEASE_NAME" \
               -f body="$RELEASE_BODY" \
               -F draft=true \
@@ -70,7 +77,7 @@ jobs:
 
   release:
     needs: prepare-release
-    if: github.repository == 'zidell/ginote'
+    if: needs.prepare-release.result == 'success'
     permissions:
       contents: write
     strategy:
@@ -87,6 +94,8 @@ jobs:
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ env.RELEASE_SHA }}
 
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
@@ -164,7 +173,7 @@ jobs:
   windows-release:
     name: Build and sign Windows MSI
     needs: prepare-release
-    if: github.repository == 'zidell/ginote'
+    if: needs.prepare-release.result == 'success'
     permissions:
       actions: read
       contents: write
@@ -172,6 +181,8 @@ jobs:
     timeout-minutes: 150
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ env.RELEASE_SHA }}
 
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
@@ -245,7 +256,7 @@ jobs:
   publish-release:
     name: Publish desktop release
     needs: [prepare-release, release, windows-release]
-    if: github.repository == 'zidell/ginote'
+    if: needs.prepare-release.result == 'success'
     permissions:
       contents: write
     runs-on: ubuntu-22.04
@@ -262,7 +273,7 @@ jobs:
   prune-releases:
     name: Keep the latest 20 releases
     needs: publish-release
-    if: github.repository == 'zidell/ginote'
+    if: needs.publish-release.result == 'success'
     permissions:
       contents: write
     runs-on: ubuntu-22.04
@@ -281,12 +292,14 @@ jobs:
   update-cask:
     name: Update Homebrew cask
     needs: publish-release
-    if: github.repository == 'zidell/ginote'
+    if: needs.publish-release.result == 'success'
     permissions:
       contents: write
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: main
 
       - name: Download macOS bundle
         env:

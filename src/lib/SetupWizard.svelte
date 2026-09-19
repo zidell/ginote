@@ -44,9 +44,13 @@
 </script>
 
 {#if !allowCancel}
-  <a class="setup-source-link small text-secondary" href="https://github.com/zidell/ginote" target={externalTarget} rel="noreferrer">
-    <i class="bi bi-github me-1" aria-hidden="true"></i>{$_('meta.sourceCode')}
-  </a>
+  <nav class="setup-source-links small" aria-label="Ginote links">
+    <a href="https://github.com/zidell/ginote" target={externalTarget} rel="noreferrer">
+      <i class="bi bi-github me-1" aria-hidden="true"></i>Github
+    </a>
+    <span aria-hidden="true">|</span>
+    <a href="https://github.com/zidell/ginote/releases" target={externalTarget} rel="noreferrer">앱 설치</a>
+  </nav>
 {/if}
 
 <main class="setup-shell setup-wizard-shell px-3 py-4 py-md-5">

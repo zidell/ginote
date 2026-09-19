@@ -291,8 +291,9 @@ button, input, textarea { font: inherit; }
   .settings-overlay .setup-card { width: 100%; min-height: 100%; margin: 0; border: 0 !important; border-radius: 0; }
 }
 .setup-wizard { width: min(600px, 100%); }
-.setup-source-link { position: fixed; z-index: 2; top: 1rem; right: 1.25rem; text-decoration: none; }
-.setup-source-link:hover { color: var(--ui-text-body) !important; text-decoration: underline; }
+.setup-source-links { position: fixed; z-index: 2; top: 1rem; right: 1.25rem; display: flex; gap: .5rem; align-items: center; color: var(--bs-secondary-color); }
+.setup-source-links a { color: inherit; text-decoration: none; }
+.setup-source-links a:hover { color: var(--ui-text-body); text-decoration: underline; }
 .setup-wizard-header { display: flex; align-items: center; gap: 1rem; }
 .setup-progress { display: grid; grid-template-columns: repeat(4, 1fr); margin: 2rem 0; padding: 0; list-style: none; }
 .setup-progress li { position: relative; display: grid; place-items: center; color: var(--ui-text-faint); }
