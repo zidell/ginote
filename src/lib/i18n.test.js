@@ -9,7 +9,9 @@ describe('i18n', () => {
     expect(normalizeLocale('de-DE')).toBe('de');
     expect(normalizeLocale('fr-FR')).toBe('fr');
     expect(normalizeLocale('it-IT')).toBe('it');
-    expect(normalizeLocale('es-ES')).toBe('en');
+    expect(normalizeLocale('es-ES')).toBe('es');
+    expect(normalizeLocale('es-419')).toBe('es');
+    expect(normalizeLocale('pt-BR')).toBe('en');
   });
 
   it('locale 변경과 ICU 변수 치환을 지원한다', () => {
@@ -27,7 +29,8 @@ describe('i18n', () => {
       ja: 'Ginoteのセットアップ',
       de: 'Ginote einrichten',
       fr: 'Configurer Ginote',
-      it: 'Configura Ginote'
+      it: 'Configura Ginote',
+      es: 'Configurar Ginote'
     };
 
     for (const [locale, title] of Object.entries(expectedTitles)) {

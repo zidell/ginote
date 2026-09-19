@@ -14,6 +14,11 @@ export default defineConfig({
   // @testing-library/svelte로 컴포넌트를 실제로 mount할 수 있다.
   resolve: process.env.VITEST ? { conditions: ['browser'] } : undefined,
   test: {
-    environment: 'jsdom'
+    environment: 'jsdom',
+    coverage: {
+      provider: 'v8',
+      include: ['src/**/*.{js,svelte}'],
+      reporter: ['text-summary', 'lcov']
+    }
   }
 });

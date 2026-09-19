@@ -1,154 +1,177 @@
+[![CI](https://github.com/zidell/ginote/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/zidell/ginote/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/zidell/ginote/branch/main/graph/badge.svg)](https://codecov.io/gh/zidell/ginote)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
+**English** | [한국어](README.ko.md) | [简体中文](README.zh-CN.md) | [日本語](README.ja.md) | [Deutsch](README.de.md) | [Français](README.fr.md) | [Italiano](README.it.md) | [Español](README.es.md)
+
 # Ginote
 
-## 앱 소개
+## About
 
-Ginote는 GitHub의 Issues(이슈)를 개인 노트처럼 쓰는 간단하고 안전한 웹 앱입니다.
-노트는 별도 앱 서버나 데이터베이스가 아니라, 사용자가 고른 GitHub 저장소에
-저장됩니다. 앱을 연 뒤에는 브라우저가 GitHub와 직접 통신합니다.
+Ginote is a simple, secure web app that lets you use GitHub Issues as personal notes.
+I've always liked GitHub Issues, but its sluggishness and clunky UX constantly bothered
+me. So I built an SPA that keeps nearly all of its features while giving it the user
+experience of a note-taking app. The app consists only of static JS, and your browser
+talks to the GitHub API directly, which keeps it secure.
 
-서비스 주소(누구나 바로 사용 가능): [https://note.gitools.net](https://note.gitools.net)
+Live app (free for anyone to use): [https://note.gitools.net](https://note.gitools.net)
 
-## 화면
+## Preview
 
-![Ginote 사용 미리보기](docs/preview.gif)
+![Ginote preview](docs/preview.gif)
 
-미리보기 GIF를 다시 만드는 방법은 [docs/screencasting.md](docs/screencasting.md)에
-정리했습니다.
+How to regenerate the preview GIF is described in [docs/screencasting.md](docs/screencasting.md).
 
-## 주요 특징
+## Features
 
-- **비공개 저장소에 직접 저장:** 별도 앱 서버나 데이터베이스 없이, 비공개(Private)
-  저장소의 이슈를 노트로 사용합니다.
-- **브라우저에서 직접 연결:** 브라우저가 GitHub API를 직접 호출합니다. 앱 운영
-  서버가 노트나 PAT를 받아 보관하는 중간 단계가 없습니다.
-- **태그·검색·휴지통:** GitHub 라벨을 태그로 사용하며 본문 검색과 닫힌 이슈 기반
-  휴지통을 지원합니다.
-- **키보드를 통한 제어:** 노트 목록 이동·열기·선택, 새 노트 작성, 저장소 전환
-  등을 키보드로 할 수 있습니다.
-- **파일과 이미지 첨부:** 첨부파일을 같은 저장소에 보관하고 앱과 GitHub 양쪽에서
-  확인할 수 있습니다. 자세한 내용은 [첨부파일 저장 방식](docs/ATTACHMENTS.md)을
-  참고하세요.
-- **음성 녹음·전사·정제:** 브라우저에서 녹음한 음성을 OpenAI로 직접 전사하고,
-  전사문을 자연스러운 기록문으로 정제할 수 있습니다. 정제 과정에서 제목을 만들고
-  기존 태그를 추천받을 수도 있으며, 필요하면 원본 음성도 노트 첨부파일로 보존합니다.
-- **본문 추가 암호화:** 비공개 저장소에 저장하는 것만으로 부족하다면 본문을
-  브라우저에서 AES-GCM 방식으로 한 번 더 암호화할 수 있습니다. 자세한 내용은
-  [암호화 방식](docs/ENCRYPTION.md)을 참고하세요.
-- **웹과 데스크톱 지원:** 설치 가능한 PWA와 Tauri 기반 macOS·Windows·Linux 앱을
-  제공합니다. 데스크톱 앱의 패키징과 릴리스는 [데스크톱 앱 문서](docs/DESKTOP.md)를
-  참고하세요.
+- **Stored directly in a private repository:** Issues in a private repository serve as
+  your notes, with no separate app server or database.
+- **Direct browser connection:** Your browser calls the GitHub API directly. There is no
+  intermediate server run by the app operator that receives or keeps your notes or PAT.
+- **Tags, search, and trash:** GitHub labels are used as tags (each tag can carry a
+  description of what it's for), with full-text search and a trash bin based on closed
+  issues. Notes you check often can be pinned to the top.
+- **Comments:** Issue comments serve as follow-up entries on a note. You can attach files
+  to comments or dictate them by voice, too.
+- **File and image attachments:** Attachments on note bodies and comments are stored in
+  the same repository and can be viewed both in the app and on GitHub. See
+  [how attachments are stored](docs/ATTACHMENTS.md) for details.
+- **Voice recording, transcription, and cleanup (OpenAI only):** Audio recorded in the
+  browser is sent straight to OpenAI for transcription, and the transcript can be
+  polished into natural written text. The cleanup step can also suggest a title and
+  existing tags, and the original audio can optionally be kept as a note attachment.
+  Voice features currently support the OpenAI API only.
+- **Note lock (extra body encryption):** If a private repository alone isn't enough, lock
+  a note with a 6-digit code to encrypt its body and comments once more in the browser
+  with AES-GCM. See [how encryption works](docs/ENCRYPTION.md) for details.
+- **Editing tools:** Merge several notes into one, find and replace in the body (regular
+  expressions supported), and view the rendered result in the Markdown viewer.
+- **Multiple repositories:** Register several repositories and switch between them from
+  the list or with number keys.
+- **Keyboard control:** Navigate, open, and select notes, create new notes, and switch
+  repositories from the keyboard.
+- **MCP integration:** Connect GitHub's official MCP Server and your AI tools can read and
+  write the same notes (issues). No app-specific MCP server is required.
+- **Web and desktop:** Available as an installable PWA and as Tauri-based macOS, Windows,
+  and Linux apps. For desktop packaging and releases, see the [desktop app docs](docs/DESKTOP.md).
 
-## 사용 안내
+## Usage
 
-### 내 데이터는 어디로 가나요?
+### Where does my data go?
 
-**Ginote는 파일로 제공되는 정적 웹 앱입니다.** 배포 서버는 HTML, CSS,
-JavaScript 같은 앱 파일만 전달합니다. 로그인이나 노트 저장을 처리하는 별도
-앱 백엔드는 없으며, 앱을 연 뒤의 데이터 통신은 사용자의 브라우저와 GitHub API
-사이에서 직접 이루어집니다.
+**Ginote is a static web app served as plain files.** The hosting server only delivers
+app files such as HTML, CSS, and JavaScript. There is no app backend handling sign-in or
+note storage; once the app is open, all data traffic flows directly between your browser
+and the GitHub API.
 
 ```text
-사용자 브라우저  ←──── 직접 통신 ────→  GitHub
+Your browser  ←──── direct connection ────→  GitHub
      │
-     └─ PAT·앱 설정·저장 전 초안은 이 브라우저에만 보관
+     └─ PAT, app settings, and unsaved drafts stay in this browser only
 ```
 
-- 노트와 태그, 첨부파일은 사용자가 지정한 GitHub 저장소에만 저장됩니다.
-- PAT와 앱 설정은 사용자의 브라우저에만 보관되며, 인증할 때만 GitHub API로
-  전달됩니다.
-- 저장 전 초안은 해당 브라우저 안에만 남습니다.
-- 선택적 노트 암호화는 [암호화 방식](docs/ENCRYPTION.md)에 정리되어 있습니다.
-- 앱 운영자에게 노트, PAT, 설정을 보내는 API가 없으며 분석·추적 서비스도
-  사용하지 않습니다.
+- Notes, tags, and attachments are stored only in the GitHub repository you specify.
+- Your PAT and app settings are kept only in your browser and are sent to the GitHub API
+  only for authentication.
+- Unsaved drafts remain only in that browser.
+- Optional note encryption is documented in [how encryption works](docs/ENCRYPTION.md).
+- There is no API that sends notes, PATs, or settings to the app operator, and no
+  analytics or tracking services are used.
 
-즉, 앱 파일을 내려받는 요청 외에는 사용자의 추가 데이터가 GitHub 이외의 앱
-운영자나 다른 서버로 전송되지 않습니다. 실제 노트 데이터가 존재하는 곳은
-**본인의 브라우저와 본인이 선택한 GitHub 저장소뿐**입니다.
+In short, apart from the requests that download the app files, none of your data is sent
+to the app operator or any server other than GitHub. The only places your note data
+actually lives are **your own browser and the GitHub repository you chose**.
 
-### 음성 녹음 사용하기
+### Using voice recording
 
-음성 녹음 기능을 처음 사용하기 전에 OpenAI API 키가 필요합니다. OpenAI에서 API
-키를 발급한 뒤, Ginote의 **환경설정 → 음성 녹음 → OpenAI API 키**에 입력하세요.
-API 사용량에 따라 OpenAI 비용이 발생할 수 있습니다.
+Before using voice recording for the first time, you need an OpenAI API key. Create an
+API key on OpenAI, then enter it under **Settings → Voice recording → OpenAI API key** in
+Ginote. OpenAI may charge you based on API usage.
 
-설정이 끝나면 사이드바 또는 노트 화면의 마이크 버튼으로 녹음을 시작할 수 있습니다.
-녹음을 완료하면 음성을 전사하고, 선택 사항인 텍스트 정제 모델과 정제 규칙을 적용해
-본문·제목·기존 태그를 제안합니다. 환경설정에서 전사 모델, 정제 모델, 자주 쓰는 전사
-단어를 바꿀 수 있고, 정제 모델을 비워 두면 전사문만 기록합니다. **원본 음성 보존**을
-켜면 성공한 녹음의 원본도 해당 노트의 첨부파일로 저장됩니다.
+Once set up, start recording with the microphone button in the sidebar or the note view.
+When you finish recording, the audio is transcribed, and the optional cleanup model and
+cleanup rules are applied to suggest the body, title, and existing tags. In Settings you
+can change the transcription model, the cleanup model, and frequently used transcription
+vocabulary; leave the cleanup model empty to record only the raw transcript. Turn on
+**Keep original audio** to also save the original recording of successful sessions as an
+attachment to that note.
 
-음성 파일과 전사문은 브라우저에서 OpenAI API로 직접 전송되며 앱 운영 서버를 거치지
-않습니다. API 키는 이 기기의 브라우저 `localStorage`에 평문으로 저장되므로, 개인
-기기에서만 사용하고 전용 프로젝트 키·사용 한도·정기 교체를 권장합니다.
+Audio files and transcripts are sent directly from your browser to the OpenAI API and
+never pass through an app server. The API key is stored in plain text in this device's
+browser `localStorage`, so use it only on personal devices, and we recommend a dedicated
+project key, usage limits, and regular rotation.
 
-### 키보드 단축키
+### Keyboard shortcuts
 
-노트 목록에서 다음 단축키를 사용할 수 있습니다. 입력창에 글을 쓰는 동안에는
-목록 단축키가 동작하지 않습니다. `Ctrl/Cmd + R`은 브라우저의 새로고침 단축키라
-어디서든 앱을 다시 불러옵니다.
+The following shortcuts are available in the note list. List shortcuts don't work while
+you are typing in an input field. `Ctrl/Cmd + R` is the browser's reload shortcut, so it
+reloads the app from anywhere.
 
-| 키 | 동작 |
+| Key | Action |
 | --- | --- |
-| `↑` / `↓` | 노트 목록에서 이동 |
-| `Enter` | 현재 노트 열기 · 한 번 더 누르면 편집 |
-| `N` | 새 노트 만들기 |
-| `` ` `` | 저장소 선택창 열기 |
-| `1`–`9` | 등록된 순서대로 저장소 전환 |
-| `Esc` | 선택 해제 · 삭제 취소 · 안내 닫기 |
-| `Space` | 현재 노트 선택 |
-| `Shift` + `↑` / `↓` | 여러 노트 범위 선택 |
-| `Delete` / `Backspace` | 선택한 노트를 휴지통으로 이동 |
-| `Ctrl/Cmd + R` | 앱 새로고침 |
+| `↑` / `↓` | Move through the note list |
+| `Enter` | Open the current note · press again to edit |
+| `N` | Create a new note |
+| `` ` `` | Open the repository picker |
+| `1`–`9` | Switch repositories in registration order |
+| `Esc` | Clear selection · cancel delete · close hints |
+| `Space` | Select the current note |
+| `Shift` + `↑` / `↓` | Select a range of notes |
+| `Delete` / `Backspace` | Move selected notes to the trash |
+| `Ctrl/Cmd + R` | Reload the app |
 
-노트를 열고 입력창에 포커스가 없을 때는 다음 단축키도 사용할 수 있습니다.
+When a note is open and no input field has focus, these shortcuts are also available.
 
-| 키 | 동작 |
+| Key | Action |
 | --- | --- |
-| `T` | 태그 추가 |
-| `A` | 파일 첨부 |
-| `P` | 상단고정 전환 |
-| `L` | 잠금·잠금 해제 |
-| `Delete` | 노트를 휴지통으로 이동 |
-| `G` | GitHub 이슈 보기 |
-| `M` | MD뷰어 열기·닫기 |
-| `R` | 앱 전체 새로고침 |
-| `S` | 현재 노트 저장 |
+| `T` | Add a tag |
+| `A` | Attach a file |
+| `P` | Toggle pin to top |
+| `L` | Lock · unlock |
+| `Delete` | Move the note to the trash |
+| `G` | View the GitHub issue |
+| `M` | Open · close the MD viewer |
+| `R` | Reload the entire app |
+| `S` | Save the current note |
 
-### PWA(설치형 웹 앱)
+### PWA (installable web app)
 
-프로덕션 빌드는 브라우저에서 설치해 앱처럼 사용할 수 있는 PWA로 동작합니다.
-브라우저에서 서비스 주소를 연 뒤 브라우저의 설치 메뉴를 사용하면 됩니다.
-매니페스트와 서비스 워커는 특정 도메인이나 호스팅 서비스에 종속되지 않으며,
-앱이 배포된 경로를 기준으로 동작합니다. 서비스 워커(브라우저가 앱 파일을
-잠시 보관하는 기능)는 앱과 같은 출처의 파일만 캐시하고 GitHub API 요청, PAT,
-노트 데이터는 캐시하지 않습니다.
+Production builds work as a PWA that you can install from the browser and use like an
+app. Open the live app in your browser and use the browser's install menu. The manifest
+and service worker are not tied to any specific domain or hosting service and work
+relative to the path where the app is deployed. The service worker (a feature that lets
+the browser temporarily keep app files) caches only same-origin app files and never
+caches GitHub API requests, PATs, or note data.
 
-### 데스크톱 앱 다운로드
+### Downloading the desktop app
 
-macOS·Windows·Linux용 설치 파일은 [GitHub Releases](https://github.com/zidell/ginote/releases)에서
-내려받을 수 있습니다. macOS는 DMG, Windows 10/11은 MSI를 사용합니다. 새 Windows
-릴리스는 SignPath Foundation 서명이 설정된 뒤 서명된 MSI로 게시됩니다.
-데스크톱 앱은 [note.gitools.net](https://note.gitools.net)을 열며 인터넷 연결이
-필요합니다. 앱 화면과 일반적인 기능 수정은 웹 배포로 적용됩니다.
+Installers for macOS, Windows, and Linux are available on
+[GitHub Releases](https://github.com/zidell/ginote/releases). macOS uses a DMG, and
+Windows 10/11 uses an MSI. New Windows releases are published as signed MSIs once
+SignPath Foundation signing is set up. The desktop app opens
+[note.gitools.net](https://note.gitools.net) and requires an internet connection. UI
+and general feature changes are delivered through web deployments.
 
 [Code signing policy](docs/CODE_SIGNING.md)
 
-macOS Homebrew 설치, 로컬 실행, 플랫폼별 패키징과 릴리스 절차는
-[데스크톱 앱 문서](docs/DESKTOP.md)에 정리했습니다.
+Homebrew installation on macOS, running locally, per-platform packaging, and the release
+process are covered in the [desktop app docs](docs/DESKTOP.md).
 
-## 운영·개발 안내
+## Operations and development
 
-웹 앱을 변경할 때는 의존성을 잠금 파일 기준으로 설치하고, 정적 검사·테스트·프로덕션
-빌드를 모두 통과시킨 뒤 배포합니다. 앱은 정적 파일로 배포하며, 데스크톱 앱의 패키징과
-서명은 웹 배포와 별도로 관리합니다. 데이터 형식과 보안에 영향을 주는 변경은 첨부파일과
-암호화 문서를 먼저 확인해야 합니다. 개발 환경, 검증 명령, 배포·유지보수 절차는
-[개발·운영 문서](docs/DEVELOPMENT.md)에 정리했습니다.
+When changing the web app, install dependencies from the lockfile and make sure static
+checks, tests, and the production build all pass before deploying. The app is deployed
+as static files, and desktop packaging and signing are managed separately from web
+deployments. Changes that affect data formats or security should be checked against the
+attachment and encryption docs first. The development environment, verification
+commands, and deployment and maintenance procedures are described in the
+[development and operations docs](docs/DEVELOPMENT.md).
 
-## 기능 요청
+## Feature requests
 
-기능 요청사항이 있는 경우 포크해서 직접 변경하세요. 제가 쓰기에는 이미 충분해서
-별도의 기능 제안은 받지 않습니다.
+If you'd like a new feature, please fork the project and change it yourself. It already
+does everything I need, so I'm not accepting feature proposals.
 
-## 라이선스
+## License
 
 [MIT License](LICENSE)
