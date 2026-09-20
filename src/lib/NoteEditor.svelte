@@ -204,6 +204,8 @@
   let draftChangeTimer;
   let publishedListPreview = listPreviewSource(body);
   let toolbarTagPicker;
+  let issueNumberCopied = false;
+  let issueNumberCopyTimer;
   let moreToolbarElement;
   let issueLinkElement;
   let handledFocusRequest = 0;
@@ -449,6 +451,7 @@
     for (const timer of commentDeleteTimers.values()) clearTimeout(timer);
     commentDeleteTimers = new Map();
     clearTimeout(lockReuseTimer);
+    clearTimeout(issueNumberCopyTimer);
     window.removeEventListener('beforeunload', handlePageExit);
     window.removeEventListener('pagehide', handlePageExit);
     window.removeEventListener('keydown', handleMoreToolbarEscape, true);
@@ -2482,6 +2485,23 @@
     void flushPendingWork({ reason: 'attachment-link', allowPaused: true, force: true });
   }
 
+  async function copyIssueNumber() {
+    if (!toolbarIssueNumber) return;
+    const heading = title.trim();
+    const text = heading
+      ? `Issue(#${toolbarIssueNumber}) : ${heading}`
+      : `Issue(#${toolbarIssueNumber})`;
+    try {
+      await navigator.clipboard.writeText(text);
+      error = '';
+      issueNumberCopied = true;
+      clearTimeout(issueNumberCopyTimer);
+      issueNumberCopyTimer = setTimeout(() => { issueNumberCopied = false; }, 1400);
+    } catch {
+      error = $_("m.da21b2386d");
+    }
+  }
+
   async function copyAttachmentMarkdown(attachment) {
     try {
       await navigator.clipboard.writeText(composeAttachmentLink(repo, attachment));
@@ -3030,7 +3050,14 @@
       >
         <i class="bi bi-arrow-left" aria-hidden="true"></i><span class="mobile-back-label"> {$_("m.a1fffaaafb")}</span>
       </button>
-      <span>{#if lockState === 'locked'}<i class="bi bi-lock-fill toolbar-lock-icon" aria-hidden="true"></i>{:else if lockState === 'unlocked'}<i class="bi bi-unlock-fill toolbar-lock-icon" aria-hidden="true"></i>{/if}{#if toolbarIssueNumber}<span class="toolbar-issue-number">#{toolbarIssueNumber}</span>{' '}{/if}{issue ? formatDateOnly(issue.updated_at || issue.created_at) : $_("m.2b7b05c002")}</span>
+      <span>{#if lockState === 'locked'}<i class="bi bi-lock-fill toolbar-lock-icon" aria-hidden="true"></i>{:else if lockState === 'unlocked'}<i class="bi bi-unlock-fill toolbar-lock-icon" aria-hidden="true"></i>{/if}{#if toolbarIssueNumber}<button
+        type="button"
+        class="toolbar-issue-number"
+        class:is-copied={issueNumberCopied}
+        title={$_('dynamic.copyIssueNumber', { values: { number: toolbarIssueNumber } })}
+        aria-label={$_('dynamic.copyIssueNumber', { values: { number: toolbarIssueNumber } })}
+        on:click={copyIssueNumber}
+      >#{toolbarIssueNumber}</button><span class="visually-hidden" aria-live="polite">{issueNumberCopied ? $_('dynamic.issueNumberCopied', { values: { number: toolbarIssueNumber } }) : ''}</span>{' '}{/if}{issue ? formatDateOnly(issue.updated_at || issue.created_at) : $_("m.2b7b05c002")}</span>
       <span class="save-status" class:is-visible={showSaveStatus} aria-live="polite">
         <BrailleSpinner active={saving} />
         {#if compactStatus}{compactStatus}{/if}

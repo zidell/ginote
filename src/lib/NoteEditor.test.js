@@ -855,13 +855,56 @@ describe('NoteEditor 코멘트 블록', () => {
 });
 
 describe('NoteEditor 툴바 이슈 번호', () => {
-  it('이슈 번호와 날짜 사이를 공백으로 띄워 번호만 따로 더블클릭할 수 있게 한다', async () => {
+  it('이슈 번호와 날짜를 공백으로 띄워 붙어 보이지 않게 한다', async () => {
     render(NoteEditor, { token: 't', repo: 'owner/repo', issue: baseIssue });
 
-    const numberEl = document.querySelector('.toolbar-issue-number');
-    expect(numberEl.textContent).toBe('#5');
-    // 공백이 없으면 "#52026-09-01"이 되어 더블클릭 시 번호와 연도가 붙어 잡힌다.
-    expect(numberEl.parentElement.textContent).toBe('#5 2026-09-01');
+    const numberButton = document.querySelector('.toolbar-issue-number');
+    expect(numberButton.textContent).toBe('#5');
+    // 공백이 없으면 "#52026-09-01"처럼 번호와 연도가 붙어 버린다.
+    expect(numberButton.parentElement.textContent.trim()).toBe('#5 2026-09-01');
+  });
+
+  it('이슈 번호를 클릭하면 "Issue(#번호) : 제목"을 복사하고, 실패하면 오류를 보여준다', async () => {
+    const writeText = vi.fn().mockResolvedValueOnce().mockRejectedValueOnce(new Error('denied'));
+    vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText } });
+    render(NoteEditor, { token: 't', repo: 'owner/repo', issue: baseIssue });
+    const numberButton = document.querySelector('.toolbar-issue-number');
+
+    await fireEvent.click(numberButton);
+    expect(writeText).toHaveBeenCalledWith('Issue(#5) : 노트 제목');
+    await waitFor(() => expect(numberButton.classList.contains('is-copied')).toBe(true));
+    expect(screen.queryByText('Could not copy to the clipboard.')).toBeNull();
+
+    await fireEvent.click(numberButton);
+    await waitFor(() => expect(screen.getByText('Could not copy to the clipboard.')).toBeTruthy());
+  });
+
+  it('제목이 비어 있으면 번호만 복사한다', async () => {
+    const writeText = vi.fn().mockResolvedValue();
+    vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText } });
+    render(NoteEditor, { token: 't', repo: 'owner/repo', issue: { ...baseIssue, title: '   ' } });
+
+    await fireEvent.click(document.querySelector('.toolbar-issue-number'));
+    expect(writeText).toHaveBeenCalledWith('Issue(#5)');
+  });
+
+  it('복사 표시는 잠시 뒤 사라진다', async () => {
+    vi.useFakeTimers();
+    try {
+      const writeText = vi.fn().mockResolvedValue();
+      vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText } });
+      render(NoteEditor, { token: 't', repo: 'owner/repo', issue: baseIssue });
+      const numberButton = document.querySelector('.toolbar-issue-number');
+
+      await fireEvent.click(numberButton);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(numberButton.classList.contains('is-copied')).toBe(true);
+
+      await vi.advanceTimersByTimeAsync(1500);
+      expect(numberButton.classList.contains('is-copied')).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 
