@@ -27,8 +27,12 @@ document.addEventListener('click', (event) => {
   openUrl(url.href).catch(() => {});
 });
 
+const appTarget = document.getElementById('app');
+// 자바스크립트 없이도 사용법이 보이도록 index.html에 넣어 둔 안내다. 앱을 붙이기 전에 비운다.
+appTarget.textContent = '';
+
 mount(App, {
-  target: document.getElementById('app')
+  target: appTarget
 });
 
 if ('serviceWorker' in navigator && import.meta.env.PROD && !window.__TAURI_INTERNALS__) {

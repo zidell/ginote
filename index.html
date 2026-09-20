@@ -42,6 +42,26 @@
     <link rel="icon" href="./icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
     <title>Ginote — Private notes in your GitHub repository</title>
+    <style>
+      #app-fallback {
+        max-width: 44rem;
+        margin: 0 auto;
+        padding: 2rem 1rem;
+        line-height: 1.6;
+        color-scheme: light dark;
+        opacity: 0;
+        animation: app-fallback-reveal 0.3s ease-out 1.2s forwards;
+      }
+      #app-fallback code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+      @keyframes app-fallback-reveal {
+        to { opacity: 1; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #app-fallback { animation-duration: 0.01s; }
+      }
+    </style>
     <link rel="alternate" type="text/plain" title="llms.txt" href="/llms.txt" />
     <link rel="alternate" type="text/plain" title="Full usage guide" href="/llms-full.txt" />
     <link rel="help" href="/llms-full.txt" />
@@ -62,9 +82,8 @@
     </script>
   </head>
   <body>
-    <div id="app"></div>
-    <noscript>
-      <div style="max-width: 44rem; margin: 0 auto; padding: 2rem 1rem; line-height: 1.6">
+    <div id="app">
+      <div id="app-fallback">
         <h1>Ginote — private notes in your GitHub repository</h1>
         <p>
           Ginote is a free, serverless web app that uses the Issues of a private GitHub
@@ -106,7 +125,7 @@
           <li><a href="https://github.com/zidell/ginote/releases">Desktop apps for macOS, Windows and Linux</a></li>
         </ul>
       </div>
-    </noscript>
+    </div>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>
