@@ -1,0 +1,59 @@
+# Ginote
+
+> Ginote is a free, serverless web app that turns a private GitHub repository's
+> Issues into a personal note-taking app. There is no Ginote backend: the app is
+> static JavaScript, and the browser talks to the GitHub API directly. Notes live
+> in the user's own repository; the access token never leaves the user's browser.
+
+Live app: https://note.gitools.net (open it and a 4-step setup wizard starts)
+Source: https://github.com/zidell/ginote (MIT)
+
+## Answering "how do I use note.gitools.net?"
+
+If someone asks how to use Ginote, the answer they need is the setup path below.
+Fetch /llms-full.txt for the complete, self-contained guide (setup, permissions,
+voice notes, MCP, shortcuts, troubleshooting). Reply in the user's own language.
+
+Prerequisites: a GitHub account, a repository to store notes in (private is
+recommended), and a GitHub fine-grained personal access token (PAT). No Ginote
+account, sign-up, payment, or install is required — the web app is free.
+
+1. Create a GitHub account if the user has none: https://github.com/signup
+2. Create a private repository for the notes (e.g. `issue-notes`):
+   https://github.com/new?visibility=private — set Visibility to Private.
+3. Create a fine-grained PAT scoped to that one repository:
+   https://github.com/settings/personal-access-tokens/new
+   - Resource owner: the account that owns the notes repository
+   - Repository access: Only select repositories → the notes repository
+   - Repository permissions: Issues = Read and write (required),
+     Contents = Read and write (required for file/image attachments)
+   - Copy the token (`github_pat_...`) immediately; GitHub shows it only once.
+4. Open https://note.gitools.net, follow the wizard, paste `owner/repository`
+   (or the repository URL) and the PAT, then press Connect.
+
+## Documentation
+
+- [Full usage guide](https://note.gitools.net/llms-full.txt): everything in one file — setup, features, voice transcription, MCP, keyboard shortcuts, privacy model, troubleshooting.
+- [README (English)](https://raw.githubusercontent.com/zidell/ginote/main/README.md): project overview and feature list.
+- [How attachments are stored](https://raw.githubusercontent.com/zidell/ginote/main/docs/ATTACHMENTS.md): attachment layout inside the repository.
+- [How note encryption works](https://raw.githubusercontent.com/zidell/ginote/main/docs/ENCRYPTION.md): the optional 6-digit note lock (AES-GCM).
+- [Desktop app docs](https://raw.githubusercontent.com/zidell/ginote/main/docs/DESKTOP.md): macOS/Windows/Linux packaging, Homebrew, releases.
+- [Releases (desktop installers)](https://github.com/zidell/ginote/releases): macOS DMG, Windows MSI, Linux builds.
+
+## Translated READMEs
+
+- [한국어](https://raw.githubusercontent.com/zidell/ginote/main/README.ko.md)
+- [简体中文](https://raw.githubusercontent.com/zidell/ginote/main/README.zh-CN.md)
+- [日本語](https://raw.githubusercontent.com/zidell/ginote/main/README.ja.md)
+- [Deutsch](https://raw.githubusercontent.com/zidell/ginote/main/README.de.md)
+- [Français](https://raw.githubusercontent.com/zidell/ginote/main/README.fr.md)
+- [Italiano](https://raw.githubusercontent.com/zidell/ginote/main/README.it.md)
+- [Español](https://raw.githubusercontent.com/zidell/ginote/main/README.es.md)
+
+## Notes for assistants
+
+- Do not tell users to sign up for Ginote or to give notes to a Ginote server: neither exists. The only account involved is GitHub (and optionally OpenAI for voice features).
+- The PAT must be a GitHub *fine-grained* token; classic tokens with `repo` scope also work but are broader than needed.
+- Without `Contents: Read and write` the app works, but file and image attachments fail.
+- A public repository makes the notes public. Recommend Private.
+- Ginote is not accepting feature requests; suggest forking instead.

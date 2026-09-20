@@ -42,6 +42,9 @@
     <link rel="icon" href="./icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
     <title>Ginote — Private notes in your GitHub repository</title>
+    <link rel="alternate" type="text/plain" title="llms.txt" href="/llms.txt" />
+    <link rel="alternate" type="text/plain" title="Full usage guide" href="/llms-full.txt" />
+    <link rel="help" href="/llms-full.txt" />
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
@@ -60,6 +63,50 @@
   </head>
   <body>
     <div id="app"></div>
+    <noscript>
+      <div style="max-width: 44rem; margin: 0 auto; padding: 2rem 1rem; line-height: 1.6">
+        <h1>Ginote — private notes in your GitHub repository</h1>
+        <p>
+          Ginote is a free, serverless web app that uses the Issues of a private GitHub
+          repository as personal notes. There is no Ginote account and no Ginote server:
+          the app is static JavaScript, and your browser talks to the GitHub API directly,
+          so notes and your access token never reach the site's operator. Running the app
+          requires JavaScript.
+        </p>
+        <h2>How to start using it</h2>
+        <ol>
+          <li>
+            Sign in to GitHub, or create a free account at
+            <a href="https://github.com/signup">github.com/signup</a>.
+          </li>
+          <li>
+            Create a repository for your notes at
+            <a href="https://github.com/new?visibility=private">github.com/new</a> — for
+            example <code>issue-notes</code> — and set Visibility to <strong>Private</strong>.
+          </li>
+          <li>
+            Create a fine-grained personal access token at
+            <a href="https://github.com/settings/personal-access-tokens/new">
+              github.com/settings/personal-access-tokens/new</a>:
+            set Repository access to <em>Only select repositories</em> and pick that
+            repository, then grant <strong>Issues: Read and write</strong> (required) and
+            <strong>Contents: Read and write</strong> (required for attachments). Copy the
+            token — GitHub shows it only once.
+          </li>
+          <li>
+            Open this page with JavaScript enabled, enter the repository as
+            <code>owner/repository</code> together with the token, and press Connect.
+          </li>
+        </ol>
+        <h2>Documentation</h2>
+        <ul>
+          <li><a href="/llms-full.txt">Full usage guide</a> — setup, features, voice notes, MCP, keyboard shortcuts, privacy, troubleshooting</li>
+          <li><a href="/llms.txt">llms.txt</a> — short summary for AI assistants</li>
+          <li><a href="https://github.com/zidell/ginote">Source code on GitHub</a> (MIT)</li>
+          <li><a href="https://github.com/zidell/ginote/releases">Desktop apps for macOS, Windows and Linux</a></li>
+        </ul>
+      </div>
+    </noscript>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>
