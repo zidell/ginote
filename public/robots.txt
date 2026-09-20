@@ -1,8 +1,4 @@
 User-agent: *
 Allow: /
 
-# Usage documentation for AI assistants and agents:
-#   https://note.gitools.net/llms.txt       (summary + setup steps)
-#   https://note.gitools.net/llms-full.txt  (complete guide)
-
 Sitemap: https://note.gitools.net/sitemap.xml
