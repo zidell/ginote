@@ -493,7 +493,10 @@ html.mode-light .note-row-labels { opacity: 1; }
 .note-row-deletion-overlay button:hover, .note-row-deletion-overlay button:focus-visible { color: var(--ui-text-emphasis); }
 .note-list-pinned { border-bottom: 1px solid var(--ui-border-list); }
 .toolbar-lock-icon { margin-right: .4rem; color: var(--ui-warning); }
-.toolbar-issue-number { color: var(--ui-text-timestamp); }
+.toolbar-issue-number { padding: 0; border: 0; color: var(--ui-text-timestamp); background: transparent; font: inherit; line-height: inherit; cursor: pointer; user-select: none; }
+.toolbar-issue-number:hover { color: var(--ui-text-emphasis); text-decoration: underline; }
+.toolbar-issue-number:focus-visible { outline: 2px solid var(--ui-focus); outline-offset: 2px; border-radius: 3px; }
+.toolbar-issue-number.is-copied, .toolbar-issue-number.is-copied:hover { color: var(--ui-accent); text-decoration: none; }
 .list-load-more { display: flex; justify-content: center; padding: .85rem .75rem 1.25rem; }
 .list-load-more .btn { display: inline-flex; align-items: center; gap: .4rem; text-decoration: none; }
 .list-status, .detail-empty { display: flex; align-items: center; justify-content: center; gap: .5rem; height: 100%; padding: 2rem; color: var(--ui-text-subtle); font-size: .85rem; text-align: center; }

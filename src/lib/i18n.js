@@ -41,7 +41,9 @@ Object.assign(dynamic.en, {
   mergeComplete: 'Created merged note #{number}.',
   mergeFailed: 'Could not merge the notes. The original notes were not moved to trash. {error}',
   mergeFailedWithDraft: 'Could not finish the merge. The incomplete merged note #{number} was moved to trash; the original notes were left unchanged. {error}',
-  mergeCloseFailed: 'Created the merged note, but could not move {numbers} to trash. Please close them manually.'
+  mergeCloseFailed: 'Created the merged note, but could not move {numbers} to trash. Please close them manually.',
+  copyIssueNumber: 'Copy issue #{number}',
+  issueNumberCopied: 'Copied #{number}.'
 });
 
 Object.assign(dynamic.ko, {
@@ -56,7 +58,9 @@ Object.assign(dynamic.ko, {
   mergeComplete: '병합 노트 #{number}을(를) 만들었습니다.',
   mergeFailed: '노트를 병합하지 못했습니다. 원본 노트는 휴지통으로 옮기지 않았습니다. {error}',
   mergeFailedWithDraft: '병합을 완료하지 못했습니다. 불완전한 병합 노트 #{number}은(는) 휴지통으로 옮겼고 원본 노트는 그대로 남겼습니다. {error}',
-  mergeCloseFailed: '병합 노트는 만들었지만 {numbers}을(를) 휴지통으로 옮기지 못했습니다. 직접 닫아주세요.'
+  mergeCloseFailed: '병합 노트는 만들었지만 {numbers}을(를) 휴지통으로 옮기지 못했습니다. 직접 닫아주세요.',
+  copyIssueNumber: '이슈 #{number} 복사',
+  issueNumberCopied: '#{number} 복사함.'
 });
 
 const dynamicOverrides = {
