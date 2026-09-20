@@ -864,19 +864,19 @@ describe('NoteEditor 툴바 이슈 번호', () => {
     expect(numberButton.parentElement.textContent.trim()).toBe('#5 2026-09-01');
   });
 
-  it('이슈 번호를 클릭하면 "Issue(#번호) : 제목"을 복사하고, 실패하면 오류를 보여준다', async () => {
+  it('이슈 번호를 클릭하면 "Issue(#번호) : 제목"을 복사하고 토스트로 알린다', async () => {
     const writeText = vi.fn().mockResolvedValueOnce().mockRejectedValueOnce(new Error('denied'));
     vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText } });
-    render(NoteEditor, { token: 't', repo: 'owner/repo', issue: baseIssue });
+    const onToast = vi.fn();
+    render(NoteEditor, { token: 't', repo: 'owner/repo', issue: baseIssue, onToast });
     const numberButton = document.querySelector('.toolbar-issue-number');
 
     await fireEvent.click(numberButton);
     expect(writeText).toHaveBeenCalledWith('Issue(#5) : 노트 제목');
-    await waitFor(() => expect(numberButton.classList.contains('is-copied')).toBe(true));
-    expect(screen.queryByText('Could not copy to the clipboard.')).toBeNull();
+    await waitFor(() => expect(onToast).toHaveBeenCalledWith('Issue number copied.'));
 
     await fireEvent.click(numberButton);
-    await waitFor(() => expect(screen.getByText('Could not copy to the clipboard.')).toBeTruthy());
+    await waitFor(() => expect(onToast).toHaveBeenCalledWith('Could not copy to the clipboard.'));
   });
 
   it('제목이 비어 있으면 번호만 복사한다', async () => {
@@ -886,25 +886,6 @@ describe('NoteEditor 툴바 이슈 번호', () => {
 
     await fireEvent.click(document.querySelector('.toolbar-issue-number'));
     expect(writeText).toHaveBeenCalledWith('Issue(#5)');
-  });
-
-  it('복사 표시는 잠시 뒤 사라진다', async () => {
-    vi.useFakeTimers();
-    try {
-      const writeText = vi.fn().mockResolvedValue();
-      vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText } });
-      render(NoteEditor, { token: 't', repo: 'owner/repo', issue: baseIssue });
-      const numberButton = document.querySelector('.toolbar-issue-number');
-
-      await fireEvent.click(numberButton);
-      await vi.advanceTimersByTimeAsync(0);
-      expect(numberButton.classList.contains('is-copied')).toBe(true);
-
-      await vi.advanceTimersByTimeAsync(1500);
-      expect(numberButton.classList.contains('is-copied')).toBe(false);
-    } finally {
-      vi.useRealTimers();
-    }
   });
 });
 
