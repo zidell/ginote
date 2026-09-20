@@ -2473,6 +2473,7 @@
               {lockPin}
               lockSessionMinutes={preferences.lockSessionMinutes}
               onSetLockSession={setLockSession}
+              onToast={(message) => toast.show(message)}
               currentUserLogin={user?.login || ''}
               paused={topRoute?.screen === 'settings' || topRoute?.screen === 'voice' || route !== contentRoute || selectionMode}
               readOnly={selectionMode}
