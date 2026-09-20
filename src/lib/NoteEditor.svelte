@@ -3051,7 +3051,7 @@
         title={$_('dynamic.copyIssueNumber', { values: { number: toolbarIssueNumber } })}
         aria-label={$_('dynamic.copyIssueNumber', { values: { number: toolbarIssueNumber } })}
         on:click={copyIssueNumber}
-      >#{toolbarIssueNumber}</button>{' '}{/if}{issue ? formatDateOnly(issue.updated_at || issue.created_at) : $_("m.2b7b05c002")}</span>
+      >#{toolbarIssueNumber}</button>{' | '}{/if}{issue ? formatDateOnly(issue.updated_at || issue.created_at) : $_("m.2b7b05c002")}</span>
       <span class="save-status" class:is-visible={showSaveStatus} aria-live="polite">
         <BrailleSpinner active={saving} />
         {#if compactStatus}{compactStatus}{/if}
