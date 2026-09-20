@@ -855,13 +855,13 @@ describe('NoteEditor 코멘트 블록', () => {
 });
 
 describe('NoteEditor 툴바 이슈 번호', () => {
-  it('이슈 번호와 날짜를 공백으로 띄워 붙어 보이지 않게 한다', async () => {
+  it('이슈 번호와 날짜를 | 로 구분한다', async () => {
     render(NoteEditor, { token: 't', repo: 'owner/repo', issue: baseIssue });
 
     const numberButton = document.querySelector('.toolbar-issue-number');
     expect(numberButton.textContent).toBe('#5');
-    // 공백이 없으면 "#52026-09-01"처럼 번호와 연도가 붙어 버린다.
-    expect(numberButton.parentElement.textContent.trim()).toBe('#5 2026-09-01');
+    // 구분자가 없으면 "#52026-09-01"처럼 번호와 연도가 붙어 버린다.
+    expect(numberButton.parentElement.textContent.trim()).toBe('#5 | 2026-09-01');
   });
 
   it('이슈 번호를 클릭하면 "Issue(#번호) : 제목"을 복사하고 토스트로 알린다', async () => {
