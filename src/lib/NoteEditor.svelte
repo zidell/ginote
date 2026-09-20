@@ -3030,7 +3030,7 @@
       >
         <i class="bi bi-arrow-left" aria-hidden="true"></i><span class="mobile-back-label"> {$_("m.a1fffaaafb")}</span>
       </button>
-      <span>{#if lockState === 'locked'}<i class="bi bi-lock-fill toolbar-lock-icon" aria-hidden="true"></i>{:else if lockState === 'unlocked'}<i class="bi bi-unlock-fill toolbar-lock-icon" aria-hidden="true"></i>{/if}{#if toolbarIssueNumber}<span class="toolbar-issue-number">#{toolbarIssueNumber}</span>{/if}{issue ? formatDateOnly(issue.updated_at || issue.created_at) : $_("m.2b7b05c002")}</span>
+      <span>{#if lockState === 'locked'}<i class="bi bi-lock-fill toolbar-lock-icon" aria-hidden="true"></i>{:else if lockState === 'unlocked'}<i class="bi bi-unlock-fill toolbar-lock-icon" aria-hidden="true"></i>{/if}{#if toolbarIssueNumber}<span class="toolbar-issue-number">#{toolbarIssueNumber}</span>{' '}{/if}{issue ? formatDateOnly(issue.updated_at || issue.created_at) : $_("m.2b7b05c002")}</span>
       <span class="save-status" class:is-visible={showSaveStatus} aria-live="polite">
         <BrailleSpinner active={saving} />
         {#if compactStatus}{compactStatus}{/if}
