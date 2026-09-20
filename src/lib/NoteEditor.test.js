@@ -854,6 +854,17 @@ describe('NoteEditor 코멘트 블록', () => {
   });
 });
 
+describe('NoteEditor 툴바 이슈 번호', () => {
+  it('이슈 번호와 날짜 사이를 공백으로 띄워 번호만 따로 더블클릭할 수 있게 한다', async () => {
+    render(NoteEditor, { token: 't', repo: 'owner/repo', issue: baseIssue });
+
+    const numberEl = document.querySelector('.toolbar-issue-number');
+    expect(numberEl.textContent).toBe('#5');
+    // 공백이 없으면 "#52026-09-01"이 되어 더블클릭 시 번호와 연도가 붙어 잡힌다.
+    expect(numberEl.parentElement.textContent).toBe('#5 2026-09-01');
+  });
+});
+
 describe('NoteEditor 마크다운 프리뷰와 단축키', () => {
   function dispatchShortcut(key, code = '') {
     const event = new KeyboardEvent('keydown', {
