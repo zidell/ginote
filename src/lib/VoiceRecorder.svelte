@@ -1,5 +1,5 @@
 <script>
-  import { onMount, onDestroy } from 'svelte';
+  import { onMount, onDestroy, tick } from 'svelte';
   import { transcribeAudio, refineTranscript } from './openai-voice.js';
 
   let { apiKey, refinementPrompt = '', transcriptionModel = 'gpt-transcribe', transcriptionLanguage = '', transcriptionHints = '', refinementModel = 'gpt-4o-mini', availableTags = [], onComplete, onClose, onDirtyChange = () => {} } = $props();
@@ -16,6 +16,8 @@
   let canvas;
   let dialogElement;
   let recordButton;
+  let finishButton;
+  let initialFocusDone = false;
   let abortController;
   let elapsedSeconds = $state(0);
   let elapsedInterval;
@@ -33,7 +35,6 @@
 
   onMount(() => {
     dialogElement?.showModal();
-    recordButton?.focus();
     window.addEventListener('voice-close-request', requestClose);
     void prepareMicrophone();
     return () => window.removeEventListener('voice-close-request', requestClose);
@@ -49,6 +50,17 @@
     stream?.getTracks().forEach((track) => track.stop());
     audioContext?.close?.();
     if (downloadUrl) URL.revokeObjectURL(downloadUrl);
+  }
+
+  // 녹음에 들어오면 바로 Enter로 끝낼 수 있도록 완료 버튼에 포커스를 둔다.
+  // 버튼은 준비가 끝나기 전까지 비활성이라 포커스를 받지 못하므로, 준비가
+  // 끝난 뒤 한 번만 옮기고, 완료할 수 없는 상태면 녹음 버튼을 잡아 준다.
+  async function focusInitialControl() {
+    if (initialFocusDone) return;
+    initialFocusDone = true;
+    await tick();
+    if (finishButton && !finishButton.disabled) finishButton.focus();
+    else recordButton?.focus();
   }
 
   async function ensureMicrophone() {
@@ -76,7 +88,8 @@
       status = '마이크를 사용할 수 없습니다.';
     } finally {
       preparing = false;
-      if (!error) void startRecording();
+      if (error) void focusInitialControl();
+      else void startRecording();
     }
   }
 
@@ -125,7 +138,7 @@
         ? '마이크 권한이 필요합니다. 브라우저 또는 시스템 설정에서 마이크를 허용해 주세요.'
         : (reason?.message || '마이크를 시작하지 못했습니다.');
       status = '녹음을 시작할 수 없습니다.';
-    } finally { preparing = false; }
+    } finally { preparing = false; void focusInitialControl(); }
   }
 
   function stopRecording() {
@@ -339,5 +352,5 @@
       {#if error}<p class="voice-error" role="alert">{error}</p>{/if}
       {#if downloadUrl}<button type="button" class="btn btn-sm btn-outline-secondary" onclick={downloadAudio}><i class="bi bi-download" aria-hidden="true"></i> 원본 음성 다운로드</button>{/if}
     </div>
-    <div class="voice-footer"><button class="btn btn-primary" onclick={submit} disabled={preparing || processing || (!recording && !chunks.length && !elapsedMilliseconds)}>{processing ? '기록 중…' : `완료 (${elapsedSeconds}초)`}</button></div>
+    <div class="voice-footer"><button bind:this={finishButton} class="btn btn-primary" onclick={submit} disabled={preparing || processing || (!recording && !chunks.length && !elapsedMilliseconds)}>{processing ? '기록 중…' : `완료 (${elapsedSeconds}초)`}</button></div>
 </dialog>

@@ -128,6 +128,20 @@ describe('VoiceRecorder', () => {
     expect(screen.getByRole('button', { name: '녹음 일시정지' })).toBeTruthy();
   });
 
+  it('녹음이 시작되면 바로 끝낼 수 있도록 완료 버튼에 포커스를 둔다', async () => {
+    renderRecorder();
+    await waitForRecording();
+
+    await waitFor(() => expect(document.activeElement).toBe(finishButton()));
+  });
+
+  it('마이크를 쓸 수 없으면 완료 대신 녹음 버튼에 포커스를 둔다', async () => {
+    getUserMedia.mockRejectedValue(Object.assign(new Error('denied'), { name: 'NotAllowedError' }));
+    renderRecorder();
+
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('button', { name: '녹음 시작' })));
+  });
+
   it('녹음을 멈췄다가 같은 녹음기로 이어서 녹음한다', async () => {
     renderRecorder();
     const recorder = await waitForRecording();
