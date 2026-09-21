@@ -47,6 +47,10 @@ CI는 `npm run test:coverage`로 커버리지를 만들어 Codecov에 올립니�
   - 타이머나 비동기 상태를 가진 컨트롤러: `deletion-queue.js`, `long-press.js`, `toast.js`,
     `transcription-hints.js`, `keyboard-ready-class.js`
   - 브라우저 저장소: `settings-storage.js`, `draft-store.js`, `sidebar-width.js` 등
+- `csp.config.js`: 콘텐츠 보안 정책과 HTTP 보안 헤더의 유일한 정의 위치입니다.
+  아래 [보안 헤더와 CSP](#보안-헤더와-csp)를 참고하세요.
+- `public/fonts/`: 편집기 코딩 폰트입니다. 외부 CDN 대신 앱과 함께 배포하며,
+  `node scripts/fetch-editor-fonts.mjs`로 다시 내려받습니다.
 - 테스트는 대상 파일 옆에 `*.test.js`로 둡니다. `src/App.test.js`는 GitHub를 메모리
   가짜 저장소로 바꿔 화면 흐름 전체를 검증하며, 녹음기는
   `src/lib/__mocks__/VoiceRecorder.svelte` 대역을 씁니다.
@@ -56,6 +60,31 @@ CI는 `npm run test:coverage`로 커버리지를 만들어 Codecov에 올립니�
 프로덕션 빌드는 `dist/`에 생성하며 GitHub Pages 등 정적 호스팅에 배포합니다. PAT,
 개인 저장소 이름, 개인 배포 설정, 실제 노트 데이터는 커밋하지 마세요. 노트 잠금의
 배포 설정은 [노트 잠금과 암호화 방식](ENCRYPTION.md)을 따릅니다.
+
+## 보안 헤더와 CSP
+
+CSP는 `csp.config.js` 한 곳에서만 정의하고, 세 군데에 그 값을 흘려보냅니다.
+
+- `index.html`의 `<meta>`: Vite 플러그인이 빌드할 때 넣습니다. 개발 서버에서는 HMR에
+  필요한 만큼만 완화한 값을 씁니다.
+- `dist/_headers`: 같은 플러그인이 빌드 산출물로 만듭니다. `public/`에 손으로 두지
+  않으므로 고칠 일이 있으면 `csp.config.js`를 고칩니다.
+- `src-tauri/tauri.conf.json`: 이 파일만 자동 생성 대상이 아닙니다. `csp.test.js`가
+  `csp.config.js`와 일치하는지 검사하므로, 어긋나면 테스트가 올바른 값을 알려줍니다.
+
+지켜야 할 점이 몇 가지 있습니다.
+
+- **`_headers`는 Cloudflare Pages·Netlify 형식입니다.** 이 파일을 읽지 않는 호스팅
+  (GitHub Pages 등)에 올리면 HSTS나 `frame-ancestors` 같은 HTTP 보안 헤더가 적용되지
+  않고 `<meta>`의 CSP만 남습니다.
+- **`connect-src`의 `ipc:`와 `http://ipc.localhost`를 지우지 마세요.** 데스크톱 앱은
+  자체 번들이 아니라 웹과 같은 주소를 열기 때문에, 웹으로 내려보내는 CSP가 그대로
+  Tauri WebView에도 적용됩니다. 이 둘을 빼면 데스크톱 앱의 IPC 호출이 막힙니다.
+- **폰트를 외부 CDN에서 불러오지 마세요.** `font-src`와 `style-src`를 그만큼 열어야
+  하고, 폰트를 고른 사용자의 IP가 그 CDN으로 새어 나갑니다. 새 폰트는
+  `scripts/fetch-editor-fonts.mjs`에 추가해 함께 배포합니다.
+- `index.html` 안의 `<style>`은 `'unsafe-inline'` 대신 sha256 해시로 허용합니다.
+  내용을 고치면 빌드가 해시를 다시 계산하므로 따로 할 일은 없습니다.
 
 ## 데이터와 기능별 운영 문서
 
