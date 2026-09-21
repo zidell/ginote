@@ -6,28 +6,48 @@
 
 # Ginote
 
-## About
+**GitHub Issues, but fast.** Your notes live as issues in a private GitHub repository you
+own. No app server sits in between, there is no account to create, and your AI tools can
+read and write the same notes through GitHub's official MCP server.
 
-Ginote is a simple, secure web app that lets you use GitHub Issues as personal notes.
-I've always liked GitHub Issues, but its sluggishness and clunky UX constantly bothered
-me. So I built an SPA that keeps nearly all of its features while giving it the user
-experience of a note-taking app. The app consists only of static JS, and your browser
-talks to the GitHub API directly, which keeps it secure.
-
-Live app (free for anyone to use): [https://note.gitools.net](https://note.gitools.net)
-
-## Preview
+Live app, free for anyone to use: [https://note.gitools.net](https://note.gitools.net)
 
 ![Ginote preview](docs/preview.gif)
 
-How to regenerate the preview GIF is described in [docs/screencasting.md](docs/screencasting.md).
+I've always liked GitHub Issues, but its sluggishness and clunky UX constantly bothered
+me. So I built an SPA that keeps nearly all of its features while giving it the user
+experience of a note-taking app. How to regenerate the preview GIF is described in
+[docs/screencasting.md](docs/screencasting.md).
+
+## Why Ginote
+
+**There is no server to trust.** Ginote is static HTML, CSS, and JavaScript. The host
+that serves those files never sees a note or a token — once the app is open, every
+request goes straight from your browser to the GitHub API. There is no Ginote account, no
+Ginote database, and no operator who could be asked to hand over your data.
+
+**Your notes are ordinary data you already own.** They are issues in a repository you
+created. Tags are labels, follow-ups are comments, and the trash is just closed issues.
+You can read and edit the same notes on github.com, clone them, script them with the
+GitHub CLI, or stop using Ginote tomorrow and lose nothing.
+
+**Your AI tools can use them directly.** Point GitHub's official
+[MCP Server](https://github.com/github/github-mcp-server) at the same repository and any
+MCP-capable assistant can read and write your notes. There is no Ginote-specific MCP
+server to install, run, or keep up to date.
+
+## What Ginote is not
+
+- **Not a knowledge graph.** No backlinks, no graph view, no block transclusion. If you
+  want Obsidian or Logseq, use those — this is a fast front end for issues.
+- **Not a team tool.** It is built for one person working in their own repository.
+- **Not offline-first.** The installable app caches the app files themselves, never your
+  notes, so reading and writing need a connection to GitHub.
+- **Not zero-setup.** You need a GitHub account, a repository, and an access token.
+  That is what having no server costs you.
 
 ## Features
 
-- **Stored directly in a private repository:** Issues in a private repository serve as
-  your notes, with no separate app server or database.
-- **Direct browser connection:** Your browser calls the GitHub API directly. There is no
-  intermediate server run by the app operator that receives or keeps your notes or PAT.
 - **Tags, search, and trash:** GitHub labels are used as tags (each tag can carry a
   description of what it's for), with full-text search and a trash bin based on closed
   issues. Notes you check often can be pinned to the top.
@@ -40,7 +60,6 @@ How to regenerate the preview GIF is described in [docs/screencasting.md](docs/s
   browser is sent straight to OpenAI for transcription, and the transcript can be
   polished into natural written text. The cleanup step can also suggest a title and
   existing tags, and the original audio can optionally be kept as a note attachment.
-  Voice features currently support the OpenAI API only.
 - **Note lock (extra body encryption):** If a private repository alone isn't enough, lock
   a note with a 6-digit code to encrypt its body and comments once more in the browser
   with AES-GCM. See [how encryption works](docs/ENCRYPTION.md) for details.
@@ -50,14 +69,26 @@ How to regenerate the preview GIF is described in [docs/screencasting.md](docs/s
   the list or with number keys.
 - **Keyboard control:** Navigate, open, and select notes, create new notes, and switch
   repositories from the keyboard.
-- **MCP integration:** Connect GitHub's official MCP Server and your AI tools can read and
-  write the same notes (issues). No app-specific MCP server is required.
 - **Web and desktop:** Available as an installable PWA and as Tauri-based macOS, Windows,
-  and Linux apps. For desktop packaging and releases, see the [desktop app docs](docs/DESKTOP.md).
+  and Linux apps. For desktop packaging and releases, see the
+  [desktop app docs](docs/DESKTOP.md).
 
-## Usage
+## Getting started
 
-### Where does my data go?
+1. Sign in to GitHub, or create a free account at
+   [github.com/signup](https://github.com/signup).
+2. Create a repository for your notes at
+   [github.com/new](https://github.com/new?visibility=private) — for example
+   `issue-notes` — and set Visibility to **Private**.
+3. Create a fine-grained personal access token at
+   [github.com/settings/personal-access-tokens/new](https://github.com/settings/personal-access-tokens/new):
+   set Repository access to *Only select repositories* and pick that repository, then
+   grant **Issues: Read and write** (required) and **Contents: Read and write** (required
+   for attachments). Copy the token — GitHub shows it only once.
+4. Open the app, enter the repository as `owner/repository` together with the token, and
+   press Connect.
+
+## Where your data goes
 
 **Ginote is a static web app served as plain files.** The hosting server only delivers
 app files such as HTML, CSS, and JavaScript. There is no app backend handling sign-in or
@@ -77,12 +108,19 @@ Your browser  ←──── direct connection ────→  GitHub
 - Optional note encryption is documented in [how encryption works](docs/ENCRYPTION.md).
 - There is no API that sends notes, PATs, or settings to the app operator, and no
   analytics or tracking services are used.
+- No third-party resources are loaded either. Fonts, styles, and scripts all come from
+  the same origin, so opening the app contacts no CDN and no font host.
 
-In short, apart from the requests that download the app files, none of your data is sent
-to the app operator or any server other than GitHub. The only places your note data
-actually lives are **your own browser and the GitHub repository you chose**.
+In short, apart from the requests that download the app files, the only server your
+browser talks to is GitHub — plus OpenAI, if and only if you turn on voice recording.
+The only places your note data actually lives are **your own browser and the GitHub
+repository you chose**.
 
-### Using voice recording
+A [content security policy](csp.config.js) enforces exactly that: the app is allowed to
+connect only to the GitHub and OpenAI APIs, may not load scripts, styles, or fonts from
+anywhere but its own origin, and may not be framed by another site.
+
+## Using voice recording
 
 Before using voice recording for the first time, you need an OpenAI API key. Create an
 API key on OpenAI, then enter it under **Settings → Voice recording → OpenAI API key** in
@@ -101,7 +139,7 @@ never pass through an app server. The API key is stored in plain text in this de
 browser `localStorage`, so use it only on personal devices, and we recommend a dedicated
 project key, usage limits, and regular rotation.
 
-### Keyboard shortcuts
+## Keyboard shortcuts
 
 The following shortcuts are available in the note list. List shortcuts don't work while
 you are typing in an input field. `Ctrl/Cmd + R` is the browser's reload shortcut, so it
@@ -134,7 +172,7 @@ When a note is open and no input field has focus, these shortcuts are also avail
 | `R` | Reload the entire app |
 | `S` | Save the current note |
 
-### PWA (installable web app)
+## PWA (installable web app)
 
 Production builds work as a PWA that you can install from the browser and use like an
 app. Open the live app in your browser and use the browser's install menu. The manifest
@@ -143,7 +181,7 @@ relative to the path where the app is deployed. The service worker (a feature th
 the browser temporarily keep app files) caches only same-origin app files and never
 caches GitHub API requests, PATs, or note data.
 
-### Downloading the desktop app
+## Downloading the desktop app
 
 Installers for macOS, Windows, and Linux are available on
 [GitHub Releases](https://github.com/zidell/ginote/releases). macOS uses a DMG, and
