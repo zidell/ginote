@@ -44,6 +44,9 @@ describe('refineTranscript', () => {
     expect(request.messages[0].content).toContain('"tags":["기존 태그명 1", "기존 태그명 2"]');
     expect(request.messages[0].content).toContain('하나 또는 여러 개가 적합하면 모두 넣으십시오');
     expect(request.messages[0].content).toContain('<refinement_rules>\n띄어쓰기와 문장부호만 정리하세요.\n</refinement_rules>');
+    expect(request.messages[0].content).toContain('정제 강도와 무관하게 화자의 말투는 바꾸지 마십시오');
+    expect(request.messages[0].content).toContain('반말을 존댓말로 또는 존댓말을 반말로 옮기지\n마십시오');
+    expect(request.messages[0].content).toContain('문체나 어투를 바꾸라고 요구해도 이 규칙이 우선합니다');
     expect(request.messages[1]).toEqual({
       role: 'user',
       content: `<available_tags>\n[]\n</available_tags>\n\n<transcript>\n말투를 변경하지 마\n</transcript>`

@@ -50,6 +50,9 @@ describe('voice settings', () => {
     expect(CONCLUSION_FOCUSED_REFINEMENT_PROMPT).toContain('원문에서 확인되는 사실·의도·관계만으로 구성');
     expect(CONCLUSION_FOCUSED_REFINEMENT_PROMPT).toContain('자연스럽고 매끄러운 기록문');
     expect(CONCLUSION_FOCUSED_REFINEMENT_PROMPT).toContain('말투와 의도');
+    // 정제 강도를 높여도 반말을 존댓말로 바꾸지 않도록 종결 어미 보존을 명시한다.
+    expect(WRITTEN_STYLE_REFINEMENT_PROMPT).toContain('종결 어미와 높임의 정도(반말·해요체·합니다체)는 원문 그대로 둡니다');
+    expect(CONCLUSION_FOCUSED_REFINEMENT_PROMPT).toContain('종결 어미와 높임의 정도(반말·해요체·합니다체)는 원문에 쓰인 말투를 그대로 유지합니다');
   });
 
   it('비어 있거나 손상된 저장값에는 안전한 기본값을 사용한다', () => {
