@@ -2,84 +2,19 @@ const LOCAL_FONT_PREFIX = 'local:';
 const WEB_FONT_PREFIX = 'web:';
 const MONO_FONT_FALLBACK = 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
 
+// 코딩 폰트는 모두 앱과 함께 배포하는 public/fonts/ 의 파일만 쓴다. 외부 CDN에서 불러오면
+// 폰트를 고른 사용자의 IP가 그 CDN으로 새어 나가고, CSP의 font-src와 style-src도 그만큼
+// 열어둬야 한다. 폰트 파일을 갱신하려면 scripts/fetch-editor-fonts.mjs 를 실행한다.
 const webFontDefinitions = [
-  {
-    value: `${WEB_FONT_PREFIX}inconsolata-g`,
-    label: 'Inconsolata-g',
-    family: 'Inconsolata-g',
-    cssText: `
-      @font-face {
-        font-family: 'Inconsolata-g';
-        font-style: normal;
-        font-weight: 400;
-        font-display: swap;
-        src: url('https://cdn.jsdelivr.net/gh/powerline/fonts@43ea1c81581daacadc5c1608eef7a0aae2105f2c/Inconsolata-g/Inconsolata-g%20for%20Powerline.otf') format('opentype');
-      }
-    `
-  },
-  {
-    value: `${WEB_FONT_PREFIX}d2-coding`,
-    label: 'D2Coding',
-    family: 'D2Coding',
-    cssText: `
-      @font-face {
-        font-family: 'D2Coding';
-        font-style: normal;
-        font-weight: 400;
-        font-display: swap;
-        src: url('https://naver.github.io/d2-coding-font/fonts/D2Coding-Regular.woff2') format('woff2');
-      }
-      @font-face {
-        font-family: 'D2Coding';
-        font-style: normal;
-        font-weight: 700;
-        font-display: swap;
-        src: url('https://naver.github.io/d2-coding-font/fonts/D2Coding-Bold.woff2') format('woff2');
-      }
-    `
-  },
-  {
-    value: `${WEB_FONT_PREFIX}nanum-gothic-coding`,
-    label: 'Nanum Gothic Coding',
-    family: 'Nanum Gothic Coding',
-    stylesheet: 'https://fonts.googleapis.com/css2?family=Nanum+Gothic+Coding:wght@400;700&display=swap'
-  },
-  {
-    value: `${WEB_FONT_PREFIX}jetbrains-mono`,
-    label: 'JetBrains Mono',
-    family: 'JetBrains Mono',
-    stylesheet: 'https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap'
-  },
-  {
-    value: `${WEB_FONT_PREFIX}fira-code`,
-    label: 'Fira Code',
-    family: 'Fira Code',
-    stylesheet: 'https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;700&display=swap'
-  },
-  {
-    value: `${WEB_FONT_PREFIX}source-code-pro`,
-    label: 'Source Code Pro',
-    family: 'Source Code Pro',
-    stylesheet: 'https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@400;700&display=swap'
-  },
-  {
-    value: `${WEB_FONT_PREFIX}ibm-plex-mono`,
-    label: 'IBM Plex Mono',
-    family: 'IBM Plex Mono',
-    stylesheet: 'https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;700&display=swap'
-  },
-  {
-    value: `${WEB_FONT_PREFIX}roboto-mono`,
-    label: 'Roboto Mono',
-    family: 'Roboto Mono',
-    stylesheet: 'https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&display=swap'
-  },
-  {
-    value: `${WEB_FONT_PREFIX}noto-sans-mono`,
-    label: 'Noto Sans Mono',
-    family: 'Noto Sans Mono',
-    stylesheet: 'https://fonts.googleapis.com/css2?family=Noto+Sans+Mono:wght@400;700&display=swap'
-  }
+  { value: `${WEB_FONT_PREFIX}inconsolata-g`, label: 'Inconsolata-g', family: 'Inconsolata-g', directory: 'inconsolata-g' },
+  { value: `${WEB_FONT_PREFIX}d2-coding`, label: 'D2Coding', family: 'D2Coding', directory: 'd2-coding' },
+  { value: `${WEB_FONT_PREFIX}nanum-gothic-coding`, label: 'Nanum Gothic Coding', family: 'Nanum Gothic Coding', directory: 'nanum-gothic-coding' },
+  { value: `${WEB_FONT_PREFIX}jetbrains-mono`, label: 'JetBrains Mono', family: 'JetBrains Mono', directory: 'jetbrains-mono' },
+  { value: `${WEB_FONT_PREFIX}fira-code`, label: 'Fira Code', family: 'Fira Code', directory: 'fira-code' },
+  { value: `${WEB_FONT_PREFIX}source-code-pro`, label: 'Source Code Pro', family: 'Source Code Pro', directory: 'source-code-pro' },
+  { value: `${WEB_FONT_PREFIX}ibm-plex-mono`, label: 'IBM Plex Mono', family: 'IBM Plex Mono', directory: 'ibm-plex-mono' },
+  { value: `${WEB_FONT_PREFIX}roboto-mono`, label: 'Roboto Mono', family: 'Roboto Mono', directory: 'roboto-mono' },
+  { value: `${WEB_FONT_PREFIX}noto-sans-mono`, label: 'Noto Sans Mono', family: 'Noto Sans Mono', directory: 'noto-sans-mono' }
 ].map((font) => Object.freeze(font));
 
 export const CODING_FONT_OPTIONS = Object.freeze(webFontDefinitions);
@@ -103,6 +38,13 @@ export function webFontDefinition(value) {
 
 export function isWebFont(value) {
   return Boolean(webFontDefinition(value));
+}
+
+// 앱은 도메인 최상위가 아닌 하위 경로에도 배포될 수 있으므로 문서의 기준 주소로 푼다.
+export function webFontStylesheetHref(font) {
+  const path = `fonts/${font.directory}/font.css`;
+  if (typeof document === 'undefined') return path;
+  return new URL(path, document.baseURI).href;
 }
 
 function quotedFontFamily(family) {
@@ -137,26 +79,16 @@ export function loadWebFont(value) {
       return;
     }
 
-    if (font.stylesheet) {
-      const link = document.createElement('link');
-      link.rel = 'stylesheet';
-      link.href = font.stylesheet;
-      link.crossOrigin = 'anonymous';
-      link.dataset.ginoteWebFont = value;
-      link.onload = () => waitForWebFont(font).then(() => resolve(true));
-      link.onerror = () => {
-        link.remove();
-        resolve(false);
-      };
-      document.head.append(link);
-      return;
-    }
-
-    const style = document.createElement('style');
-    style.dataset.ginoteWebFont = value;
-    style.textContent = font.cssText || '';
-    document.head.append(style);
-    waitForWebFont(font).then(() => resolve(true));
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = webFontStylesheetHref(font);
+    link.dataset.ginoteWebFont = value;
+    link.onload = () => waitForWebFont(font).then(() => resolve(true));
+    link.onerror = () => {
+      link.remove();
+      resolve(false);
+    };
+    document.head.append(link);
   }).then((loaded) => {
     pendingWebFontLoads.delete(value);
     if (loaded) loadedWebFonts.add(value);

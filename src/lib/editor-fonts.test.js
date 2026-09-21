@@ -6,7 +6,8 @@ import {
   loadWebFont,
   localFontFamily,
   localFontValue,
-  webFontDefinition
+  webFontDefinition,
+  webFontStylesheetHref
 } from './editor-fonts.js';
 
 describe('로컬 편집기 폰트', () => {
@@ -50,13 +51,25 @@ describe('웹 코딩 폰트', () => {
     expect(isWebFont('web:unknown')).toBe(false);
   });
 
-  it('Inconsolata-g를 선택하면 해당 @font-face를 지연 등록한다', async () => {
+  it('Inconsolata-g를 선택하면 해당 스타일시트를 지연 로드한다', async () => {
     document.head.querySelector('[data-ginote-web-font="web:inconsolata-g"]')?.remove();
 
-    expect(await loadWebFont('web:inconsolata-g')).toBe(true);
+    const loading = loadWebFont('web:inconsolata-g');
+    const link = document.head.querySelector('[data-ginote-web-font="web:inconsolata-g"]');
 
-    const style = document.head.querySelector('[data-ginote-web-font="web:inconsolata-g"]');
-    expect(style?.textContent).toContain("font-family: 'Inconsolata-g'");
-    expect(style?.textContent).toContain('format(\'opentype\')');
+    expect(link?.tagName).toBe('LINK');
+    expect(link?.getAttribute('href')).toContain('fonts/inconsolata-g/font.css');
+
+    // jsdom은 스타일시트를 실제로 내려받지 않으므로 load 이벤트를 대신 발생시킨다.
+    link.dispatchEvent(new Event('load'));
+    expect(await loading).toBe(true);
+  });
+
+  // 폰트를 다시 외부 CDN으로 되돌리면 사용자 IP가 그 CDN으로 새어 나가고, 좁혀둔
+  // font-src·style-src도 함께 열어야 한다. 그런 회귀를 여기서 막는다.
+  it('모든 코딩 폰트를 외부 CDN이 아닌 같은 출처에서 불러온다', () => {
+    for (const font of CODING_FONT_OPTIONS) {
+      expect(webFontStylesheetHref(font)).toBe(`${document.baseURI.replace(/[^/]*$/, '')}fonts/${font.directory}/font.css`);
+    }
   });
 });

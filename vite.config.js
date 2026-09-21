@@ -1,9 +1,45 @@
 import { defineConfig } from 'vite';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
+import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import { devMetaCsp, headersFile, webMetaCsp } from './csp.config.js';
+
+// index.html 안의 <style> 블록을 CSP 해시로 바꾼다. 이렇게 하면 style-src에
+// 'unsafe-inline'을 열지 않고도 그 스타일만 통과시킬 수 있다.
+function inlineStyleHashes(html) {
+  return [...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)]
+    .map(([, css]) => `'sha256-${createHash('sha256').update(css, 'utf8').digest('base64')}'`);
+}
+
+// CSP는 csp.config.js 한 곳에서만 정의하고, index.html의 meta와 배포용 _headers 파일을
+// 빌드 때 거기서 만들어 낸다. 손으로 두 곳을 맞추다 어긋나는 일을 없애기 위함이다.
+function cspPlugin() {
+  return {
+    name: 'ginote-csp',
+    transformIndexHtml: {
+      order: 'pre',
+      handler(html, context) {
+        const content = context.server ? devMetaCsp() : webMetaCsp(inlineStyleHashes(html));
+        return {
+          html,
+          tags: [{
+            tag: 'meta',
+            attrs: { 'http-equiv': 'Content-Security-Policy', content },
+            injectTo: 'head-prepend'
+          }]
+        };
+      }
+    },
+    generateBundle() {
+      const hashes = inlineStyleHashes(readFileSync('index.html', 'utf8'));
+      this.emitFile({ type: 'asset', fileName: '_headers', source: headersFile(hashes) });
+    }
+  };
+}
 
 export default defineConfig({
   base: './',
-  plugins: [svelte()],
+  plugins: [svelte(), cspPlugin()],
   server: {
     strictPort: true,
     watch: {
