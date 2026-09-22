@@ -18,6 +18,10 @@ import {
   maskApiKey,
   withSelectedModels
 } from './voice-settings.js';
+import {
+  SUPERSEDED_CONCLUSION_PROMPTS,
+  SUPERSEDED_WRITTEN_PROMPTS
+} from './voice-refinement-legacy-prompts.js';
 
 function createMemoryStorage() {
   const store = new Map();
@@ -35,30 +39,57 @@ describe('voice settings', () => {
   it('약함·중간·강함에 서로 다른 목적의 내장 규칙을 제공한다', () => {
     expect(DEFAULT_REFINEMENT_PROMPT).toBe(TYPO_CORRECTION_REFINEMENT_PROMPT);
     expect(TYPO_CORRECTION_REFINEMENT_PROMPT).toContain('원문의 의미·말투·정보량·불확실성은 그대로 보존');
-    expect(WRITTEN_STYLE_REFINEMENT_PROMPT).toContain('전달하려던 내용을 빠짐없이 담은 자연스러운 기록문');
+    expect(WRITTEN_STYLE_REFINEMENT_PROMPT).toContain('말한 사람이 직접 쓴 메모처럼 내용을 빠짐없이 담아');
     expect(WRITTEN_STYLE_REFINEMENT_PROMPT).toContain('의미를 이루는 표현을 중심으로 문장을 만들고');
     expect(WRITTEN_STYLE_REFINEMENT_PROMPT).toContain('불확실성의 정도');
     expect(WRITTEN_STYLE_REFINEMENT_PROMPT).toContain('최종 표현을 반영');
     expect(WRITTEN_STYLE_REFINEMENT_PROMPT).toContain('애매한 단어·고유명사·숫자는 원문대로 둡니다');
     expect(WRITTEN_STYLE_REFINEMENT_PROMPT).toContain('말투를 보존');
     expect(WRITTEN_STYLE_REFINEMENT_PROMPT).toContain('원문에서 확인되는 정보만 사용');
-    expect(CONCLUSION_FOCUSED_REFINEMENT_PROMPT).toContain('최종적으로 남기려는 생각을 결론·결정·요청과 핵심 근거');
+    expect(CONCLUSION_FOCUSED_REFINEMENT_PROMPT).toContain('결론·결정·요청과 핵심 근거가 또렷한 글로 정리');
     expect(CONCLUSION_FOCUSED_REFINEMENT_PROMPT).toContain('발화의 흐름과 순서를 기본으로 삼고');
     expect(CONCLUSION_FOCUSED_REFINEMENT_PROMPT).toContain('필요한 범위에서 재배열');
     expect(CONCLUSION_FOCUSED_REFINEMENT_PROMPT).toContain('최종 표현을 반영');
     expect(CONCLUSION_FOCUSED_REFINEMENT_PROMPT).toContain('선택지와 보류 상태를 간결하게 기록');
     expect(CONCLUSION_FOCUSED_REFINEMENT_PROMPT).toContain('원문에서 확인되는 사실·의도·관계만으로 구성');
-    expect(CONCLUSION_FOCUSED_REFINEMENT_PROMPT).toContain('자연스럽고 매끄러운 기록문');
-    expect(CONCLUSION_FOCUSED_REFINEMENT_PROMPT).toContain('말투와 의도');
-    // 정제 강도를 높여도 반말을 존댓말로 바꾸지 않도록 종결 어미 보존을 명시한다.
-    expect(WRITTEN_STYLE_REFINEMENT_PROMPT).toContain('종결 어미와 높임의 정도(반말·해요체·합니다체)는 원문 그대로 둡니다');
-    expect(CONCLUSION_FOCUSED_REFINEMENT_PROMPT).toContain('종결 어미와 높임의 정도(반말·해요체·합니다체)는 원문에 쓰인 말투를 그대로 유지합니다');
+    expect(CONCLUSION_FOCUSED_REFINEMENT_PROMPT).toContain('단호함·망설임·감정의 정도를 살린');
+  });
+
+  // 정제가 1인칭 발화를 "화자는 …라고 전했다" 같은 3인칭 보도문으로 바꿔 버린
+  // 일이 있어, 세 프리셋 모두 말한 사람의 시점과 말투를 지키게 했다.
+  it('모든 프리셋이 1인칭 시점과 원문 말투를 지키게 한다', () => {
+    for (const prompt of [
+      TYPO_CORRECTION_REFINEMENT_PROMPT,
+      WRITTEN_STYLE_REFINEMENT_PROMPT,
+      CONCLUSION_FOCUSED_REFINEMENT_PROMPT
+    ]) {
+      expect(prompt).toContain('종결 어미');
+      expect(prompt).toContain('3인칭');
+    }
+    for (const prompt of [WRITTEN_STYLE_REFINEMENT_PROMPT, CONCLUSION_FOCUSED_REFINEMENT_PROMPT]) {
+      expect(prompt).toContain('1인칭 시점으로, 자기 노트에 직접 쓴 글처럼 씁니다');
+      expect(prompt).toContain('전달·보도 표현은 쓰지 않습니다');
+    }
   });
 
   it('비어 있거나 손상된 저장값에는 안전한 기본값을 사용한다', () => {
     expect(loadVoiceSettings()).toEqual({ apiKey: '', refinementPrompt: DEFAULT_REFINEMENT_PROMPT, transcriptionModel: 'gpt-transcribe', refinementModel: 'gpt-4o-mini', preserveOriginalAudio: false });
     localStorage.setItem(VOICE_SETTINGS_STORAGE_KEY, '{');
     expect(loadVoiceSettings()).toEqual({ apiKey: '', refinementPrompt: DEFAULT_REFINEMENT_PROMPT, transcriptionModel: 'gpt-transcribe', refinementModel: 'gpt-4o-mini', preserveOriginalAudio: false });
+  });
+
+  it('예전 프리셋을 그대로 쓰던 저장값은 같은 프리셋의 새 문구로 올린다', () => {
+    const [previousConclusion] = SUPERSEDED_CONCLUSION_PROMPTS.slice(-1);
+    saveVoiceSettings({ apiKey: 'sk-test', refinementPrompt: previousConclusion });
+
+    expect(loadVoiceSettings().refinementPrompt).toBe(CONCLUSION_FOCUSED_REFINEMENT_PROMPT);
+  });
+
+  it('직접 고친 정제 규칙은 프리셋 문구가 바뀌어도 그대로 둔다', () => {
+    const edited = `${SUPERSEDED_WRITTEN_PROMPTS.at(-1)}\n- 숫자는 아라비아 숫자로 씁니다.`;
+    saveVoiceSettings({ apiKey: 'sk-test', refinementPrompt: edited });
+
+    expect(loadVoiceSettings().refinementPrompt).toBe(edited);
   });
 
   it('API 키와 정제 프롬프트를 공백 제거 후 저장한다', () => {
