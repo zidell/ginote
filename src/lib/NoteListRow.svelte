@@ -88,6 +88,7 @@
       <span class="note-row-title">
         {#if due}<span
           class="badge note-row-due"
+          class:is-urgent={due.days <= 3}
           aria-label={$_('dynamic.dueDate', { values: { date: due.date } })}
           title={$_('dynamic.dueDate', { values: { date: due.date } })}
         >{due.label}</span>{/if}

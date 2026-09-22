@@ -194,4 +194,25 @@ describe('NoteListRow', () => {
     const { container } = renderRow({ issue: issue({ body: '장보기 목록\nDue: 2026-09-25' }) });
     expect(container.querySelector('.note-row-due')).toBeNull();
   });
+  it('D-3부터 빨간색으로, 그보다 남았으면 회색으로 표시한다', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 8, 22, 9, 0));
+
+    const far = renderRow({ issue: issue({ body: 'Due: 2026-09-26\n내용' }) });
+    const farBadge = far.container.querySelector('.note-row-due');
+    expect(farBadge.textContent).toBe('D-4');
+    expect(farBadge.classList.contains('is-urgent')).toBe(false);
+
+    cleanup();
+    const near = renderRow({ issue: issue({ body: 'Due: 2026-09-25\n내용' }) });
+    const nearBadge = near.container.querySelector('.note-row-due');
+    expect(nearBadge.textContent).toBe('D-3');
+    expect(nearBadge.classList.contains('is-urgent')).toBe(true);
+
+    cleanup();
+    const overdue = renderRow({ issue: issue({ body: 'Due: 2026-09-20\n내용' }) });
+    expect(overdue.container.querySelector('.note-row-due').classList.contains('is-urgent')).toBe(true);
+
+    vi.useRealTimers();
+  });
 });
