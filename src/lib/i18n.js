@@ -43,6 +43,7 @@ Object.assign(dynamic.en, {
   mergeFailedWithDraft: 'Could not finish the merge. The incomplete merged note #{number} was moved to trash; the original notes were left unchanged. {error}',
   mergeCloseFailed: 'Created the merged note, but could not move {numbers} to trash. Please close them manually.',
   copyIssueNumber: 'Copy issue #{number}',
+  dueDate: 'Due {date}',
   issueNumberCopied: 'Issue number copied.'
 });
 
@@ -60,6 +61,7 @@ Object.assign(dynamic.ko, {
   mergeFailedWithDraft: '병합을 완료하지 못했습니다. 불완전한 병합 노트 #{number}은(는) 휴지통으로 옮겼고 원본 노트는 그대로 남겼습니다. {error}',
   mergeCloseFailed: '병합 노트는 만들었지만 {numbers}을(를) 휴지통으로 옮기지 못했습니다. 직접 닫아주세요.',
   copyIssueNumber: '이슈 #{number} 복사',
+  dueDate: '마감 {date}',
   issueNumberCopied: '이슈 번호 복사 완료'
 });
 
