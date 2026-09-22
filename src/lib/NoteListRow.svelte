@@ -1,6 +1,7 @@
 <script>
   import BrailleSpinner from './BrailleSpinner.svelte';
   import { tagColorForName } from './colors.js';
+  import { dueBadge } from './due-date.js';
   import { markdownToPlainText } from './notes.js';
   import { isLockedTitle, removeLockFromTitle } from './note-lock.js';
   import { visibleLabels as filterVisibleLabels } from './pin-label.js';
@@ -31,6 +32,7 @@
   }
 
   $: renderedLabels = filterVisibleLabels(issue.labels || []);
+  $: due = dueBadge(issue.body || issue.title);
 
   function excerpt(body, title = '') {
     const plainBody = markdownToPlainText(body);
@@ -84,6 +86,11 @@
   <div class="note-row-content">
     {#if listRowFields.title}
       <span class="note-row-title">
+        {#if due}<span
+          class="badge note-row-due"
+          aria-label={$_('dynamic.dueDate', { values: { date: due.date } })}
+          title={$_('dynamic.dueDate', { values: { date: due.date } })}
+        >{due.label}</span>{/if}
         {#if pinned}<i class="bi bi-pin-angle-fill note-row-pin" aria-hidden="true"></i>{/if}
         {#if isLockedTitle(issue.title)}<i class="bi bi-lock-fill note-row-lock" aria-hidden="true"></i>{/if}
         {markdownToPlainText(removeLockFromTitle(issue.title))}

@@ -161,4 +161,37 @@ describe('NoteListRow', () => {
     renderRow({ pendingDeletion: true, deletionCancellable: false });
     expect(screen.queryByRole('button', { name: 'Cancel' })).toBeNull();
   });
+  it('본문 첫 줄이 마감일이면 제목 왼쪽에 D-day 배지를 붙인다', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 8, 22, 9, 0));
+
+    const { container } = renderRow({ issue: issue({ title: 'Due: 2026-09-25', body: 'Due: 2026-09-25\n\n- 자료 정리' }) });
+    const badge = container.querySelector('.note-row-due');
+
+    expect(badge.textContent).toBe('D-3');
+    expect(badge.getAttribute('aria-label')).toBe('Due 2026-09-25');
+    // 제목 안에서 배지가 제목 텍스트보다 앞에 온다.
+    expect(container.querySelector('.note-row-title').firstElementChild).toBe(badge);
+
+    vi.useRealTimers();
+  });
+
+  it('마감일이 지났으면 D+xx, 당일이면 D-DAY로 적는다', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 8, 22, 23, 30));
+
+    const overdue = renderRow({ issue: issue({ body: 'Due: 2026-09-20\n내용' }) });
+    expect(overdue.container.querySelector('.note-row-due').textContent).toBe('D+2');
+
+    cleanup();
+    const today = renderRow({ issue: issue({ body: 'Due: 2026-09-22\n내용' }) });
+    expect(today.container.querySelector('.note-row-due').textContent).toBe('D-DAY');
+
+    vi.useRealTimers();
+  });
+
+  it('첫 줄이 마감 표기가 아니면 배지를 그리지 않는다', () => {
+    const { container } = renderRow({ issue: issue({ body: '장보기 목록\nDue: 2026-09-25' }) });
+    expect(container.querySelector('.note-row-due')).toBeNull();
+  });
 });
