@@ -1,6 +1,10 @@
 // 루트 주소 하나로 사람과 에이전트를 함께 상대한다. 브라우저에는 지금까지처럼 앱이 담긴
 // HTML을 주고, text/markdown 을 요구한 클라이언트에는 guide.md 를 내려준다. HTTP 표준의
 // Accept 협상(RFC 9110)이라 에이전트 전용 주소나 별도 규약을 만들 필요가 없다.
+//
+// 라우트 함수(functions/index.js)가 아니라 미들웨어인 이유: Pages는 정적 파일을 함수보다
+// 먼저 내보내므로, index.html 이 있는 "/" 는 라우트 함수로는 잡히지 않는다. 미들웨어는
+// 정적 파일 앞에서 돌기 때문에 가로챌 수 있다.
 
 const GUIDE_PATH = '/guide.md';
 
@@ -30,12 +34,14 @@ function prefersMarkdown(accept) {
   return markdown.index < html.index;
 }
 
-export async function onRequest({ request, env }) {
+export async function onRequest({ request, next }) {
   const isRead = request.method === 'GET' || request.method === 'HEAD';
+  // 루트 외에는 손대지 않는다. 미들웨어는 모든 요청을 거치므로 즉시 비켜서는 게 중요하다.
+  if (!isRead || new URL(request.url).pathname !== '/') return next();
 
-  if (isRead && prefersMarkdown(request.headers.get('accept') || '')) {
+  if (prefersMarkdown(request.headers.get('accept') || '')) {
     try {
-      const guide = await env.ASSETS.fetch(new Request(new URL(GUIDE_PATH, request.url)));
+      const guide = await next(new Request(new URL(GUIDE_PATH, request.url), { method: 'GET' }));
       if (guide.ok) {
         const headers = new Headers(guide.headers);
         headers.set('Content-Type', 'text/markdown; charset=utf-8');
@@ -48,7 +54,7 @@ export async function onRequest({ request, env }) {
   }
 
   // 같은 주소가 요청에 따라 다른 표현을 주므로 캐시가 둘을 섞지 않도록 알린다.
-  const response = await env.ASSETS.fetch(request);
+  const response = await next();
   const headers = new Headers(response.headers);
   headers.append('Vary', 'Accept');
   return new Response(response.body, {
