@@ -68,7 +68,11 @@ describe('voice settings', () => {
     }
     for (const prompt of [WRITTEN_STYLE_REFINEMENT_PROMPT, CONCLUSION_FOCUSED_REFINEMENT_PROMPT]) {
       expect(prompt).toContain('1인칭 시점으로, 자기 노트에 직접 쓴 글처럼 씁니다');
-      expect(prompt).toContain('전달·보도 표현은 쓰지 않습니다');
+      expect(prompt).toContain('전달·보도 표현');
+      // 금지어만 나열하면 "~에 대해 이야기하고 있다" 같은 해설문으로 빠져나가서
+      // 말한 내용 자체를 쓰라는 원칙과 해설 표현까지 함께 막는다.
+      expect(prompt).toContain('발화를 밖에서 설명하지 말고 말한 내용 자체를 씁니다');
+      expect(prompt).toContain('~에 대해 이야기하고 있다');
     }
   });
 
