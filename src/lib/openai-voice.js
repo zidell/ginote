@@ -134,7 +134,7 @@ export async function listAvailableVoiceModels(apiKey, signal) {
     : [];
 }
 
-export async function refineTranscript(apiKey, transcript, refinementPrompt = '', model = 'gpt-4o-mini', signal, availableTags = []) {
+export async function refineTranscript(apiKey, transcript, refinementPrompt = '', model = 'gpt-5.6-luna', signal, availableTags = []) {
   const instructions = refinementPrompt.trim();
   const tagCandidates = normalizeAvailableTags(availableTags);
   const response = await fetch(`${OPENAI_API_ROOT}/chat/completions`, {

@@ -77,9 +77,9 @@ describe('voice settings', () => {
   });
 
   it('비어 있거나 손상된 저장값에는 안전한 기본값을 사용한다', () => {
-    expect(loadVoiceSettings()).toEqual({ apiKey: '', refinementPrompt: DEFAULT_REFINEMENT_PROMPT, transcriptionModel: 'gpt-transcribe', refinementModel: 'gpt-4o-mini', preserveOriginalAudio: false });
+    expect(loadVoiceSettings()).toEqual({ apiKey: '', refinementPrompt: DEFAULT_REFINEMENT_PROMPT, transcriptionModel: 'gpt-transcribe', refinementModel: 'gpt-5.6-luna', preserveOriginalAudio: false });
     localStorage.setItem(VOICE_SETTINGS_STORAGE_KEY, '{');
-    expect(loadVoiceSettings()).toEqual({ apiKey: '', refinementPrompt: DEFAULT_REFINEMENT_PROMPT, transcriptionModel: 'gpt-transcribe', refinementModel: 'gpt-4o-mini', preserveOriginalAudio: false });
+    expect(loadVoiceSettings()).toEqual({ apiKey: '', refinementPrompt: DEFAULT_REFINEMENT_PROMPT, transcriptionModel: 'gpt-transcribe', refinementModel: 'gpt-5.6-luna', preserveOriginalAudio: false });
   });
 
   it('예전 프리셋을 그대로 쓰던 저장값은 같은 프리셋의 새 문구로 올린다', () => {
@@ -98,7 +98,7 @@ describe('voice settings', () => {
 
   it('API 키와 정제 프롬프트를 공백 제거 후 저장한다', () => {
     saveVoiceSettings({ apiKey: ' sk-test ', refinementPrompt: '  용어를 유지하세요.  ' });
-    expect(loadVoiceSettings()).toEqual({ apiKey: 'sk-test', refinementPrompt: '용어를 유지하세요.', transcriptionModel: 'gpt-transcribe', refinementModel: 'gpt-4o-mini', preserveOriginalAudio: false });
+    expect(loadVoiceSettings()).toEqual({ apiKey: 'sk-test', refinementPrompt: '용어를 유지하세요.', transcriptionModel: 'gpt-transcribe', refinementModel: 'gpt-5.6-luna', preserveOriginalAudio: false });
   });
 
   it('비운 모델명은 설정에 그대로 보존한다', () => {
@@ -149,7 +149,7 @@ describe('voice settings', () => {
   it('손상된 모델 목록 캐시에는 기본 목록을 사용한다', () => {
     localStorage.setItem(VOICE_MODEL_LIST_STORAGE_KEY, '{');
     expect(loadVoiceModelLists().transcription).toContain('gpt-transcribe');
-    expect(loadVoiceModelLists().refinement).toContain('gpt-4o-mini');
+    expect(loadVoiceModelLists().refinement).toContain('gpt-5.6-luna');
   });
 
   it('날짜가 붙은 모델 스냅샷은 캐시 목록에서 제외한다', () => {
