@@ -6,7 +6,7 @@ import {
 
 export const VOICE_SETTINGS_STORAGE_KEY = 'issue-note.voice-settings.v1';
 export const DEFAULT_TRANSCRIPTION_MODEL = 'gpt-transcribe';
-export const DEFAULT_REFINEMENT_MODEL = 'gpt-4o-mini';
+export const DEFAULT_REFINEMENT_MODEL = 'gpt-5.6-luna';
 export const TYPO_CORRECTION_REFINEMENT_PROMPT = `목적: 전사문을 거의 그대로 유지하면서 정확하고 읽기 편하게 다듬습니다.
 
 - 확실한 전사 오류·오타, 띄어쓰기, 문장부호만 자연스럽게 바로잡습니다.
@@ -57,7 +57,7 @@ export const VOICE_HINTS_PENDING_STORAGE_KEY = 'issue-note.voice-hints-pending.v
 
 export const DEFAULT_VOICE_MODEL_LISTS = {
   transcription: ['gpt-transcribe', 'gpt-4o-mini-transcribe', 'gpt-4o-transcribe'],
-  refinement: ['gpt-4o-mini', 'gpt-4o', 'gpt-4.1-mini', 'gpt-4.1']
+  refinement: ['gpt-5.6-luna']
 };
 
 export function isDatedModelSnapshot(model) {

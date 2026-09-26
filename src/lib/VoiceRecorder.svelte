@@ -2,7 +2,7 @@
   import { onMount, onDestroy, tick } from 'svelte';
   import { transcribeAudio, refineTranscript } from './openai-voice.js';
 
-  let { apiKey, refinementPrompt = '', transcriptionModel = 'gpt-transcribe', transcriptionLanguage = '', transcriptionHints = '', refinementModel = 'gpt-4o-mini', availableTags = [], onComplete, onClose, onDirtyChange = () => {} } = $props();
+  let { apiKey, refinementPrompt = '', transcriptionModel = 'gpt-transcribe', transcriptionLanguage = '', transcriptionHints = '', refinementModel = 'gpt-5.6-luna', availableTags = [], onComplete, onClose, onDirtyChange = () => {} } = $props();
   const MAX_RECORDING_MILLISECONDS = 60 * 60 * 1000;
   // 음성 전사용 mono Opus 품질. 한 시간 녹음도 기존 10 MiB 첨부 정책 안에
   // 들어갈 수 있는 수준이며, MediaRecorder가 지원하지 않으면 브라우저 기본값을 쓴다.
