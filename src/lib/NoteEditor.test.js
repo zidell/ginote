@@ -864,7 +864,7 @@ describe('NoteEditor 툴바 이슈 번호', () => {
     expect(numberButton.parentElement.textContent.trim()).toBe('#5 | 2026-09-01');
   });
 
-  it('이슈 번호를 클릭하면 "Issue(#번호) : 제목"을 복사하고 토스트로 알린다', async () => {
+  it('이슈 번호를 클릭하면 "Issue(#번호)"만 복사하고(제목 제외) 토스트로 알린다', async () => {
     const writeText = vi.fn().mockResolvedValueOnce().mockRejectedValueOnce(new Error('denied'));
     vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText } });
     const onToast = vi.fn();
@@ -872,20 +872,11 @@ describe('NoteEditor 툴바 이슈 번호', () => {
     const numberButton = document.querySelector('.toolbar-issue-number');
 
     await fireEvent.click(numberButton);
-    expect(writeText).toHaveBeenCalledWith('Issue(#5) : 노트 제목');
+    expect(writeText).toHaveBeenCalledWith('Issue(#5)');
     await waitFor(() => expect(onToast).toHaveBeenCalledWith('Issue number copied.'));
 
     await fireEvent.click(numberButton);
     await waitFor(() => expect(onToast).toHaveBeenCalledWith('Could not copy to the clipboard.'));
-  });
-
-  it('제목이 비어 있으면 번호만 복사한다', async () => {
-    const writeText = vi.fn().mockResolvedValue();
-    vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText } });
-    render(NoteEditor, { token: 't', repo: 'owner/repo', issue: { ...baseIssue, title: '   ' } });
-
-    await fireEvent.click(document.querySelector('.toolbar-issue-number'));
-    expect(writeText).toHaveBeenCalledWith('Issue(#5)');
   });
 });
 
