@@ -2485,12 +2485,8 @@
 
   async function copyIssueNumber() {
     if (!toolbarIssueNumber) return;
-    const heading = title.trim();
-    const text = heading
-      ? `Issue(#${toolbarIssueNumber}) : ${heading}`
-      : `Issue(#${toolbarIssueNumber})`;
     try {
-      await navigator.clipboard.writeText(text);
+      await navigator.clipboard.writeText(`Issue(#${toolbarIssueNumber})`);
       onToast($_('dynamic.issueNumberCopied'));
     } catch {
       onToast($_("m.da21b2386d"));
