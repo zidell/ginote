@@ -173,6 +173,8 @@
   // 타이핑할 수 있도록 딱 그 첫 렌더에서만 포커스를 넣어준다.
   let justPromotedNumber = null;
   let editorFocusRequest = 0;
+  // 이전 노트의 Enter 요청이 새로 열린 편집기에 전달되지 않도록 대상 경로를 묶는다.
+  let editorFocusTargetSegment = '';
   let externalPasteRequest = null;
   let pasteRequestSequence = 0;
   let pruningExpiredAttachments = false;
@@ -1293,6 +1295,7 @@
       if (!issue) return;
       event.preventDefault();
       if (keyboardEnteredIssueId === issueId) {
+        editorFocusTargetSegment = contentRoute?.segment || '';
         editorFocusRequest += 1;
         return;
       }
@@ -1304,6 +1307,7 @@
     }
     if (event.key === 'Enter' && isKeyboardEnteredNoteSelection() && isContentRoute(contentRoute)) {
       event.preventDefault();
+      editorFocusTargetSegment = contentRoute.segment;
       editorFocusRequest += 1;
       return;
     }
@@ -1488,6 +1492,7 @@
   }
 
   function selectNote(issue) {
+    editorFocusTargetSegment = '';
     synchronizeKeyboardFocusWithDetail(issue);
     if (!issue.local) {
       refreshingIssueNumber = issue.number;
@@ -2461,7 +2466,7 @@
               initialDraft={isPendingNoteRoute(route) ? pendingNote : null}
               ignoreRecoveredDraft={isPendingNoteRoute(route) && Boolean(pendingNote?.ignoreRecoveredDraft)}
               justCreated={Boolean(routeIssue) && routeIssue.number === justPromotedNumber}
-              focusRequest={route === contentRoute ? editorFocusRequest : 0}
+              focusRequest={route === contentRoute && route.segment === editorFocusTargetSegment ? editorFocusRequest : 0}
               externalPasteRequest={route === contentRoute ? externalPasteRequest : null}
               refreshRequest={routeIssue ? issueRefreshRequests[routeIssue.number] || 0 : 0}
               allocationPromise={isPendingNoteRoute(route) ? pendingAllocation : null}

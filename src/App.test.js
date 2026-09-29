@@ -416,6 +416,23 @@ describe('키보드 조작', () => {
     expect(document.activeElement).toBe(document.body);
     await key('Enter');
     await waitFor(() => expect(document.activeElement).toBe(document.querySelector('.note-detail-layer.active .inline-body')));
+
+    const nextRow = screen.getByRole('button', { name: 'Open note 회의록' });
+    nextRow.focus();
+    await fireEvent.click(nextRow);
+    await waitFor(() => expect(window.location.hash).toBe('#!/note.2'));
+    expect(document.activeElement).toBe(document.body);
+    await key('Enter');
+    await waitFor(() => expect(document.activeElement).toBe(document.querySelector('.note-detail-layer.active .inline-body')));
+
+    await key('Escape');
+    await key('ArrowUp');
+    expect(document.activeElement.getAttribute('aria-label')).toBe('Open note 장보기');
+    await key('Enter');
+    await waitFor(() => expect(window.location.hash).toBe('#!/note.1'));
+    expect(document.activeElement).toBe(document.body);
+    await key('Enter');
+    await waitFor(() => expect(document.activeElement).toBe(document.querySelector('.note-detail-layer.active .inline-body')));
   });
 
   it('N으로 새 노트를 만들고 번호를 미리 받아 둔다', async () => {
