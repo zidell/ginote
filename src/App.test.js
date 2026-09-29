@@ -323,11 +323,16 @@ describe('노트 목록 탐색', () => {
     saveWorkspaces();
     await renderReadyApp();
 
-    await fireEvent.click(screen.getByRole('button', { name: 'Open note 회의록' }));
+    const row = screen.getByRole('button', { name: 'Open note 회의록' });
+    row.focus();
+    await fireEvent.click(row);
 
     await waitFor(() => expect(window.location.hash).toBe('#!/note.2'));
     await waitFor(() => expect(document.querySelector('.note-detail-layer.active .inline-body')?.value).toContain('분기 계획'));
     expect(document.querySelector('.note-list-row.active .note-row-title').textContent).toContain('회의록');
+    expect(document.activeElement).toBe(document.body);
+    await key('Enter');
+    await waitFor(() => expect(document.activeElement).toBe(document.querySelector('.note-detail-layer.active .inline-body')));
   });
 
   it('검색어를 제출하면 검색 API로 목록을 바꾼다', async () => {
@@ -408,6 +413,9 @@ describe('키보드 조작', () => {
 
     await key('Enter');
     await waitFor(() => expect(window.location.hash).toBe('#!/note.1'));
+    expect(document.activeElement).toBe(document.body);
+    await key('Enter');
+    await waitFor(() => expect(document.activeElement).toBe(document.querySelector('.note-detail-layer.active .inline-body')));
   });
 
   it('N으로 새 노트를 만들고 번호를 미리 받아 둔다', async () => {

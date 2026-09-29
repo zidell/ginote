@@ -1541,7 +1541,10 @@
       if (toggleIssueSelection(issue)) previewSelectedIssue(issue);
       return;
     }
+    // 클릭으로 열어도 행 버튼에 포커스를 남기지 않는다. 다음 Enter는 본문 편집으로 들어간다.
+    event.currentTarget?.blur();
     selectNote(issue);
+    keyboardEnteredIssueId = String(issue.id);
   }
 
   function toggleIssueSelection(issue, selectRange = false) {
