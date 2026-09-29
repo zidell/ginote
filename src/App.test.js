@@ -445,7 +445,7 @@ describe('키보드 조작', () => {
     await waitFor(() => expect(window.location.hash).toBe('#!/note.100'));
   });
 
-  it('Delete는 3초 유예 뒤 휴지통으로 옮기고, 그 전에 Esc로 취소할 수 있다', async () => {
+  it('Delete는 2초 유예 뒤 휴지통으로 옮기고, 그 전에 Esc로 취소할 수 있다', async () => {
     saveWorkspaces();
     await renderReadyApp();
 
@@ -460,7 +460,9 @@ describe('키보드 조작', () => {
 
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
     await key('Delete');
-    await vi.advanceTimersByTimeAsync(3000);
+    await vi.advanceTimersByTimeAsync(1999);
+    expect(callsTo('setIssueState')).toEqual([]);
+    await vi.advanceTimersByTimeAsync(1);
     vi.useRealTimers();
 
     await waitFor(() => expect(rowTitles()).toEqual(['고정 메모', '회의록']));

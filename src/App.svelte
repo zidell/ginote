@@ -129,7 +129,7 @@
     verifyConnection
   } from './lib/github.js';
 
-  const DELETE_DELAY_MS = 3000;
+  const DELETE_DELAY_MS = 2000;
   // 창/탭 전환은 짧은 시간에 focus와 visibilitychange를 모두 일으킬 수 있다.
   // GitHub API를 중복 호출하지 않도록 활성화 갱신은 이 간격 안에서 한 번만 한다.
   const ACTIVE_PAGE_REFRESH_COOLDOWN_MS = 30 * 1000;
@@ -1623,7 +1623,7 @@
     }
     if (state === 'open') {
       // 이미 대기열에 든 항목은 다시 넣지 않는다. 나머지는 각각 독립적인
-      // 3초 유예를 가지므로 Delete를 연달아 눌러도 모두 접수된다.
+      // 2초 유예를 가지므로 Delete를 연달아 눌러도 모두 접수된다.
       if (!deletionQueue.enqueue(issuesToMove, { nextState: 'closed', savePromise })) return;
       clearIssueSelection();
       return;
