@@ -1848,6 +1848,23 @@ describe('NoteEditor 노트 잠금', () => {
     await fireEvent.input(input, { target: { value } });
   }
 
+  it('잠긴 노트를 열 때는 포커스를 옮기지 않고 추가 Enter 요청에 잠금 입력칸을 포커스한다', async () => {
+    const { rerender } = renderWithLockSession({ issue: lockedIssue });
+    const input = await waitFor(() => {
+      const element = document.querySelector('.note-lock-panel input[type="text"]');
+      expect(element).toBeTruthy();
+      return element;
+    });
+    expect(document.activeElement).not.toBe(input);
+
+    await rerender({ editorProps: {
+      token: 't', repo: 'owner/repo', titleMode: 'separate', autoSaveSeconds: 9999,
+      issue: lockedIssue, focusRequest: 1
+    } });
+
+    await waitFor(() => expect(document.activeElement).toBe(input));
+  });
+
   it('6자리 숫자로 잠그면 제목에 자물쇠를 붙이고 본문을 암호화해 저장한다', async () => {
     const { onSetLockSession } = renderWithLockSession({ issue: baseIssue });
 
