@@ -399,7 +399,7 @@
     mounted = true;
     if (lockState === 'locked') {
       if (lockPin) reuseLockPin(lockPin);
-      else openLockPanel('unlock');
+      else openLockPanel('unlock', false);
     }
     if (recoveredPendingWork) {
       void flushPendingWork({ reason: 'recovery', allowPaused: true });
@@ -423,10 +423,15 @@
   $: if (
     focusRequest > handledFocusRequest
     && !paused
-    && lockState !== 'locked'
   ) {
     handledFocusRequest = focusRequest;
-    tick().then(() => bodyInput?.focus());
+    tick().then(() => {
+      if (lockState === 'locked') {
+        document.querySelector(`#note-lock-pin-${editorId}`)?.focus();
+      } else {
+        bodyInput?.focus();
+      }
+    });
   }
 
   afterUpdate(() => {
@@ -1113,11 +1118,11 @@
     return { ...note, title: addLockToTitle(note.title), body: encryptedBody };
   }
 
-  function openLockPanel(mode) {
+  function openLockPanel(mode, focus = true) {
     lockPanelMode = mode;
     lockPanelPin = '';
     lockPanelError = '';
-    tick().then(() => document.querySelector(`#note-lock-pin-${editorId}`)?.focus());
+    if (focus) tick().then(() => document.querySelector(`#note-lock-pin-${editorId}`)?.focus());
   }
 
   function focusBodyFromOuterGutter(node) {
