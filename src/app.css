@@ -1,10 +1,16 @@
 :root {
   --ui-accent: #0f766e;
   --ui-accent-hover: #115e59;
+  --ui-accent-active: #134e4a;
+  --ui-accent-rgb: 15, 118, 110;
   --ui-accent-bright: #14b8a6;
   --ui-accent-shortcut: #f59e0b;
   --ui-focus: #2fa396;
   --ui-drag-wash: rgba(15, 118, 110, .08);
+
+  --bs-primary: var(--ui-accent);
+  --bs-primary-rgb: var(--ui-accent-rgb);
+  --bs-focus-ring-color: rgba(15, 118, 110, .25);
 }
 
 :root,
@@ -124,7 +130,12 @@ html.mode-dark {
   --bs-border-color: var(--ui-border);
   --bs-border-color-translucent: var(--ui-shadow);
   --bs-link-color: var(--ui-text-link);
+  --bs-link-color-rgb: 125, 211, 200;
   --bs-link-hover-color: var(--ui-text-emphasis);
+  --bs-link-hover-color-rgb: 255, 255, 255;
+  --bs-primary-bg-subtle: #042f2e;
+  --bs-primary-border-subtle: #115e59;
+  --bs-primary-text-emphasis: #5eead4;
   --bs-dropdown-color: var(--ui-text-body);
   --bs-dropdown-bg: var(--ui-bg-overlay);
   --bs-dropdown-border-color: var(--ui-border-input);
@@ -238,6 +249,11 @@ html.mode-light {
   --bs-body-color-rgb: 31, 41, 55;
   --bs-body-bg-rgb: 255, 255, 255;
   --bs-emphasis-color-rgb: 15, 23, 42;
+  --bs-link-color-rgb: 15, 118, 110;
+  --bs-link-hover-color-rgb: 15, 23, 42;
+  --bs-primary-bg-subtle: #ccfbf1;
+  --bs-primary-border-subtle: #99f6e4;
+  --bs-primary-text-emphasis: #134e4a;
   --bs-secondary-color-rgb: 100, 116, 139;
   --bs-tertiary-color-rgb: 100, 116, 139;
   --bs-secondary-bg-rgb: 241, 245, 249;
@@ -254,8 +270,12 @@ html.mode-light {
 html, body, #app { width: 100%; min-width: 320px; height: 100%; margin: 0; }
 button, input, textarea { font: inherit; }
 .btn, .form-control { border-radius: 5px; }
-.btn-primary { --bs-btn-bg: var(--ui-accent); --bs-btn-border-color: var(--ui-accent); --bs-btn-hover-bg: var(--ui-accent-hover); --bs-btn-hover-border-color: var(--ui-accent-hover); }
-.form-control:focus, .form-check-input:focus { border-color: var(--ui-accent); box-shadow: 0 0 0 2px var(--ui-focus-ring); }
+.btn-primary { --bs-btn-bg: var(--ui-accent); --bs-btn-border-color: var(--ui-accent); --bs-btn-hover-bg: var(--ui-accent-hover); --bs-btn-hover-border-color: var(--ui-accent-hover); --bs-btn-active-bg: var(--ui-accent-active); --bs-btn-active-border-color: var(--ui-accent-active); --bs-btn-disabled-bg: var(--ui-accent); --bs-btn-disabled-border-color: var(--ui-accent); --bs-btn-focus-shadow-rgb: var(--ui-accent-rgb); }
+.btn-outline-primary { --bs-btn-color: var(--ui-text-accent-soft); --bs-btn-border-color: var(--ui-accent); --bs-btn-hover-color: #fff; --bs-btn-hover-bg: var(--ui-accent); --bs-btn-hover-border-color: var(--ui-accent); --bs-btn-active-color: #fff; --bs-btn-active-bg: var(--ui-accent-active); --bs-btn-active-border-color: var(--ui-accent-active); --bs-btn-disabled-color: var(--ui-text-accent-soft); --bs-btn-disabled-border-color: var(--ui-accent); --bs-btn-focus-shadow-rgb: var(--ui-accent-rgb); }
+.btn-link { --bs-btn-focus-shadow-rgb: var(--ui-accent-rgb); }
+.dropdown-menu { --bs-dropdown-link-active-bg: var(--ui-accent); }
+.form-check-input:checked, .form-check-input[type=checkbox]:indeterminate { border-color: var(--ui-accent); background-color: var(--ui-accent); }
+.form-control:focus, .form-check-input:focus, .form-select:focus { border-color: var(--ui-accent); box-shadow: 0 0 0 2px var(--ui-focus-ring); }
 .form-control { color: var(--ui-text-heading); border-color: var(--ui-border-input); background: var(--ui-bg-input); }
 .form-control:focus { color: var(--ui-text-emphasis); background: var(--ui-bg-input); }
 .form-control::placeholder { color: var(--ui-text-faint); }
