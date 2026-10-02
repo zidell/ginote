@@ -2,10 +2,6 @@
 <html lang="en" class="mode-dark" data-bs-theme="dark">
   <head>
     <meta charset="UTF-8" />
-    <meta
-      http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self' https://static.cloudflareinsights.com; connect-src 'self' ipc: http://ipc.localhost https://api.github.com https://api.openai.com https://cloudflareinsights.com; img-src 'self' blob: data: https://avatars.githubusercontent.com https://github.com; media-src 'self' blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com https://cdn.jsdelivr.net https://naver.github.io; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'"
-    />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
@@ -42,6 +38,26 @@
     <link rel="icon" href="./icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
     <title>Ginote — Private notes in your GitHub repository</title>
+    <style>
+      #app-fallback {
+        max-width: 44rem;
+        margin: 0 auto;
+        padding: 2rem 1rem;
+        line-height: 1.6;
+        color-scheme: light dark;
+        opacity: 0;
+        animation: app-fallback-reveal 0.3s ease-out 1.2s forwards;
+      }
+      #app-fallback code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+      @keyframes app-fallback-reveal {
+        to { opacity: 1; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #app-fallback { animation-duration: 0.01s; }
+      }
+    </style>
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
@@ -59,7 +75,50 @@
     </script>
   </head>
   <body>
-    <div id="app"></div>
+    <div id="app">
+      <div id="app-fallback">
+        <h1>Ginote — private notes in your GitHub repository</h1>
+        <p>
+          Ginote is a free, serverless web app that uses the Issues of a private GitHub
+          repository as personal notes. There is no Ginote account and no Ginote server:
+          the app is static JavaScript, and your browser talks to the GitHub API directly,
+          so notes and your access token never reach the site's operator. Your notes are
+          stored in the GitHub repository you choose — a private repository keeps them
+          visible to you alone. Your access token, not your notes, is what stays in this
+          browser. Running the app requires JavaScript.
+        </p>
+        <h2>How to start using it</h2>
+        <ol>
+          <li>
+            Sign in to GitHub, or create a free account at
+            <a href="https://github.com/signup">github.com/signup</a>.
+          </li>
+          <li>
+            Create a repository for your notes at
+            <a href="https://github.com/new?visibility=private">github.com/new</a> — for
+            example <code>issue-notes</code> — and set Visibility to <strong>Private</strong>.
+          </li>
+          <li>
+            Create a fine-grained personal access token at
+            <a href="https://github.com/settings/personal-access-tokens/new">
+              github.com/settings/personal-access-tokens/new</a>:
+            set Repository access to <em>Only select repositories</em> and pick that
+            repository, then grant <strong>Issues: Read and write</strong> (required) and
+            <strong>Contents: Read and write</strong> (required for attachments). Copy the
+            token — GitHub shows it only once.
+          </li>
+          <li>
+            Open this page with JavaScript enabled, enter the repository as
+            <code>owner/repository</code> together with the token, and press Connect.
+          </li>
+        </ol>
+        <h2>More</h2>
+        <ul>
+          <li><a href="https://github.com/zidell/ginote">Source code and documentation on GitHub</a> (MIT) — features, attachments, note encryption, MCP</li>
+          <li><a href="https://github.com/zidell/ginote/releases">Desktop apps for macOS, Windows and Linux</a></li>
+        </ul>
+      </div>
+    </div>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>

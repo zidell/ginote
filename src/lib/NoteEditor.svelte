@@ -12,6 +12,7 @@
   import TagPicker from './TagPicker.svelte';
   import { automaticTitle, linkAtCursor, shortenMiddle } from './notes.js';
   import { loadPendingWork, pendingWorkScope, updatePendingWork } from './pending-work.js';
+  import { readDraftStore, writeDraftStore } from './draft-store.js';
   import {
     ATTACHMENT_BRANCH,
     ATTACHMENT_LINK_PLACEHOLDER,
@@ -101,9 +102,9 @@
   export let lockPin = '';
   export let lockSessionMinutes = 60;
   export let onSetLockSession = () => {};
+  export let onToast = () => {};
   export let currentUserLogin = '';
 
-  const DRAFTS_KEY = 'issue-note.drafts.v1';
   const LIST_PREVIEW_DEBOUNCE_MS = 500;
   const MAX_ATTACHMENTS = 30;
   const ATTACHMENT_DELETE_DELAY_MS = 5000;
@@ -131,6 +132,8 @@
   let lockPanelError = '';
   let lockPanelBusy = false;
   let lockSessionExpiring = false;
+  // 세션 숫자로 열리지 않은 노트는 같은 숫자로 다시 시도하지 않고 직접 입력을 받는다.
+  let rejectedLockPin = '';
   let lockReuseTimer;
   let attachments = [];
   let orphanedAttachments = [];
@@ -228,6 +231,7 @@
   $: displayedLabels = visibleLabelNames(labels);
   $: visibleAvailableLabels = filterVisibleLabels(availableLabels);
   $: desiredPinned = pinned || Boolean(issue?.labels?.some((label) => isPinLabel(label)));
+  $: toolbarIssueNumber = issue?.number || remoteIssue?.number || null;
   $: if (mounted && remoteIssue?.number) syncPinLabelToParent();
   $: viewerAttachments = viewerCommentId === null
     ? attachments
@@ -300,7 +304,10 @@
     ? `${lockSessionMinutes / 60}시간`
     : `${lockSessionMinutes}분`;
 
-  $: if (mounted && lockState === 'locked' && lockPin && lockPin !== activeLockPin && !lockPanelBusy) {
+  $: if (
+    mounted && lockState === 'locked' && lockPin && lockPin !== activeLockPin
+    && lockPin !== rejectedLockPin && !lockPanelBusy
+  ) {
     reuseLockPin(lockPin);
   }
   $: if (mounted && lockState === 'unlocked' && !lockPin && activeLockPin && !lockSessionExpiring) {
@@ -392,7 +399,7 @@
     mounted = true;
     if (lockState === 'locked') {
       if (lockPin) reuseLockPin(lockPin);
-      else openLockPanel('unlock');
+      else openLockPanel('unlock', false);
     }
     if (recoveredPendingWork) {
       void flushPendingWork({ reason: 'recovery', allowPaused: true });
@@ -416,10 +423,15 @@
   $: if (
     focusRequest > handledFocusRequest
     && !paused
-    && lockState !== 'locked'
   ) {
     handledFocusRequest = focusRequest;
-    tick().then(() => bodyInput?.focus());
+    tick().then(() => {
+      if (lockState === 'locked') {
+        document.querySelector(`#note-lock-pin-${editorId}`)?.focus();
+      } else {
+        bodyInput?.focus();
+      }
+    });
   }
 
   afterUpdate(() => {
@@ -456,17 +468,9 @@
     voiceAudioPreviewErrors = {};
   });
 
-  function draftStore() {
-    try {
-      return JSON.parse(localStorage.getItem(DRAFTS_KEY) || '{}');
-    } catch {
-      return {};
-    }
-  }
-
   function readDraft() {
     const pendingDraft = loadPendingWork(repo, issue?.number || remoteIssue?.number)?.noteDraft;
-    return pendingDraft || draftStore()[repo]?.[draftId] || null;
+    return pendingDraft || readDraftStore()[repo]?.[draftId] || null;
   }
 
   function persistLocalDraft() {
@@ -478,22 +482,22 @@
       removeLocalDraft();
       return;
     }
-    const store = draftStore();
+    const store = readDraftStore();
     store[repo] ||= {};
     const draft = { title, body, labels, savedAt: Date.now() };
     store[repo][draftId] = draft;
-    localStorage.setItem(DRAFTS_KEY, JSON.stringify(store));
+    writeDraftStore(store);
     if (issue?.number || remoteIssue?.number) {
       updatePendingWork(repo, issue?.number || remoteIssue?.number, { noteDraft: draft });
     }
   }
 
   function removeLocalDraft() {
-    const store = draftStore();
+    const store = readDraftStore();
     if (store[repo]) {
       delete store[repo][draftId];
       if (!Object.keys(store[repo]).length) delete store[repo];
-      localStorage.setItem(DRAFTS_KEY, JSON.stringify(store));
+      writeDraftStore(store);
     }
     if (issue?.number || remoteIssue?.number) {
       updatePendingWork(repo, issue?.number || remoteIssue?.number, { noteDraft: null });
@@ -1065,7 +1069,8 @@
     const links = [...(comment.preservedManagedAttachmentLinks || []), ...generatedLinks]
       .filter((link) => {
         const path = parseAttachmentPaths(link)[0];
-        if (!path || manuallyLinkedPaths.has(path) || seenPaths.has(path)) return false;
+        // 이미 저장돼 있던 관리 링크도 삭제 중인 파일이면 빼야 댓글에 깨진 링크가 남지 않는다.
+        if (!path || manuallyLinkedPaths.has(path) || deletingPaths.has(path) || seenPaths.has(path)) return false;
         seenPaths.add(path);
         return true;
       });
@@ -1113,11 +1118,11 @@
     return { ...note, title: addLockToTitle(note.title), body: encryptedBody };
   }
 
-  function openLockPanel(mode) {
+  function openLockPanel(mode, focus = true) {
     lockPanelMode = mode;
     lockPanelPin = '';
     lockPanelError = '';
-    tick().then(() => document.querySelector(`#note-lock-pin-${editorId}`)?.focus());
+    if (focus) tick().then(() => document.querySelector(`#note-lock-pin-${editorId}`)?.focus());
   }
 
   function focusBodyFromOuterGutter(node) {
@@ -1220,6 +1225,7 @@
         .map(normalizeCommentAttachmentBody);
     } catch (reason) {
       if (!automatic) throw reason;
+      rejectedLockPin = pin;
       activeLockPin = '';
       lockPanelMode = 'unlock';
       lockPanelError = reason?.message || '6자리 숫자가 맞지 않습니다.';
@@ -2482,6 +2488,18 @@
     void flushPendingWork({ reason: 'attachment-link', allowPaused: true, force: true });
   }
 
+  async function copyIssueNumber() {
+    if (!toolbarIssueNumber) return;
+    try {
+      const titleCharacters = Array.from(title.trim());
+      const shortenedTitle = titleCharacters.slice(0, 12).join('') + (titleCharacters.length > 12 ? '..' : '');
+      await navigator.clipboard.writeText(`Issue #${toolbarIssueNumber}${shortenedTitle ? ` : ${shortenedTitle}` : ''}`);
+      onToast($_('dynamic.issueNumberCopied'));
+    } catch {
+      onToast($_("m.da21b2386d"));
+    }
+  }
+
   async function copyAttachmentMarkdown(attachment) {
     try {
       await navigator.clipboard.writeText(composeAttachmentLink(repo, attachment));
@@ -3030,7 +3048,13 @@
       >
         <i class="bi bi-arrow-left" aria-hidden="true"></i><span class="mobile-back-label"> {$_("m.a1fffaaafb")}</span>
       </button>
-      <span>{#if lockState === 'locked'}<i class="bi bi-lock-fill toolbar-lock-icon" aria-hidden="true"></i>{:else if lockState === 'unlocked'}<i class="bi bi-unlock-fill toolbar-lock-icon" aria-hidden="true"></i>{/if}{issue ? formatDateOnly(issue.updated_at || issue.created_at) : $_("m.2b7b05c002")}</span>
+      <span>{#if lockState === 'locked'}<i class="bi bi-lock-fill toolbar-lock-icon" aria-hidden="true"></i>{:else if lockState === 'unlocked'}<i class="bi bi-unlock-fill toolbar-lock-icon" aria-hidden="true"></i>{/if}{#if toolbarIssueNumber}<button
+        type="button"
+        class="toolbar-issue-number"
+        title={$_('dynamic.copyIssueNumber', { values: { number: toolbarIssueNumber } })}
+        aria-label={$_('dynamic.copyIssueNumber', { values: { number: toolbarIssueNumber } })}
+        on:click={copyIssueNumber}
+      >#{toolbarIssueNumber}</button>{' | '}{/if}{issue ? formatDateOnly(issue.updated_at || issue.created_at) : $_("m.2b7b05c002")}</span>
       <span class="save-status" class:is-visible={showSaveStatus} aria-live="polite">
         <BrailleSpinner active={saving} />
         {#if compactStatus}{compactStatus}{/if}

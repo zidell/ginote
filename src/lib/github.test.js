@@ -674,6 +674,157 @@ describe('GitHub API client', () => {
     expect(fetch.mock.calls[3][1].method).toBe('DELETE');
   });
 
+  it('오류 응답에 본문이 없으면 HTTP 상태 문구를 오류 메시지로 쓴다', async () => {
+    fetch.mockResolvedValueOnce(new Response('', { status: 502, statusText: 'Bad Gateway' }));
+
+    await expect(getIssue('token', 'owner/repo', 31)).rejects.toMatchObject({
+      message: 'Bad Gateway',
+      status: 502
+    });
+  });
+
+  it('전용 브랜치를 만드는 사이 다른 창이 먼저 만들었으면 그 브랜치를 쓴다', async () => {
+    fetch
+      .mockResolvedValueOnce(jsonResponse({ message: 'Not Found' }, { status: 404 }))
+      .mockResolvedValueOnce(jsonResponse({ sha: 'tree-sha' }))
+      .mockResolvedValueOnce(jsonResponse({ sha: 'root-commit-sha' }))
+      .mockResolvedValueOnce(jsonResponse({ message: 'Reference already exists' }, { status: 422 }))
+      .mockResolvedValueOnce(jsonResponse({ ref: 'refs/heads/ginote-assets' }))
+      .mockResolvedValueOnce(jsonResponse([]));
+
+    await expect(listIssueAttachmentFiles('token', 'owner/repo', 31)).resolves.toEqual([]);
+
+    expect(fetch).toHaveBeenCalledTimes(6);
+    expect(new URL(fetch.mock.calls[4][0]).pathname).toBe('/repos/owner/repo/git/ref/heads/ginote-assets');
+  });
+
+  it('브랜치가 하나도 없는 빈 저장소는 기본 브랜치를 marker로 초기화한 뒤 전용 브랜치를 만든다', async () => {
+    fetch
+      .mockResolvedValueOnce(jsonResponse({ message: 'Not Found' }, { status: 404 }))
+      .mockResolvedValueOnce(jsonResponse({ sha: 'tree-sha' }))
+      .mockResolvedValueOnce(jsonResponse({ sha: 'root-commit-sha' }))
+      .mockResolvedValueOnce(jsonResponse({ message: 'Git Repository is empty.' }, { status: 422 }))
+      .mockResolvedValueOnce(jsonResponse({ message: 'Not Found' }, { status: 404 }))
+      .mockResolvedValueOnce(jsonResponse({ default_branch: 'main' }))
+      .mockResolvedValueOnce(jsonResponse({ message: 'Git Repository is empty.' }, { status: 409 }))
+      .mockResolvedValueOnce(jsonResponse({ content: { sha: 'marker-sha' } }))
+      .mockResolvedValueOnce(jsonResponse({ ref: 'refs/heads/ginote-assets' }))
+      .mockResolvedValueOnce(jsonResponse([]));
+
+    await expect(listIssueAttachmentFiles('token', 'owner/repo', 31)).resolves.toEqual([]);
+
+    expect(new URL(fetch.mock.calls[6][0]).pathname).toBe('/repos/owner/repo/git/ref/heads/main');
+    const [markerUrl, markerOptions] = fetch.mock.calls[7];
+    expect(decodeURIComponent(new URL(markerUrl).pathname))
+      .toBe('/repos/owner/repo/contents/.issue-note-assets/.ginote-storage');
+    expect(markerOptions.method).toBe('PUT');
+    expect(JSON.parse(markerOptions.body)).not.toHaveProperty('branch');
+    expect(JSON.parse(fetch.mock.calls[8][1].body)).toEqual({
+      ref: 'refs/heads/ginote-assets',
+      sha: 'root-commit-sha'
+    });
+  });
+
+  it('빈 저장소 초기화 후 재시도에서 다른 창이 먼저 브랜치를 만들었으면 그 브랜치를 쓴다', async () => {
+    fetch
+      .mockResolvedValueOnce(jsonResponse({ message: 'Not Found' }, { status: 404 }))
+      .mockResolvedValueOnce(jsonResponse({ sha: 'tree-sha' }))
+      .mockResolvedValueOnce(jsonResponse({ sha: 'root-commit-sha' }))
+      .mockResolvedValueOnce(jsonResponse({ message: 'Git Repository is empty.' }, { status: 422 }))
+      .mockResolvedValueOnce(jsonResponse({ message: 'Not Found' }, { status: 404 }))
+      .mockResolvedValueOnce(jsonResponse({ default_branch: 'main' }))
+      .mockResolvedValueOnce(jsonResponse({ message: 'Not Found' }, { status: 404 }))
+      .mockResolvedValueOnce(jsonResponse({ content: { sha: 'marker-sha' } }))
+      .mockResolvedValueOnce(jsonResponse({ message: 'Reference already exists' }, { status: 422 }))
+      .mockResolvedValueOnce(jsonResponse({ ref: 'refs/heads/ginote-assets' }))
+      .mockResolvedValueOnce(jsonResponse([]));
+
+    await expect(listIssueAttachmentFiles('token', 'owner/repo', 31)).resolves.toEqual([]);
+    expect(fetch).toHaveBeenCalledTimes(11);
+  });
+
+  it('브랜치가 있는 저장소에서 전용 브랜치 생성이 거부되면 오류를 그대로 알린다', async () => {
+    fetch
+      .mockResolvedValueOnce(jsonResponse({ message: 'Not Found' }, { status: 404 }))
+      .mockResolvedValueOnce(jsonResponse({ sha: 'tree-sha' }))
+      .mockResolvedValueOnce(jsonResponse({ sha: 'root-commit-sha' }))
+      .mockResolvedValueOnce(jsonResponse({ message: 'Validation Failed' }, { status: 422 }))
+      .mockResolvedValueOnce(jsonResponse({ message: 'Not Found' }, { status: 404 }))
+      .mockResolvedValueOnce(jsonResponse({ default_branch: 'main' }))
+      .mockResolvedValueOnce(jsonResponse({ ref: 'refs/heads/main' }));
+
+    await expect(listIssueAttachmentFiles('token', 'owner/repo', 31)).rejects.toMatchObject({
+      message: 'Validation Failed',
+      status: 422
+    });
+    expect(fetch).toHaveBeenCalledTimes(7);
+  });
+
+  it('전용 브랜치 확인이 404·409 외의 오류로 실패하면 초기화하지 않고 알린다', async () => {
+    fetch.mockResolvedValueOnce(jsonResponse({ message: 'Bad credentials' }, { status: 401 }));
+
+    await expect(listIssueAttachmentFiles('token', 'owner/repo', 31)).rejects.toMatchObject({ status: 401 });
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('첨부 목록 조회가 404 외의 오류로 실패하면 빈 목록으로 숨기지 않는다', async () => {
+    fetch
+      .mockResolvedValueOnce(jsonResponse({ ref: 'refs/heads/ginote-assets' }))
+      .mockResolvedValueOnce(jsonResponse({ message: 'Server Error' }, { status: 500 }));
+
+    await expect(listIssueAttachmentFiles('token', 'owner/repo', 31)).rejects.toMatchObject({ status: 500 });
+  });
+
+  it('raw 요청에 Contents JSON이 돌아오면 base64 내용을 실제 파일 바이트로 바꾼다', async () => {
+    fetch.mockResolvedValueOnce(jsonResponse({ content: 'QU\nJD', encoding: 'base64' }));
+
+    const blob = await downloadAttachment('token', 'owner/repo', {
+      path: '.issue-note-assets/issues/31/note.txt'
+    });
+
+    expect(await blob.text()).toBe('ABC');
+  });
+
+  it('첨부 다운로드가 실패하면 상태 코드를 담은 오류를 던진다', async () => {
+    fetch.mockResolvedValueOnce(new Response('', { status: 404, statusText: 'Not Found' }));
+
+    await expect(downloadAttachment('token', 'owner/repo', {
+      path: '.issue-note-assets/issues/31/missing.png'
+    })).rejects.toMatchObject({ message: 'Not Found', status: 404 });
+  });
+
+  it('전사 힌트 파일이 없거나 깨져 있으면 빈 힌트로 읽고, 그 밖의 오류는 알린다', async () => {
+    fetch
+      .mockResolvedValueOnce(jsonResponse({ message: 'Not Found' }, { status: 404 }))
+      .mockResolvedValueOnce(jsonResponse({ content: btoa('{not json'), sha: 'broken-sha' }))
+      .mockResolvedValueOnce(jsonResponse({ content: btoa(JSON.stringify({ hints: 42 })) }))
+      .mockResolvedValueOnce(jsonResponse({ message: 'Server Error' }, { status: 500 }));
+
+    await expect(loadVoiceTranscriptionHints('token', 'owner/repo')).resolves.toBe('');
+    await expect(loadVoiceTranscriptionHints('token', 'owner/repo')).resolves.toBe('');
+    await expect(loadVoiceTranscriptionHints('token', 'owner/repo')).resolves.toBe('');
+    await expect(loadVoiceTranscriptionHints('token', 'owner/repo')).rejects.toMatchObject({ status: 500 });
+  });
+
+  it('전사 힌트 파일이 아직 없으면 sha 없이 새로 만들고 앞뒤 공백을 지운다', async () => {
+    fetch
+      .mockResolvedValueOnce(jsonResponse({ ref: 'refs/heads/ginote-assets' }))
+      .mockResolvedValueOnce(jsonResponse({ message: 'Not Found' }, { status: 404 }))
+      .mockResolvedValueOnce(jsonResponse({ content: { sha: 'new-sha' } }));
+
+    await expect(saveVoiceTranscriptionHints('token', 'owner/repo', '  Ginote  ')).resolves.toBe('Ginote');
+    expect(JSON.parse(fetch.mock.calls[2][1].body)).not.toHaveProperty('sha');
+  });
+
+  it('전사 힌트의 기존 파일 조회가 404 외의 오류로 실패하면 덮어쓰지 않는다', async () => {
+    fetch
+      .mockResolvedValueOnce(jsonResponse({ ref: 'refs/heads/ginote-assets' }))
+      .mockResolvedValueOnce(jsonResponse({ message: 'Server Error' }, { status: 500 }));
+
+    await expect(saveVoiceTranscriptionHints('token', 'owner/repo', 'Ginote')).rejects.toMatchObject({ status: 500 });
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
   it('잘못된 저장소 형식은 fetch 전에 거부한다', async () => {
     await expect(listIssues('token', 'owner-only')).rejects.toThrow(
       'Enter the repository as owner/repository.'
