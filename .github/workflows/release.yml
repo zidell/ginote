@@ -281,7 +281,7 @@ jobs:
   prune-releases:
     name: Keep the latest 20 releases
     needs: publish-release
-    if: needs.publish-release.result == 'success'
+    if: always() && needs.publish-release.result == 'success'
     permissions:
       contents: write
     runs-on: ubuntu-22.04
@@ -300,7 +300,7 @@ jobs:
   update-cask:
     name: Update Homebrew cask
     needs: publish-release
-    if: needs.publish-release.result == 'success'
+    if: always() && needs.publish-release.result == 'success'
     permissions:
       contents: write
     runs-on: ubuntu-22.04
