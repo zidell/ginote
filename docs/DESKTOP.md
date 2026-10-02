@@ -50,7 +50,8 @@ MSI만 만들려면 `npm run tauri:build -- --bundles msi`를 사용합니다. �
 macOS DMG와 Linux 패키지를 초안 릴리스에 올립니다. Windows MSI는 GitHub가
 호스팅하는 Windows 러너에서 빌드해 SignPath에 한 번 제출합니다. SignPath가 MSI와
 내부 `ginote.exe`를 서명한 뒤, 서명을 확인한 MSI만 초안 릴리스에 올립니다.
-서명 요청이 거절되거나 실패하면 릴리스는 게시되지 않습니다. 무료 SignPath
+SignPath 설정이 없으면 Windows 빌드만 건너뛰고 macOS·Linux 릴리스를 게시합니다.
+서명 설정이 있는 경우 서명 요청이 거절되거나 실패하면 릴리스는 게시되지 않습니다. 무료 SignPath
 Foundation 인증서는 **데스크톱 바이너리를 새로 릴리스할 때마다 수동 서명 승인**이
 필요합니다. 웹 앱만 배포할 때는 데스크톱 빌드나 서명 요청이 발생하지 않습니다.
 

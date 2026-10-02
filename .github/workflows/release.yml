@@ -31,15 +31,19 @@ jobs:
     runs-on: ubuntu-22.04
     outputs:
       release_id: ${{ steps.release.outputs.release_id }}
+      windows_signing_enabled: ${{ steps.signing.outputs.enabled }}
     steps:
       - name: Check Windows signing configuration
+        id: signing
         env:
           SIGNPATH_API_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
           SIGNPATH_ORGANIZATION_ID: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
         run: |
           if [ -z "$SIGNPATH_API_TOKEN" ] || [ -z "$SIGNPATH_ORGANIZATION_ID" ]; then
-            echo "Configure SIGNPATH_API_TOKEN and SIGNPATH_ORGANIZATION_ID before releasing." >&2
-            exit 1
+            echo "Windows signing is not configured; releasing macOS and Linux only."
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Create or find draft release
@@ -50,7 +54,7 @@ jobs:
           RELEASE_NAME: Ginote v${{ env.RELEASE_VERSION }}
           RELEASE_BODY: >-
             Download the installer for your platform. macOS builds are signed and notarized;
-            the Windows MSI is signed by SignPath Foundation. Linux builds are not code-signed.
+            ${{ steps.signing.outputs.enabled == 'true' && 'The Windows MSI is signed by SignPath Foundation.' || 'Windows installers are omitted because signing is not configured.' }} Linux builds are not code-signed.
             The desktop app loads https://note.gitools.net and requires an internet connection.
             Code signing policy: https://github.com/zidell/ginote/blob/main/docs/CODE_SIGNING.md
         run: |
@@ -163,7 +167,7 @@ jobs:
           releaseName: Ginote v${{ env.RELEASE_VERSION }}
           releaseBody: >-
             Download the installer for your platform. macOS builds are signed and notarized;
-            the Windows MSI is signed by SignPath Foundation. Linux builds are not code-signed.
+            ${{ needs.prepare-release.outputs.windows_signing_enabled == 'true' && 'The Windows MSI is signed by SignPath Foundation.' || 'Windows installers are omitted because signing is not configured.' }} Linux builds are not code-signed.
             The desktop app loads https://note.gitools.net and requires an internet connection.
             Code signing policy: https://github.com/zidell/ginote/blob/main/docs/CODE_SIGNING.md
           releaseDraft: true
@@ -173,7 +177,7 @@ jobs:
   windows-release:
     name: Build and sign Windows MSI
     needs: prepare-release
-    if: needs.prepare-release.result == 'success'
+    if: needs.prepare-release.result == 'success' && needs.prepare-release.outputs.windows_signing_enabled == 'true'
     permissions:
       actions: read
       contents: write
@@ -256,7 +260,11 @@ jobs:
   publish-release:
     name: Publish desktop release
     needs: [prepare-release, release, windows-release]
-    if: needs.prepare-release.result == 'success'
+    if: >-
+      always() &&
+      needs.prepare-release.result == 'success' &&
+      needs.release.result == 'success' &&
+      (needs.windows-release.result == 'success' || needs.windows-release.result == 'skipped')
     permissions:
       contents: write
     runs-on: ubuntu-22.04
