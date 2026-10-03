@@ -8,8 +8,8 @@
   설정 파일·자격 증명은 `docs/CONFIG.md`를 본다. 설정 항목을 추가·변경하면 `src/lib/app-config.js`의
   스키마도 함께 고친다.
 - 배포 흐름: `main`에 push하면 CI가 테스트를 통과한 웹 빌드에 서명해 `note.gitools.net`에 올리고,
-  설치된 앱도 그 빌드로 바뀐다. 네이티브(`src-tauri`, 플러그인, 권한)를 바꿨을 때만 `main`을
-  `release`로 머지해 앱을 릴리스한다.
+  설치된 앱도 그 빌드로 바뀐다. 같은 push에 네이티브(`src-tauri`, Windows 패키징, 릴리스 워크플로)
+  변경이 있으면 데스크톱 앱도 바로 릴리스된다. `release` 브랜치는 쓰지 않는다.
 - 네이티브 표면(command·플러그인·권한)을 늘리면 `src-tauri/src/ota.rs`의 `NATIVE_API`와
   `src/lib/native-api.js`의 `MIN_NATIVE_API`를 함께 올린다.
 - 아이콘은 `src-tauri/icons/source/`의 SVG 두 장만 고치고 `npm run icons`로 모두 다시 만든다.

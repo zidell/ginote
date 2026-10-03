@@ -1,9 +1,19 @@
 name: Desktop release
 
+# main에 push하면 데스크톱 앱을 릴리스한다. 화면·기능 수정(웹 빌드)은 설치된 앱이 OTA로 받으므로
+# (docs/APP_OTA.md), 네이티브 셸이나 패키징이 바뀐 push만 릴리스한다. 그 밖에 새 릴리스가
+# 필요하면 Actions에서 손으로 실행한다.
 on:
-  pull_request:
-    branches: [release]
-    types: [closed]
+  push:
+    branches: [main]
+    paths:
+      - 'src-tauri/**'
+      - '!src-tauri/gen/**'
+      - 'scripts/windows/**'
+      - 'scripts/updater-manifest.mjs'
+      - '.github/workflows/release.yml'
+      - '.github/workflows/windows-msix.yml'
+  workflow_dispatch:
 
 concurrency:
   group: desktop-release
@@ -14,18 +24,13 @@ permissions:
 
 env:
   RELEASE_VERSION: 0.1.${{ github.run_number }}
-  RELEASE_SHA: ${{ github.event.pull_request.merge_commit_sha }}
+  RELEASE_SHA: ${{ github.sha }}
 
 jobs:
-  # A release is created only when the canonical main branch is merged into
-  # release. Direct pushes and PRs from other branches cannot start it.
+  # 원본 저장소의 main에서만 릴리스한다. 포크나 다른 브랜치에서 손으로 실행해도 시작하지 않는다.
   prepare-release:
     name: Prepare draft release
-    if: >-
-      github.repository == 'zidell/ginote' &&
-      github.event.pull_request.merged == true &&
-      github.event.pull_request.head.ref == 'main' &&
-      github.event.pull_request.head.repo.full_name == github.repository
+    if: github.repository == 'zidell/ginote' && github.ref == 'refs/heads/main'
     permissions:
       contents: write
     runs-on: ubuntu-22.04
@@ -172,7 +177,7 @@ jobs:
     uses: ./.github/workflows/windows-msix.yml
     with:
       version: 0.1.${{ github.run_number }}
-      ref: ${{ github.event.pull_request.merge_commit_sha }}
+      ref: ${{ github.sha }}
 
   publish-release:
     name: Publish desktop release

@@ -62,10 +62,12 @@ npm run tauri:build
 
 ## GitHub Releases
 
-데스크톱 릴리스는 `main`에서 `release`로 여는 배포 PR을 병합할 때만 실행됩니다.
-웹 앱은 `main`의 정적 배포 흐름으로 별도로 갱신되므로, 일반적인 웹 기능 수정은
-데스크톱 릴리스를 만들 필요가 없습니다. GitHub Actions 실행 번호를
-`0.1.<run_number>` 버전에 넣으며, 저장소에는 버전 변경을 커밋하지 않습니다.
+`main`에 push하면 네이티브 셸이나 패키징이 바뀐 경우에만 데스크톱 릴리스가 실행됩니다
+(`src-tauri/`(모바일 `gen/` 제외), `scripts/windows/`, `scripts/updater-manifest.mjs`, 릴리스·MSIX
+워크플로). 화면과 일반 기능 수정은 웹 배포로 설치된 앱에 들어가므로 릴리스하지 않고, 그래서
+설치된 앱이 push마다 업데이트를 권하지도 않습니다. 그 밖에 새 릴리스가 필요하면 Actions의
+"Desktop release"를 손으로 실행합니다. GitHub Actions 실행 번호를 `0.1.<run_number>` 버전에
+넣으며, 저장소에는 버전 변경을 커밋하지 않습니다.
 
 macOS(universal)와 Linux 빌드가 설치 파일과 함께 업데이트 파일과 그 서명(`.sig`)을 초안
 릴리스에 올립니다. 두 빌드가 끝나면 `scripts/updater-manifest.mjs`가 서명을 모아

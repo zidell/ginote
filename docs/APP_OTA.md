@@ -142,8 +142,8 @@ webpki 루트 인증서)로 받으므로 웹의 CORS·CORP 헤더나 앱 CSP의 
 - 개인키 파일 내용을 GitHub 저장소의 `GINOTE_OTA_SIGNING_KEY` 시크릿으로 등록합니다.
   웹 빌드와 서명은 CI의 `deploy-web` job에서만 합니다. 개인키는 저장소, 로그, 이슈 어디에도
   남기지 않습니다.
-- 웹 빌드·서명·배포는 `main` push의 `deploy-web` job 한 곳, 앱 패키징은 `release` 머지의
-  `release.yml` 한 곳입니다. 같은 커밋이면 빌드 번호와 결과물이 같습니다.
+- 웹 빌드·서명·배포는 `main` push의 `deploy-web` job 한 곳, 앱 패키징은 네이티브가 바뀐
+  `main` push(또는 손으로 실행)의 `release.yml` 한 곳입니다. 같은 커밋이면 빌드 번호와 결과물이 같습니다.
 - 키를 바꾸면 이미 설치된 앱은 새 키로 서명된 빌드를 받지 못합니다. 새 공개키를 넣은
   네이티브 릴리스가 먼저 퍼져야 합니다.
 
