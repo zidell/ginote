@@ -1,0 +1,106 @@
+name: Windows MSIX
+
+# Tauri 앱을 MSIX로 묶는다(docs/DESKTOP.md의 Windows).
+# - 릴리스 워크플로가 버전을 넘겨 부른다. 손으로 실행(workflow_dispatch)하면 패키징 점검만 한다.
+# - Store 판은 Partner Center의 앱 ID(저장소 변수 MSSTORE_IDENTITY_NAME, MSSTORE_PUBLISHER,
+#   MSSTORE_PUBLISHER_DISPLAY_NAME)가 있을 때만 만든다. 서명은 Store가 한다.
+# - 매번 시험용 인증서로 서명한 패키지를 이 러너에 설치해, 실행 별칭으로 `ginote --config-path`가
+#   패키지 전용 설정 폴더를 가리키는지 확인한다.
+
+on:
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      version:
+        description: Release version such as 0.1.90
+        required: true
+        type: string
+      ref:
+        description: Commit to build
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  msix:
+    name: Build and check MSIX
+    runs-on: windows-latest
+    timeout-minutes: 60
+    env:
+      VERSION: ${{ inputs.version || '0.1.0' }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+
+      - name: Cache Rust build
+        uses: swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+        with:
+          workspaces: src-tauri -> target
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Set release version
+        run: npm version "${{ env.VERSION }}" --no-git-tag-version --allow-same-version
+
+      # 설치 프로그램은 만들지 않고 ginote.exe만 만든다. 업데이트는 Store·App Installer가 맡는다.
+      - name: Build ginote.exe
+        run: npx tauri build --no-bundle
+
+      - name: Package for the Microsoft Store
+        if: vars.MSSTORE_IDENTITY_NAME != ''
+        shell: pwsh
+        run: >-
+          scripts/windows/package-msix.ps1 -Version $env:VERSION
+          -IdentityName '${{ vars.MSSTORE_IDENTITY_NAME }}'
+          -Publisher '${{ vars.MSSTORE_PUBLISHER }}'
+          -PublisherDisplayName '${{ vars.MSSTORE_PUBLISHER_DISPLAY_NAME }}'
+          -Output "Ginote_${env:VERSION}_x64_store.msix"
+
+      - name: Keep the Store package
+        if: vars.MSSTORE_IDENTITY_NAME != ''
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ginote-store-msix
+          path: Ginote_*_x64_store.msix
+          if-no-files-found: error
+
+      - name: Install a test-signed package and check the settings path
+        shell: pwsh
+        run: |
+          $subject = 'CN=Ginote MSIX Check'
+          scripts/windows/package-msix.ps1 -Version $env:VERSION -IdentityName 'Ginote.Check' `
+            -Publisher $subject -PublisherDisplayName 'Ginote check' -Output check.msix
+          $cert = New-SelfSignedCertificate -Type CodeSigningCert -Subject $subject `
+            -CertStoreLocation Cert:\CurrentUser\My -TextExtension @('2.5.29.19={text}')
+          $pfx = Join-Path $env:RUNNER_TEMP 'check.pfx'
+          $password = ConvertTo-SecureString ([guid]::NewGuid().ToString()) -AsPlainText -Force
+          Export-PfxCertificate -Cert $cert -FilePath $pfx -Password $password | Out-Null
+          Import-PfxCertificate -FilePath $pfx -CertStoreLocation Cert:\LocalMachine\TrustedPeople -Password $password | Out-Null
+          $signtool = Get-ChildItem 'C:\Program Files (x86)\Windows Kits\10\bin' -Recurse -Filter signtool.exe |
+            Where-Object { $_.FullName -match '\\x64\\' } | Sort-Object FullName -Descending | Select-Object -First 1
+          & $signtool.FullName sign /fd SHA256 /sha1 $cert.Thumbprint /s My check.msix
+          if ($LASTEXITCODE -ne 0) { throw 'signtool failed' }
+
+          Add-AppxPackage -Path check.msix
+          $package = Get-AppxPackage -Name 'Ginote.Check'
+          if (-not $package) { throw 'The package did not install.' }
+          $alias = Join-Path $env:LOCALAPPDATA 'Microsoft\WindowsApps\ginote.exe'
+          $path = (& $alias --config-path | Out-String).Trim()
+          Write-Host "ginote --config-path -> $path"
+          $expected = Join-Path $env:LOCALAPPDATA "Packages\$($package.PackageFamilyName)\LocalCache\Roaming\net.gitools.note\config.toml"
+          if ($path -ne $expected) { throw "Expected $expected" }
+          $help = (& $alias --help | Out-String)
+          if ($help -notmatch 'Usage: ginote') { throw "Unexpected --help output: $help" }
+          Remove-AppxPackage -Package $package.PackageFullName

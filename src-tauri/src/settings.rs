@@ -160,7 +160,13 @@ pub fn watch<R: Runtime>(app: &AppHandle<R>) {
 #[cfg(desktop)]
 pub fn handle_cli(identifier: &str, version: &str) -> bool {
     let args: Vec<String> = std::env::args().skip(1).collect();
-    let config_dir = || dirs::config_dir().map(|dir| dir.join(identifier));
+    let wants_output = args.iter().any(|arg| matches!(arg.as_str(), "--config-path" | "--help" | "-h"));
+    if !wants_output {
+        return false;
+    }
+    #[cfg(windows)]
+    windows_cli::attach_parent_console();
+    let config_dir = || tool_config_dir(identifier);
     if args.iter().any(|arg| arg == "--config-path") {
         match config_dir() {
             Some(dir) => println!("{}", dir.join(CONFIG_FILE).display()),
@@ -179,6 +185,79 @@ pub fn handle_cli(identifier: &str, version: &str) -> bool {
         return true;
     }
     false
+}
+
+/// 바깥 프로그램(사람·에이전트)이 실제로 열어야 하는 설정 폴더.
+/// Windows MSIX 안에서는 앱이 %APPDATA%에 쓰는 파일을 Windows가 패키지 전용 폴더로 옮겨 두므로
+/// 그 실제 위치를 알려 준다. 앱 자신은 원래 경로로 읽고 써도 같은 파일에 닿는다.
+#[cfg(desktop)]
+fn tool_config_dir(identifier: &str) -> Option<PathBuf> {
+    #[cfg(windows)]
+    if let Some(family) = windows_cli::package_family_name() {
+        return dirs::data_local_dir().map(|dir| {
+            dir.join("Packages").join(family).join("LocalCache").join("Roaming").join(identifier)
+        });
+    }
+    dirs::config_dir().map(|dir| dir.join(identifier))
+}
+
+#[cfg(windows)]
+mod windows_cli {
+    use windows_sys::Win32::Foundation::{
+        ERROR_INSUFFICIENT_BUFFER, GENERIC_READ, GENERIC_WRITE, INVALID_HANDLE_VALUE,
+    };
+    use windows_sys::Win32::Storage::FileSystem::{
+        CreateFileW, FILE_SHARE_READ, FILE_SHARE_WRITE, OPEN_EXISTING,
+    };
+    use windows_sys::Win32::Storage::Packaging::Appx::GetCurrentPackageFamilyName;
+    use windows_sys::Win32::System::Console::{
+        AttachConsole, GetStdHandle, SetStdHandle, ATTACH_PARENT_PROCESS, STD_ERROR_HANDLE,
+        STD_OUTPUT_HANDLE,
+    };
+
+    /// GUI 앱이라 콘솔이 없다. 출력이 파이프·파일로 넘어왔으면 그대로 쓰고, 터미널에서 실행했으면
+    /// 그 콘솔에 붙어 출력이 보이게 한다.
+    pub fn attach_parent_console() {
+        unsafe {
+            let current = GetStdHandle(STD_OUTPUT_HANDLE);
+            if !current.is_null() && current != INVALID_HANDLE_VALUE {
+                return;
+            }
+            if AttachConsole(ATTACH_PARENT_PROCESS) == 0 {
+                return;
+            }
+            let name: Vec<u16> = "CONOUT$\0".encode_utf16().collect();
+            let console = CreateFileW(
+                name.as_ptr(),
+                GENERIC_READ | GENERIC_WRITE,
+                FILE_SHARE_READ | FILE_SHARE_WRITE,
+                std::ptr::null(),
+                OPEN_EXISTING,
+                0,
+                std::ptr::null_mut(),
+            );
+            if console != INVALID_HANDLE_VALUE {
+                SetStdHandle(STD_OUTPUT_HANDLE, console);
+                SetStdHandle(STD_ERROR_HANDLE, console);
+            }
+        }
+    }
+
+    /// MSIX 패키지로 실행 중이면 패키지 패밀리 이름, 아니면 None.
+    pub fn package_family_name() -> Option<String> {
+        let mut length = 0u32;
+        let status = unsafe { GetCurrentPackageFamilyName(&mut length, std::ptr::null_mut()) };
+        if status != ERROR_INSUFFICIENT_BUFFER || length == 0 {
+            return None;
+        }
+        let mut buffer = vec![0u16; length as usize];
+        let status = unsafe { GetCurrentPackageFamilyName(&mut length, buffer.as_mut_ptr()) };
+        if status != 0 {
+            return None;
+        }
+        let end = buffer.iter().position(|&unit| unit == 0).unwrap_or(buffer.len());
+        Some(String::from_utf16_lossy(&buffer[..end]))
+    }
 }
 
 #[cfg(desktop)]
