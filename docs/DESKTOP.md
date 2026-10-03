@@ -8,24 +8,41 @@ UI와 일반적인 기능 수정은 웹 배포로 반영되며, 앱이 다음 �
 
 ## 다운로드와 설치
 
-[GitHub Releases](https://github.com/zidell/ginote/releases)에서 macOS는 DMG,
-Windows 10/11은 MSI를 내려받아 설치합니다. Linux 패키지도 제공됩니다.
-새 Windows 릴리스는 SignPath Foundation 인증서 설정 후 서명된 MSI로 게시합니다.
-기존 릴리스의 Windows 설치 파일은 서명되지 않았습니다. Microsoft Store에는
-등록하지 않습니다. Windows의 평판 경고는 서명 후에도 다운로드 수와 평판에 따라
-나타날 수 있습니다.
-
-macOS에서는 Homebrew로 설치할 수도 있습니다.
+- macOS: [GitHub Releases](https://github.com/zidell/ginote/releases)의 DMG 또는 Homebrew.
+- Linux: GitHub Releases의 AppImage, deb, rpm.
+- Windows: Microsoft Store와 MSIX로 배포합니다(아래 [Windows](#windows)).
 
 ```bash
 brew tap zidell/ginote https://github.com/zidell/ginote
 brew install --cask ginote
 ```
 
-내장 빌드로 바뀐 첫 릴리스부터 앱의 출처가 `https://note.gitools.net`에서 Tauri 기본
-출처로 바뀌어, 기존 로컬 저장소가 자동 이전되지 않습니다. 업데이트 전에 저장되지 않은
-초안·대기 작업을 완료하고, 업데이트 후 GitHub PAT와 선택적으로 OpenAI API 키를 다시
-입력하세요. 웹 브라우저에 저장한 설정도 데스크톱 앱과 별도입니다.
+## 앱 업데이트
+
+업데이트는 두 갈래입니다.
+
+| 무엇이 바뀌나 | 어떻게 받나 |
+| --- | --- |
+| 화면과 일반 기능(웹 빌드) | 앱이 실행 중에 note.gitools.net의 새 빌드를 받아 다음 실행부터 씁니다([앱 프론트엔드 자동 교체](APP_OTA.md)). |
+| 네이티브 셸(Tauri, 플러그인, 권한) | 새 릴리스를 설치해야 합니다. 플랫폼마다 아래처럼 받습니다. |
+
+- **macOS·Linux**: 앱이 실행 10초 뒤와 그 뒤 6시간마다 GitHub 릴리스의 `latest.json`을
+  확인하고, 새 버전이 있으면 "이 버전 건너뛰기 / 나중에 / 지금 설치" 창을 띄웁니다
+  (Sparkle과 같은 흐름). 설치가 끝나면 지금 다시 시작할지 묻습니다. Linux는 AppImage·deb·rpm
+  모두 받은 형식 그대로 갱신합니다. 자동 확인 여부와 건너뛴 버전은 `config.toml`의
+  `[updates]`에 있고([설정 파일](CONFIG.md)), 설정 화면의 "앱 업데이트"에서 바로 확인할 수
+  있습니다. 구현은 `src-tauri/src/release_update.rs`, `src/lib/release-update.js`,
+  `src/lib/ReleaseUpdateDialog.svelte`입니다.
+- **Homebrew**: cask에 `auto_updates true`가 있어 앱 업데이터와 `brew upgrade`가 충돌하지
+  않습니다.
+- **Windows**: Microsoft Store와 App Installer가 업데이트합니다. 앱 업데이터는 쓰지 않습니다.
+- **iOS·Android**: 스토어가 업데이트합니다.
+
+업데이트 파일은 Tauri 업데이터 서명 키로 서명합니다. 공개키는
+`src-tauri/tauri.conf.json`의 `plugins.updater.pubkey`에 들어 있고, 앱은 이 키로 서명된
+파일만 설치합니다. **개인키를 잃으면 이미 설치된 앱이 이후 릴리스를 받지 못하므로** 개인키와
+비밀번호를 저장소 밖에 백업해 둡니다. 키를 바꿔야 하면 새 공개키를 넣은 릴리스를 옛 키로
+서명해 한 번 내보낸 뒤 시크릿을 바꿉니다.
 
 ## 로컬 실행과 패키징
 
@@ -38,9 +55,10 @@ npm run tauri:build
 ```
 
 개발 모드는 로컬 Vite 서버를 열고, 프로덕션 빌드는 `npm run build`로 만든 `dist`를
-내장합니다. Windows에서 MSI만 만들려면 `npm run tauri:build -- --bundles msi`를
-사용합니다. 웹 앱은 `npm run build`로 별도 빌드해 배포하며, 배포 환경에
-`GINOTE_OTA_SIGNING_KEY`가 있어야 설치된 앱이 그 빌드를 받습니다.
+내장합니다. 웹 앱은 `npm run build`로 별도 빌드해 배포하며, 배포 환경에
+`GINOTE_OTA_SIGNING_KEY`가 있어야 설치된 앱이 그 빌드를 받습니다. 업데이트 파일까지
+만들려면 `TAURI_SIGNING_PRIVATE_KEY`·`TAURI_SIGNING_PRIVATE_KEY_PASSWORD`를 두고
+`--config src-tauri/tauri.release.conf.json`을 붙입니다.
 
 ## GitHub Releases
 
@@ -49,13 +67,10 @@ npm run tauri:build
 데스크톱 릴리스를 만들 필요가 없습니다. GitHub Actions 실행 번호를
 `0.1.<run_number>` 버전에 넣으며, 저장소에는 버전 변경을 커밋하지 않습니다.
 
-macOS DMG와 Linux 패키지를 초안 릴리스에 올립니다. Windows MSI는 GitHub가
-호스팅하는 Windows 러너에서 빌드해 SignPath에 한 번 제출합니다. SignPath가 MSI와
-내부 `ginote.exe`를 서명한 뒤, 서명을 확인한 MSI만 초안 릴리스에 올립니다.
-SignPath 설정이 없으면 Windows 빌드만 건너뛰고 macOS·Linux 릴리스를 게시합니다.
-서명 설정이 있는 경우 서명 요청이 거절되거나 실패하면 릴리스는 게시되지 않습니다. 무료 SignPath
-Foundation 인증서는 **데스크톱 바이너리를 새로 릴리스할 때마다 수동 서명 승인**이
-필요합니다. 웹 앱만 배포할 때는 데스크톱 빌드나 서명 요청이 발생하지 않습니다.
+macOS(universal)와 Linux 빌드가 설치 파일과 함께 업데이트 파일과 그 서명(`.sig`)을 초안
+릴리스에 올립니다. 두 빌드가 끝나면 `scripts/updater-manifest.mjs`가 서명을 모아
+`latest.json`을 한 번에 만들어 올리고 릴리스를 게시합니다. 게시된 최신 릴리스의
+`latest.json`이 설치된 앱이 확인하는 주소입니다.
 
 모든 작업이 성공하면 릴리스를 게시하고 최신 20개만 유지합니다. 릴리스와 배포
 채널 갱신은 원본 `zidell/ginote` 저장소에서만 실행됩니다.
@@ -73,21 +88,37 @@ APPLE_PASSWORD
 APPLE_TEAM_ID
 ```
 
-Windows 서명을 처음 설정할 때는 [SignPath Foundation에 신청](https://signpath.org/apply.html)해
-오픈소스 서명 승인을 받고, GitHub 앱과 GitHub Trusted Build System을 연결해야
-합니다. SignPath 프로젝트 슬러그는 `ginote`, 서명 정책은 `release-signing`,
-아티팩트 구성은 `windows-msi`로 만들고
-[windows-msi.xml](../.signpath/windows-msi.xml)의 내용을 등록합니다. GitHub
-저장소에는 `SIGNPATH_API_TOKEN` 시크릿과 `SIGNPATH_ORGANIZATION_ID` 변수를
-설정합니다. API 토큰에는 해당 정책의 서명 요청 권한이 필요합니다.
+업데이트 파일 서명에는 `TAURI_SIGNING_PRIVATE_KEY`, `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`
+시크릿이 필요합니다.
 
-설정 후 배포할 `main`의 변경으로 `release` 대상 PR을 열고 병합하면 워크플로가
-서명 승인까지 기다립니다. 승인한 바이너리 릴리스가 성공한 뒤에는 웹 앱의
-일반적인 수정은 웹 배포만 하면 됩니다. 서명 정책과 개인정보 안내는
-[Code signing policy](CODE_SIGNING.md)에 있습니다.
+## Windows
+
+Windows는 Tauri 앱을 MSIX로 묶어 Microsoft Store로 배포합니다. Store 판은 Microsoft가
+서명하고 Store가 업데이트하므로, 앱 업데이터는 Windows에서 쓰지 않습니다.
+
+- 패키징: `.github/workflows/windows-msix.yml`이 `ginote.exe`를 만들고(`tauri build --no-bundle`)
+  `scripts/windows/package-msix.ps1`이 `src-tauri/windows/AppxManifest.xml`을 채워 MSIX로
+  묶습니다. 릴리스 워크플로가 같은 버전(`0.1.<실행 번호>.0`)으로 부르고, 손으로 실행하면
+  패키징 점검만 합니다.
+- 점검: 매번 시험용 인증서로 서명한 패키지를 러너에 설치하고, 실행 별칭으로
+  `ginote --config-path`가 패키지 전용 설정 폴더를 가리키는지 확인한 뒤 지웁니다.
+- 설정 파일: MSIX 안에서 앱이 `%APPDATA%`에 쓰는 파일은 Windows가
+  `%LOCALAPPDATA%\Packages\<패키지 패밀리 이름>\LocalCache\Roaming\` 아래로 옮겨 둡니다.
+  `ginote --config-path`가 이 실제 위치를 알려 줍니다([설정 파일](CONFIG.md)).
+- 명령줄: 매니페스트의 실행 별칭으로 터미널에서 `ginote --help`, `ginote --config-path`를 쓸 수
+  있습니다. 릴리스 빌드는 GUI 앱이라 콘솔 창을 띄우지 않고, 명령줄 출력은 부모 콘솔에 붙어
+  내보냅니다.
+- WebView2: MSIX는 WebView2 런타임을 설치하지 않습니다. Windows 11과 업데이트된
+  Windows 10에는 기본으로 들어 있습니다.
+- Store 판 ID: Partner Center에서 앱 이름을 예약하면 받는 값을 저장소 변수
+  `MSSTORE_IDENTITY_NAME`, `MSSTORE_PUBLISHER`, `MSSTORE_PUBLISHER_DISPLAY_NAME`에 넣습니다.
+  값이 있으면 릴리스마다 Store 제출용 MSIX를 워크플로 산출물(`ginote-store-msix`)로 남깁니다.
+- Store 밖 MSIX: 서명 인증서(SignPath Foundation 승인 후)가 생기면 그 인증서 주체를
+  Publisher로 넣은 MSIX와 `.appinstaller`를 GitHub 릴리스에 올려, Windows App Installer가
+  실행할 때 새 버전을 확인하게 합니다.
 
 ## Homebrew 배포 유지보수
 
 `Casks/ginote.rb`는 릴리스 워크플로가 최신 macOS universal DMG의 버전과
-SHA-256으로 자동 갱신합니다. 변경 사항은 `main`에 GitHub Actions 봇이
+SHA-256으로 자동 갱신합니다. 앱이 스스로 업데이트하므로 cask에 `auto_updates true`를 둡니다. 변경 사항은 `main`에 GitHub Actions 봇이
 커밋합니다.

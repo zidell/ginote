@@ -17,6 +17,8 @@ per questo è sicura.
 
 App online (utilizzabile liberamente da chiunque): [https://note.gitools.net](https://note.gitools.net)
 
+> Ginote è un progetto personale pubblicato gratuitamente. Puoi usarlo liberamente, ma non accetto proposte di funzionalità, segnalazioni di bug né richieste di assistenza. Se ti serve una funzionalità, fai un fork secondo la licenza MIT e modificalo tu stesso.
+
 ## Anteprima
 
 ![Anteprima di Ginote](docs/preview.gif)
@@ -158,10 +160,10 @@ richieste all'API di GitHub, il PAT o i dati delle note.
 
 ### Scaricare l'app desktop
 
-I programmi di installazione per macOS, Windows e Linux sono disponibili su
-[GitHub Releases](https://github.com/zidell/ginote/releases). macOS usa un DMG e
-Windows 10/11 un MSI. Le nuove versioni per Windows saranno pubblicate come MSI firmati
-una volta configurata la firma tramite SignPath Foundation. L'app desktop include l'app
+I programmi di installazione per macOS e Linux sono disponibili su
+[GitHub Releases](https://github.com/zidell/ginote/releases): un DMG per macOS e pacchetti
+AppImage, deb e rpm per Linux. Le app installate su macOS e Linux propongono da sole le
+nuove versioni. L'app per Windows 10/11 è distribuita tramite il Microsoft Store. L'app desktop include l'app
 web e si apre anche senza connessione a Internet. Le modifiche all'interfaccia e alle
 funzioni generali vengono distribuite tramite il deploy web: al successivo avvio l'app
 adotta la stessa build da [note.gitools.net](https://note.gitools.net).
@@ -182,11 +184,9 @@ o la sicurezza vanno prima verificate rispetto ai documenti su allegati e critto
 Ambiente di sviluppo, comandi di verifica e procedure di deploy e manutenzione sono
 descritti nella [documentazione di sviluppo e gestione](docs/DEVELOPMENT.md).
 
-## Richieste di funzionalità
+## Richieste e assistenza
 
-Se desideri una funzionalità, fai un fork del progetto e modificalo tu stesso. Per le
-mie esigenze è già più che sufficiente, quindi non accetto proposte di nuove
-funzionalità.
+Ginote è un progetto personale pubblicato gratuitamente. Puoi usarlo liberamente, ma non accetto proposte di funzionalità, segnalazioni di bug né richieste di assistenza. Se ti serve una funzionalità, fai un fork secondo la licenza MIT e modificalo tu stesso. Le GitHub Issues sono disattivate per questo repository.
 
 ## Licenza
 

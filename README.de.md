@@ -17,6 +17,8 @@ kommuniziert direkt mit der GitHub API – deshalb ist sie sicher.
 
 Live-App (für alle frei nutzbar): [https://note.gitools.net](https://note.gitools.net)
 
+> Ginote ist ein privates Projekt und wird kostenlos veröffentlicht. Du kannst es frei nutzen, aber ich nehme keine Feature-Wünsche, Fehlerberichte oder Support-Anfragen an. Wenn du eine Funktion brauchst, forke das Projekt gemäß der MIT-Lizenz und passe es selbst an.
+
 ## Vorschau
 
 ![Ginote-Vorschau](docs/preview.gif)
@@ -160,10 +162,10 @@ oder Notizdaten.
 
 ### Desktop-App herunterladen
 
-Installationsdateien für macOS, Windows und Linux gibt es unter
-[GitHub Releases](https://github.com/zidell/ginote/releases). macOS verwendet ein DMG,
-Windows 10/11 ein MSI. Neue Windows-Releases werden als signierte MSI veröffentlicht,
-sobald die Signierung über die SignPath Foundation eingerichtet ist. Die Desktop-App
+Installationsdateien für macOS und Linux gibt es unter
+[GitHub Releases](https://github.com/zidell/ginote/releases): ein DMG für macOS sowie
+AppImage-, deb- und rpm-Pakete für Linux. Installierte macOS- und Linux-Apps bieten neue
+Releases selbst an. Die App für Windows 10/11 wird über den Microsoft Store verteilt. Die Desktop-App
 enthält die Web-App und startet auch ohne Internetverbindung. Änderungen an Oberfläche
 und allgemeinen Funktionen werden über Web-Deployments ausgeliefert: Beim nächsten Start
 übernimmt die App denselben Build von [note.gitools.net](https://note.gitools.net).
@@ -184,10 +186,9 @@ sollten zuerst die Dokumente zu Anhängen und Verschlüsselung geprüft werden.
 Entwicklungsumgebung, Prüfbefehle sowie Deployment- und Wartungsabläufe sind in der
 [Entwicklungs- und Betriebsdokumentation](docs/DEVELOPMENT.md) beschrieben.
 
-## Feature-Wünsche
+## Wünsche und Support
 
-Wenn du dir eine Funktion wünschst, forke das Projekt und ändere es selbst. Für meine
-Zwecke reicht es bereits, daher nehme ich keine Feature-Vorschläge an.
+Ginote ist ein privates Projekt und wird kostenlos veröffentlicht. Du kannst es frei nutzen, aber ich nehme keine Feature-Wünsche, Fehlerberichte oder Support-Anfragen an. Wenn du eine Funktion brauchst, forke das Projekt gemäß der MIT-Lizenz und passe es selbst an. GitHub Issues sind für dieses Repository deaktiviert.
 
 ## Lizenz
 

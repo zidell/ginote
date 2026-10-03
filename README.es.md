@@ -16,6 +16,8 @@ y el navegador se comunica directamente con la API de GitHub, por eso es segura.
 
 App en línea (cualquiera puede usarla gratis): [https://note.gitools.net](https://note.gitools.net)
 
+> Ginote es un proyecto personal publicado gratis. Puedes usarlo libremente, pero no acepto propuestas de funciones, informes de errores ni solicitudes de soporte. Si quieres una función, haz un fork según la licencia MIT y modifícalo tú mismo.
+
 ## Vista previa
 
 ![Vista previa de Ginote](docs/preview.gif)
@@ -159,10 +161,11 @@ API de GitHub, el PAT ni los datos de las notas.
 
 ### Descargar la app de escritorio
 
-Los instaladores para macOS, Windows y Linux están disponibles en
-[GitHub Releases](https://github.com/zidell/ginote/releases). macOS usa un DMG y
-Windows 10/11 un MSI. Las nuevas versiones para Windows se publicarán como MSI firmados
-una vez configurada la firma con SignPath Foundation. La app de escritorio incluye la app
+Los instaladores para macOS y Linux están disponibles en
+[GitHub Releases](https://github.com/zidell/ginote/releases): un DMG para macOS y paquetes
+AppImage, deb y rpm para Linux. Las apps instaladas en macOS y Linux ofrecen por sí solas
+las nuevas versiones. La app para Windows 10/11 se distribuye a través de Microsoft Store.
+La app de escritorio incluye la app
 web y se abre sin conexión a Internet. Los cambios en la interfaz y en las funciones
 generales se aplican mediante despliegues web: en el siguiente inicio, la app adopta la
 misma compilación desde [note.gitools.net](https://note.gitools.net).
@@ -184,10 +187,9 @@ contra la documentación de adjuntos y cifrado. El entorno de desarrollo, los co
 verificación y los procedimientos de despliegue y mantenimiento se describen en la
 [documentación de desarrollo y operación](docs/DEVELOPMENT.md).
 
-## Solicitudes de funciones
+## Solicitudes y soporte
 
-Si quieres una función nueva, haz un fork del proyecto y cámbialo tú mismo. Para lo que
-yo necesito ya es suficiente, así que no acepto propuestas de funciones.
+Ginote es un proyecto personal publicado gratis. Puedes usarlo libremente, pero no acepto propuestas de funciones, informes de errores ni solicitudes de soporte. Si quieres una función, haz un fork según la licencia MIT y modifícalo tú mismo. Las GitHub Issues están desactivadas en este repositorio.
 
 ## Licencia
 

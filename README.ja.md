@@ -16,6 +16,8 @@ GitHub API と直接通信するので安全です。
 
 サービス URL（誰でもすぐに利用できます）：[https://note.gitools.net](https://note.gitools.net)
 
+> 個人が作って無料で公開しているアプリです。自由にお使いいただけますが、機能の提案、バグ報告、使い方のサポートは受け付けていません。欲しい機能があれば、MIT ライセンスに従ってフォークして改変してください。
+
 ## 画面
 
 ![Ginote の使用プレビュー](docs/preview.gif)
@@ -143,9 +145,9 @@ PAT、ノートデータはキャッシュしません。
 
 ### デスクトップアプリのダウンロード
 
-macOS・Windows・Linux 向けのインストーラーは [GitHub Releases](https://github.com/zidell/ginote/releases)
-からダウンロードできます。macOS は DMG、Windows 10/11 は MSI を使用します。新しい Windows
-リリースは、SignPath Foundation による署名の設定が済み次第、署名済み MSI として公開されます。
+macOS・Linux 向けのインストーラーは [GitHub Releases](https://github.com/zidell/ginote/releases)
+からダウンロードできます。macOS は DMG、Linux は AppImage・deb・rpm です。インストール済みの
+macOS・Linux アプリは新しいリリースを自ら案内します。Windows 10/11 版は Microsoft Store で配布します。
 デスクトップアプリは Web アプリを内蔵しているため、インターネットに接続していなくても
 起動できます。画面や一般的な機能の修正は Web デプロイで反映され、アプリは次回起動時に
 [note.gitools.net](https://note.gitools.net) の同じビルドに切り替わります。
@@ -164,10 +166,9 @@ Web アプリを変更するときは、ロックファイルに基づいて依�
 開発環境、検証コマンド、デプロイ・保守の手順は[開発・運用ドキュメント](docs/DEVELOPMENT.md)に
 まとめています。
 
-## 機能リクエスト
+## 要望とサポート
 
-機能の要望がある場合は、フォークしてご自身で変更してください。私が使うにはもう十分なので、
-個別の機能提案は受け付けていません。
+個人が作って無料で公開しているアプリです。自由にお使いいただけますが、機能の提案、バグ報告、使い方のサポートは受け付けていません。欲しい機能があれば、MIT ライセンスに従ってフォークして改変してください。 このリポジトリの GitHub Issues は無効にしています。
 
 ## ライセンス
 

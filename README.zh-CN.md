@@ -15,6 +15,8 @@ SPA 应用：功能几乎原样保留，只把使用体验做得像笔记应用�
 
 在线地址（任何人都可以直接使用）：[https://note.gitools.net](https://note.gitools.net)
 
+> 这是个人制作并免费公开的应用。欢迎自由使用，但不接受功能建议、错误报告或使用支持。如需其他功能，请依据 MIT 许可证 fork 后自行修改。
+
 ## 界面
 
 ![Ginote 使用预览](docs/preview.gif)
@@ -124,9 +126,9 @@ JavaScript 等应用文件。没有处理登录或笔记存储的应用后端，
 
 ### 下载桌面应用
 
-macOS、Windows、Linux 的安装包可以在 [GitHub Releases](https://github.com/zidell/ginote/releases)
-下载。macOS 使用 DMG，Windows 10/11 使用 MSI。SignPath Foundation 签名配置完成后，新的
-Windows 版本将以已签名的 MSI 发布。桌面应用内置了 Web 应用，无需联网也能打开。界面和
+macOS 和 Linux 的安装包可以在 [GitHub Releases](https://github.com/zidell/ginote/releases)
+下载：macOS 为 DMG，Linux 为 AppImage、deb 和 rpm。已安装的 macOS 和 Linux 应用会自行提示
+新版本。Windows 10/11 应用通过 Microsoft Store 发布。桌面应用内置了 Web 应用，无需联网也能打开。界面和
 一般功能的修改会通过 Web 部署生效，应用会在下次启动时换成
 [note.gitools.net](https://note.gitools.net) 上的同一构建。
 
@@ -141,9 +143,9 @@ macOS Homebrew 安装、本地运行、各平台打包及发布流程请参阅[�
 或安全的变更，请先查阅附件和加密文档。开发环境、验证命令以及部署和维护流程请参阅
 [开发与运维文档](docs/DEVELOPMENT.md)。
 
-## 功能请求
+## 请求与支持
 
-如果有功能需求，请 fork 后自行修改。它对我来说已经够用了，因此不接受额外的功能建议。
+这是个人制作并免费公开的应用。欢迎自由使用，但不接受功能建议、错误报告或使用支持。如需其他功能，请依据 MIT 许可证 fork 后自行修改。 本仓库已关闭 GitHub Issues。
 
 ## 许可证
 

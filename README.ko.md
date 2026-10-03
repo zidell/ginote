@@ -12,6 +12,8 @@
 
 서비스 주소(누구나 바로 사용 가능): [https://note.gitools.net](https://note.gitools.net)
 
+> 개인이 만들어 무료로 공개하는 앱입니다. 자유롭게 쓰셔도 되지만 기능 제안, 버그 신고, 사용 지원은 받지 않습니다. 원하는 기능이 있으면 MIT 라이선스에 따라 포크해서 고쳐 쓰세요.
+
 ![Ginote 사용 미리보기](docs/preview.gif)
 
 개인적으로 GitHub Issues를 좋아하는데 너무 굼뜨고 UX가 불편한 점이 항상
@@ -184,9 +186,9 @@ API 사용량에 따라 OpenAI 비용이 발생할 수 있습니다.
 
 ## 데스크톱 앱 다운로드
 
-macOS·Windows·Linux용 설치 파일은 [GitHub Releases](https://github.com/zidell/ginote/releases)에서
-내려받을 수 있습니다. macOS는 DMG, Windows 10/11은 MSI를 사용합니다. 새 Windows
-릴리스는 SignPath Foundation 서명이 설정된 뒤 서명된 MSI로 게시됩니다.
+macOS·Linux용 설치 파일은 [GitHub Releases](https://github.com/zidell/ginote/releases)에서
+내려받을 수 있습니다. macOS는 DMG, Linux는 AppImage·deb·rpm입니다. 설치된 macOS·Linux 앱은
+새 릴리스가 나오면 스스로 설치를 권합니다. Windows 10/11 앱은 Microsoft Store로 배포합니다.
 데스크톱 앱은 웹 앱을 내장해 인터넷 연결 없이도 열립니다. 앱 화면과 일반적인 기능
 수정은 웹 배포로 적용되며, 앱이 다음 실행 때 [note.gitools.net](https://note.gitools.net)의
 같은 빌드로 바꿉니다.
@@ -209,10 +211,9 @@ macOS Homebrew 설치, 로컬 실행, 플랫폼별 패키징과 릴리스 절차
 암호화 문서를 먼저 확인해야 합니다. 개발 환경, 검증 명령, 배포·유지보수 절차는
 [개발·운영 문서](docs/DEVELOPMENT.md)에 정리했습니다.
 
-## 기능 요청
+## 요청과 지원
 
-기능 요청사항이 있는 경우 포크해서 직접 변경하세요. 제가 쓰기에는 이미 충분해서
-별도의 기능 제안은 받지 않습니다.
+개인이 만들어 무료로 공개하는 앱입니다. 자유롭게 쓰셔도 되지만 기능 제안, 버그 신고, 사용 지원은 받지 않습니다. 원하는 기능이 있으면 MIT 라이선스에 따라 포크해서 고쳐 쓰세요. 이 저장소의 GitHub Issues는 꺼 두었습니다.
 
 ## 라이선스
 
