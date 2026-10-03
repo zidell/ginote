@@ -17,6 +17,8 @@ kommuniziert direkt mit der GitHub API – deshalb ist sie sicher.
 
 Live-App (für alle frei nutzbar): [https://note.gitools.net](https://note.gitools.net)
 
+> Ginote ist ein privates Projekt und wird kostenlos veröffentlicht. Du kannst es frei nutzen, aber ich nehme keine Feature-Wünsche, Fehlerberichte oder Support-Anfragen an. Wenn du eine Funktion brauchst, forke das Projekt gemäß der MIT-Lizenz und passe es selbst an.
+
 ## Vorschau
 
 ![Ginote-Vorschau](docs/preview.gif)
@@ -184,10 +186,9 @@ sollten zuerst die Dokumente zu Anhängen und Verschlüsselung geprüft werden.
 Entwicklungsumgebung, Prüfbefehle sowie Deployment- und Wartungsabläufe sind in der
 [Entwicklungs- und Betriebsdokumentation](docs/DEVELOPMENT.md) beschrieben.
 
-## Feature-Wünsche
+## Wünsche und Support
 
-Wenn du dir eine Funktion wünschst, forke das Projekt und ändere es selbst. Für meine
-Zwecke reicht es bereits, daher nehme ich keine Feature-Vorschläge an.
+Ginote ist ein privates Projekt und wird kostenlos veröffentlicht. Du kannst es frei nutzen, aber ich nehme keine Feature-Wünsche, Fehlerberichte oder Support-Anfragen an. Wenn du eine Funktion brauchst, forke das Projekt gemäß der MIT-Lizenz und passe es selbst an. GitHub Issues sind für dieses Repository deaktiviert.
 
 ## Lizenz
 

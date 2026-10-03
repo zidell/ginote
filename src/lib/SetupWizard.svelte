@@ -94,6 +94,7 @@
               <li><i class="bi bi-tags" aria-hidden="true"></i><span>{$_('setup.introFeatureTags')}</span></li>
               <li><i class="bi bi-shield-lock" aria-hidden="true"></i><span>{$_('setup.introFeaturePrivacy')}</span></li>
             </ul>
+            <p class="small text-secondary mt-3 mb-0">{$_('setup.introNotice')}</p>
           {:else if step === 2}
             <div class="setup-step-icon"><i class="bi bi-github" aria-hidden="true"></i></div>
             <h2 class="h5 fw-bold">{$_('setup.accountTitle')}</h2>

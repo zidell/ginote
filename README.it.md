@@ -17,6 +17,8 @@ per questo è sicura.
 
 App online (utilizzabile liberamente da chiunque): [https://note.gitools.net](https://note.gitools.net)
 
+> Ginote è un progetto personale pubblicato gratuitamente. Puoi usarlo liberamente, ma non accetto proposte di funzionalità, segnalazioni di bug né richieste di assistenza. Se ti serve una funzionalità, fai un fork secondo la licenza MIT e modificalo tu stesso.
+
 ## Anteprima
 
 ![Anteprima di Ginote](docs/preview.gif)
@@ -182,11 +184,9 @@ o la sicurezza vanno prima verificate rispetto ai documenti su allegati e critto
 Ambiente di sviluppo, comandi di verifica e procedure di deploy e manutenzione sono
 descritti nella [documentazione di sviluppo e gestione](docs/DEVELOPMENT.md).
 
-## Richieste di funzionalità
+## Richieste e assistenza
 
-Se desideri una funzionalità, fai un fork del progetto e modificalo tu stesso. Per le
-mie esigenze è già più che sufficiente, quindi non accetto proposte di nuove
-funzionalità.
+Ginote è un progetto personale pubblicato gratuitamente. Puoi usarlo liberamente, ma non accetto proposte di funzionalità, segnalazioni di bug né richieste di assistenza. Se ti serve una funzionalità, fai un fork secondo la licenza MIT e modificalo tu stesso. Le GitHub Issues sono disattivate per questo repository.
 
 ## Licenza
 
