@@ -150,9 +150,9 @@ describe('NoteEditor 코멘트 블록', () => {
     await fireEvent.blur(bodyTextarea);
 
     await waitFor(() => expect(getIssue).toHaveBeenCalledWith('t', 'owner/repo', 5));
+    await waitFor(() => expect(onRefreshed).toHaveBeenCalledWith(closedIssue));
     expect(updateIssue).not.toHaveBeenCalled();
     expect(bodyTextarea.value).toBe(closedIssue.body);
-    expect(onRefreshed).toHaveBeenCalledWith(closedIssue);
   });
 
   it('저장 전에 다른 디바이스에서 닫힌 이슈를 감지하면 예일 때 복원과 수정을 함께 반영한다', async () => {

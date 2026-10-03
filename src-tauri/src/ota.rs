@@ -23,7 +23,7 @@ use tauri::{App, Assets, Emitter, Manager, Runtime};
 
 /// 이 셸이 프론트엔드에 제공하는 네이티브 API 수준. src/lib/native-api.js의
 /// MIN_NATIVE_API와 짝을 이룬다. command·플러그인·권한을 늘릴 때만 올린다.
-pub const NATIVE_API: u32 = 1;
+pub const NATIVE_API: u32 = 2;
 
 /// 웹 빌드를 받아 올 주소. 포크나 로컬 시험에서는 빌드할 때 GINOTE_OTA_BASE_URL로 바꾼다.
 const BASE_URL: &str = match option_env!("GINOTE_OTA_BASE_URL") {

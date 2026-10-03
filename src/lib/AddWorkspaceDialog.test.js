@@ -10,7 +10,7 @@ async function fillAndSubmit({ repo = 'octo/work', token = '  github_pat_abc  ',
   await fireEvent.input(screen.getByLabelText('Repository address'), { target: { value: repo } });
   await fireEvent.click(screen.getByRole('button', { name: /Repository address entered/ }));
   await fireEvent.input(screen.getByLabelText('Fine-grained PAT'), { target: { value: token } });
-  if (!remember) await fireEvent.click(screen.getByLabelText('Remember PAT in this browser'));
+  if (!remember) await fireEvent.click(screen.getByLabelText('Remember PAT on this device'));
   await fireEvent.click(screen.getByRole('button', { name: /Complete setup/ }));
 }
 

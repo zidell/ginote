@@ -289,27 +289,30 @@ button, input, textarea { font: inherit; }
 .boot-screen { height: 100%; display: flex; align-items: center; justify-content: center; gap: .75rem; background: var(--ui-bg-app); }
 .boot-loading-message { display: inline-flex; align-items: center; gap: .45rem; }
 .setup-shell { min-height: 100%; display: grid; align-items: center; background: var(--ui-bg-shell); }
-.settings-overlay {
-  position: fixed;
-  z-index: 1060;
-  inset: 0;
-  width: 100%;
-  max-width: none;
-  height: 100%;
-  height: 100dvh;
-  min-height: 0;
-  display: block;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  -webkit-overflow-scrolling: touch;
+/* 설정·도움말 화면(SheetView). 노트 화면처럼 위쪽 헤더 바와 왼쪽 위 버튼을 쓴다. 휴대폰 폭에서는
+   화면을 꽉 채워 오른쪽에서 밀려 들어오고, 태블릿 이상(768px~)에서는 가운데 모달로 뜬다. */
+.sheet-overlay { position: fixed; z-index: calc(1060 + var(--sheet-layer, 0) * 5); inset: 0; display: flex; }
+.sheet { position: relative; display: flex; flex-direction: column; width: 100%; height: 100%; height: 100dvh; min-height: 0; background: var(--ui-bg-card); animation: sheet-in-right 240ms ease-out both; }
+.sheet-overlay.is-leaving .sheet { animation: sheet-out-right 200ms ease-in both; }
+.sheet-header { position: relative; flex: none; min-height: 64px; display: flex; align-items: center; gap: .75rem; padding: .75rem .55rem; border-bottom: 1px solid var(--ui-border-divider); }
+.sheet-close { display: inline-grid; place-items: center; min-width: 42px; }
+.sheet-close-dismiss { display: none; }
+.sheet-title { position: absolute; left: 50%; max-width: calc(100% - 7.5rem); margin: 0; overflow: hidden; color: var(--ui-text-body); font-size: 1rem; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; transform: translateX(-50%); }
+.sheet-body { flex: 1; min-height: 0; padding: 1.25rem 1rem 2rem; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+@media (min-width: 768px) {
+  .sheet-overlay { align-items: center; justify-content: center; padding: 2rem 1rem; background: var(--ui-api-mask); }
+  .sheet { width: min(680px, 100%); height: auto; max-height: calc(100dvh - 4rem); overflow: hidden; border: 1px solid var(--ui-border); border-radius: 12px; box-shadow: 0 20px 60px var(--ui-shadow-strong); animation: sheet-pop 160ms ease-out both; }
+  .sheet-overlay.is-leaving .sheet { animation: none; }
+  .sheet-header { min-height: 52px; padding: .5rem .75rem; }
+  .sheet-close-back { display: none; }
+  .sheet-close-dismiss { display: inline; }
+  .sheet-body { padding: 1.5rem 2rem 2rem; }
 }
-.settings-overlay .setup-card { margin: 0 auto; }
+@keyframes sheet-in-right { from { transform: translateX(100%); } }
+@keyframes sheet-out-right { to { transform: translateX(100%); } }
+@keyframes sheet-pop { from { opacity: 0; transform: translateY(8px) scale(.98); } }
 .workspace-wizard-overlay { position: fixed; z-index: 1070; inset: 0; height: 100%; overflow-y: auto; overscroll-behavior: contain; }
 .setup-card { width: min(680px, 100%); margin: auto; border: 1px solid var(--ui-border) !important; border-radius: 8px; box-shadow: none !important; background: var(--ui-bg-card); }
-@media (max-width: 480px) {
-  .settings-overlay { padding: 0 !important; }
-  .settings-overlay .setup-card { width: 100%; min-height: 100%; margin: 0; border: 0 !important; border-radius: 0; }
-}
 .setup-wizard { width: min(600px, 100%); }
 .setup-source-links { position: fixed; z-index: 2; top: 1rem; right: 1.25rem; display: flex; gap: .5rem; align-items: center; color: var(--bs-secondary-color); }
 .setup-source-links a { color: inherit; text-decoration: none; }
@@ -527,7 +530,6 @@ html.mode-light .note-row-labels { opacity: 1; }
 .help-link:hover, .help-link:focus-visible { color: var(--ui-text-secondary); }
 .help-text { color: var(--ui-text-heading); }
 .help-sep { color: var(--ui-text-disabled); font-size: .85rem; }
-.help-overlay { position: fixed; z-index: 1065; inset: 0; width: 100%; max-width: none; height: 100%; min-height: 0; display: flex; overflow-y: auto; overscroll-behavior: contain; }
 .help-diagram { margin-bottom: 1rem; padding: .85rem 1rem; border: 1px solid var(--ui-border-section); border-radius: 6px; background: var(--ui-bg-input); color: var(--ui-text-tertiary); font-family: var(--bs-font-monospace); font-size: .8rem; text-align: center; }
 .help-diagram-note { margin-top: .35rem; color: var(--ui-text-muted); font-size: .75rem; }
 .help-points { padding-left: 1.1rem; }

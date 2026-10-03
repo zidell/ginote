@@ -5,6 +5,7 @@
   import BrailleSpinner from './lib/BrailleSpinner.svelte';
   import DisplaySettings from './lib/DisplaySettings.svelte';
   import HelpOverlay from './lib/HelpOverlay.svelte';
+  import SheetView from './lib/SheetView.svelte';
   import NoteEditor from './lib/NoteEditor.svelte';
   import NoteList from './lib/NoteList.svelte';
   import SelectionTagPanel from './lib/SelectionTagPanel.svelte';
@@ -25,6 +26,7 @@
   import { createLongPress } from './lib/long-press.js';
   import { createToast } from './lib/toast.js';
   import { watchAppUpdate } from './lib/app-update.js';
+  import { confirmAction, isInstalledApp } from './lib/dialogs.js';
   import { createTranscriptionHints } from './lib/transcription-hints.js';
   import { createKeyboardReadyClass } from './lib/keyboard-ready-class.js';
   import { isWebFont, loadWebFont } from './lib/editor-fonts.js';
@@ -369,10 +371,14 @@
       const nextLabel = labelFromRoutes(stack);
       routeStack = stack;
       if (wasInVoice && !isInVoice && voiceHasUnrecordedAudio && !allowVoiceRouteExit) {
-        if (!confirm('기록하지 않은 녹음을 전부 취소하시겠습니까?')) {
-          router.push('voice');
-          return;
-        }
+        // 확인창이 비동기라 일단 녹음 화면으로 되돌려 두고, 녹음을 버리겠다고 하면 그때 떠난다.
+        router.push('voice');
+        void confirmAction('기록하지 않은 녹음을 전부 취소하시겠습니까?').then((discard) => {
+          if (!discard) return;
+          allowVoiceRouteExit = true;
+          router.pop();
+        });
+        return;
       }
       if (wasInVoice && !isInVoice) {
         voiceHasUnrecordedAudio = false;
@@ -688,8 +694,9 @@
   }
 
   async function connect(showSuccess = true, restoring = false) {
-    if (!restoring && appState === 'setup' && rememberToken && !hasConfirmedPatStorage) {
-      if (!confirm($_('setup.confirmPatStorage'))) return;
+    // 브라우저·공용 PC에서 PAT를 저장할 때만 묻는다. 설치된 앱은 그 기기 전용이라 묻지 않는다.
+    if (!restoring && appState === 'setup' && rememberToken && !hasConfirmedPatStorage && !isInstalledApp()) {
+      if (!(await confirmAction($_('setup.confirmPatStorage')))) return;
       hasConfirmedPatStorage = true;
     }
     const requestedToken = normalizeToken(tokenInputValue) || token;
@@ -872,11 +879,11 @@
     saveSettings();
   }
 
-  function leaveWorkspace(workspaceId) {
+  async function leaveWorkspace(workspaceId) {
     const target = workspaces.find((workspace) => workspace.id === workspaceId);
     if (!target) return;
     const repoLabel = workspaceDisplayName(target);
-    if (!confirm($_('workspace.leaveConfirm', { values: { repo: repoLabel } }))) return;
+    if (!(await confirmAction($_('workspace.leaveConfirm', { values: { repo: repoLabel } })))) return;
     forgetWorkspace(workspaceId);
     notice = $_('workspace.leftNotice', { values: { repo: repoLabel } });
   }
@@ -2014,7 +2021,7 @@
   async function deleteRepositoryLabel(label) {
     const labelKey = String(label.id || label.name).toLocaleLowerCase();
     if (labelBusy[labelKey] || isPinLabel(label)) return;
-    if (!confirm($_('dynamic.deleteTagConfirm', { values: { name: label.name } }))) return;
+    if (!(await confirmAction($_('dynamic.deleteTagConfirm', { values: { name: label.name } })))) return;
     labelBusy = { ...labelBusy, [labelKey]: true };
     error = '';
     try {
@@ -2281,76 +2288,52 @@
     />
   {/if}
   {#if topRoute?.screen === 'settings'}
-  <!-- svelte-ignore a11y_click_events_have_key_events -->
-  <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-  <main
-    class="setup-shell settings-overlay container py-4 py-md-5"
-    on:click={(event) => { if (event.target === event.currentTarget) closeSettings(); }}
-  >
-    <section class="setup-card card border-0 shadow-sm mx-auto overflow-hidden">
-      <div class="row g-0">
-        <div class="col-12 bg-white p-3 p-md-5">
-          <div class="d-flex align-items-start justify-content-between gap-3 mb-4">
-            <div>
-              <h2 class="h4 fw-bold mb-2">{$_("m.c7f73bb54d")}</h2>
-            </div>
-            <button
-              class="btn btn-sm btn-outline-secondary flex-shrink-0"
-              aria-label={$_("m.6bf9c432ba")}
-              title={$_("m.6bf9c432ba")}
-              on:click={closeSettings}
-            ><i class="bi bi-x-lg" aria-hidden="true"></i></button>
-          </div>
+  <SheetView title={$_("m.c7f73bb54d")} closeLabel={$_("m.6bf9c432ba")} onClose={closeSettings}>
+    {#if error}
+      <div class="alert alert-danger" role="alert">{error}</div>
+    {/if}
+    {#if notice}
+      <div class="alert alert-success" role="status">{notice}</div>
+    {/if}
 
-          {#if error}
-            <div class="alert alert-danger" role="alert">{error}</div>
-          {/if}
-          {#if notice}
-            <div class="alert alert-success" role="status">{notice}</div>
-          {/if}
-
-          <div>
-            {#if workspaces.length}
-              <div class="workspace-section mb-4">
-                <h3 class="workspace-section-title">{$_('workspace.settingsSectionTitle')}</h3>
-                <p class="form-text mt-0">{$_('workspace.settingsSectionHelp')}</p>
-                <WorkspaceList
-                  {workspaces}
-                  {activeWorkspaceId}
-                  onMove={moveWorkspace}
-                  onLeave={leaveWorkspace}
-                  onSwitch={switchWorkspace}
-                  onRename={renameWorkspace}
-                  onAddWorkspace={openAddWorkspaceWizard}
-                  tagLabels={visibleRepositoryLabels}
-                  tagBusy={labelBusy}
-                  onCreateTag={createRepositoryLabel}
-                  onRenameTag={renameRepositoryLabel}
-                  onDeleteTag={deleteRepositoryLabel}
-                />
-              </div>
-            {/if}
-
-            <DisplaySettings bind:preferences onDeferredChange={announceDeferredApply} />
-
-              <VoiceSettings
-                bind:this={voiceSettings}
-                bind:apiKey={voiceApiKey}
-                bind:refinementPrompt={voiceRefinementPrompt}
-                bind:transcriptionModel={voiceTranscriptionModel}
-                bind:refinementModel={voiceRefinementModel}
-                bind:preserveOriginalAudio={preserveOriginalVoiceAudio}
-                transcriptionHints={$transcriptionHints.value}
-                hintsLoading={$transcriptionHints.loading}
-                hintsError={$transcriptionHints.error}
-                onHintsInput={transcriptionHints.stage}
-              />
-
-          </div>
+    <div>
+      {#if workspaces.length}
+        <div class="workspace-section mb-4">
+          <h3 class="workspace-section-title">{$_('workspace.settingsSectionTitle')}</h3>
+          <p class="form-text mt-0">{$_('workspace.settingsSectionHelp')}</p>
+          <WorkspaceList
+            {workspaces}
+            {activeWorkspaceId}
+            onMove={moveWorkspace}
+            onLeave={leaveWorkspace}
+            onSwitch={switchWorkspace}
+            onRename={renameWorkspace}
+            onAddWorkspace={openAddWorkspaceWizard}
+            tagLabels={visibleRepositoryLabels}
+            tagBusy={labelBusy}
+            onCreateTag={createRepositoryLabel}
+            onRenameTag={renameRepositoryLabel}
+            onDeleteTag={deleteRepositoryLabel}
+          />
         </div>
-      </div>
-    </section>
-  </main>
+      {/if}
+
+      <DisplaySettings bind:preferences onDeferredChange={announceDeferredApply} />
+
+      <VoiceSettings
+        bind:this={voiceSettings}
+        bind:apiKey={voiceApiKey}
+        bind:refinementPrompt={voiceRefinementPrompt}
+        bind:transcriptionModel={voiceTranscriptionModel}
+        bind:refinementModel={voiceRefinementModel}
+        bind:preserveOriginalAudio={preserveOriginalVoiceAudio}
+        transcriptionHints={$transcriptionHints.value}
+        hintsLoading={$transcriptionHints.loading}
+        hintsError={$transcriptionHints.error}
+        onHintsInput={transcriptionHints.stage}
+      />
+    </div>
+  </SheetView>
   {/if}
   {#if appState === 'ready' || topRoute?.screen === 'settings'}
   <div

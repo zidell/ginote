@@ -9,6 +9,7 @@ pub fn run() {
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![ota::ota_status, ota::ota_prepare])
         .run(context)
         .expect("error while running Ginote");

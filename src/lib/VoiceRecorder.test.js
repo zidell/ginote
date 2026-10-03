@@ -300,7 +300,7 @@ describe('VoiceRecorder', () => {
 
     confirm.mockReturnValue(true);
     window.dispatchEvent(new Event('voice-close-request'));
-    expect(onClose).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
   });
 
   it('녹음이 시작되지 않았으면 확인 없이 닫는다', async () => {
