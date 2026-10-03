@@ -20,7 +20,7 @@ $layout = Join-Path ([IO.Path]::GetTempPath()) "ginote-msix-$([guid]::NewGuid())
 New-Item -ItemType Directory -Path (Join-Path $layout 'Assets') | Out-Null
 Copy-Item $Executable (Join-Path $layout 'ginote.exe')
 Copy-Item 'src-tauri/resources/readme.txt' $layout
-foreach ($logo in 'StoreLogo', 'Square44x44Logo', 'Square71x71Logo', 'Square150x150Logo', 'Square310x310Logo') {
+foreach ($logo in 'StoreLogo', 'Square44x44Logo', 'Square150x150Logo') {
   Copy-Item "src-tauri/icons/$logo.png" (Join-Path $layout "Assets/$logo.png")
 }
 
