@@ -41,7 +41,7 @@
         <uap:DefaultTile Square71x71Logo="Assets\Square71x71Logo.png" Square310x310Logo="Assets\Square310x310Logo.png" />
       </uap:VisualElements>
       <Extensions>
-        <!-- 터미널·에이전트가 `ginote --config-path`, `ginote --help`로 설정 파일을 찾게 한다. -->
+        <!-- 터미널·에이전트가 ginote 명령의 config-path·help 옵션으로 설정 파일을 찾게 한다. -->
         <uap5:Extension Category="windows.appExecutionAlias" Executable="ginote.exe" EntryPoint="Windows.FullTrustApplication">
           <uap5:AppExecutionAlias>
             <uap5:ExecutionAlias Alias="ginote.exe" />
