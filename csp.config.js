@@ -2,10 +2,10 @@
 // 않도록 여기 한 곳에서만 정의한다. 웹 헤더와 meta는 빌드 때 이 파일로 생성하고,
 // src-tauri/tauri.conf.json 의 값은 csp.test.js 가 이 파일과 일치하는지 검사한다.
 
-// 데스크톱 앱은 자체 번들이 아니라 웹과 같은 주소(frontendDist: https://note.gitools.net)를
-// 열기 때문에, 웹으로 내려보내는 CSP가 그대로 Tauri WebView에도 적용된다. 그래서 브라우저에는
-// 쓸모없는 ipc: 와 http://ipc.localhost 도 웹 쪽 connect-src 에 남겨둬야 한다. 이 둘을 빼면
-// 데스크톱 앱의 IPC 호출이 CSP에 막힌다. (ipc: 스킴은 브라우저에 존재하지 않아 위험이 없다.)
+// 앱은 웹과 같은 dist를 내장하거나 내려받아 쓰므로(docs/APP_OTA.md), index.html의 meta CSP가
+// 그대로 Tauri WebView에도 적용된다. 그래서 브라우저에는 쓸모없는 ipc: 와 http://ipc.localhost 도
+// 웹 쪽 connect-src 에 남겨둬야 한다. 이 둘을 빼면 앱의 IPC 호출이 CSP에 막힌다.
+// (ipc: 스킴은 브라우저에 존재하지 않아 위험이 없다.)
 const TAURI_IPC = ['ipc:', 'http://ipc.localhost'];
 
 const BASE = {
@@ -68,15 +68,17 @@ export function devMetaCsp() {
   });
 }
 
-// Tauri는 개발할 때만 자체 CSP를 쓴다(운영에서는 원격 주소를 열어 웹 헤더가 적용된다).
-// 로컬 자산 프로토콜과 개발 서버 주소가 더 필요하다.
+// 앱이 내장·내려받은 자산을 열 때 Tauri가 응답 헤더로 거는 CSP다. 개발 모드는 Vite 개발
+// 서버를 열어 devMetaCsp가 적용되므로 여기에는 운영 값만 둔다. index.html 안의 인라인
+// <style> 해시는 Tauri가 자산에서 계산해 붙인다(src-tauri/src/ota.rs).
 export function tauriCsp() {
-  return serialize({
-    ...BASE,
-    'connect-src': [...BASE['connect-src'], 'http://localhost:5173', 'ws://localhost:5173'],
-    'img-src': [...BASE['img-src'], 'asset:', 'http://asset.localhost'],
-    'style-src': ["'self'", "'unsafe-inline'"]
-  });
+  return serialize(BASE);
+}
+
+// Tauri 개발 모드용(tauri.conf.json의 devCsp). 모바일 개발 모드는 Vite 개발 서버를 Tauri
+// 프로토콜로 중계하면서 이 값을 걸기 때문에, devMetaCsp처럼 HMR에 필요한 만큼 연다.
+export function tauriDevCsp() {
+  return devMetaCsp();
 }
 
 export const SECURITY_HEADERS = {

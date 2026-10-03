@@ -44,7 +44,8 @@ Object.assign(dynamic.en, {
   mergeCloseFailed: 'Created the merged note, but could not move {numbers} to trash. Please close them manually.',
   copyIssueNumber: 'Copy issue #{number}',
   dueDate: 'Due {date}',
-  issueNumberCopied: 'Issue number copied.'
+  issueNumberCopied: 'Issue number copied.',
+  appUpdateRequired: 'A new version of the app is available. Update the app to get the latest changes.'
 });
 
 Object.assign(dynamic.ko, {
@@ -62,7 +63,8 @@ Object.assign(dynamic.ko, {
   mergeCloseFailed: '병합 노트는 만들었지만 {numbers}을(를) 휴지통으로 옮기지 못했습니다. 직접 닫아주세요.',
   copyIssueNumber: '이슈 #{number} 복사',
   dueDate: '마감 {date}',
-  issueNumberCopied: '이슈 번호 복사 완료'
+  issueNumberCopied: '이슈 번호 복사 완료',
+  appUpdateRequired: '새 버전의 앱이 나왔습니다. 최신 변경 사항을 받으려면 앱을 업데이트하세요.'
 });
 
 const dynamicOverrides = {
@@ -73,6 +75,13 @@ const dynamicOverrides = {
   it: { noteCount: '{count} note', openNote: 'Apri la nota {title}', clearFilter: 'Rimuovi il filtro {label}', tagName: 'Nome del tag {name}', createTag: 'Crea #{name}', tagAdded: '#{name} aggiunto.', tagDeleted: '#{name} eliminato.', deleteTagConfirm: 'Eliminare il tag #{name} da tutte le note?', tagRenamed: '#{from} rinominato in #{to}.', tagNameRequired: 'Il nome di #{name} non può essere vuoto.', selectOwner: 'Seleziona l’account {owner}.', selectRepository: 'Seleziona solo {repo}.', createPat: 'Crea un PAT per {name}', allocateFailed: 'Impossibile assegnare un numero alla nuova nota. {error}', moveToTrashConfirm: 'Spostare “{title}” nel cestino?', restoreConfirm: 'Ripristinare “{title}”?', attachmentLimit: 'Ogni nota può contenere al massimo {count} allegati.', attachmentLimitAdded: 'Sono stati aggiunti solo {count} allegati a causa del limite.', fileTooLarge: '“{name}” supera 10 MB e non è stato caricato.', deleteAttachmentConfirm: 'Eliminare “{name}” anche dal repository?', deleteAttachment: 'Elimina allegato {name}', uploading: 'Caricamento ({count})', removeTag: 'Rimuovi tag {name}', openLink: 'Apri {url} in una nuova scheda' },
   es: { noteCount: '{count} notas', openNote: 'Abrir la nota {title}', clearFilter: 'Quitar el filtro {label}', tagName: 'Nombre de la etiqueta {name}', createTag: 'Crear #{name}', tagAdded: 'Se añadió #{name}.', tagDeleted: 'Se eliminó #{name}.', deleteTagConfirm: '¿Eliminar la etiqueta #{name} de todas las notas?', tagRenamed: 'Se cambió el nombre de #{from} a #{to}.', tagNameRequired: 'El nombre de #{name} no puede estar vacío.', selectOwner: 'Selecciona la cuenta {owner}.', selectRepository: 'Selecciona solo {repo}.', createPat: 'Crear un PAT para {name}', allocateFailed: 'No se pudo asignar un número a la nueva nota. {error}', moveToTrashConfirm: '¿Mover «{title}» a la papelera?', restoreConfirm: '¿Restaurar «{title}»?', attachmentLimit: 'Cada nota puede tener como máximo {count} archivos adjuntos.', attachmentLimitAdded: 'Solo se añadieron {count} archivos adjuntos debido al límite por nota.', fileTooLarge: '«{name}» no se subió porque supera los 10 MB.', deleteAttachmentConfirm: '¿Eliminar también «{name}» del repositorio?', deleteAttachment: 'Eliminar el adjunto {name}', uploading: 'Subiendo ({count})', removeTag: 'Quitar la etiqueta {name}', openLink: 'Abrir {url} en una pestaña nueva' }
 };
+
+Object.assign(dynamicOverrides['zh-CN'], { appUpdateRequired: '应用有新版本。请更新应用以获取最新改动。' });
+Object.assign(dynamicOverrides.ja, { appUpdateRequired: 'アプリの新しいバージョンがあります。最新の変更を受け取るにはアプリを更新してください。' });
+Object.assign(dynamicOverrides.de, { appUpdateRequired: 'Eine neue App-Version ist verfügbar. Aktualisieren Sie die App, um die neuesten Änderungen zu erhalten.' });
+Object.assign(dynamicOverrides.fr, { appUpdateRequired: 'Une nouvelle version de l’application est disponible. Mettez-la à jour pour recevoir les dernières modifications.' });
+Object.assign(dynamicOverrides.it, { appUpdateRequired: 'È disponibile una nuova versione dell’app. Aggiornala per ricevere le ultime modifiche.' });
+Object.assign(dynamicOverrides.es, { appUpdateRequired: 'Hay una nueva versión de la app. Actualízala para recibir los últimos cambios.' });
 
 function dynamicFor(code) {
   return { ...dynamic.en, ...(dynamicOverrides[code] || {}) };

@@ -160,10 +160,10 @@ richieste all'API di GitHub, il PAT o i dati delle note.
 I programmi di installazione per macOS, Windows e Linux sono disponibili su
 [GitHub Releases](https://github.com/zidell/ginote/releases). macOS usa un DMG e
 Windows 10/11 un MSI. Le nuove versioni per Windows saranno pubblicate come MSI firmati
-una volta configurata la firma tramite SignPath Foundation. L'app desktop apre
-[note.gitools.net](https://note.gitools.net) e richiede una connessione a Internet. Le
-modifiche all'interfaccia e alle funzioni generali vengono distribuite tramite il
-deploy web.
+una volta configurata la firma tramite SignPath Foundation. L'app desktop include l'app
+web e si apre anche senza connessione a Internet. Le modifiche all'interfaccia e alle
+funzioni generali vengono distribuite tramite il deploy web: al successivo avvio l'app
+adotta la stessa build da [note.gitools.net](https://note.gitools.net).
 
 [Code signing policy](docs/CODE_SIGNING.md)
 

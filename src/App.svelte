@@ -24,6 +24,7 @@
   import { createDeletionQueue, findEntryForIssue, queuedIssueIds } from './lib/deletion-queue.js';
   import { createLongPress } from './lib/long-press.js';
   import { createToast } from './lib/toast.js';
+  import { watchAppUpdate } from './lib/app-update.js';
   import { createTranscriptionHints } from './lib/transcription-hints.js';
   import { createKeyboardReadyClass } from './lib/keyboard-ready-class.js';
   import { isWebFont, loadWebFont } from './lib/editor-fonts.js';
@@ -439,9 +440,12 @@
       appState = 'setup';
     }
 
+    const stopWatchingAppUpdate = watchAppUpdate(() => toast.show($_('dynamic.appUpdateRequired')));
+
     return () => {
       clearTimeout(lockSessionTimer);
       clearTimeout(listRetryTimer);
+      stopWatchingAppUpdate();
       longPress.destroy();
       toast.destroy();
       deletionQueue.cancelAll(true);

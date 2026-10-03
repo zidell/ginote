@@ -145,8 +145,9 @@ PAT、ノートデータはキャッシュしません。
 macOS・Windows・Linux 向けのインストーラーは [GitHub Releases](https://github.com/zidell/ginote/releases)
 からダウンロードできます。macOS は DMG、Windows 10/11 は MSI を使用します。新しい Windows
 リリースは、SignPath Foundation による署名の設定が済み次第、署名済み MSI として公開されます。
-デスクトップアプリは [note.gitools.net](https://note.gitools.net) を開くため、インターネット
-接続が必要です。画面や一般的な機能の修正は Web デプロイで反映されます。
+デスクトップアプリは Web アプリを内蔵しているため、インターネットに接続していなくても
+起動できます。画面や一般的な機能の修正は Web デプロイで反映され、アプリは次回起動時に
+[note.gitools.net](https://note.gitools.net) の同じビルドに切り替わります。
 
 [Code signing policy](docs/CODE_SIGNING.md)
 

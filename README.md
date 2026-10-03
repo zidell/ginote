@@ -186,9 +186,10 @@ caches GitHub API requests, PATs, or note data.
 Installers for macOS, Windows, and Linux are available on
 [GitHub Releases](https://github.com/zidell/ginote/releases). macOS uses a DMG, and
 Windows 10/11 uses an MSI. New Windows releases are published as signed MSIs once
-SignPath Foundation signing is set up. The desktop app opens
-[note.gitools.net](https://note.gitools.net) and requires an internet connection. UI
-and general feature changes are delivered through web deployments.
+SignPath Foundation signing is set up. The desktop app bundles the web app and opens
+without an internet connection. UI and general feature changes are delivered through web
+deployments: the app picks up the same build from [note.gitools.net](https://note.gitools.net)
+on its next launch.
 
 [Code signing policy](docs/CODE_SIGNING.md)
 

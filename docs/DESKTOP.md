@@ -1,9 +1,10 @@
 # 데스크톱 앱 래핑
 
-Ginote 데스크톱 앱은 Tauri 2 셸에서 [https://note.gitools.net](https://note.gitools.net)을
-엽니다. UI와 일반적인 기능 수정은 웹 배포로 반영되며, 데스크톱 셸이나 권한·설치
-방식 변경에는 새 설치 파일이 필요합니다. 앱은 인터넷 연결이 필요하고 GitHub API에
-직접 연결합니다.
+Ginote 데스크톱 앱은 웹과 같은 빌드를 Tauri 2 셸에 내장해 오프라인에서도 열립니다.
+UI와 일반적인 기능 수정은 웹 배포로 반영되며, 앱이 다음 실행 때
+[https://note.gitools.net](https://note.gitools.net)의 같은 빌드로 프론트엔드를 바꿉니다
+([앱 프론트엔드 자동 교체](APP_OTA.md)). 데스크톱 셸이나 권한·설치 방식 변경에는 새 설치
+파일이 필요합니다. 노트 동기화는 GitHub API에 직접 연결합니다.
 
 ## 다운로드와 설치
 
@@ -21,10 +22,10 @@ brew tap zidell/ginote https://github.com/zidell/ginote
 brew install --cask ginote
 ```
 
-기존 Ginote 데스크톱 앱의 로컬 저장소는 새 `https://note.gitools.net` 출처로
-자동 이전되지 않습니다. 업데이트 전에 저장되지 않은 초안·대기 작업을 완료하고,
-업데이트 후 GitHub PAT와 선택적으로 OpenAI API 키를 다시 입력하세요. 웹 브라우저에
-저장한 설정도 데스크톱 앱과 별도입니다.
+내장 빌드로 바뀐 첫 릴리스부터 앱의 출처가 `https://note.gitools.net`에서 Tauri 기본
+출처로 바뀌어, 기존 로컬 저장소가 자동 이전되지 않습니다. 업데이트 전에 저장되지 않은
+초안·대기 작업을 완료하고, 업데이트 후 GitHub PAT와 선택적으로 OpenAI API 키를 다시
+입력하세요. 웹 브라우저에 저장한 설정도 데스크톱 앱과 별도입니다.
 
 ## 로컬 실행과 패키징
 
@@ -36,9 +37,10 @@ npm run tauri:dev
 npm run tauri:build
 ```
 
-개발 모드는 로컬 Vite 서버를 열고, 프로덕션 빌드는 웹 주소를 엽니다. Windows에서
-MSI만 만들려면 `npm run tauri:build -- --bundles msi`를 사용합니다. 웹 앱 자체는
-`npm run build`로 별도 빌드해 배포합니다.
+개발 모드는 로컬 Vite 서버를 열고, 프로덕션 빌드는 `npm run build`로 만든 `dist`를
+내장합니다. Windows에서 MSI만 만들려면 `npm run tauri:build -- --bundles msi`를
+사용합니다. 웹 앱은 `npm run build`로 별도 빌드해 배포하며, 배포 환경에
+`GINOTE_OTA_SIGNING_KEY`가 있어야 설치된 앱이 그 빌드를 받습니다.
 
 ## GitHub Releases
 
