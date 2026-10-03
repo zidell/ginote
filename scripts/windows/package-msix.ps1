@@ -30,7 +30,7 @@ $manifest = $manifest.Replace('{{IDENTITY_NAME}}', (& $escape $IdentityName)).
   Replace('{{PUBLISHER}}', (& $escape $Publisher)).
   Replace('{{PUBLISHER_DISPLAY_NAME}}', (& $escape $PublisherDisplayName)).
   Replace('{{VERSION}}', $msixVersion)
-if ($manifest -match '\{\{') { throw 'AppxManifest.xml still has an unfilled placeholder.' }
+if ($manifest -match '\{\{[A-Z_]+\}\}') { throw 'AppxManifest.xml still has an unfilled placeholder.' }
 Set-Content -Path (Join-Path $layout 'AppxManifest.xml') -Value $manifest -Encoding utf8
 
 $kits = 'C:\Program Files (x86)\Windows Kits\10\bin'

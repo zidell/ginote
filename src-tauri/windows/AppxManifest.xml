@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Ginote MSIX 매니페스트 원본(scripts/windows/package-msix.ps1이 {{...}}를 채운다, docs/DESKTOP.md).
+  Ginote MSIX 매니페스트 원본(scripts/windows/package-msix.ps1이 중괄호 두 겹으로 감싼 자리를 채운다, docs/DESKTOP.md).
   Store 판은 Partner Center가 정한 Identity·Publisher를, Store 밖 판은 서명 인증서의 주체를 넣는다.
 -->
 <Package
