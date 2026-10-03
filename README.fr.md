@@ -183,15 +183,7 @@ plateforme et la procédure de publication sont décrits dans la
 
 ## Exploitation et développement
 
-Pour modifier l'application web, installez les dépendances à partir du fichier de
-verrouillage et assurez-vous que les vérifications statiques, les tests et le build de
-production passent tous avant de déployer. L'application est déployée sous forme de
-fichiers statiques, et l'empaquetage et la signature de l'application de bureau sont
-gérés séparément du déploiement web. Toute modification touchant au format des données
-ou à la sécurité doit d'abord être confrontée aux documents sur les pièces jointes et le
-chiffrement. L'environnement de développement, les commandes de vérification et les
-procédures de déploiement et de maintenance sont décrits dans la
-[documentation de développement et d'exploitation](docs/DEVELOPMENT.md).
+Les règles de développement, les commandes de vérification et le déploiement sont décrits dans [AGENTS.md](AGENTS.md) (en coréen), et les détails par thème dans [docs/](docs/). Un push sur `main` déploie l'application web ; s'il modifie la coque native, il publie aussi les versions de bureau.
 
 ## Demandes et assistance
 

@@ -210,13 +210,7 @@ process are covered in the [desktop app docs](docs/DESKTOP.md).
 
 ## Operations and development
 
-When changing the web app, install dependencies from the lockfile and make sure static
-checks, tests, and the production build all pass before deploying. The app is deployed
-as static files, and desktop packaging and signing are managed separately from web
-deployments. Changes that affect data formats or security should be checked against the
-attachment and encryption docs first. The development environment, verification
-commands, and deployment and maintenance procedures are described in the
-[development and operations docs](docs/DEVELOPMENT.md).
+Development rules, verification commands, and deployment are described in [AGENTS.md](AGENTS.md) (in Korean), with topic-specific details in [docs/](docs/). A push to `main` deploys the web app; when it changes the native shell, it also publishes desktop releases.
 
 ## Requests and support
 

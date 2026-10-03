@@ -1,16 +1,132 @@
-# Ginote 저장소 지침
+# Ginote 개발 안내
 
-- 이 저장소 루트에 `AGENTS.local.md`가 있으면 작업 전에 먼저 읽는다. 특정 개발 기기에만 해당하는
-  내용(로컬 빌드 도구 경로, 서명 키 위치, 설치·확인 절차 등)을 담으며 커밋하지 않는다(`.gitignore`).
-  그 기기에서만 의미 있는 내용은 이 파일이 아니라 거기에 적는다.
-- 문서는 `docs/`에 있다. 시작점은 `docs/DEVELOPMENT.md`이고, 앱 프론트엔드 자동 교체는
-  `docs/APP_OTA.md`, 모바일은 `docs/MOBILE.md`, 데스크톱 릴리스는 `docs/DESKTOP.md`, 설치형 앱의
-  설정 파일·자격 증명은 `docs/CONFIG.md`를 본다. 설정 항목을 추가·변경하면 `src/lib/app-config.js`의
-  스키마도 함께 고친다.
-- 배포 흐름: `main`에 push하면 CI가 테스트를 통과한 웹 빌드에 서명해 `note.gitools.net`에 올리고,
-  설치된 앱도 그 빌드로 바뀐다. 같은 push에 네이티브(`src-tauri`, Windows 패키징, 릴리스 워크플로)
-  변경이 있으면 데스크톱 앱도 바로 릴리스된다. `release` 브랜치는 쓰지 않는다.
-- 네이티브 표면(command·플러그인·권한)을 늘리면 `src-tauri/src/ota.rs`의 `NATIVE_API`와
-  `src/lib/native-api.js`의 `MIN_NATIVE_API`를 함께 올린다.
-- 아이콘은 `src-tauri/icons/source/`의 SVG 두 장만 고치고 `npm run icons`로 모두 다시 만든다.
-- 확인: `npm test`, `npm run check`, `(cd src-tauri && cargo test --lib)`.
+Ginote를 개발·검증·배포하는 규칙과 절차를 모은 시작 문서다. 사람과 코딩 에이전트가 함께
+읽는다. 사용자 안내는 `README.md`, 기능·데이터 형식·배포 흐름의 세부는 `docs/`의 주제별
+문서에 있다. 이 파일에는 규칙과 문서 위치만 두고, 설명은 해당 문서에 둔다.
+
+## 문서
+
+| 문서 | 내용 |
+| --- | --- |
+| [docs/APP_OTA.md](docs/APP_OTA.md) | 설치된 앱의 웹 빌드 교체: 매니페스트, 서명 키, 네이티브 호환성 |
+| [docs/DESKTOP.md](docs/DESKTOP.md) | 데스크톱 앱: 로컬 빌드, 앱 업데이트, 릴리스, 서명, Windows MSIX |
+| [docs/MOBILE.md](docs/MOBILE.md) | Android·iOS: 로컬 빌드, 직접 고친 네이티브 부분, 아이콘 |
+| [docs/CONFIG.md](docs/CONFIG.md) | 설치형 앱의 설정 파일(`config.toml`)과 자격 증명 저장소 |
+| [docs/ATTACHMENTS.md](docs/ATTACHMENTS.md) | 첨부파일 저장 규약, 권한, 보관, 호환성 |
+| [docs/ENCRYPTION.md](docs/ENCRYPTION.md) | 노트 잠금의 암호화 형식, 보호 경계, 배포 pepper |
+| [docs/CODE_SIGNING.md](docs/CODE_SIGNING.md) | 플랫폼별 서명과 개인정보 처리 범위 |
+| [docs/screencasting.md](docs/screencasting.md) | README 미리보기 GIF 생성 |
+
+저장소 루트에 `AGENTS.local.md`가 있으면 작업 전에 먼저 읽는다. 특정 개발 기기에만 해당하는
+내용(로컬 도구 경로, 서명 키 위치, 시험 절차)을 담는 파일이며 커밋하지 않는다(`.gitignore`).
+그 기기에서만 의미 있는 내용은 이 파일이 아니라 거기에 적는다.
+
+## 개발 환경
+
+CI는 Node.js 22와 `npm ci`를 쓴다. 의존성을 바꾸면 `package.json`과 `package-lock.json`을
+함께 커밋한다. 네이티브 앱은 Rust와 [Tauri 사전 요구 사항](https://v2.tauri.app/start/prerequisites/)이
+필요하다.
+
+```bash
+npm ci              # 잠금 파일 기준 설치
+npm run dev         # 웹 개발 서버
+npm run tauri:dev   # 데스크톱 앱 개발 모드
+npm run check       # Svelte 정적 검사
+npm test            # Vitest 전체 테스트
+npm run build       # 프로덕션 웹 빌드
+npm run icons       # 앱·웹 아이콘 전체 생성
+```
+
+변경을 마치기 전에 다음을 모두 통과시킨다. CI도 `main` push와 pull request에서 같은 검사를
+하고, 커버리지(`npm run test:coverage`)를 Codecov에 올린다.
+
+```bash
+npm run check
+npm test
+npm run build
+(cd src-tauri && cargo test --lib)
+```
+
+## 코드 구조
+
+- `src/App.svelte`: 화면 전체의 상태(워크스페이스, 노트 목록, 선택, 라우트)를 들고 하위
+  컴포넌트와 모듈을 잇는 조립 지점. 새 기능의 계산 로직이나 독립된 UI는 여기에 넣지 않고
+  아래 위치로 분리한다.
+- `src/lib/*.svelte`: 화면 조각. 목록(`NoteList`), 검색(`SidebarSearch`), 다중 선택
+  (`SelectionToolbar`, `SelectionTagPanel`), 환경설정(`DisplaySettings`, `VoiceSettings`,
+  `AppUpdateSettings`), 공용 시트(`SheetView`), 도움말(`HelpOverlay`), 저장소 추가
+  (`AddWorkspaceDialog`), 편집기(`NoteEditor`) 등.
+- `src/lib/*.js`: 화면과 무관한 로직.
+  - GitHub API: `github.js`
+  - 순수 계산: `app-routes.js`, `issue-labels.js`, `issue-selection.js`, `pinned-issues.js`,
+    `keyboard-shortcuts.js`, `voice-notes.js` 등
+  - 여러 API 호출을 묶은 작업: `merge-notes.js`, `attachment-prune.js`
+  - 타이머·비동기 상태를 가진 컨트롤러: `deletion-queue.js`, `long-press.js`, `toast.js`,
+    `transcription-hints.js`, `keyboard-ready-class.js`
+  - 설정 저장: `settings-storage.js`, `voice-settings.js`, `sidebar-width.js`. 웹은
+    `localStorage`, 설치형 앱은 `config.toml`과 OS 자격 증명 저장소(`app-config.js`,
+    `settings-backend.js`)
+  - 네이티브 셸 연동: `app-update.js`(웹 빌드 교체), `release-update.js`(앱 업데이트),
+    `dialogs.js`(확인창), `native-api.js`
+- `src-tauri/`: Tauri 셸. `ota.rs`(웹 빌드 교체), `settings.rs`(설정 파일·자격 증명·CLI),
+  `release_update.rs`(앱 업데이트). `gen/android`, `gen/apple`은 직접 고쳐 쓰는 모바일 프로젝트다.
+- `csp.config.js`: 콘텐츠 보안 정책과 HTTP 보안 헤더의 유일한 정의 위치(아래 CSP 절).
+- `public/fonts/`: 편집기 코딩 폰트. 외부 CDN 대신 앱과 함께 배포하며
+  `node scripts/fetch-editor-fonts.mjs`로 다시 받는다.
+- 테스트는 대상 파일 옆의 `*.test.js`. `src/App.test.js`는 GitHub를 메모리 가짜 저장소로
+  바꿔 화면 흐름 전체를 검증하고, 녹음기는 `src/lib/__mocks__/VoiceRecorder.svelte`를 쓴다.
+
+## 지켜야 할 규칙
+
+- **네이티브 호환성**: Tauri command·플러그인·권한을 늘리면 `src-tauri/src/ota.rs`의
+  `NATIVE_API`와 `src/lib/native-api.js`의 `MIN_NATIVE_API`를 함께 올린다. 옛 앱이 새
+  네이티브 기능을 쓰는 웹 빌드를 받지 않게 하는 값이다([APP_OTA](docs/APP_OTA.md)).
+- **설정 항목**: 설정을 추가·변경하면 `src/lib/app-config.js`의 스키마도 고친다. 설치형 앱의
+  `config.toml`과 그 주석이 이 스키마에서 만들어진다([CONFIG](docs/CONFIG.md)).
+- **데이터 형식**: 첨부 경로·링크 형식과 잠금 암호문 형식은 이미 저장된 노트를 다시 읽는
+  규약이다. 바꾸기 전에 [ATTACHMENTS](docs/ATTACHMENTS.md)와 [ENCRYPTION](docs/ENCRYPTION.md)의
+  호환성 절을 따른다.
+- **아이콘**: `src-tauri/icons/source/`의 SVG 두 장만 고치고 `npm run icons`로 모두 다시 만든다.
+- **비밀값**: PAT, 서명 키, 개인 저장소 이름, 실제 노트 데이터를 커밋하지 않는다.
+
+## 배포
+
+`main`에 push하면 다음이 자동으로 진행된다. 별도 릴리스 브랜치는 없다.
+
+- **웹**: `.github/workflows/ci.yml`이 `check`·`test`를 통과한 웹 빌드를 만들어 서명하고
+  Cloudflare Worker `ginote`(정적 자산, `note.gitools.net`, 설정은 `wrangler.jsonc`)에
+  올린다. 웹 빌드는 이 job에서만 만들고 Cloudflare Workers Builds는 쓰지 않는다. 설치된
+  앱도 이 빌드로 바뀐다([APP_OTA](docs/APP_OTA.md)).
+  필요한 시크릿: `GINOTE_OTA_SIGNING_KEY`, `CLOUDFLARE_API_TOKEN`(Account · Workers Scripts ·
+  Edit), `CLOUDFLARE_ACCOUNT_ID`. 서명 키가 없으면 배포 job이 실패한다. 서명 없이 올리면 앱이
+  업데이트를 조용히 멈추기 때문이다.
+- **데스크톱**: 같은 push가 네이티브 셸이나 패키징을 바꿨으면 `.github/workflows/release.yml`이
+  macOS·Linux 릴리스와 Windows MSIX를 만든다. 대상 경로와 시크릿은 [DESKTOP](docs/DESKTOP.md)에
+  있다. 그 밖에 릴리스가 필요하면 Actions의 "Desktop release"를 손으로 실행한다.
+- **모바일**: 스토어 배포는 아직 자동화하지 않았다([MOBILE](docs/MOBILE.md)).
+
+포크를 다른 정적 호스팅에 올릴 때는 `npm run build`의 `dist/`를 그대로 쓴다. 노트 잠금의
+배포 pepper는 [ENCRYPTION](docs/ENCRYPTION.md)을 따른다.
+
+## 보안 헤더와 CSP
+
+CSP는 `csp.config.js` 한 곳에서 정의하고 세 곳에 반영한다.
+
+- `index.html`의 `<meta>`: Vite 플러그인이 빌드 때 넣는다. 개발 서버에서는 HMR에 필요한 만큼만
+  완화한 값을 쓴다.
+- `dist/_headers`: 같은 플러그인이 빌드 산출물로 만든다. `public/`에 두지 않으므로 고칠 때는
+  `csp.config.js`를 고친다.
+- `src-tauri/tauri.conf.json`의 `csp`·`devCsp`: 자동 생성하지 않는다. `csp.test.js`가
+  `csp.config.js`와 일치하는지 검사하고, 어긋나면 올바른 값을 출력한다.
+
+주의할 점:
+
+- `_headers`는 Cloudflare Workers 정적 자산·Pages·Netlify 형식이다. 이 파일을 읽지 않는
+  호스팅(GitHub Pages 등)에서는 HSTS나 `frame-ancestors` 같은 HTTP 헤더가 빠지고 `<meta>`의
+  CSP만 남는다.
+- `connect-src`의 `ipc:`와 `http://ipc.localhost`를 지우지 않는다. 앱은 웹과 같은 `dist`를
+  쓰므로 `index.html`의 CSP가 Tauri WebView에도 적용되고, 이 둘이 없으면 IPC 호출이 막힌다.
+- 폰트를 외부 CDN에서 불러오지 않는다. `font-src`·`style-src`를 그만큼 열어야 하고 사용자 IP가
+  그 CDN으로 나간다. 새 폰트는 `scripts/fetch-editor-fonts.mjs`에 추가한다.
+- `index.html` 안의 `<style>`은 `'unsafe-inline'` 대신 sha256 해시로 허용한다. 해시는 빌드가
+  다시 계산한다.

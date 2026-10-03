@@ -4,22 +4,22 @@
 폴더의 `config.toml`에 두고, PAT와 OpenAI 키는 OS 자격 증명 저장소에 둡니다. 사람이나
 AI 에이전트가 앱 화면을 열지 않고도 설정을 찾아 바꿀 수 있게 하려는 구조이며,
 [Agent Configuration Accessibility](https://github.com/zidell/agent-configuration-accessibility)
-지침을 따릅니다. 웹 앱은 파일 시스템이 없으므로 지금처럼 `localStorage`를 씁니다.
+지침을 따릅니다. 웹 앱은 파일 시스템이 없으므로 `localStorage`를 씁니다.
 
 ## 저장 위치
 
 | 대상 | 위치 |
 | --- | --- |
-| 설정 파일 | macOS `~/Library/Application Support/net.gitools.note/config.toml`, Windows `%APPDATA%\net.gitools.note\config.toml`, Linux `~/.config/net.gitools.note/config.toml`, 모바일은 앱 샌드박스의 같은 이름 파일 |
+| 설정 파일 | macOS `~/Library/Application Support/net.gitools.note/config.toml`, Linux `~/.config/net.gitools.note/config.toml`, Windows(MSIX) `%LOCALAPPDATA%\Packages\<패키지 패밀리 이름>\LocalCache\Roaming\net.gitools.note\config.toml`, 모바일은 앱 샌드박스의 같은 이름 파일. 실제 경로는 `ginote --config-path`가 출력합니다. |
 | 읽기 결과 | 같은 폴더의 `config-status.txt` |
 | PAT | 자격 증명 저장소, 서비스 `net.gitools.note`, 이름 `github-pat:<워크스페이스 id>` |
 | OpenAI 키 | 자격 증명 저장소, 서비스 `net.gitools.note`, 이름 `openai-api-key` |
-| 설치 안내 | macOS `Ginote.app/Contents/Resources/readme.txt`, Windows는 실행 파일 옆, Linux는 `/usr/lib/Ginote/readme.txt` |
+| 설치 안내 | macOS `Ginote.app/Contents/Resources/readme.txt`, Windows는 패키지 안 실행 파일 옆, Linux는 `/usr/lib/Ginote/readme.txt` |
 
 자격 증명 저장소는 macOS 키체인, iOS 키체인(데이터 보호), Windows 자격 증명 관리자,
 Linux Secret Service, Android Keystore로 암호화한 SharedPreferences입니다. 저장소를 쓸 수
-없는 환경(예: Secret Service가 없는 Linux)에서만 예전처럼 `localStorage`의
-`issue-note.secrets-fallback.v1`에 둡니다.
+없는 환경(예: Secret Service가 없는 Linux)에서만 `localStorage`의
+`issue-note.secrets-fallback.v1`에 평문으로 둡니다.
 
 보호 범위: macOS·iOS·Android에서는 다른 프로세스가 파일을 읽어도 자격 증명이 나오지
 않습니다. macOS에서 다른 프로그램이 키체인 항목을 읽으려 하면 시스템이 사용자에게

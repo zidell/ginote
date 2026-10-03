@@ -2,8 +2,9 @@
 
 Ginote 모바일 앱은 데스크톱과 같은 Tauri 2 셸입니다. 웹과 같은 `dist`를 내장하고,
 프론트엔드는 [앱 프론트엔드 자동 교체](APP_OTA.md)로 바뀝니다. 네이티브 프로젝트는
-`src-tauri/gen/android`(그리고 이후 `src-tauri/gen/apple`)에 커밋해 두고 계속 고쳐 씁니다.
-다시 `tauri android init`을 실행하면 아래 수정이 덮어써지므로 하지 않습니다.
+`src-tauri/gen/android`와 `src-tauri/gen/apple`에 커밋해 두고 직접 고쳐 씁니다.
+`tauri android init`·`tauri ios init`을 다시 실행하면 아래 수정이 덮어써지므로 실행하지 않습니다.
+설정 파일과 자격 증명(Android Keystore, iOS 키체인)은 [설정 파일](CONFIG.md)을 봅니다.
 
 ## Android
 
@@ -48,6 +49,7 @@ adb install -r src-tauri/gen/android/app/build/outputs/apk/universal/debug/app-u
 - 상태 바 겹침 없음, 테마에 따른 시스템 바 색, 키보드가 올라오면 화면 높이 축소
 - 한 달 넘게 확인하지 못한 새 설치는 화면을 띄우기 전에 운영 빌드로 교체, 오프라인이면 바로
   내장본으로 실행
+- 설정 파일 읽기, Keystore에 자격 증명 저장·조회·삭제
 
 실기기와 스토어 서명·배포(업로드 keystore, Play Console)는 아직입니다.
 
@@ -81,18 +83,19 @@ xcrun simctl install booted ~/Library/Developer/Xcode/DerivedData/ginote-*/Build
 - 출처 `tauri://localhost`, 보안 컨텍스트, `api.openai.com`·`api.github.com` CORS 통과
 - `getUserMedia` 오디오 트랙 `live`. 시뮬레이터는 권한 창 없이 허용해, 권한 창 문구는 실기기에서
   확인해야 합니다.
+- 설정 파일 읽기, 키체인에 자격 증명 저장·조회·삭제
 
 실기기, Apple Distribution 인증서·프로비저닝 프로파일, App Store Connect 제출이 남았습니다.
 
 ## 아이콘
 
-원본은 `src-tauri/icons/source/background.svg`(청록 바탕)와 `foreground.svg`(노트와 태그,
-투명 바탕) 두 장이고, `npm run icons`(`scripts/generate-icons.mjs`)가 모든 아이콘을 만듭니다.
+원본은 `src-tauri/icons/source/background.svg`(청록 노트 표지와 왼쪽 책등)와
+`foreground.svg`(흰 라벨과 주황 태그, 투명 바탕) 두 장이고, `npm run icons`(`scripts/generate-icons.mjs`)가 모든 아이콘을 만듭니다.
 
 - iOS·Android·PWA maskable·`apple-touch-icon.png`: 꽉 찬 정사각형. 둥근 모서리는 OS가
   마스크로 만듭니다. iOS는 투명한 부분을 허용하지 않습니다.
 - Android 적응형 아이콘: 전경과 배경을 따로 넣고, 전경을 0.68배로 줄여 원형 마스크의 안전
-  영역 안에 노트 전체가 들어오게 합니다.
+  영역 안에 라벨과 태그가 들어오게 합니다.
 - 데스크톱(`src-tauri/icons`)·`public/icon.svg`·파비콘·PWA any: 같은 그림에 둥근 모서리를
   씌웁니다.
 

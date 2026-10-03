@@ -10,13 +10,14 @@ settings and how to change them without opening the app's settings screen.
 Ginote reads and writes exactly one settings file per user:
 
   macOS    ~/Library/Application Support/net.gitools.note/config.toml
-  Windows  %APPDATA%\net.gitools.note\config.toml
   Linux    ${XDG_CONFIG_HOME:-~/.config}/net.gitools.note/config.toml
+  Windows  %LOCALAPPDATA%\Packages\<package family name>\LocalCache\Roaming\net.gitools.note\config.toml
+           (Windows keeps the files of Store/MSIX apps in this per-package folder)
 
-To print the path Ginote itself uses, run the app binary with --config-path:
+To print the exact path Ginote uses, run the app with --config-path:
 
   macOS    /Applications/Ginote.app/Contents/MacOS/ginote --config-path
-  Windows  "<install folder>\ginote.exe" --config-path
+  Windows  ginote --config-path        (the app registers the `ginote` command)
   Linux    ginote --config-path
 
 `--help` prints the same summary as this section. Both options exit before any window

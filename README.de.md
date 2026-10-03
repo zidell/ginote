@@ -177,14 +177,7 @@ Paketierung und den Release-Ablauf beschreibt die [Desktop-Dokumentation](docs/D
 
 ## Betrieb und Entwicklung
 
-Bei Änderungen an der Web-App werden die Abhängigkeiten anhand der Lock-Datei
-installiert, und vor dem Deployment müssen statische Prüfungen, Tests und der
-Produktions-Build erfolgreich durchlaufen. Die App wird als statische Dateien
-bereitgestellt; Paketierung und Signierung der Desktop-App werden getrennt vom
-Web-Deployment verwaltet. Bei Änderungen, die Datenformate oder Sicherheit betreffen,
-sollten zuerst die Dokumente zu Anhängen und Verschlüsselung geprüft werden.
-Entwicklungsumgebung, Prüfbefehle sowie Deployment- und Wartungsabläufe sind in der
-[Entwicklungs- und Betriebsdokumentation](docs/DEVELOPMENT.md) beschrieben.
+Entwicklungsregeln, Prüfbefehle und Deployment stehen in [AGENTS.md](AGENTS.md) (auf Koreanisch), Details zu einzelnen Themen in [docs/](docs/). Ein Push auf `main` stellt die Web-App bereit; ändert er die native Hülle, erscheinen auch neue Desktop-Releases.
 
 ## Wünsche und Support
 

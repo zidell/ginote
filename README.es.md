@@ -178,14 +178,7 @@ plataforma y el proceso de publicación se describen en la
 
 ## Operación y desarrollo
 
-Al modificar la app web, instala las dependencias a partir del archivo de bloqueo y
-asegúrate de que las comprobaciones estáticas, las pruebas y la build de producción
-pasen antes de desplegar. La app se despliega como archivos estáticos, y el empaquetado
-y la firma de la app de escritorio se gestionan por separado del despliegue web. Los
-cambios que afecten al formato de los datos o a la seguridad deben revisarse primero
-contra la documentación de adjuntos y cifrado. El entorno de desarrollo, los comandos de
-verificación y los procedimientos de despliegue y mantenimiento se describen en la
-[documentación de desarrollo y operación](docs/DEVELOPMENT.md).
+Las reglas de desarrollo, los comandos de verificación y el despliegue se describen en [AGENTS.md](AGENTS.md) (en coreano), y los detalles por tema en [docs/](docs/). Un push a `main` despliega la app web; si cambia la capa nativa, también publica versiones de escritorio.
 
 ## Solicitudes y soporte
 

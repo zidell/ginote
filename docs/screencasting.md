@@ -44,7 +44,7 @@ npm run preview:gif -- --url=http://127.0.0.1:4173
 | `--url`, `--port` | `http://127.0.0.1:4173` | 이미 띄워 둔 미리보기 서버 주소 |
 | `--width`, `--height` | `1280`×`800` | 브라우저 캡처 해상도 |
 | `--gif-width` | `960` | 출력 GIF 가로 크기(세로는 비율 유지) |
-| `--lang` | `en` | 앱 표시 언어(`en`, `ko`, `zh-CN`, `ja`, `de`, `fr`, `it`) |
+| `--lang` | `en` | 앱 표시 언어(`en`, `ko`, `zh-CN`, `ja`, `de`, `fr`, `it`, `es`) |
 | `--output` | `docs/preview.gif` | 출력 GIF 경로 |
 | `--frames-dir` | `docs/preview/frames` | 프레임 PNG 저장 경로 |
 | `--keep-frames` | 끄기 | GIF 생성 후에도 PNG 프레임 보존 |
@@ -65,13 +65,13 @@ npm run preview:gif -- --url=http://127.0.0.1:4173
 
 동작 순서는 이렇습니다.
 
-1. `localStorage`에 더미 저장소와 PAT를 심어 두고 앱을 연다. 설정 화면을 건너뛰고
-   노트 목록부터 시작한다.
-2. `context.route()`로 GitHub API를 가로채 더미 저장소로 응답한다. 생성·수정·라벨
-   추가가 메모리에 남으므로 새 노트를 쓰면 목록과 검색 결과에도 반영된다.
+1. `localStorage`에 더미 저장소와 PAT를 넣고 앱을 엽니다. 설정 화면을 건너뛰고 노트
+   목록부터 시작합니다.
+2. `context.route()`로 GitHub API를 가로채 더미 저장소로 응답합니다. 생성·수정·라벨
+   추가가 메모리에 남으므로 새 노트를 쓰면 목록과 검색 결과에도 반영됩니다.
 3. 대본을 실행하며 프레임을 쌓고, 프레임별 재생 시간을 `frames.json`과 ffmpeg
-   concat 목록으로 적는다.
-4. `palettegen`/`paletteuse`로 두 번 돌려 GIF를 만든다.
+   concat 목록에 적습니다.
+4. `palettegen`/`paletteuse` 두 단계로 GIF를 만듭니다.
 
 ## 대본 쓰기
 

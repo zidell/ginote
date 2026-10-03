@@ -176,13 +176,7 @@ piattaforma e la procedura di rilascio sono descritti nella
 
 ## Gestione e sviluppo
 
-Quando modifichi l'app web, installa le dipendenze a partire dal lockfile e assicurati
-che controlli statici, test e build di produzione passino tutti prima del deploy. L'app
-viene distribuita come file statici, mentre il packaging e la firma dell'app desktop
-sono gestiti separatamente dal deploy web. Le modifiche che toccano il formato dei dati
-o la sicurezza vanno prima verificate rispetto ai documenti su allegati e crittografia.
-Ambiente di sviluppo, comandi di verifica e procedure di deploy e manutenzione sono
-descritti nella [documentazione di sviluppo e gestione](docs/DEVELOPMENT.md).
+Regole di sviluppo, comandi di verifica e deploy sono descritti in [AGENTS.md](AGENTS.md) (in coreano), i dettagli per argomento in [docs/](docs/). Un push su `main` pubblica l'app web; se modifica la shell nativa, pubblica anche le versioni desktop.
 
 ## Richieste e assistenza
 

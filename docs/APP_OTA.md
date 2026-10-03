@@ -6,8 +6,8 @@ Ginote 데스크톱·모바일 앱(Tauri 2)은 설치 파일에 웹과 같은 `d
 
 - 앱은 가지고 있는 번들(내려받은 번들, 없으면 내장본)로 바로 뜹니다. 네트워크가 없어도
   앱 화면이 열립니다.
-- 프론트엔드 수정에는 스토어 심사, 데스크톱 재설치, SignPath 수동 승인이 필요하지
-  않습니다. 웹 배포가 곧 앱 배포입니다.
+- 프론트엔드 수정에는 스토어 심사나 앱 재설치가 필요하지 않습니다. 웹 배포가 곧 앱
+  배포입니다.
 - 네이티브 코드(Rust, Tauri 플러그인, 권한, `Info.plist`·Android 매니페스트)를 바꾸면
   스토어 심사와 데스크톱 릴리스를 거칩니다.
 
@@ -16,7 +16,8 @@ Ginote 데스크톱·모바일 앱(Tauri 2)은 설치 파일에 웹과 같은 `d
 - **직접 구현**: 공식 `tauri-plugin-updater`는 바이너리 전체를 교체하고 모바일을 지원하지
   않습니다. `tauri-plugin-hot-update`는 설계가 같지만 2026-09-28에 나온 0.1.1이었고,
   CrabNebula OTA는 자체 클라우드에 묶여 있습니다. 필요한 코드가 수백 줄이라 직접
-  구현했습니다(`src-tauri/src/ota.rs`).
+  구현했습니다(`src-tauri/src/ota.rs`). 네이티브 셸 자체의 업데이트에는 macOS·Linux에서
+  공식 업데이터를 따로 씁니다([데스크톱 앱](DESKTOP.md)의 앱 업데이트).
 - **단일 JS 대신 해시 목록 매니페스트**: CSS를 JS에 넣으려면 CSP에 `'unsafe-inline'`을
   열어야 합니다. `dist` 8.5MB 중 6.5MB가 에디터 폰트라, 해시가 같은 파일을 다시 받지 않는
   매니페스트 방식이 보통 배포에서 JS·CSS 약 1MB만 받습니다(2026-10-03 기준). 매니페스트는
@@ -77,7 +78,7 @@ Ginote 데스크톱·모바일 앱(Tauri 2)은 설치 파일에 웹과 같은 `d
   새것이면(스토어 업데이트) 내려받은 번들을 버립니다.
 - `get`: 고른 번들 폴더의 파일을 주고, 없으면 내장본으로 넘깁니다. 출처는 Tauri 기본값
   (`tauri://localhost`, Windows·Android는 `http://tauri.localhost`)이므로 번들이 바뀌어도
-  localStorage가 유지됩니다.
+  WebView 저장소(초안 등)가 유지됩니다.
 - `csp_hashes`: Tauri는 내장 HTML의 인라인 블록 해시를 컴파일할 때 계산합니다. 내려받은
   `index.html`은 고를 때 다시 계산해 넘깁니다.
 - setup 전에 자산 요청이 오면 그 실행은 내장본으로 고정해 번들이 섞이지 않게 합니다.
@@ -166,12 +167,6 @@ GINOTE_OTA_BASE_URL=http://127.0.0.1:8765/ GINOTE_OTA_PUBLIC_KEY=<공개키> \
 GINOTE_OTA_SIGNING_KEY="$(cat <개인키 경로>)" npm run build
 (cd src-tauri && GINOTE_OTA_DIST=../dist cargo test --lib -- --ignored built_manifest)
 ```
-
-### 기존 데스크톱 사용자 이전
-
-이전 데스크톱 앱은 `https://note.gitools.net`을 직접 열었습니다. 내장 번들로 바꾼 첫
-릴리스부터 출처가 Tauri 기본값으로 바뀌므로, 기존 사용자는 PAT와 설정을 한 번 다시
-입력해야 합니다. 업데이트 전에 저장되지 않은 초안과 대기 작업을 끝내도록 안내합니다.
 
 ## 남은 일
 
