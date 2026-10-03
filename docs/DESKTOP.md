@@ -93,9 +93,29 @@ APPLE_TEAM_ID
 
 ## Windows
 
-Windows는 Tauri 앱을 MSIX로 묶어 Microsoft Store에 올리고, Store 밖 설치용 MSIX도 함께
-배포합니다. Store 판은 Microsoft가 서명하고 Store가 업데이트합니다. Store 밖 MSIX는 App
-Installer(`.appinstaller`)로 설치하면 Windows가 실행할 때 새 버전을 확인합니다.
+Windows는 Tauri 앱을 MSIX로 묶어 Microsoft Store로 배포합니다. Store 판은 Microsoft가
+서명하고 Store가 업데이트하므로, 앱 업데이터는 Windows에서 쓰지 않습니다.
+
+- 패키징: `.github/workflows/windows-msix.yml`이 `ginote.exe`를 만들고(`tauri build --no-bundle`)
+  `scripts/windows/package-msix.ps1`이 `src-tauri/windows/AppxManifest.xml`을 채워 MSIX로
+  묶습니다. 릴리스 워크플로가 같은 버전(`0.1.<실행 번호>.0`)으로 부르고, 손으로 실행하면
+  패키징 점검만 합니다.
+- 점검: 매번 시험용 인증서로 서명한 패키지를 러너에 설치하고, 실행 별칭으로
+  `ginote --config-path`가 패키지 전용 설정 폴더를 가리키는지 확인한 뒤 지웁니다.
+- 설정 파일: MSIX 안에서 앱이 `%APPDATA%`에 쓰는 파일은 Windows가
+  `%LOCALAPPDATA%\Packages\<패키지 패밀리 이름>\LocalCache\Roaming\` 아래로 옮겨 둡니다.
+  `ginote --config-path`가 이 실제 위치를 알려 줍니다([설정 파일](CONFIG.md)).
+- 명령줄: 매니페스트의 실행 별칭으로 터미널에서 `ginote --help`, `ginote --config-path`를 쓸 수
+  있습니다. 릴리스 빌드는 GUI 앱이라 콘솔 창을 띄우지 않고, 명령줄 출력은 부모 콘솔에 붙어
+  내보냅니다.
+- WebView2: MSIX는 WebView2 런타임을 설치하지 않습니다. Windows 11과 업데이트된
+  Windows 10에는 기본으로 들어 있습니다.
+- Store 판 ID: Partner Center에서 앱 이름을 예약하면 받는 값을 저장소 변수
+  `MSSTORE_IDENTITY_NAME`, `MSSTORE_PUBLISHER`, `MSSTORE_PUBLISHER_DISPLAY_NAME`에 넣습니다.
+  값이 있으면 릴리스마다 Store 제출용 MSIX를 워크플로 산출물(`ginote-store-msix`)로 남깁니다.
+- Store 밖 MSIX: 서명 인증서(SignPath Foundation 승인 후)가 생기면 그 인증서 주체를
+  Publisher로 넣은 MSIX와 `.appinstaller`를 GitHub 릴리스에 올려, Windows App Installer가
+  실행할 때 새 버전을 확인하게 합니다.
 
 ## Homebrew 배포 유지보수
 

@@ -188,10 +188,10 @@ caches GitHub API requests, PATs, or note data.
 
 ## Downloading the desktop app
 
-Installers for macOS, Windows, and Linux are available on
-[GitHub Releases](https://github.com/zidell/ginote/releases). macOS uses a DMG, and
-Windows 10/11 uses an MSI. New Windows releases are published as signed MSIs once
-SignPath Foundation signing is set up. The desktop app bundles the web app and opens
+Installers for macOS and Linux are available on
+[GitHub Releases](https://github.com/zidell/ginote/releases): a DMG for macOS and AppImage,
+deb, and rpm packages for Linux. Installed macOS and Linux apps offer new releases by
+themselves. The Windows 10/11 app is distributed through the Microsoft Store. The desktop app bundles the web app and opens
 without an internet connection. UI and general feature changes are delivered through web
 deployments: the app picks up the same build from [note.gitools.net](https://note.gitools.net)
 on its next launch.
