@@ -5,6 +5,8 @@ src-tauri/target
 src-tauri/gen/schemas
 .DS_Store
 *.local
+# 특정 개발 기기 전용 지침(AGENTS.md 참고)
+AGENTS.local.md
 .env
 .env.*
 !.env.example

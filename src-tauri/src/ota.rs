@@ -32,6 +32,8 @@ const BASE_URL: &str = match option_env!("GINOTE_OTA_BASE_URL") {
 };
 const MANIFEST_FILE: &str = "app-manifest.json";
 const SIGNATURE_FILE: &str = "app-manifest.json.sig";
+/// 번들을 만들 때 기준이 된 내장본의 build 번호를 적는 파일.
+const BASE_FILE: &str = ".base";
 const MANIFEST_FORMAT: u32 = 1;
 
 /// scripts/generate-ota-key.mjs로 만든 Ed25519 공개키. 개인키는 웹 빌드 환경의
@@ -178,18 +180,24 @@ fn inline_csp_hashes(html: &str) -> Vec<(bool, String)> {
 
 struct ActiveBundle {
     dir: PathBuf,
-    csp_hashes: Vec<(bool, &'static str)>,
+    /// 번들에 index.html이 있을 때 그 인라인 블록의 CSP 해시. 없으면(내장본과 같아 담지 않음)
+    /// 내장본의 해시를 쓴다.
+    csp_hashes: Option<Vec<(bool, &'static str)>>,
 }
 
 impl ActiveBundle {
     fn load(dir: PathBuf) -> Option<Self> {
-        let html = fs::read_to_string(dir.join("index.html")).ok()?;
+        if !dir.join(MANIFEST_FILE).is_file() {
+            return None;
+        }
         // Assets::csp_hashes가 빌린 문자열을 돌려줘야 해서, 번들을 고를 때마다(실행당 한두 번)
         // 몇십 바이트짜리 해시 문자열을 프로세스 수명 동안 붙잡아 둔다.
-        let csp_hashes = inline_csp_hashes(&html)
-            .into_iter()
-            .map(|(is_script, hash)| (is_script, &*Box::leak(hash.into_boxed_str())))
-            .collect();
+        let csp_hashes = fs::read_to_string(dir.join("index.html")).ok().map(|html| {
+            inline_csp_hashes(&html)
+                .into_iter()
+                .map(|(is_script, hash)| (is_script, &*Box::leak(hash.into_boxed_str())))
+                .collect()
+        });
         Some(Self { dir, csp_hashes })
     }
 }
@@ -320,12 +328,33 @@ impl<R: Runtime> OtaAssets<R> {
     }
 }
 
-fn embedded_build<R: Runtime>(embedded: &dyn Assets<R>) -> u64 {
+/// 매니페스트의 build 번호와 경로별 sha256. 앱이 직접 쓴 파일이나 내장본처럼 이미 믿는
+/// 매니페스트에만 쓴다(서버에서 받은 것은 verify_manifest로 읽는다).
+fn read_manifest_hashes(bytes: &[u8]) -> (u64, BTreeMap<String, String>) {
+    let Ok(value) = serde_json::from_slice::<serde_json::Value>(bytes) else {
+        return (0, BTreeMap::new());
+    };
+    let build = value.get("build").and_then(|v| v.as_u64()).unwrap_or(0);
+    let hashes = value
+        .get("files")
+        .and_then(|files| files.as_object())
+        .map(|files| {
+            files
+                .iter()
+                .filter_map(|(path, entry)| {
+                    Some((path.clone(), entry.get("sha256")?.as_str()?.to_string()))
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+    (build, hashes)
+}
+
+fn embedded_manifest<R: Runtime>(embedded: &dyn Assets<R>) -> (u64, BTreeMap<String, String>) {
     embedded
         .get(&AssetKey::from(MANIFEST_FILE))
-        .and_then(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok())
-        .and_then(|value| value.get("build")?.as_u64())
-        .unwrap_or(0)
+        .map(|bytes| read_manifest_hashes(&bytes))
+        .unwrap_or_default()
 }
 
 fn now_secs() -> u64 {
@@ -345,15 +374,20 @@ fn is_stale(last_check: Option<u64>, build: u64, now: u64) -> bool {
     now.saturating_sub(last_check.unwrap_or(build)) > STALE_AFTER_SECS
 }
 
-/// `current`가 가리키는 번들을 고르고 나머지 번들과 임시 폴더를 지운다.
+/// `current`가 가리키는 번들을 고르고 나머지 번들과 임시 폴더를 지운다. 번들은 내장본과 같은
+/// 파일을 갖지 않고 내장본에 기대므로, 만들 때 기준이 된 내장본(`base`)이 지금 내장본과 다르면
+/// (스토어 업데이트) 버린다.
 fn select_bundle(root: &Path, embedded_build: u64) -> Option<(u64, ActiveBundle)> {
     let current = read_u64(&root.join("current"));
     let _ = fs::remove_dir_all(root.join("tmp"));
     let chosen = current
         .filter(|build| *build > embedded_build)
         .and_then(|build| {
-            ActiveBundle::load(root.join("bundles").join(build.to_string()))
-                .map(|bundle| (build, bundle))
+            let dir = root.join("bundles").join(build.to_string());
+            if read_u64(&dir.join(BASE_FILE)) != Some(embedded_build) {
+                return None;
+            }
+            ActiveBundle::load(dir).map(|bundle| (build, bundle))
         });
     if let Ok(entries) = fs::read_dir(root.join("bundles")) {
         for entry in entries.flatten() {
@@ -376,7 +410,7 @@ impl<R: Runtime> Assets<R> for OtaAssets<R> {
         let state = Arc::new(OtaState::default());
         app.manage(state.clone());
         app.manage(self.slot.clone());
-        let embedded_build = embedded_build(self.embedded.as_ref());
+        let (embedded_build, embedded_hashes) = embedded_manifest(self.embedded.as_ref());
         state.build.store(embedded_build, Ordering::Relaxed);
 
         // 개발 모드는 Vite 개발 서버를 열므로 번들을 쓰지도 받지도 않는다.
@@ -404,16 +438,13 @@ impl<R: Runtime> Assets<R> for OtaAssets<R> {
             Ordering::Relaxed,
         );
 
-        let embedded = self.embedded.clone();
         let handle = app.handle().clone();
         std::thread::spawn(move || {
-            let result = check_for_update(
-                &root,
-                build,
-                active_dir.as_deref(),
-                embedded.as_ref(),
-                &state,
-            );
+            let base = Base {
+                build: embedded_build,
+                hashes: &embedded_hashes,
+            };
+            let result = check_for_update(&root, build, active_dir.as_deref(), &base, &state);
             if let Err(error) = result {
                 eprintln!("OTA 업데이트 확인 실패: {error}");
             }
@@ -440,23 +471,23 @@ impl<R: Runtime> Assets<R> for OtaAssets<R> {
     }
 
     fn csp_hashes(&self, html_path: &AssetKey) -> Box<dyn Iterator<Item = CspHash<'_>> + '_> {
-        match self.slot.get() {
-            Some(bundle) if html_path.as_ref().trim_start_matches('/') == "index.html" => {
-                let hashes: Vec<CspHash<'static>> = bundle
-                    .csp_hashes
-                    .iter()
+        let is_index = html_path.as_ref().trim_start_matches('/') == "index.html";
+        if let Some(hashes) = self.slot.get().and_then(|bundle| bundle.csp_hashes.clone()) {
+            if is_index {
+                let hashes: Vec<CspHash<'static>> = hashes
+                    .into_iter()
                     .map(|(is_script, hash)| {
-                        if *is_script {
+                        if is_script {
                             CspHash::Script(hash)
                         } else {
                             CspHash::Style(hash)
                         }
                     })
                     .collect();
-                Box::new(hashes.into_iter())
+                return Box::new(hashes.into_iter());
             }
-            _ => self.embedded.csp_hashes(html_path),
         }
+        self.embedded.csp_hashes(html_path)
     }
 }
 
@@ -476,11 +507,17 @@ fn fetch(agent: &ureq::Agent, path: &str, limit: u64) -> Result<Vec<u8>, String>
     Ok(bytes)
 }
 
-fn check_for_update<R: Runtime>(
+/// 지금 내장본. 새 번들은 내장본과 같은 파일을 담지 않고 실행 때 내장본에서 읽는다.
+struct Base<'a> {
+    build: u64,
+    hashes: &'a BTreeMap<String, String>,
+}
+
+fn check_for_update(
     root: &Path,
     current_build: u64,
     active_dir: Option<&Path>,
-    embedded: &dyn Assets<R>,
+    base: &Base,
     state: &OtaState,
 ) -> Result<(), String> {
     let agent: ureq::Agent = ureq::Agent::config_builder()
@@ -507,43 +544,46 @@ fn check_for_update<R: Runtime>(
         Decision::Download => {}
     }
 
+    let active_hashes = active_dir
+        .and_then(|dir| fs::read(dir.join(MANIFEST_FILE)).ok())
+        .map(|bytes| read_manifest_hashes(&bytes).1)
+        .unwrap_or_default();
     let tmp = root.join("tmp").join(manifest.build.to_string());
     let _ = fs::remove_dir_all(&tmp);
+    fs::create_dir_all(&tmp).map_err(|e| e.to_string())?;
     for (path, entry) in &manifest.files {
-        // 지금 번들이나 내장본에 같은 내용이 있으면 다시 받지 않는다.
-        let local = active_dir
-            .and_then(|dir| fs::read(dir.join(path)).ok())
-            .filter(|bytes| matches_entry(bytes, entry))
-            .or_else(|| {
-                embedded
-                    .get(&AssetKey::from(path.as_str()))
-                    .map(Cow::into_owned)
-                    .filter(|bytes| matches_entry(bytes, entry))
-            });
-        let bytes = match local {
-            Some(bytes) => bytes,
-            None => {
-                let bytes = fetch(&agent, path, entry.size)?;
-                if !matches_entry(&bytes, entry) {
-                    let _ = fs::remove_dir_all(&tmp);
-                    return Err(format!("{path}: 해시가 맞지 않습니다"));
-                }
-                bytes
-            }
-        };
+        // 내장본과 같은 파일은 번들에 두지 않는다. 실행 때 get()이 내장본에서 읽는다.
+        if base.hashes.get(path) == Some(&entry.sha256) {
+            continue;
+        }
         let target = tmp.join(path);
         if let Some(parent) = target.parent() {
             fs::create_dir_all(parent).map_err(|e| e.to_string())?;
         }
+        // 지금 번들에 같은 파일이 있으면 복사만 한다.
+        if let Some(dir) = active_dir {
+            if active_hashes.get(path) == Some(&entry.sha256)
+                && fs::copy(dir.join(path), &target).is_ok()
+            {
+                continue;
+            }
+        }
+        let bytes = fetch(&agent, path, entry.size)?;
+        if !matches_entry(&bytes, entry) {
+            let _ = fs::remove_dir_all(&tmp);
+            return Err(format!("{path}: 해시가 맞지 않습니다"));
+        }
         fs::write(&target, bytes).map_err(|e| e.to_string())?;
     }
     fs::write(tmp.join(MANIFEST_FILE), &manifest_bytes).map_err(|e| e.to_string())?;
+    fs::write(tmp.join(BASE_FILE), base.build.to_string()).map_err(|e| e.to_string())?;
 
     let bundles = root.join("bundles");
     fs::create_dir_all(&bundles).map_err(|e| e.to_string())?;
     let target = bundles.join(manifest.build.to_string());
     let _ = fs::remove_dir_all(&target);
     fs::rename(&tmp, &target).map_err(|e| e.to_string())?;
+    let _ = fs::remove_dir(root.join("tmp"));
     let pointer = root.join("current.tmp");
     fs::write(&pointer, manifest.build.to_string()).map_err(|e| e.to_string())?;
     fs::rename(&pointer, root.join("current")).map_err(|e| e.to_string())?;
@@ -712,12 +752,10 @@ mod tests {
         let root = std::env::temp_dir().join(format!("ginote-ota-test-{}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
         for build in ["100", "300"] {
-            fs::create_dir_all(root.join("bundles").join(build)).unwrap();
-            fs::write(
-                root.join("bundles").join(build).join("index.html"),
-                "<html>",
-            )
-            .unwrap();
+            let dir = root.join("bundles").join(build);
+            fs::create_dir_all(&dir).unwrap();
+            fs::write(dir.join(MANIFEST_FILE), "{}").unwrap();
+            fs::write(dir.join(BASE_FILE), "200").unwrap();
         }
         fs::create_dir_all(root.join("tmp/400")).unwrap();
         fs::write(root.join("current"), "300").unwrap();
@@ -727,10 +765,18 @@ mod tests {
         assert!(!root.join("bundles/100").exists());
         assert!(!root.join("tmp").exists());
 
-        // 스토어 업데이트로 내장본이 더 새것이면 내려받은 번들을 버린다.
-        assert!(select_bundle(&root, 300).is_none());
+        // 스토어 업데이트로 내장본이 바뀌면, 더 새 번들이라도 이전 내장본에 기대고 있으므로 버린다.
+        assert!(select_bundle(&root, 250).is_none());
         assert!(!root.join("bundles/300").exists());
         assert!(!root.join("current").exists());
         let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn reads_trusted_manifest_hashes() {
+        let (build, hashes) = read_manifest_hashes(MANIFEST.as_bytes());
+        assert_eq!(build, 200);
+        assert_eq!(hashes.get("index.html").map(String::as_str), Some("ab"));
+        assert_eq!(read_manifest_hashes(b"not json"), (0, BTreeMap::new()));
     }
 }

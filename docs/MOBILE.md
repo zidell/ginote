@@ -36,8 +36,9 @@ adb install -r src-tauri/gen/android/app/build/outputs/apk/universal/debug/app-u
   - `GinoteAndroid.setTheme(dark)` JS 브리지로 시스템 바 뒤 배경과 아이콘 색을 웹 앱 테마에
     맞춥니다. 웹 쪽은 `applyTheme`(`src/lib/settings-storage.js`)이 부르며, 브리지가 없는
     셸에서는 아무것도 하지 않습니다.
-- `app/src/main/res/mipmap-*`, `values/ic_launcher_background.xml`: `tauri android init`은
-  Tauri 기본 아이콘을 넣으므로 `src-tauri/icons/android`의 Ginote 아이콘으로 덮었습니다.
+- 런처 아이콘(`app/src/main/res/mipmap-*`)은 손으로 고치지 않고 `npm run icons`로 만듭니다.
+  `tauri android init`·`tauri ios init`은 Tauri 기본 아이콘을 넣으므로, 프로젝트를 만든 뒤에는
+  반드시 `npm run icons`를 다시 실행합니다. 아래 "아이콘"을 봅니다.
 
 ### 확인한 것 (2026-10-03, 에뮬레이터 Pixel Fold API 35)
 
@@ -52,6 +53,47 @@ adb install -r src-tauri/gen/android/app/build/outputs/apk/universal/debug/app-u
 
 ## iOS
 
-Xcode 본체가 필요해 아직 시작하지 않았습니다. `tauri ios init`, iOS용
-`NSMicrophoneUsageDescription`, 시뮬레이터·실기기 확인, Apple Distribution 인증서와
-프로비저닝 프로파일이 남아 있습니다.
+### 로컬 빌드와 실행
+
+Xcode(`sudo xcode-select -s /Applications/Xcode.app/Contents/Developer`), CocoaPods
+(`brew install cocoapods`, gem 설치는 sudo가 필요해 쓰지 않음), Rust iOS 타깃이 필요합니다.
+
+```bash
+rustup target add aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-ios
+npx tauri ios build --debug --target aarch64-sim
+xcrun simctl install booted ~/Library/Developer/Xcode/DerivedData/ginote-*/Build/Products/debug-iphonesimulator/Ginote.app
+```
+
+`tauri ios build`가 마지막에 복사해 두는 `src-tauri/gen/apple/build/arm64-sim/Ginote.app`은
+이미 있으면 갱신되지 않을 때가 있어(2026-10-03 확인), 설치는 DerivedData의 앱으로 합니다.
+디버그 빌드의 WebView는 Safari 웹 속성이나 `ios_webkit_debug_proxy`로 원격 검사할 수 있습니다.
+
+### 직접 고친 부분
+
+- `src-tauri/Info.ios.plist`: 음성 메모용 `NSMicrophoneUsageDescription`. 빌드 때
+  `gen/apple/ginote_iOS/Info.plist`로 합쳐집니다.
+- 노치·상태 바 영역은 WKWebView가 비워 주므로 Android 같은 별도 처리가 없습니다.
+
+### 확인한 것 (2026-10-03, 시뮬레이터 iPhone 16 iOS 18.5)
+
+- 내장 번들로 실행, 운영 서버 매니페스트 검증(`last-check` 기록)
+- 한 달 넘게 확인하지 못한 새 설치가 같은 실행 안에서 운영 빌드로 교체(약 3초)
+- 출처 `tauri://localhost`, 보안 컨텍스트, `api.openai.com`·`api.github.com` CORS 통과
+- `getUserMedia` 오디오 트랙 `live`. 시뮬레이터는 권한 창 없이 허용해, 권한 창 문구는 실기기에서
+  확인해야 합니다.
+
+실기기, Apple Distribution 인증서·프로비저닝 프로파일, App Store Connect 제출이 남았습니다.
+
+## 아이콘
+
+원본은 `src-tauri/icons/source/background.svg`(청록 바탕)와 `foreground.svg`(노트와 태그,
+투명 바탕) 두 장이고, `npm run icons`(`scripts/generate-icons.mjs`)가 모든 아이콘을 만듭니다.
+
+- iOS·Android·PWA maskable·`apple-touch-icon.png`: 꽉 찬 정사각형. 둥근 모서리는 OS가
+  마스크로 만듭니다. iOS는 투명한 부분을 허용하지 않습니다.
+- Android 적응형 아이콘: 전경과 배경을 따로 넣고, 전경을 0.68배로 줄여 원형 마스크의 안전
+  영역 안에 노트 전체가 들어오게 합니다.
+- 데스크톱(`src-tauri/icons`)·`public/icon.svg`·파비콘·PWA any: 같은 그림에 둥근 모서리를
+  씌웁니다.
+
+로고를 바꿀 때는 두 SVG만 고치고 `npm run icons`를 실행합니다.
