@@ -113,7 +113,8 @@ Les fichiers audio et les transcriptions sont envoyés directement du navigateur
 OpenAI, sans passer par un serveur de l'application. La clé API est stockée en clair
 dans le `localStorage` du navigateur de cet appareil : utilisez-la uniquement sur des
 appareils personnels. Nous recommandons une clé de projet dédiée, des limites
-d'utilisation et une rotation régulière.
+d'utilisation et une rotation régulière. Les applications installées (ordinateur et
+mobile) conservent la clé dans le gestionnaire d'identifiants du système.
 
 ### Raccourcis clavier
 

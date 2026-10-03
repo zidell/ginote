@@ -111,7 +111,8 @@ Audiodateien und Transkripte werden direkt vom Browser an die OpenAI API gesende
 laufen nicht über einen App-Server. Der API-Schlüssel wird im Klartext im
 `localStorage` des Browsers auf diesem Gerät gespeichert. Verwende ihn daher nur auf
 persönlichen Geräten; empfohlen werden ein eigener Projektschlüssel, Nutzungslimits und
-regelmäßiger Austausch.
+regelmäßiger Austausch. Die installierten Desktop- und Mobil-Apps bewahren den Schlüssel
+stattdessen im Anmeldeinformationsspeicher des Betriebssystems auf.
 
 ### Tastenkürzel
 

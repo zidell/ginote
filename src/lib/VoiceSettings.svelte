@@ -1,5 +1,6 @@
 <script>
   import { onDestroy, tick } from 'svelte';
+  import { isInstalledApp } from './dialogs.js';
   import { listAvailableVoiceModels } from './openai-voice.js';
   import {
     CONCLUSION_FOCUSED_REFINEMENT_PROMPT,
@@ -25,6 +26,8 @@
   export let hintsLoading = false;
   export let hintsError = '';
   export let onHintsInput = () => {};
+
+  const installedApp = isInstalledApp();
 
   let modelLists = loadVoiceModelLists();
   let modelsRefreshing = false;
@@ -129,7 +132,11 @@
     on:focus={() => apiKeyEditing = true}
     on:blur={() => apiKeyEditing = false}
   />
-  <div class="settings-help-note">녹음과 전사문은 OpenAI로 직접 전송됩니다. 키는 이 기기의 localStorage에 평문으로 저장되므로 전용 프로젝트 키·사용 한도·정기 교체를 권장합니다.</div>
+  <div class="settings-help-note">
+    녹음과 전사문은 OpenAI로 직접 전송됩니다.
+    {#if installedApp}키는 이 기기의 OS 자격 증명 저장소에 보관됩니다.{:else}키는 이 기기의 localStorage에 평문으로 저장되므로{/if}
+    전용 프로젝트 키·사용 한도·정기 교체를 권장합니다.
+  </div>
   <div class="row g-2 mt-2">
     <div class="col-sm-6">
       <div class="d-flex align-items-center justify-content-between mb-2">

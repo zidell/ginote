@@ -7,10 +7,12 @@ import { mount } from 'svelte';
 import App from './App.svelte';
 import { prepareAppUpdate } from './lib/app-update.js';
 import { normalizeLocale, translate } from './lib/i18n.js';
+import { initInstalledSettings, lastKnownInstalledTheme } from './lib/settings-backend.js';
 import { applyTheme, loadSettingsDocument } from './lib/settings-storage.js';
 
 // 첫 페인트 전에 저장된 테마를 적용해 다크모드 화면이 잠깐 번쩍이는 현상을 막는다.
-applyTheme(loadSettingsDocument()?.preferences?.theme);
+// 설치형 앱은 설정을 config.toml에 두므로, 파일을 읽기 전에는 마지막으로 쓴 테마를 쓴다.
+applyTheme(window.__TAURI_INTERNALS__ ? lastKnownInstalledTheme() : loadSettingsDocument()?.preferences?.theme);
 
 document.documentElement.lang = normalizeLocale(navigator.language);
 document.querySelector('meta[name="description"]')?.setAttribute(
@@ -33,16 +35,21 @@ const appTarget = document.getElementById('app');
 appTarget.textContent = '';
 
 // 앱에서 한 달 넘게 업데이트를 받지 못했으면 새 빌드를 먼저 적용한 뒤 띄운다(docs/APP_OTA.md).
-prepareAppUpdate({
-  onWaiting: () => {
-    appTarget.textContent = translate('dynamic.appUpdating');
-  }
-}).then((applied) => {
+// 설치형 앱의 설정 파일(docs/CONFIG.md)도 화면을 띄우기 전에 읽어 둔다.
+Promise.all([
+  prepareAppUpdate({
+    onWaiting: () => {
+      appTarget.textContent = translate('dynamic.appUpdating');
+    }
+  }),
+  initInstalledSettings()
+]).then(([applied]) => {
   if (applied) {
     window.location.reload();
     return;
   }
   appTarget.textContent = '';
+  applyTheme(loadSettingsDocument()?.preferences?.theme);
   mount(App, {
     target: appTarget
   });
