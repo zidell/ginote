@@ -77,6 +77,18 @@ describe('테마 설정', () => {
     expect(document.documentElement.classList.contains('mode-light')).toBe(false);
     expect(document.documentElement.dataset.bsTheme).toBe('dark');
   });
+
+  it('Android 앱 안에서는 시스템 바 색도 테마에 맞추도록 알린다', () => {
+    const setTheme = vi.fn();
+    globalThis.GinoteAndroid = { setTheme };
+    try {
+      applyTheme('light');
+      applyTheme('dark');
+      expect(setTheme.mock.calls).toEqual([[false], [true]]);
+    } finally {
+      delete globalThis.GinoteAndroid;
+    }
+  });
 });
 
 describe('normalizePreferences', () => {

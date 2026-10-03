@@ -14,6 +14,8 @@
   export let onCancel = () => {};
 
   const externalTarget = externalLinkTarget();
+  // 이미 설치된 앱(Tauri) 안에서는 설치 링크를 보여 줄 이유가 없다.
+  const inApp = Boolean(globalThis.__TAURI_INTERNALS__);
   const lastStep = 4;
   let step = initialStep;
 
@@ -48,8 +50,10 @@
     <a href="https://github.com/zidell/ginote" target={externalTarget} rel="noreferrer">
       <i class="bi bi-github me-1" aria-hidden="true"></i>Github
     </a>
-    <span aria-hidden="true">|</span>
-    <a href="https://github.com/zidell/ginote/releases" target={externalTarget} rel="noreferrer">앱 설치</a>
+    {#if !inApp}
+      <span aria-hidden="true">|</span>
+      <a href="https://github.com/zidell/ginote/releases" target={externalTarget} rel="noreferrer">앱 설치</a>
+    {/if}
   </nav>
 {/if}
 
