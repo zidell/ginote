@@ -183,8 +183,9 @@ API 사용량에 따라 OpenAI 비용이 발생할 수 있습니다.
 macOS·Windows·Linux용 설치 파일은 [GitHub Releases](https://github.com/zidell/ginote/releases)에서
 내려받을 수 있습니다. macOS는 DMG, Windows 10/11은 MSI를 사용합니다. 새 Windows
 릴리스는 SignPath Foundation 서명이 설정된 뒤 서명된 MSI로 게시됩니다.
-데스크톱 앱은 [note.gitools.net](https://note.gitools.net)을 열며 인터넷 연결이
-필요합니다. 앱 화면과 일반적인 기능 수정은 웹 배포로 적용됩니다.
+데스크톱 앱은 웹 앱을 내장해 인터넷 연결 없이도 열립니다. 앱 화면과 일반적인 기능
+수정은 웹 배포로 적용되며, 앱이 다음 실행 때 [note.gitools.net](https://note.gitools.net)의
+같은 빌드로 바꿉니다.
 
 [Code signing policy](docs/CODE_SIGNING.md)
 

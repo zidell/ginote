@@ -1,0 +1,16 @@
+// note.gitools.net을 서비스하는 Cloudflare Worker(정적 자산) 설정이다. CI의 deploy-web job이
+// `wrangler deploy`로 dist를 올릴 때 읽는다(docs/DEVELOPMENT.md). 값은 2026-10-03에 운영 중인
+// Worker 설정을 API로 조회해 그대로 옮겼다. 보안 헤더는 dist/_headers에서 읽는다.
+{
+  "name": "ginote",
+  "compatibility_date": "2026-10-01",
+  "workers_dev": true,
+  "preview_urls": true,
+  "observability": {
+    "enabled": true
+  },
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "single-page-application"
+  }
+}
