@@ -8,6 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "preview:gif": "node scripts/capture-preview-gif.mjs",
+    "icons": "node scripts/generate-icons.mjs",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",
