@@ -3,6 +3,7 @@ import {
   SUPERSEDED_TYPO_PROMPTS,
   SUPERSEDED_WRITTEN_PROMPTS
 } from './voice-refinement-legacy-prompts.js';
+import { installedSnapshot, updateInstalledSnapshot } from './installed-settings.js';
 
 export const VOICE_SETTINGS_STORAGE_KEY = 'issue-note.voice-settings.v1';
 export const DEFAULT_TRANSCRIPTION_MODEL = 'gpt-transcribe';
@@ -65,6 +66,10 @@ export function isDatedModelSnapshot(model) {
 }
 
 export function loadVoiceSettings() {
+  const installed = installedSnapshot();
+  if (installed) {
+    return { ...installed.voice, refinementPrompt: upgradeRefinementPrompt(installed.voice.refinementPrompt) };
+  }
   try {
     const saved = JSON.parse(localStorage.getItem(VOICE_SETTINGS_STORAGE_KEY) || '{}');
     return {
@@ -85,6 +90,17 @@ export function loadVoiceSettings() {
 }
 
 export function saveVoiceSettings({ apiKey, refinementPrompt, transcriptionModel, refinementModel, preserveOriginalAudio = false }) {
+  // 설치형 앱은 API 키를 config.toml이 아니라 자격 증명 저장소에 둔다(settings-backend.js).
+  const savedInstalled = updateInstalledSnapshot((installed) => {
+    installed.voice = {
+      apiKey: String(apiKey || '').trim(),
+      refinementPrompt: String(refinementPrompt || DEFAULT_REFINEMENT_PROMPT).trim(),
+      transcriptionModel: transcriptionModel == null ? DEFAULT_TRANSCRIPTION_MODEL : String(transcriptionModel).trim(),
+      refinementModel: refinementModel == null ? DEFAULT_REFINEMENT_MODEL : String(refinementModel).trim(),
+      preserveOriginalAudio: Boolean(preserveOriginalAudio)
+    };
+  });
+  if (savedInstalled) return;
   localStorage.setItem(VOICE_SETTINGS_STORAGE_KEY, JSON.stringify({
     apiKey: String(apiKey || '').trim(),
     refinementPrompt: String(refinementPrompt || DEFAULT_REFINEMENT_PROMPT).trim(),

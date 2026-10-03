@@ -33,8 +33,8 @@ describe('HelpOverlay', () => {
     render(HelpOverlay, { topic: 'app', onClose });
 
     await fireEvent.click(screen.getByRole('button', { name: 'Close' }));
-    await fireEvent.click(document.querySelector('.help-overlay'));
-    await fireEvent.click(document.querySelector('.help-overlay .card'));
+    await fireEvent.click(document.querySelector('.sheet-overlay'));
+    await fireEvent.click(document.querySelector('.sheet-overlay .sheet'));
 
     expect(onClose).toHaveBeenCalledTimes(2);
   });

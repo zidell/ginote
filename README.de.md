@@ -111,7 +111,8 @@ Audiodateien und Transkripte werden direkt vom Browser an die OpenAI API gesende
 laufen nicht über einen App-Server. Der API-Schlüssel wird im Klartext im
 `localStorage` des Browsers auf diesem Gerät gespeichert. Verwende ihn daher nur auf
 persönlichen Geräten; empfohlen werden ein eigener Projektschlüssel, Nutzungslimits und
-regelmäßiger Austausch.
+regelmäßiger Austausch. Die installierten Desktop- und Mobil-Apps bewahren den Schlüssel
+stattdessen im Anmeldeinformationsspeicher des Betriebssystems auf.
 
 ### Tastenkürzel
 
@@ -163,9 +164,9 @@ Installationsdateien für macOS, Windows und Linux gibt es unter
 [GitHub Releases](https://github.com/zidell/ginote/releases). macOS verwendet ein DMG,
 Windows 10/11 ein MSI. Neue Windows-Releases werden als signierte MSI veröffentlicht,
 sobald die Signierung über die SignPath Foundation eingerichtet ist. Die Desktop-App
-öffnet [note.gitools.net](https://note.gitools.net) und benötigt eine
-Internetverbindung. Änderungen an Oberfläche und allgemeinen Funktionen werden über
-Web-Deployments ausgeliefert.
+enthält die Web-App und startet auch ohne Internetverbindung. Änderungen an Oberfläche
+und allgemeinen Funktionen werden über Web-Deployments ausgeliefert: Beim nächsten Start
+übernimmt die App denselben Build von [note.gitools.net](https://note.gitools.net).
 
 [Code signing policy](docs/CODE_SIGNING.md)
 

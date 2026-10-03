@@ -1,8 +1,12 @@
 import { defineConfig } from 'vite';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
 import { createHash } from 'node:crypto';
-import { readFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { join, relative, resolve, sep } from 'node:path';
 import { devMetaCsp, headersFile, webMetaCsp } from './csp.config.js';
+import { MANIFEST_FILE, SIGNATURE_FILE, createAppManifest, signManifest } from './app-manifest.config.js';
+import { MIN_NATIVE_API } from './src/lib/native-api.js';
 
 // index.html 안의 <style> 블록을 CSP 해시로 바꾼다. 이렇게 하면 style-src에
 // 'unsafe-inline'을 열지 않고도 그 스타일만 통과시킬 수 있다.
@@ -37,9 +41,56 @@ function cspPlugin() {
   };
 }
 
+// 빌드 번호는 HEAD 커밋 시각(초)이다. 같은 커밋을 웹과 앱에서 따로 빌드해도 같은 번호가
+// 나오고, main에 쌓이는 커밋마다 커진다. git이 없는 환경에서는 빌드 시각을 쓴다.
+// GINOTE_BUILD_NUMBER는 로컬에서 교체 흐름을 시험할 때만 쓴다.
+function buildNumber() {
+  if (process.env.GINOTE_BUILD_NUMBER) return Number(process.env.GINOTE_BUILD_NUMBER);
+  try {
+    return Number(execFileSync('git', ['log', '-1', '--format=%ct'], { encoding: 'utf8' }).trim());
+  } catch {
+    return Math.floor(Date.now() / 1000);
+  }
+}
+
+function listFiles(dir) {
+  return readdirSync(dir, { withFileTypes: true, recursive: true })
+    .filter((entry) => entry.isFile())
+    .map((entry) => join(entry.parentPath ?? entry.path, entry.name));
+}
+
+// 앱(src-tauri)은 note.gitools.net의 app-manifest.json을 보고 프론트엔드를 교체한다
+// (docs/APP_OTA.md). public/ 복사까지 끝난 dist를 기준으로 만들어야 하므로 closeBundle에서 돈다.
+// GINOTE_OTA_SIGNING_KEY가 없으면 서명 파일을 만들지 않고, 앱은 그 빌드를 받지 않는다.
+function appManifestPlugin() {
+  let outDir;
+  return {
+    name: 'ginote-app-manifest',
+    apply: 'build',
+    configResolved(config) {
+      outDir = resolve(config.root, config.build.outDir);
+    },
+    closeBundle() {
+      const files = listFiles(outDir).map((file) => ({
+        path: relative(outDir, file).split(sep).join('/'),
+        bytes: readFileSync(file)
+      }));
+      const manifest = createAppManifest(files, { build: buildNumber(), minNativeApi: MIN_NATIVE_API });
+      const bytes = Buffer.from(`${JSON.stringify(manifest, null, 2)}\n`);
+      writeFileSync(join(outDir, MANIFEST_FILE), bytes);
+      const key = process.env.GINOTE_OTA_SIGNING_KEY;
+      if (key) {
+        writeFileSync(join(outDir, SIGNATURE_FILE), `${signManifest(bytes, key)}\n`);
+      } else {
+        this.warn(`GINOTE_OTA_SIGNING_KEY가 없어 ${SIGNATURE_FILE}을 만들지 않았습니다. 앱은 이 빌드로 교체하지 않습니다.`);
+      }
+    }
+  };
+}
+
 export default defineConfig({
   base: './',
-  plugins: [svelte(), cspPlugin()],
+  plugins: [svelte(), cspPlugin(), appManifestPlugin()],
   server: {
     strictPort: true,
     watch: {

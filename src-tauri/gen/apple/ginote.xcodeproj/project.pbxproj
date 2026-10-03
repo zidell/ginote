@@ -1,0 +1,462 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		0BD7A2E8B5070312D60633CD /* MetalKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 70471E1DF7229E89C4754A2B /* MetalKit.framework */; };
+		19B13CED78395E145BDFAAFF /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CB340E28F94AC8274DDFB7D2 /* Security.framework */; };
+		5D3B2471B0F2FA85351E01EE /* QuartzCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 69E606E5C1DD6D497FE44372 /* QuartzCore.framework */; };
+		6FB2B0A6386F727E33C1C50C /* libapp.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 12C65E07AEB4583C527B95EF /* libapp.a */; };
+		72853F7939AB5BD5AFEBF603 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 3DE158F4BCA19E5FEEB94A83 /* LaunchScreen.storyboard */; };
+		766FDA49BFFCB06B4EEC16F0 /* WebKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4A4F145468F07176CA14C79E /* WebKit.framework */; };
+		79786FD0DD6C24B97E6B26A3 /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 452D95B93606AF943C3363CB /* CoreGraphics.framework */; };
+		9ACEBAC67F06E9F37293950E /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 06721A218AC15239177EA383 /* Assets.xcassets */; };
+		DA6F606B647C5D6D356D4966 /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 03BA1C614C53F6C62DAD93B9 /* UIKit.framework */; };
+		DF221E7C23514740536494C3 /* main.mm in Sources */ = {isa = PBXBuildFile; fileRef = CF74E0B101B0FCCB62A02698 /* main.mm */; };
+		F19A183F54AD65A76F926F25 /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C8D5A4B39E59236C59F3FFFE /* Metal.framework */; };
+		FD3537D7F82629636A5824CA /* assets in Resources */ = {isa = PBXBuildFile; fileRef = 4A69CB1A14E2684A90139672 /* assets */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		03BA1C614C53F6C62DAD93B9 /* UIKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UIKit.framework; path = System/Library/Frameworks/UIKit.framework; sourceTree = SDKROOT; };
+		06721A218AC15239177EA383 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		12C65E07AEB4583C527B95EF /* libapp.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = libapp.a; sourceTree = "<group>"; };
+		302D4C14ADE6D15147608F94 /* bindings.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = bindings.h; sourceTree = "<group>"; };
+		3DE158F4BCA19E5FEEB94A83 /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
+		452D95B93606AF943C3363CB /* CoreGraphics.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreGraphics.framework; path = System/Library/Frameworks/CoreGraphics.framework; sourceTree = SDKROOT; };
+		4A4F145468F07176CA14C79E /* WebKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WebKit.framework; path = System/Library/Frameworks/WebKit.framework; sourceTree = SDKROOT; };
+		4A69CB1A14E2684A90139672 /* assets */ = {isa = PBXFileReference; lastKnownFileType = folder; path = assets; sourceTree = SOURCE_ROOT; };
+		583DC798BBFD3CA597E3C663 /* ginote_iOS.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = ginote_iOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		69E606E5C1DD6D497FE44372 /* QuartzCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = QuartzCore.framework; path = System/Library/Frameworks/QuartzCore.framework; sourceTree = SDKROOT; };
+		70471E1DF7229E89C4754A2B /* MetalKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MetalKit.framework; path = System/Library/Frameworks/MetalKit.framework; sourceTree = SDKROOT; };
+		75274689850E8D91411F0DB2 /* lib.rs */ = {isa = PBXFileReference; path = lib.rs; sourceTree = "<group>"; };
+		791BF641254D0FA3D8CAE67A /* ginote_iOS.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ginote_iOS.entitlements; sourceTree = "<group>"; };
+		8CFA08F9B7A6C9F68AC1AF99 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		8F5979677EA02CE588955B96 /* main.rs */ = {isa = PBXFileReference; path = main.rs; sourceTree = "<group>"; };
+		C8D5A4B39E59236C59F3FFFE /* Metal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = System/Library/Frameworks/Metal.framework; sourceTree = SDKROOT; };
+		CB340E28F94AC8274DDFB7D2 /* Security.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Security.framework; path = System/Library/Frameworks/Security.framework; sourceTree = SDKROOT; };
+		CF74E0B101B0FCCB62A02698 /* main.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = main.mm; sourceTree = "<group>"; };
+		E3C909C4BC6C962654ED0DB7 /* ota.rs */ = {isa = PBXFileReference; path = ota.rs; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		64C325C23908CA5BADCD45CB /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				6FB2B0A6386F727E33C1C50C /* libapp.a in Frameworks */,
+				79786FD0DD6C24B97E6B26A3 /* CoreGraphics.framework in Frameworks */,
+				F19A183F54AD65A76F926F25 /* Metal.framework in Frameworks */,
+				0BD7A2E8B5070312D60633CD /* MetalKit.framework in Frameworks */,
+				5D3B2471B0F2FA85351E01EE /* QuartzCore.framework in Frameworks */,
+				19B13CED78395E145BDFAAFF /* Security.framework in Frameworks */,
+				DA6F606B647C5D6D356D4966 /* UIKit.framework in Frameworks */,
+				766FDA49BFFCB06B4EEC16F0 /* WebKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		1A45897C78858131EF57A575 /* ginote */ = {
+			isa = PBXGroup;
+			children = (
+				CF74E0B101B0FCCB62A02698 /* main.mm */,
+				F933D8B45922753B2AEC5592 /* bindings */,
+			);
+			path = ginote;
+			sourceTree = "<group>";
+		};
+		245B1195F7EA3D24B551F513 /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				1A45897C78858131EF57A575 /* ginote */,
+			);
+			path = Sources;
+			sourceTree = "<group>";
+		};
+		61928C64CBC642EED3FE455E /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				452D95B93606AF943C3363CB /* CoreGraphics.framework */,
+				12C65E07AEB4583C527B95EF /* libapp.a */,
+				C8D5A4B39E59236C59F3FFFE /* Metal.framework */,
+				70471E1DF7229E89C4754A2B /* MetalKit.framework */,
+				69E606E5C1DD6D497FE44372 /* QuartzCore.framework */,
+				CB340E28F94AC8274DDFB7D2 /* Security.framework */,
+				03BA1C614C53F6C62DAD93B9 /* UIKit.framework */,
+				4A4F145468F07176CA14C79E /* WebKit.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		634508FCC2F75916E9489536 /* Externals */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = Externals;
+			sourceTree = "<group>";
+		};
+		66856FC6DD0711B6C8816FF8 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				583DC798BBFD3CA597E3C663 /* ginote_iOS.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		B00EF4D70F2D170B2379B434 /* ginote_iOS */ = {
+			isa = PBXGroup;
+			children = (
+				791BF641254D0FA3D8CAE67A /* ginote_iOS.entitlements */,
+				8CFA08F9B7A6C9F68AC1AF99 /* Info.plist */,
+			);
+			path = ginote_iOS;
+			sourceTree = "<group>";
+		};
+		D865220A96D8F1B4378EEC31 = {
+			isa = PBXGroup;
+			children = (
+				4A69CB1A14E2684A90139672 /* assets */,
+				06721A218AC15239177EA383 /* Assets.xcassets */,
+				3DE158F4BCA19E5FEEB94A83 /* LaunchScreen.storyboard */,
+				634508FCC2F75916E9489536 /* Externals */,
+				B00EF4D70F2D170B2379B434 /* ginote_iOS */,
+				245B1195F7EA3D24B551F513 /* Sources */,
+				E0F99A5CFA5DE860E7354AE9 /* src */,
+				61928C64CBC642EED3FE455E /* Frameworks */,
+				66856FC6DD0711B6C8816FF8 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		E0F99A5CFA5DE860E7354AE9 /* src */ = {
+			isa = PBXGroup;
+			children = (
+				75274689850E8D91411F0DB2 /* lib.rs */,
+				8F5979677EA02CE588955B96 /* main.rs */,
+				E3C909C4BC6C962654ED0DB7 /* ota.rs */,
+			);
+			name = src;
+			path = ../../src;
+			sourceTree = "<group>";
+		};
+		F933D8B45922753B2AEC5592 /* bindings */ = {
+			isa = PBXGroup;
+			children = (
+				302D4C14ADE6D15147608F94 /* bindings.h */,
+			);
+			path = bindings;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		B5E848B3A800E6A682810B9C /* ginote_iOS */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 974C825EC3A1C699631E6527 /* Build configuration list for PBXNativeTarget "ginote_iOS" */;
+			buildPhases = (
+				1443C32A2178FCB4EB2067EC /* Build Rust Code */,
+				79134CB391A28012CC07F9CA /* Sources */,
+				5CC0F43D84A5EC4B47395CE7 /* Resources */,
+				64C325C23908CA5BADCD45CB /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = ginote_iOS;
+			packageProductDependencies = (
+			);
+			productName = ginote_iOS;
+			productReference = 583DC798BBFD3CA597E3C663 /* ginote_iOS.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		2A3FCB072F2D39890F98EE92 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+				};
+			};
+			buildConfigurationList = BE26699062767ED83F9F55A9 /* Build configuration list for PBXProject "ginote" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = D865220A96D8F1B4378EEC31;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 66856FC6DD0711B6C8816FF8 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				B5E848B3A800E6A682810B9C /* ginote_iOS */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		5CC0F43D84A5EC4B47395CE7 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				9ACEBAC67F06E9F37293950E /* Assets.xcassets in Resources */,
+				72853F7939AB5BD5AFEBF603 /* LaunchScreen.storyboard in Resources */,
+				FD3537D7F82629636A5824CA /* assets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		1443C32A2178FCB4EB2067EC /* Build Rust Code */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Build Rust Code";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(SRCROOT)/Externals/x86_64/${CONFIGURATION}/libapp.a",
+				"$(SRCROOT)/Externals/arm64/${CONFIGURATION}/libapp.a",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "npm run -- tauri ios xcode-script -v --platform ${PLATFORM_DISPLAY_NAME:?} --sdk-root ${SDKROOT:?} --framework-search-paths \"${FRAMEWORK_SEARCH_PATHS:?}\" --header-search-paths \"${HEADER_SEARCH_PATHS:?}\" --gcc-preprocessor-definitions \"${GCC_PREPROCESSOR_DEFINITIONS:-}\" --configuration ${CONFIGURATION:?} ${FORCE_COLOR} ${ARCHS:?}";
+		};
+/* End PBXShellScriptBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		79134CB391A28012CC07F9CA /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				DF221E7C23514740536494C3 /* main.mm in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		058E158206D1BA71B3F8E32D /* release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = release;
+		};
+		2AFD4A6AB925C60A812E54C2 /* release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
+				ARCHS = (
+					arm64,
+				);
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = ginote_iOS/ginote_iOS.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				ENABLE_BITCODE = NO;
+				"EXCLUDED_ARCHS[sdk=iphoneos*]" = x86_64;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"\".\"",
+				);
+				INFOPLIST_FILE = ginote_iOS/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				"LIBRARY_SEARCH_PATHS[arch=arm64]" = "$(inherited) $(PROJECT_DIR)/Externals/arm64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/$(PLATFORM_NAME) $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.0/$(PLATFORM_NAME)";
+				"LIBRARY_SEARCH_PATHS[arch=x86_64]" = "$(inherited) $(PROJECT_DIR)/Externals/x86_64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/$(PLATFORM_NAME) $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.0/$(PLATFORM_NAME)";
+				PRODUCT_BUNDLE_IDENTIFIER = net.gitools.note;
+				PRODUCT_NAME = "Ginote";
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALID_ARCHS = arm64;
+			};
+			name = release;
+		};
+		2DB934FC5681C7A6ED4102F8 /* debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
+				ARCHS = (
+					arm64,
+				);
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = ginote_iOS/ginote_iOS.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				ENABLE_BITCODE = NO;
+				"EXCLUDED_ARCHS[sdk=iphoneos*]" = x86_64;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"\".\"",
+				);
+				INFOPLIST_FILE = ginote_iOS/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				"LIBRARY_SEARCH_PATHS[arch=arm64]" = "$(inherited) $(PROJECT_DIR)/Externals/arm64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/$(PLATFORM_NAME) $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.0/$(PLATFORM_NAME)";
+				"LIBRARY_SEARCH_PATHS[arch=x86_64]" = "$(inherited) $(PROJECT_DIR)/Externals/x86_64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/$(PLATFORM_NAME) $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.0/$(PLATFORM_NAME)";
+				PRODUCT_BUNDLE_IDENTIFIER = net.gitools.note;
+				PRODUCT_NAME = "Ginote";
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALID_ARCHS = arm64;
+			};
+			name = debug;
+		};
+		AB380C792C24E02C41616A2A /* debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		974C825EC3A1C699631E6527 /* Build configuration list for PBXNativeTarget "ginote_iOS" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				2DB934FC5681C7A6ED4102F8 /* debug */,
+				2AFD4A6AB925C60A812E54C2 /* release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = debug;
+		};
+		BE26699062767ED83F9F55A9 /* Build configuration list for PBXProject "ginote" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AB380C792C24E02C41616A2A /* debug */,
+				058E158206D1BA71B3F8E32D /* release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 2A3FCB072F2D39890F98EE92 /* Project object */;
+}

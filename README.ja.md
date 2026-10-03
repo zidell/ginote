@@ -96,7 +96,8 @@ Ginote の **設定 → 音声録音 → OpenAI API キー** に入力してく�
 音声ファイルと文字起こし結果はブラウザから OpenAI API へ直接送信され、アプリの運営
 サーバーを経由しません。API キーはこの端末のブラウザの `localStorage` に平文で保存される
 ため、個人の端末でのみ使用し、専用のプロジェクトキー・使用上限の設定・定期的な更新を
-おすすめします。
+おすすめします。インストール版のデスクトップ・モバイルアプリは、キーを OS の資格情報ストアに
+保存します。
 
 ### キーボードショートカット
 
@@ -145,8 +146,9 @@ PAT、ノートデータはキャッシュしません。
 macOS・Windows・Linux 向けのインストーラーは [GitHub Releases](https://github.com/zidell/ginote/releases)
 からダウンロードできます。macOS は DMG、Windows 10/11 は MSI を使用します。新しい Windows
 リリースは、SignPath Foundation による署名の設定が済み次第、署名済み MSI として公開されます。
-デスクトップアプリは [note.gitools.net](https://note.gitools.net) を開くため、インターネット
-接続が必要です。画面や一般的な機能の修正は Web デプロイで反映されます。
+デスクトップアプリは Web アプリを内蔵しているため、インターネットに接続していなくても
+起動できます。画面や一般的な機能の修正は Web デプロイで反映され、アプリは次回起動時に
+[note.gitools.net](https://note.gitools.net) の同じビルドに切り替わります。
 
 [Code signing policy](docs/CODE_SIGNING.md)
 

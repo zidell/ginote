@@ -19,6 +19,17 @@ describe('SetupWizard', () => {
     expect(screen.getByRole('link', { name: '앱 설치' })).toHaveProperty('href', 'https://github.com/zidell/ginote/releases');
   });
 
+  it('앱(Tauri) 안에서는 앱 설치 링크를 숨긴다', () => {
+    globalThis.__TAURI_INTERNALS__ = {};
+    try {
+      render(SetupWizard);
+      expect(screen.getByRole('link', { name: /Github/ })).toBeTruthy();
+      expect(screen.queryByRole('link', { name: '앱 설치' })).toBeNull();
+    } finally {
+      delete globalThis.__TAURI_INTERNALS__;
+    }
+  });
+
   it('initialStep=3이면 저장소 입력 화면부터 시작하고 이전 두 단계는 완료 표시된다', () => {
     render(SetupWizard, { initialStep: 3 });
     expect(screen.getByText('Step 3 of 4')).toBeTruthy();

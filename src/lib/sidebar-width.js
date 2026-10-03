@@ -1,6 +1,7 @@
+import { installedSnapshot, updateInstalledSnapshot } from './installed-settings.js';
 import { clampNumber } from './settings-storage.js';
 
-const SIDEBAR_WIDTH_STORAGE_KEY = 'issue-note.sidebar-width.v1';
+export const SIDEBAR_WIDTH_STORAGE_KEY = 'issue-note.sidebar-width.v1';
 export const SIDEBAR_WIDTH_MIN = 200;
 export const SIDEBAR_WIDTH_MAX = 600;
 export const SIDEBAR_WIDTH_DEFAULT = 340;
@@ -10,6 +11,8 @@ export function clampSidebarWidth(value) {
 }
 
 export function loadSidebarWidth() {
+  const installed = installedSnapshot();
+  if (installed) return clampSidebarWidth(installed.sidebarWidth);
   try {
     const raw = localStorage.getItem(SIDEBAR_WIDTH_STORAGE_KEY);
     if (raw === null) return SIDEBAR_WIDTH_DEFAULT;
@@ -20,6 +23,7 @@ export function loadSidebarWidth() {
 }
 
 export function saveSidebarWidth(width) {
+  if (updateInstalledSnapshot((installed) => { installed.sidebarWidth = clampSidebarWidth(width); })) return;
   try {
     localStorage.setItem(SIDEBAR_WIDTH_STORAGE_KEY, String(width));
   } catch {

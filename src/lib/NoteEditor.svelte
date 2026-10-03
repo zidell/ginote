@@ -1,4 +1,5 @@
 <script>
+  import { confirmAction } from './dialogs.js';
   import { afterUpdate, onDestroy, onMount, tick } from 'svelte';
   import Dropdown from 'bootstrap/js/dist/dropdown';
   import { tagColorForName } from './colors.js';
@@ -1328,7 +1329,7 @@
       return { targetIssue: latestIssue, reopen: false, previousIssue: latestIssue };
     }
 
-    const shouldReopen = confirm($_('dynamic.closedIssueSaveConfirm', {
+    const shouldReopen = await confirmAction($_('dynamic.closedIssueSaveConfirm', {
       values: { title: latestIssue.title || targetIssue.title || title }
     }));
     if (!shouldReopen) {
@@ -1341,7 +1342,7 @@
   async function resolveLateClosedSave(saved, previousIssue, remoteNote, requestOptions) {
     if (saved?.state !== 'closed') return { saved, cancelled: false };
 
-    const shouldReopen = confirm($_('dynamic.closedIssueSaveConfirm', {
+    const shouldReopen = await confirmAction($_('dynamic.closedIssueSaveConfirm', {
       values: { title: saved.title || previousIssue?.title || title }
     }));
     if (shouldReopen) {
@@ -1523,7 +1524,7 @@
       onRefreshStateChange(false);
       return;
     }
-    if (!background && dirty && !confirm($_("m.37533033a1"))) {
+    if (!background && dirty && !(await confirmAction($_("m.37533033a1")))) {
       return;
     }
 

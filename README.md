@@ -105,6 +105,10 @@ Your browser  ←──── direct connection ────→  GitHub
 - Your PAT and app settings are kept only in your browser and are sent to the GitHub API
   only for authentication.
 - Unsaved drafts remain only in that browser.
+- The installed desktop and mobile apps keep PATs and the OpenAI key in the operating
+  system's credential store (Keychain, Windows Credential Manager, Secret Service, Android
+  Keystore) and other settings in a commented `config.toml`
+  ([settings file](docs/CONFIG.md)).
 - Optional note encryption is documented in [how encryption works](docs/ENCRYPTION.md).
 - There is no API that sends notes, PATs, or settings to the app operator, and no
   analytics or tracking services are used.
@@ -137,7 +141,8 @@ attachment to that note.
 Audio files and transcripts are sent directly from your browser to the OpenAI API and
 never pass through an app server. The API key is stored in plain text in this device's
 browser `localStorage`, so use it only on personal devices, and we recommend a dedicated
-project key, usage limits, and regular rotation.
+project key, usage limits, and regular rotation. The installed desktop and mobile apps keep
+the key in the operating system's credential store instead.
 
 ## Keyboard shortcuts
 
@@ -186,11 +191,17 @@ caches GitHub API requests, PATs, or note data.
 Installers for macOS, Windows, and Linux are available on
 [GitHub Releases](https://github.com/zidell/ginote/releases). macOS uses a DMG, and
 Windows 10/11 uses an MSI. New Windows releases are published as signed MSIs once
-SignPath Foundation signing is set up. The desktop app opens
-[note.gitools.net](https://note.gitools.net) and requires an internet connection. UI
-and general feature changes are delivered through web deployments.
+SignPath Foundation signing is set up. The desktop app bundles the web app and opens
+without an internet connection. UI and general feature changes are delivered through web
+deployments: the app picks up the same build from [note.gitools.net](https://note.gitools.net)
+on its next launch.
 
 [Code signing policy](docs/CODE_SIGNING.md)
+
+The desktop app keeps its settings in a commented `config.toml` that you or an AI agent can
+edit directly; a running app applies the change within a second. `ginote --config-path`
+prints its location, and the app ships a `readme.txt` explaining it. Tokens and API keys
+are not in that file. See [settings file](docs/CONFIG.md).
 
 Homebrew installation on macOS, running locally, per-platform packaging, and the release
 process are covered in the [desktop app docs](docs/DESKTOP.md).

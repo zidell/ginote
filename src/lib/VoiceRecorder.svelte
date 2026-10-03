@@ -1,4 +1,5 @@
 <script>
+  import { confirmAction } from './dialogs.js';
   import { onMount, onDestroy, tick } from 'svelte';
   import { transcribeAudio, refineTranscript } from './openai-voice.js';
 
@@ -321,9 +322,9 @@
     link.click();
   }
 
-  function requestClose() {
+  async function requestClose() {
     if (elapsedMilliseconds || elapsedStartedAt) {
-      if (!confirm('기록하지 않은 녹음을 전부 취소하시겠습니까?')) return;
+      if (!(await confirmAction('기록하지 않은 녹음을 전부 취소하시겠습니까?'))) return;
     }
     onDirtyChange(false);
     onClose();

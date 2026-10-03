@@ -113,7 +113,8 @@ Les fichiers audio et les transcriptions sont envoyés directement du navigateur
 OpenAI, sans passer par un serveur de l'application. La clé API est stockée en clair
 dans le `localStorage` du navigateur de cet appareil : utilisez-la uniquement sur des
 appareils personnels. Nous recommandons une clé de projet dédiée, des limites
-d'utilisation et une rotation régulière.
+d'utilisation et une rotation régulière. Les applications installées (ordinateur et
+mobile) conservent la clé dans le gestionnaire d'identifiants du système.
 
 ### Raccourcis clavier
 
@@ -166,9 +167,10 @@ Les installateurs pour macOS, Windows et Linux sont disponibles sur
 [GitHub Releases](https://github.com/zidell/ginote/releases). macOS utilise un DMG et
 Windows 10/11 un MSI. Les nouvelles versions Windows seront publiées sous forme de MSI
 signés une fois la signature SignPath Foundation configurée. L'application de bureau
-ouvre [note.gitools.net](https://note.gitools.net) et nécessite une connexion Internet.
-Les modifications de l'interface et des fonctionnalités générales sont livrées via les
-déploiements web.
+embarque l'application web et s'ouvre sans connexion Internet. Les modifications de
+l'interface et des fonctionnalités générales sont livrées via les déploiements web : au
+lancement suivant, l'application reprend la même version depuis
+[note.gitools.net](https://note.gitools.net).
 
 [Code signing policy](docs/CODE_SIGNING.md)
 
