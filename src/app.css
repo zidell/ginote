@@ -343,6 +343,8 @@ button, input, textarea { font: inherit; }
 .editor-settings legend { float: none; width: auto; margin: 0 0 .75rem; padding: 0 .25rem; color: var(--ui-text-secondary); font-size: .85rem; font-weight: 600; }
 .editor-settings .form-label { color: var(--ui-text-icon); font-size: .8rem; }
 .settings-help-note { margin-top: .35rem; color: var(--ui-text-dim); font-size: .7rem; line-height: 1.4; }
+.release-update-notes { max-height: 14rem; overflow: auto; margin: 0 0 1rem; padding: .75rem; border-radius: .5rem; background: var(--ui-surface-2, rgba(127, 127, 127, .08)); font: inherit; font-size: .85rem; white-space: pre-wrap; }
+.release-update-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: .5rem; margin-top: 1rem; }
 .workspace-section-title { margin: 0; color: var(--ui-text-heading); font-size: 1.05rem; font-weight: 700; }
 .workspace-order-list { display: flex; flex-direction: column; gap: .4rem; margin: 0 0 .5rem; padding: 0; list-style: none; }
 .workspace-order-item { padding: .5rem .65rem; border: 1px solid var(--ui-border-subtle); border-radius: 4px; background: var(--ui-bg-card); }

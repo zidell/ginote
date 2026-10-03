@@ -200,6 +200,26 @@ const ENTRIES = [
       'Instructions given to refinement_model, in any language. Empty restores the default',
       '(fix obvious transcription errors and punctuation only). Applied to the next recording.'
     ]
+  },
+  {
+    path: ['updates', 'check_automatically'],
+    get: (s) => s.updates.checkAutomatically,
+    set: (s, v) => { s.updates.checkAutomatically = v; },
+    normalize: boolean(true),
+    doc: [
+      'Check GitHub for a new Ginote release at launch and every 6 hours, and offer to install it.',
+      'true / false. Default: true. Applied immediately.'
+    ]
+  },
+  {
+    path: ['updates', 'skipped_version'],
+    get: (s) => s.updates.skippedVersion,
+    set: (s, v) => { s.updates.skippedVersion = v; },
+    normalize: text(''),
+    doc: [
+      'Release the user chose not to install, e.g. "0.1.42". Ginote does not offer it again but',
+      'still offers newer releases. "" offers every release. "Skip this version" in the app sets it.'
+    ]
   }
 ];
 
@@ -207,7 +227,8 @@ const SECTION_DOCS = {
   display: 'Appearance of this device\'s Ginote window.',
   'display.list_row': 'Items shown in each row of the note list.',
   behavior: 'Saving, loading and locking.',
-  voice: 'Voice notes (OpenAI). The API key is stored in the operating system\'s credential store, not here.'
+  voice: 'Voice notes (OpenAI). The API key is stored in the operating system\'s credential store, not here.',
+  updates: 'Updates of the installed app itself (macOS and Linux). Windows gets updates from the Microsoft Store or App Installer, phones from their app stores; there these keys are ignored.'
 };
 
 const HEADER = [
@@ -329,7 +350,8 @@ export function defaultSnapshot() {
       refinementModel: DEFAULT_REFINEMENT_MODEL,
       preserveOriginalAudio: false
     },
-    sidebarWidth: SIDEBAR_WIDTH_DEFAULT
+    sidebarWidth: SIDEBAR_WIDTH_DEFAULT,
+    updates: { checkAutomatically: true, skippedVersion: '' }
   };
 }
 
@@ -394,11 +416,11 @@ export function parseConfig(source, createId = () => crypto.randomUUID()) {
     if (active) problems.push(`active_workspace = ${describe(active)} matches no workspace; using ${describe(snapshot.activeWorkspaceId)}.`);
   }
 
-  const known = new Set(['version', 'active_workspace', 'workspaces', 'display', 'behavior', 'voice']);
+  const known = new Set(['version', 'active_workspace', 'workspaces', 'display', 'behavior', 'voice', 'updates']);
   for (const key of Object.keys(table)) {
     if (!known.has(key)) problems.push(`Unknown key "${key}" is ignored.`);
   }
-  for (const section of ['display', 'behavior', 'voice']) {
+  for (const section of ['display', 'behavior', 'voice', 'updates']) {
     for (const key of Object.keys(table[section] ?? {})) {
       const isKnown = ENTRIES.some((entry) => entry.path[0] === section && entry.path[1] === key);
       if (!isKnown) problems.push(`Unknown key "${section}.${key}" is ignored.`);

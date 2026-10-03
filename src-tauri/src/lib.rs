@@ -1,4 +1,5 @@
 mod ota;
+mod release_update;
 mod settings;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -15,7 +16,7 @@ pub fn run() {
     let embedded = context.set_assets(Box::new(EmptyAssets));
     context.set_assets(Box::new(ota::OtaAssets::new(embedded)));
 
-    tauri::Builder::default()
+    release_update::register(tauri::Builder::default())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .setup(|_app| {
@@ -31,7 +32,9 @@ pub fn run() {
             settings::settings_report,
             settings::secret_get,
             settings::secret_set,
-            settings::secret_delete
+            settings::secret_delete,
+            release_update::release_update_supported,
+            release_update::app_restart
         ])
         .run(context)
         .expect("error while running Ginote");

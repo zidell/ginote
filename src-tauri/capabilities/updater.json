@@ -1,0 +1,8 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "updater-capability",
+  "description": "App self-update on macOS and Linux (src/release_update.rs)",
+  "windows": ["main"],
+  "platforms": ["macOS", "linux"],
+  "permissions": ["updater:default"]
+}
