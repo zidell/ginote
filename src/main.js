@@ -5,6 +5,7 @@ import './app.css';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { mount } from 'svelte';
 import App from './App.svelte';
+import { prepareAppUpdate } from './lib/app-update.js';
 import { normalizeLocale, translate } from './lib/i18n.js';
 import { applyTheme, loadSettingsDocument } from './lib/settings-storage.js';
 
@@ -31,8 +32,20 @@ const appTarget = document.getElementById('app');
 // 자바스크립트 없이도 사용법이 보이도록 index.html에 넣어 둔 안내다. 앱을 붙이기 전에 비운다.
 appTarget.textContent = '';
 
-mount(App, {
-  target: appTarget
+// 앱에서 한 달 넘게 업데이트를 받지 못했으면 새 빌드를 먼저 적용한 뒤 띄운다(docs/APP_OTA.md).
+prepareAppUpdate({
+  onWaiting: () => {
+    appTarget.textContent = translate('dynamic.appUpdating');
+  }
+}).then((applied) => {
+  if (applied) {
+    window.location.reload();
+    return;
+  }
+  appTarget.textContent = '';
+  mount(App, {
+    target: appTarget
+  });
 });
 
 if ('serviceWorker' in navigator && import.meta.env.PROD && !window.__TAURI_INTERNALS__) {

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { watchAppUpdate } from './app-update.js';
+import { prepareAppUpdate, watchAppUpdate } from './app-update.js';
 
 function fakeTauri(status) {
   let listener;
@@ -45,5 +45,36 @@ describe('앱 업데이트 필요 알림', () => {
     tauri.emit({ updateRequired: true });
     expect(notify).not.toHaveBeenCalled();
     expect(tauri.stopListening).toHaveBeenCalled();
+  });
+});
+
+describe('오래된 앱 빌드 먼저 교체', () => {
+  it('웹 브라우저에서는 바로 띄운다', async () => {
+    const invoke = vi.fn();
+    expect(await prepareAppUpdate({ invoke, isTauri: false })).toBe(false);
+    expect(invoke).not.toHaveBeenCalled();
+  });
+
+  it('업데이트를 최근에 확인했으면 기다리지 않는다', async () => {
+    const invoke = vi.fn(async () => ({ stale: false }));
+    const onWaiting = vi.fn();
+    expect(await prepareAppUpdate({ invoke, isTauri: true, onWaiting })).toBe(false);
+    expect(invoke).toHaveBeenCalledTimes(1);
+    expect(onWaiting).not.toHaveBeenCalled();
+  });
+
+  it('한 달 넘게 확인하지 못했으면 안내를 띄우고 새 빌드 적용 여부를 돌려준다', async () => {
+    const invoke = vi.fn(async (command) => (command === 'ota_status' ? { stale: true } : true));
+    const onWaiting = vi.fn();
+    expect(await prepareAppUpdate({ invoke, isTauri: true, onWaiting })).toBe(true);
+    expect(invoke).toHaveBeenLastCalledWith('ota_prepare');
+    expect(onWaiting).toHaveBeenCalledTimes(1);
+  });
+
+  it('셸이 command를 모르거나 오류가 나면 가지고 있는 빌드로 띄운다', async () => {
+    const invoke = vi.fn(async () => {
+      throw new Error('unknown command');
+    });
+    expect(await prepareAppUpdate({ invoke, isTauri: true })).toBe(false);
   });
 });

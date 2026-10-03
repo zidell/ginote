@@ -11,7 +11,8 @@ use std::fs;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::{Arc, OnceLock};
+use std::sync::{Arc, Condvar, Mutex, OnceLock, RwLock};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use base64::Engine;
 use ring::digest::{digest, SHA256};
@@ -39,6 +40,12 @@ const OTA_PUBLIC_KEY: &str = match option_env!("GINOTE_OTA_PUBLIC_KEY") {
     Some(key) => key,
     None => "4n/2KutVtUC3/BtI5JBV7nSd3zhzwJaTEnznxzjqCQM=",
 };
+
+/// 마지막으로 업데이트 확인에 성공한 지 이만큼 지났으면, 화면을 띄우기 전에 새 빌드를 받아
+/// 바로 적용한다. 2026-10-03 정한 값(한 달). 바꾸려면 네이티브 릴리스가 필요하다.
+const STALE_AFTER_SECS: u64 = 30 * 24 * 60 * 60;
+/// 그때 새 빌드를 기다리는 최대 시간. 넘기면 가지고 있는 번들로 띄운다.
+const PREPARE_TIMEOUT: Duration = Duration::from_secs(20);
 
 const MAX_MANIFEST_BYTES: u64 = 1024 * 1024;
 const MAX_FILE_BYTES: u64 = 32 * 1024 * 1024;
@@ -171,7 +178,40 @@ fn inline_csp_hashes(html: &str) -> Vec<(bool, String)> {
 
 struct ActiveBundle {
     dir: PathBuf,
-    csp_hashes: Vec<(bool, String)>,
+    csp_hashes: Vec<(bool, &'static str)>,
+}
+
+impl ActiveBundle {
+    fn load(dir: PathBuf) -> Option<Self> {
+        let html = fs::read_to_string(dir.join("index.html")).ok()?;
+        // Assets::csp_hashes가 빌린 문자열을 돌려줘야 해서, 번들을 고를 때마다(실행당 한두 번)
+        // 몇십 바이트짜리 해시 문자열을 프로세스 수명 동안 붙잡아 둔다.
+        let csp_hashes = inline_csp_hashes(&html)
+            .into_iter()
+            .map(|(is_script, hash)| (is_script, &*Box::leak(hash.into_boxed_str())))
+            .collect();
+        Some(Self { dir, csp_hashes })
+    }
+}
+
+/// 지금 제공 중인 번들. 오래된 번들을 실행 중에 새 번들로 바꿀 수 있게 공유한다.
+#[derive(Default)]
+pub struct ActiveSlot {
+    bundle: RwLock<Option<Arc<ActiveBundle>>>,
+    /// setup보다 먼저 자산 요청이 왔는지. 그러면 이번 실행은 내장본으로 둔다.
+    served: AtomicBool,
+}
+
+impl ActiveSlot {
+    fn get(&self) -> Option<Arc<ActiveBundle>> {
+        self.bundle.read().ok()?.clone()
+    }
+
+    fn set(&self, bundle: Option<ActiveBundle>) {
+        if let Ok(mut slot) = self.bundle.write() {
+            *slot = bundle.map(Arc::new);
+        }
+    }
 }
 
 /// 프론트엔드에 알려 주는 상태. ota_status command와 `ota-status` 이벤트로 나간다.
@@ -182,6 +222,7 @@ pub struct OtaStatus {
     native_api: u32,
     update_required: bool,
     staged_build: Option<u64>,
+    stale: bool,
 }
 
 #[derive(Default)]
@@ -189,6 +230,10 @@ pub struct OtaState {
     build: AtomicU64,
     update_required: AtomicBool,
     staged_build: AtomicU64,
+    stale: AtomicBool,
+    root: OnceLock<PathBuf>,
+    check_done: Mutex<bool>,
+    check_finished: Condvar,
 }
 
 impl OtaState {
@@ -199,7 +244,25 @@ impl OtaState {
             native_api: NATIVE_API,
             update_required: self.update_required.load(Ordering::Relaxed),
             staged_build: (staged != 0).then_some(staged),
+            stale: self.stale.load(Ordering::Relaxed),
         }
+    }
+
+    fn finish_check(&self) {
+        if let Ok(mut done) = self.check_done.lock() {
+            *done = true;
+            self.check_finished.notify_all();
+        }
+    }
+
+    fn wait_for_check(&self, timeout: Duration) -> bool {
+        let Ok(done) = self.check_done.lock() else {
+            return false;
+        };
+        self.check_finished
+            .wait_timeout_while(done, timeout, |done| !*done)
+            .map(|(done, _)| *done)
+            .unwrap_or(false)
     }
 }
 
@@ -208,23 +271,52 @@ pub fn ota_status(state: tauri::State<'_, Arc<OtaState>>) -> OtaStatus {
     state.snapshot()
 }
 
+/// 앱이 화면을 띄우기 전에 부른다. 한 달 넘게 업데이트를 확인하지 못한 상태면 백그라운드
+/// 확인이 끝나기를(최대 PREPARE_TIMEOUT) 기다렸다가, 새 번들을 받았으면 지금 실행에 바로
+/// 적용하고 true를 돌려준다. 프론트엔드는 true면 새로고침한다. 오래된 코드가 최신 데이터를
+/// 한 번이라도 만지지 않게 하려는 것이다(docs/APP_OTA.md).
+#[tauri::command]
+pub async fn ota_prepare(
+    state: tauri::State<'_, Arc<OtaState>>,
+    slot: tauri::State<'_, Arc<ActiveSlot>>,
+) -> Result<bool, String> {
+    if !state.stale.load(Ordering::Relaxed) {
+        return Ok(false);
+    }
+    let waiting = state.inner().clone();
+    let finished =
+        tauri::async_runtime::spawn_blocking(move || waiting.wait_for_check(PREPARE_TIMEOUT))
+            .await
+            .unwrap_or(false);
+    let staged = state.staged_build.load(Ordering::Relaxed);
+    let Some(root) = state.root.get() else {
+        return Ok(false);
+    };
+    if !finished || staged == 0 {
+        return Ok(false);
+    }
+    let Some(bundle) = ActiveBundle::load(root.join("bundles").join(staged.to_string())) else {
+        return Ok(false);
+    };
+    slot.set(Some(bundle));
+    state.build.store(staged, Ordering::Relaxed);
+    state.staged_build.store(0, Ordering::Relaxed);
+    state.stale.store(false, Ordering::Relaxed);
+    Ok(true)
+}
+
 /// 내장 자산 앞에 내려받은 번들을 두는 자산 제공자.
 pub struct OtaAssets<R: Runtime> {
     embedded: Arc<dyn Assets<R>>,
-    active: OnceLock<Option<ActiveBundle>>,
+    slot: Arc<ActiveSlot>,
 }
 
 impl<R: Runtime> OtaAssets<R> {
     pub fn new(embedded: Box<dyn Assets<R>>) -> Self {
         Self {
             embedded: Arc::from(embedded),
-            active: OnceLock::new(),
+            slot: Arc::new(ActiveSlot::default()),
         }
-    }
-
-    fn active(&self) -> Option<&ActiveBundle> {
-        // setup보다 먼저 자산 요청이 오면 이번 실행은 내장본으로 고정한다. 번들이 섞이지 않게 한다.
-        self.active.get_or_init(|| None).as_ref()
     }
 }
 
@@ -236,26 +328,32 @@ fn embedded_build<R: Runtime>(embedded: &dyn Assets<R>) -> u64 {
         .unwrap_or(0)
 }
 
+fn now_secs() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0)
+}
+
+fn read_u64(path: &Path) -> Option<u64> {
+    fs::read_to_string(path).ok()?.trim().parse().ok()
+}
+
+/// 마지막으로 업데이트 확인에 성공한 지 STALE_AFTER_SECS가 지났는지. 확인한 적이 없으면
+/// (새로 설치) 지금 번들의 빌드 시각(커밋 시각)을 기준으로 한다.
+fn is_stale(last_check: Option<u64>, build: u64, now: u64) -> bool {
+    now.saturating_sub(last_check.unwrap_or(build)) > STALE_AFTER_SECS
+}
+
 /// `current`가 가리키는 번들을 고르고 나머지 번들과 임시 폴더를 지운다.
 fn select_bundle(root: &Path, embedded_build: u64) -> Option<(u64, ActiveBundle)> {
-    let current = fs::read_to_string(root.join("current"))
-        .ok()?
-        .trim()
-        .parse::<u64>()
-        .ok();
+    let current = read_u64(&root.join("current"));
     let _ = fs::remove_dir_all(root.join("tmp"));
     let chosen = current
         .filter(|build| *build > embedded_build)
         .and_then(|build| {
-            let dir = root.join("bundles").join(build.to_string());
-            let html = fs::read_to_string(dir.join("index.html")).ok()?;
-            Some((
-                build,
-                ActiveBundle {
-                    csp_hashes: inline_csp_hashes(&html),
-                    dir,
-                },
-            ))
+            ActiveBundle::load(root.join("bundles").join(build.to_string()))
+                .map(|bundle| (build, bundle))
         });
     if let Ok(entries) = fs::read_dir(root.join("bundles")) {
         for entry in entries.flatten() {
@@ -277,32 +375,34 @@ impl<R: Runtime> Assets<R> for OtaAssets<R> {
     fn setup(&self, app: &App<R>) {
         let state = Arc::new(OtaState::default());
         app.manage(state.clone());
+        app.manage(self.slot.clone());
         let embedded_build = embedded_build(self.embedded.as_ref());
         state.build.store(embedded_build, Ordering::Relaxed);
 
         // 개발 모드는 Vite 개발 서버를 열므로 번들을 쓰지도 받지도 않는다.
         if tauri::is_dev() {
+            state.finish_check();
             return;
         }
         let Ok(root) = app.path().app_local_data_dir().map(|dir| dir.join("ota")) else {
+            state.finish_check();
             return;
         };
-        let selected = select_bundle(&root, embedded_build);
-        let (build, active_dir) = match selected {
-            Some((build, bundle)) => {
-                let dir = bundle.dir.clone();
-                if self.active.set(Some(bundle)).is_ok() {
-                    (build, Some(dir))
-                } else {
-                    (embedded_build, None)
-                }
+        let _ = state.root.set(root.clone());
+        let mut build = embedded_build;
+        let mut active_dir = None;
+        if let Some((selected, bundle)) = select_bundle(&root, embedded_build) {
+            if !self.slot.served.load(Ordering::Relaxed) {
+                build = selected;
+                active_dir = Some(bundle.dir.clone());
+                self.slot.set(Some(bundle));
             }
-            None => {
-                let _ = self.active.set(None);
-                (embedded_build, None)
-            }
-        };
+        }
         state.build.store(build, Ordering::Relaxed);
+        state.stale.store(
+            is_stale(read_u64(&root.join("last-check")), build, now_secs()),
+            Ordering::Relaxed,
+        );
 
         let embedded = self.embedded.clone();
         let handle = app.handle().clone();
@@ -317,12 +417,14 @@ impl<R: Runtime> Assets<R> for OtaAssets<R> {
             if let Err(error) = result {
                 eprintln!("OTA 업데이트 확인 실패: {error}");
             }
+            state.finish_check();
             let _ = handle.emit("ota-status", state.snapshot());
         });
     }
 
     fn get(&self, key: &AssetKey) -> Option<Cow<'_, [u8]>> {
-        if let Some(bundle) = self.active() {
+        self.slot.served.store(true, Ordering::Relaxed);
+        if let Some(bundle) = self.slot.get() {
             let path = key.as_ref().trim_start_matches('/');
             if is_safe_path(path) {
                 if let Ok(bytes) = fs::read(bundle.dir.join(path)) {
@@ -338,15 +440,20 @@ impl<R: Runtime> Assets<R> for OtaAssets<R> {
     }
 
     fn csp_hashes(&self, html_path: &AssetKey) -> Box<dyn Iterator<Item = CspHash<'_>> + '_> {
-        match self.active() {
+        match self.slot.get() {
             Some(bundle) if html_path.as_ref().trim_start_matches('/') == "index.html" => {
-                Box::new(bundle.csp_hashes.iter().map(|(is_script, hash)| {
-                    if *is_script {
-                        CspHash::Script(hash.as_str())
-                    } else {
-                        CspHash::Style(hash.as_str())
-                    }
-                }))
+                let hashes: Vec<CspHash<'static>> = bundle
+                    .csp_hashes
+                    .iter()
+                    .map(|(is_script, hash)| {
+                        if *is_script {
+                            CspHash::Script(hash)
+                        } else {
+                            CspHash::Style(hash)
+                        }
+                    })
+                    .collect();
+                Box::new(hashes.into_iter())
             }
             _ => self.embedded.csp_hashes(html_path),
         }
@@ -392,10 +499,10 @@ fn check_for_update<R: Runtime>(
     )?;
 
     match decide(&manifest, current_build) {
-        Decision::UpToDate => return Ok(()),
+        Decision::UpToDate => return record_check(root),
         Decision::NeedsNativeUpdate => {
             state.update_required.store(true, Ordering::Relaxed);
-            return Ok(());
+            return record_check(root);
         }
         Decision::Download => {}
     }
@@ -441,7 +548,13 @@ fn check_for_update<R: Runtime>(
     fs::write(&pointer, manifest.build.to_string()).map_err(|e| e.to_string())?;
     fs::rename(&pointer, root.join("current")).map_err(|e| e.to_string())?;
     state.staged_build.store(manifest.build, Ordering::Relaxed);
-    Ok(())
+    record_check(root)
+}
+
+/// 업데이트 확인을 끝까지 마친 시각을 남긴다. 한 달 기준(is_stale)은 이 값으로 잰다.
+fn record_check(root: &Path) -> Result<(), String> {
+    fs::create_dir_all(root).map_err(|e| e.to_string())?;
+    fs::write(root.join("last-check"), now_secs().to_string()).map_err(|e| e.to_string())
 }
 
 #[cfg(test)]
@@ -555,6 +668,17 @@ mod tests {
             decide(&manifest(200, NATIVE_API + 1), 100),
             Decision::NeedsNativeUpdate
         );
+    }
+
+    #[test]
+    fn treats_month_without_successful_check_as_stale() {
+        let day = 24 * 60 * 60;
+        let now = 1_800_000_000;
+        assert!(!is_stale(Some(now - 29 * day), 0, now));
+        assert!(is_stale(Some(now - 31 * day), now, now));
+        // 확인한 적이 없으면(새로 설치) 내장 빌드의 커밋 시각을 기준으로 한다.
+        assert!(!is_stale(None, now - 10 * day, now));
+        assert!(is_stale(None, now - 400 * day, now));
     }
 
     #[test]

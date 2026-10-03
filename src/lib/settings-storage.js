@@ -43,6 +43,8 @@ export function applyTheme(value) {
   globalThis.document
     .querySelector('meta[name="theme-color"]')
     ?.setAttribute('content', THEME_META_COLORS[theme]);
+  // Android 앱은 meta theme-color를 쓰지 않으므로 시스템 바 색을 직접 알린다(MainActivity.kt).
+  globalThis.GinoteAndroid?.setTheme?.(theme === 'dark');
   return theme;
 }
 

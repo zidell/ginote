@@ -33,3 +33,22 @@ export function watchAppUpdate(onUpdateRequired, {
     unlisten?.();
   };
 }
+
+// 화면을 띄우기 전에 부른다. 셸이 한 달 넘게 업데이트를 확인하지 못한 상태(stale)라고 하면
+// onWaiting을 부르고, 새 빌드를 받아 적용했는지(true면 새로고침해야 함)를 돌려준다.
+// 웹 브라우저나 이 command가 없는 셸, 오류가 나면 false로 그대로 띄운다.
+export async function prepareAppUpdate({
+  invoke = tauriInvoke,
+  isTauri = Boolean(globalThis.__TAURI_INTERNALS__),
+  onWaiting = () => {}
+} = {}) {
+  if (!isTauri) return false;
+  try {
+    const status = await invoke('ota_status');
+    if (!status?.stale) return false;
+    onWaiting();
+    return (await invoke('ota_prepare')) === true;
+  } catch {
+    return false;
+  }
+}
