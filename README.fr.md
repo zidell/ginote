@@ -163,10 +163,11 @@ données des notes.
 
 ### Télécharger l'application de bureau
 
-Les installateurs pour macOS, Windows et Linux sont disponibles sur
-[GitHub Releases](https://github.com/zidell/ginote/releases). macOS utilise un DMG et
-Windows 10/11 un MSI. Les nouvelles versions Windows seront publiées sous forme de MSI
-signés une fois la signature SignPath Foundation configurée. L'application de bureau
+Les installateurs pour macOS et Linux sont disponibles sur
+[GitHub Releases](https://github.com/zidell/ginote/releases) : un DMG pour macOS et des
+paquets AppImage, deb et rpm pour Linux. Les applications installées sur macOS et Linux
+proposent elles-mêmes les nouvelles versions. L'application Windows 10/11 est distribuée via
+le Microsoft Store. L'application de bureau
 embarque l'application web et s'ouvre sans connexion Internet. Les modifications de
 l'interface et des fonctionnalités générales sont livrées via les déploiements web : au
 lancement suivant, l'application reprend la même version depuis

@@ -124,9 +124,9 @@ JavaScript 等应用文件。没有处理登录或笔记存储的应用后端，
 
 ### 下载桌面应用
 
-macOS、Windows、Linux 的安装包可以在 [GitHub Releases](https://github.com/zidell/ginote/releases)
-下载。macOS 使用 DMG，Windows 10/11 使用 MSI。SignPath Foundation 签名配置完成后，新的
-Windows 版本将以已签名的 MSI 发布。桌面应用内置了 Web 应用，无需联网也能打开。界面和
+macOS 和 Linux 的安装包可以在 [GitHub Releases](https://github.com/zidell/ginote/releases)
+下载：macOS 为 DMG，Linux 为 AppImage、deb 和 rpm。已安装的 macOS 和 Linux 应用会自行提示
+新版本。Windows 10/11 应用通过 Microsoft Store 发布。桌面应用内置了 Web 应用，无需联网也能打开。界面和
 一般功能的修改会通过 Web 部署生效，应用会在下次启动时换成
 [note.gitools.net](https://note.gitools.net) 上的同一构建。
 

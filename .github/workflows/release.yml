@@ -163,6 +163,17 @@ jobs:
           includeUpdaterJson: false
           args: ${{ matrix.args }} --config src-tauri/tauri.release.conf.json
 
+  # Windows는 MSIX로 묶어 Microsoft Store에 올린다(docs/DESKTOP.md). 설치 파일을 GitHub 릴리스에
+  # 올리지 않으므로 macOS·Linux 게시를 기다리게 하지 않는다.
+  windows-msix:
+    name: Windows MSIX
+    needs: prepare-release
+    if: needs.prepare-release.result == 'success'
+    uses: ./.github/workflows/windows-msix.yml
+    with:
+      version: 0.1.${{ github.run_number }}
+      ref: ${{ github.event.pull_request.merge_commit_sha }}
+
   publish-release:
     name: Publish desktop release
     needs: [prepare-release, release]

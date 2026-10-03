@@ -159,10 +159,11 @@ API de GitHub, el PAT ni los datos de las notas.
 
 ### Descargar la app de escritorio
 
-Los instaladores para macOS, Windows y Linux están disponibles en
-[GitHub Releases](https://github.com/zidell/ginote/releases). macOS usa un DMG y
-Windows 10/11 un MSI. Las nuevas versiones para Windows se publicarán como MSI firmados
-una vez configurada la firma con SignPath Foundation. La app de escritorio incluye la app
+Los instaladores para macOS y Linux están disponibles en
+[GitHub Releases](https://github.com/zidell/ginote/releases): un DMG para macOS y paquetes
+AppImage, deb y rpm para Linux. Las apps instaladas en macOS y Linux ofrecen por sí solas
+las nuevas versiones. La app para Windows 10/11 se distribuye a través de Microsoft Store.
+La app de escritorio incluye la app
 web y se abre sin conexión a Internet. Los cambios en la interfaz y en las funciones
 generales se aplican mediante despliegues web: en el siguiente inicio, la app adopta la
 misma compilación desde [note.gitools.net](https://note.gitools.net).
