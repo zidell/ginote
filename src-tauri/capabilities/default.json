@@ -2,9 +2,12 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "main-capability",
   "description": "Permissions for the main Ginote window",
-  "windows": ["main"],
+  "windows": [
+    "main"
+  ],
   "permissions": [
     "core:default",
-    "opener:allow-default-urls"
+    "opener:allow-default-urls",
+    "dialog:allow-message"
   ]
 }
