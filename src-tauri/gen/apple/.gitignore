@@ -1,3 +1,5 @@
 xcuserdata/
 build/
 Externals/
+# tauri.conf.json의 bundle.resources를 빌드할 때 복사한다.
+assets/

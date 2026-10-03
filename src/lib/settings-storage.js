@@ -1,4 +1,5 @@
 import { LOCALE_OPTIONS } from './i18n.js';
+import { installedSnapshot, updateInstalledSnapshot } from './installed-settings.js';
 
 export const STORAGE_KEY = 'issue-note.settings.v1';
 export const THEME_DEFAULT = 'dark';
@@ -164,7 +165,25 @@ function migrateLegacyDocument(saved) {
   };
 }
 
+function copyWorkspace(workspace) {
+  return {
+    id: workspace.id,
+    repo: workspace.repo,
+    token: workspace.token || '',
+    rememberToken: Boolean(workspace.rememberToken),
+    displayName: String(workspace.displayName || '').trim()
+  };
+}
+
 export function loadSettingsDocument() {
+  const installed = installedSnapshot();
+  if (installed) {
+    return {
+      workspaces: installed.workspaces.map(copyWorkspace),
+      activeWorkspaceId: installed.activeWorkspaceId,
+      preferences: normalizePreferences(installed.preferences)
+    };
+  }
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
     if (Array.isArray(saved.workspaces)) {
@@ -191,6 +210,13 @@ export function loadSettingsDocument() {
 }
 
 export function saveSettingsDocument({ workspaces, activeWorkspaceId, preferences }) {
+  // 설치형 앱은 PAT를 메모리 사본에 그대로 두고, 저장할 때 자격 증명 저장소로 나눠 쓴다.
+  const savedInstalled = updateInstalledSnapshot((installed) => {
+    installed.workspaces = workspaces.map(copyWorkspace);
+    installed.activeWorkspaceId = activeWorkspaceId;
+    installed.preferences = finalizePreferences(normalizePreferences(preferences));
+  });
+  if (savedInstalled) return;
   localStorage.setItem(
     STORAGE_KEY,
     JSON.stringify({
@@ -208,5 +234,10 @@ export function saveSettingsDocument({ workspaces, activeWorkspaceId, preference
 }
 
 export function removeSettingsDocument() {
+  const removedInstalled = updateInstalledSnapshot((installed) => {
+    installed.workspaces = [];
+    installed.activeWorkspaceId = '';
+  });
+  if (removedInstalled) return;
   localStorage.removeItem(STORAGE_KEY);
 }

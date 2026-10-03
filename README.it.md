@@ -109,7 +109,8 @@ I file audio e le trascrizioni vengono inviati direttamente dal browser all'API 
 OpenAI, senza passare da un server dell'app. La chiave API è salvata in chiaro nel
 `localStorage` del browser di questo dispositivo: usala quindi solo su dispositivi
 personali. Consigliamo una chiave di progetto dedicata, limiti di utilizzo e una
-rotazione periodica.
+rotazione periodica. Le app installate (desktop e mobile) conservano la chiave nell'archivio
+delle credenziali del sistema operativo.
 
 ### Scorciatoie da tastiera
 

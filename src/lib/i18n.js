@@ -48,7 +48,8 @@ Object.assign(dynamic.en, {
   appUpdateRequired: 'A new version of the app is available. Update the app to get the latest changes.',
   appUpdating: 'Updating Ginote to the latest version…',
   dialogOk: 'OK',
-  dialogCancel: 'Cancel'
+  dialogCancel: 'Cancel',
+  settingsFileInvalid: 'config.toml is not valid TOML, so the change was ignored. See config-status.txt next to it.'
 });
 
 Object.assign(dynamic.ko, {
@@ -70,7 +71,8 @@ Object.assign(dynamic.ko, {
   appUpdateRequired: '새 버전의 앱이 나왔습니다. 최신 변경 사항을 받으려면 앱을 업데이트하세요.',
   appUpdating: 'Ginote를 최신 버전으로 업데이트하는 중…',
   dialogOk: '확인',
-  dialogCancel: '취소'
+  dialogCancel: '취소',
+  settingsFileInvalid: 'config.toml 문법이 틀려 변경을 반영하지 않았습니다. 같은 폴더의 config-status.txt를 확인하세요.'
 });
 
 const dynamicOverrides = {
@@ -82,12 +84,12 @@ const dynamicOverrides = {
   es: { noteCount: '{count} notas', openNote: 'Abrir la nota {title}', clearFilter: 'Quitar el filtro {label}', tagName: 'Nombre de la etiqueta {name}', createTag: 'Crear #{name}', tagAdded: 'Se añadió #{name}.', tagDeleted: 'Se eliminó #{name}.', deleteTagConfirm: '¿Eliminar la etiqueta #{name} de todas las notas?', tagRenamed: 'Se cambió el nombre de #{from} a #{to}.', tagNameRequired: 'El nombre de #{name} no puede estar vacío.', selectOwner: 'Selecciona la cuenta {owner}.', selectRepository: 'Selecciona solo {repo}.', createPat: 'Crear un PAT para {name}', allocateFailed: 'No se pudo asignar un número a la nueva nota. {error}', moveToTrashConfirm: '¿Mover «{title}» a la papelera?', restoreConfirm: '¿Restaurar «{title}»?', attachmentLimit: 'Cada nota puede tener como máximo {count} archivos adjuntos.', attachmentLimitAdded: 'Solo se añadieron {count} archivos adjuntos debido al límite por nota.', fileTooLarge: '«{name}» no se subió porque supera los 10 MB.', deleteAttachmentConfirm: '¿Eliminar también «{name}» del repositorio?', deleteAttachment: 'Eliminar el adjunto {name}', uploading: 'Subiendo ({count})', removeTag: 'Quitar la etiqueta {name}', openLink: 'Abrir {url} en una pestaña nueva' }
 };
 
-Object.assign(dynamicOverrides['zh-CN'], { appUpdateRequired: '应用有新版本。请更新应用以获取最新改动。', appUpdating: '正在将 Ginote 更新到最新版本…', dialogOk: '确定', dialogCancel: '取消' });
-Object.assign(dynamicOverrides.ja, { appUpdateRequired: 'アプリの新しいバージョンがあります。最新の変更を受け取るにはアプリを更新してください。', appUpdating: 'Ginote を最新バージョンに更新しています…', dialogOk: 'OK', dialogCancel: 'キャンセル' });
-Object.assign(dynamicOverrides.de, { appUpdateRequired: 'Eine neue App-Version ist verfügbar. Aktualisieren Sie die App, um die neuesten Änderungen zu erhalten.', appUpdating: 'Ginote wird auf die neueste Version aktualisiert…', dialogOk: 'OK', dialogCancel: 'Abbrechen' });
-Object.assign(dynamicOverrides.fr, { appUpdateRequired: 'Une nouvelle version de l’application est disponible. Mettez-la à jour pour recevoir les dernières modifications.', appUpdating: 'Mise à jour de Ginote vers la dernière version…', dialogOk: 'OK', dialogCancel: 'Annuler' });
-Object.assign(dynamicOverrides.it, { appUpdateRequired: 'È disponibile una nuova versione dell’app. Aggiornala per ricevere le ultime modifiche.', appUpdating: 'Aggiornamento di Ginote all’ultima versione…', dialogOk: 'OK', dialogCancel: 'Annulla' });
-Object.assign(dynamicOverrides.es, { appUpdateRequired: 'Hay una nueva versión de la app. Actualízala para recibir los últimos cambios.', appUpdating: 'Actualizando Ginote a la última versión…', dialogOk: 'Aceptar', dialogCancel: 'Cancelar' });
+Object.assign(dynamicOverrides['zh-CN'], { appUpdateRequired: '应用有新版本。请更新应用以获取最新改动。', appUpdating: '正在将 Ginote 更新到最新版本…', dialogOk: '确定', dialogCancel: '取消', settingsFileInvalid: 'config.toml 不是有效的 TOML，因此未应用更改。请查看同一文件夹中的 config-status.txt。' });
+Object.assign(dynamicOverrides.ja, { appUpdateRequired: 'アプリの新しいバージョンがあります。最新の変更を受け取るにはアプリを更新してください。', appUpdating: 'Ginote を最新バージョンに更新しています…', dialogOk: 'OK', dialogCancel: 'キャンセル', settingsFileInvalid: 'config.toml の書式が正しくないため、変更を反映しませんでした。同じフォルダーの config-status.txt を確認してください。' });
+Object.assign(dynamicOverrides.de, { appUpdateRequired: 'Eine neue App-Version ist verfügbar. Aktualisieren Sie die App, um die neuesten Änderungen zu erhalten.', appUpdating: 'Ginote wird auf die neueste Version aktualisiert…', dialogOk: 'OK', dialogCancel: 'Abbrechen', settingsFileInvalid: 'config.toml ist kein gültiges TOML; die Änderung wurde nicht übernommen. Siehe config-status.txt im selben Ordner.' });
+Object.assign(dynamicOverrides.fr, { appUpdateRequired: 'Une nouvelle version de l’application est disponible. Mettez-la à jour pour recevoir les dernières modifications.', appUpdating: 'Mise à jour de Ginote vers la dernière version…', dialogOk: 'OK', dialogCancel: 'Annuler', settingsFileInvalid: 'config.toml n’est pas un TOML valide ; la modification a été ignorée. Consultez config-status.txt dans le même dossier.' });
+Object.assign(dynamicOverrides.it, { appUpdateRequired: 'È disponibile una nuova versione dell’app. Aggiornala per ricevere le ultime modifiche.', appUpdating: 'Aggiornamento di Ginote all’ultima versione…', dialogOk: 'OK', dialogCancel: 'Annulla', settingsFileInvalid: 'config.toml non è un TOML valido, quindi la modifica è stata ignorata. Vedi config-status.txt nella stessa cartella.' });
+Object.assign(dynamicOverrides.es, { appUpdateRequired: 'Hay una nueva versión de la app. Actualízala para recibir los últimos cambios.', appUpdating: 'Actualizando Ginote a la última versión…', dialogOk: 'Aceptar', dialogCancel: 'Cancelar', settingsFileInvalid: 'config.toml no es TOML válido, así que el cambio se ignoró. Consulta config-status.txt en la misma carpeta.' });
 
 function dynamicFor(code) {
   return { ...dynamic.en, ...(dynamicOverrides[code] || {}) };

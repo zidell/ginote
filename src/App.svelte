@@ -27,6 +27,7 @@
   import { createToast } from './lib/toast.js';
   import { watchAppUpdate } from './lib/app-update.js';
   import { confirmAction, isInstalledApp } from './lib/dialogs.js';
+  import { onInstalledSettingsChange } from './lib/settings-backend.js';
   import { createTranscriptionHints } from './lib/transcription-hints.js';
   import { createKeyboardReadyClass } from './lib/keyboard-ready-class.js';
   import { isWebFont, loadWebFont } from './lib/editor-fonts.js';
@@ -447,11 +448,13 @@
     }
 
     const stopWatchingAppUpdate = watchAppUpdate(() => toast.show($_('dynamic.appUpdateRequired')));
+    const stopWatchingSettingsFile = onInstalledSettingsChange(applySettingsFileChange);
 
     return () => {
       clearTimeout(lockSessionTimer);
       clearTimeout(listRetryTimer);
       stopWatchingAppUpdate();
+      stopWatchingSettingsFile();
       longPress.destroy();
       toast.destroy();
       deletionQueue.cancelAll(true);
@@ -848,6 +851,11 @@
     removeWorkspaceNoteCount(workspaceId);
     saveSettings();
     if (activeWorkspaceId !== workspaceId) return;
+    openFirstWorkspaceOrSetup();
+  }
+
+  // 열려 있던 워크스페이스가 목록에서 빠졌을 때. 남은 첫 워크스페이스로 가거나 연결 화면으로 간다.
+  function openFirstWorkspaceOrSetup() {
     const next = workspaces[0];
     if (next) {
       switchWorkspace(next.id);
@@ -867,6 +875,54 @@
     selectedIssue = null;
     appState = 'setup';
     router.navigate('/');
+  }
+
+  // 설치형 앱에서 config.toml을 바깥(사람·에이전트)에서 고쳤을 때 화면에 반영한다(docs/CONFIG.md).
+  // 파일이 문법 오류면 지금 설정을 그대로 두고 알리기만 한다.
+  function applySettingsFileChange({ snapshot, syntaxError }) {
+    if (syntaxError) {
+      toast.show($_('dynamic.settingsFileInvalid'));
+      return;
+    }
+    const previousPageSize = preferences.issuePageSize;
+    preferences = snapshot.preferences;
+    applyTheme(preferences.theme);
+    setAppLocale(preferences.language);
+    if (isWebFont(preferences.editorFont)) void loadWebFont(preferences.editorFont);
+    if (lockPin) setLockSession(lockPin);
+    ({
+      apiKey: voiceApiKey,
+      refinementPrompt: voiceRefinementPrompt,
+      transcriptionModel: voiceTranscriptionModel,
+      refinementModel: voiceRefinementModel,
+      preserveOriginalAudio: preserveOriginalVoiceAudio
+    } = snapshot.voice);
+    sidebarWidth = clampSidebarWidth(snapshot.sidebarWidth);
+
+    const previousActiveId = activeWorkspaceId;
+    for (const workspace of workspaces) {
+      if (snapshot.workspaces.some((item) => item.id === workspace.id)) continue;
+      invalidateCachedIssueList(workspace.id);
+      removeWorkspaceNoteCount(workspace.id);
+    }
+    workspaces = snapshot.workspaces.map((workspace) => ({ ...workspace }));
+    const active = workspaces.find((workspace) => workspace.id === previousActiveId);
+    if (!active) {
+      if (previousActiveId) invalidatePendingPinMutation();
+      openFirstWorkspaceOrSetup();
+    } else if (snapshot.activeWorkspaceId !== previousActiveId) {
+      void switchWorkspace(snapshot.activeWorkspaceId);
+    } else {
+      rememberToken = active.rememberToken;
+      if (active.repo !== repo) {
+        // 같은 워크스페이스의 저장소 주소만 바뀌었으면 그 저장소로 다시 연결한다.
+        repo = active.repo;
+        token = active.token;
+        void connect(false, true);
+      } else if (appState === 'ready' && preferences.issuePageSize !== previousPageSize) {
+        loadIssues();
+      }
+    }
   }
 
   function moveWorkspace(workspaceId, direction) {

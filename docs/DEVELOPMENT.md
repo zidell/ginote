@@ -46,7 +46,9 @@ CI는 `npm run test:coverage`로 커버리지를 만들어 Codecov에 올립니�
   - 여러 API 호출을 묶은 작업: `merge-notes.js`, `attachment-prune.js`
   - 타이머나 비동기 상태를 가진 컨트롤러: `deletion-queue.js`, `long-press.js`, `toast.js`,
     `transcription-hints.js`, `keyboard-ready-class.js`
-  - 브라우저 저장소: `settings-storage.js`, `draft-store.js`, `sidebar-width.js` 등
+  - 브라우저 저장소: `settings-storage.js`, `draft-store.js`, `sidebar-width.js` 등. 설치형 앱은
+    설정을 `config.toml`과 OS 자격 증명 저장소에 둡니다(`app-config.js`, `settings-backend.js`,
+    [설정 파일](CONFIG.md)).
 - `csp.config.js`: 콘텐츠 보안 정책과 HTTP 보안 헤더의 유일한 정의 위치입니다.
   아래 [보안 헤더와 CSP](#보안-헤더와-csp)를 참고하세요.
 - `public/fonts/`: 편집기 코딩 폰트입니다. 외부 CDN 대신 앱과 함께 배포하며,

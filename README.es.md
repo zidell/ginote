@@ -110,7 +110,8 @@ Los archivos de audio y las transcripciones se envían directamente del navegado
 de OpenAI, sin pasar por ningún servidor de la app. La clave de API se guarda en texto
 plano en el `localStorage` del navegador de este dispositivo, así que úsala solo en
 dispositivos personales. Recomendamos una clave de proyecto exclusiva, límites de uso y
-rotarla con regularidad.
+rotarla con regularidad. Las apps instaladas (escritorio y móvil) guardan la clave en el
+almacén de credenciales del sistema operativo.
 
 ### Atajos de teclado
 

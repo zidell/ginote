@@ -4,7 +4,9 @@
   내용(로컬 빌드 도구 경로, 서명 키 위치, 설치·확인 절차 등)을 담으며 커밋하지 않는다(`.gitignore`).
   그 기기에서만 의미 있는 내용은 이 파일이 아니라 거기에 적는다.
 - 문서는 `docs/`에 있다. 시작점은 `docs/DEVELOPMENT.md`이고, 앱 프론트엔드 자동 교체는
-  `docs/APP_OTA.md`, 모바일은 `docs/MOBILE.md`, 데스크톱 릴리스는 `docs/DESKTOP.md`를 본다.
+  `docs/APP_OTA.md`, 모바일은 `docs/MOBILE.md`, 데스크톱 릴리스는 `docs/DESKTOP.md`, 설치형 앱의
+  설정 파일·자격 증명은 `docs/CONFIG.md`를 본다. 설정 항목을 추가·변경하면 `src/lib/app-config.js`의
+  스키마도 함께 고친다.
 - 배포 흐름: `main`에 push하면 CI가 테스트를 통과한 웹 빌드에 서명해 `note.gitools.net`에 올리고,
   설치된 앱도 그 빌드로 바뀐다. 네이티브(`src-tauri`, 플러그인, 권한)를 바꿨을 때만 `main`을
   `release`로 머지해 앱을 릴리스한다.

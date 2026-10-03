@@ -106,6 +106,9 @@ JavaScript 같은 앱 파일만 전달합니다. 로그인이나 노트 저장�
 - PAT와 앱 설정은 사용자의 브라우저에만 보관되며, 인증할 때만 GitHub API로
   전달됩니다.
 - 저장 전 초안은 해당 브라우저 안에만 남습니다.
+- 설치형 데스크톱·모바일 앱은 PAT와 OpenAI 키를 OS 자격 증명 저장소(키체인, Windows
+  자격 증명 관리자, Secret Service, Android Keystore)에, 나머지 설정은 주석이 달린
+  `config.toml`에 둡니다([설정 파일](docs/CONFIG.md)).
 - 선택적 노트 암호화는 [암호화 방식](docs/ENCRYPTION.md)에 정리되어 있습니다.
 - 앱 운영자에게 노트, PAT, 설정을 보내는 API가 없으며 분석·추적 서비스도
   사용하지 않습니다.
@@ -134,7 +137,8 @@ API 사용량에 따라 OpenAI 비용이 발생할 수 있습니다.
 
 음성 파일과 전사문은 브라우저에서 OpenAI API로 직접 전송되며 앱 운영 서버를 거치지
 않습니다. API 키는 이 기기의 브라우저 `localStorage`에 평문으로 저장되므로, 개인
-기기에서만 사용하고 전용 프로젝트 키·사용 한도·정기 교체를 권장합니다.
+기기에서만 사용하고 전용 프로젝트 키·사용 한도·정기 교체를 권장합니다. 설치형 데스크톱·
+모바일 앱은 키를 OS 자격 증명 저장소에 보관합니다.
 
 ## 키보드 단축키
 
@@ -188,6 +192,11 @@ macOS·Windows·Linux용 설치 파일은 [GitHub Releases](https://github.com/z
 같은 빌드로 바꿉니다.
 
 [Code signing policy](docs/CODE_SIGNING.md)
+
+데스크톱 앱의 설정은 주석이 달린 `config.toml`에 있어서 사람이나 AI 에이전트가 파일을
+직접 고칠 수 있고, 실행 중인 앱은 1초 안에 반영합니다. `ginote --config-path`가 위치를
+알려 주고, 앱에 함께 들어 있는 `readme.txt`가 사용법을 설명합니다. 토큰과 API 키는 이
+파일에 없습니다. 자세한 내용은 [설정 파일](docs/CONFIG.md)을 보세요.
 
 macOS Homebrew 설치, 로컬 실행, 플랫폼별 패키징과 릴리스 절차는
 [데스크톱 앱 문서](docs/DESKTOP.md)에 정리했습니다.

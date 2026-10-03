@@ -173,7 +173,18 @@ vi.mock('./lib/github.js', () => {
 // 녹음기는 마이크가 필요하므로 src/lib/__mocks__/VoiceRecorder.svelte 대역을 쓴다.
 vi.mock('./lib/VoiceRecorder.svelte');
 
+// 설치형 앱에서 config.toml이 바깥에서 바뀌었을 때 받는 알림을 테스트에서 직접 보낸다.
+const settingsFile = vi.hoisted(() => ({ listener: null }));
+vi.mock('./lib/settings-backend.js', async (importOriginal) => ({
+  ...(await importOriginal()),
+  onInstalledSettingsChange: (listener) => {
+    settingsFile.listener = listener;
+    return () => { settingsFile.listener = null; };
+  }
+}));
+
 import App from './App.svelte';
+import { defaultSnapshot } from './lib/app-config.js';
 import * as githubModule from './lib/github.js';
 import { setAppLocale } from './lib/i18n.js';
 
@@ -853,5 +864,68 @@ describe('화면 복귀와 사이드바', () => {
 
     expect(localStorage.getItem('issue-note.sidebar-width.v1')).toBe('400');
     expect(document.querySelector('.note-workspace').style.getPropertyValue('--sidebar-width')).toBe('400px');
+  });
+});
+
+describe('설정 파일 바깥 변경', () => {
+  function fileSnapshot(mutate) {
+    const snapshot = defaultSnapshot();
+    snapshot.preferences.language = 'en';
+    snapshot.workspaces = [
+      { id: 'ws-1', repo: 'octo/notes', token: 'ghp_test', rememberToken: true, displayName: '' },
+      { id: 'ws-2', repo: 'octo/work', token: 'ghp_work', rememberToken: true, displayName: '' }
+    ];
+    snapshot.activeWorkspaceId = 'ws-1';
+    mutate(snapshot);
+    return snapshot;
+  }
+
+  beforeEach(() => {
+    saveWorkspaces([
+      { id: 'ws-1', repo: 'octo/notes', token: 'ghp_test', rememberToken: true },
+      { id: 'ws-2', repo: 'octo/work', token: 'ghp_work', rememberToken: true }
+    ]);
+  });
+
+  it('테마·목록 폭·활성 워크스페이스를 바로 반영한다', async () => {
+    await renderReadyApp();
+
+    settingsFile.listener({
+      snapshot: fileSnapshot((snapshot) => {
+        snapshot.preferences.theme = 'light';
+        snapshot.sidebarWidth = 420;
+        snapshot.activeWorkspaceId = 'ws-2';
+      }),
+      problems: [],
+      syntaxError: null
+    });
+
+    await waitFor(() => expect(document.documentElement.classList.contains('mode-light')).toBe(true));
+    await waitFor(() => expect(document.querySelector('.note-workspace').style.getPropertyValue('--sidebar-width')).toBe('420px'));
+    await waitFor(() => expect(callsTo('verifyConnection').at(-1)).toEqual(['ghp_work', 'octo/work']));
+  });
+
+  it('열려 있던 워크스페이스가 빠지면 남은 워크스페이스로 간다', async () => {
+    await renderReadyApp();
+
+    settingsFile.listener({
+      snapshot: fileSnapshot((snapshot) => {
+        snapshot.workspaces = [snapshot.workspaces[1]];
+        snapshot.activeWorkspaceId = 'ws-2';
+      }),
+      problems: [],
+      syntaxError: null
+    });
+
+    await waitFor(() => expect(callsTo('verifyConnection').at(-1)).toEqual(['ghp_work', 'octo/work']));
+  });
+
+  it('문법이 틀린 파일은 반영하지 않고 알린다', async () => {
+    await renderReadyApp();
+
+    settingsFile.listener({ snapshot: null, problems: [], syntaxError: new Error('bad') });
+
+    expect(await screen.findByText(/config\.toml is not valid TOML/)).toBeTruthy();
+    expect(document.documentElement.classList.contains('mode-light')).toBe(false);
   });
 });
