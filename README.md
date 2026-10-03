@@ -12,6 +12,8 @@ read and write the same notes through GitHub's official MCP server.
 
 Live app, free for anyone to use: [https://note.gitools.net](https://note.gitools.net)
 
+> This is a personal project, released for free. You're welcome to use it, but I don't take feature requests, bug reports, or support questions. If you want something changed, fork it and modify it under the MIT license.
+
 ![Ginote preview](docs/preview.gif)
 
 I've always liked GitHub Issues, but its sluggishness and clunky UX constantly bothered
@@ -216,10 +218,9 @@ attachment and encryption docs first. The development environment, verification
 commands, and deployment and maintenance procedures are described in the
 [development and operations docs](docs/DEVELOPMENT.md).
 
-## Feature requests
+## Requests and support
 
-If you'd like a new feature, please fork the project and change it yourself. It already
-does everything I need, so I'm not accepting feature proposals.
+This is a personal project, released for free. You're welcome to use it, but I don't take feature requests, bug reports, or support questions. If you want something changed, fork it and modify it under the MIT license. GitHub Issues are turned off for this repository.
 
 ## License
 
