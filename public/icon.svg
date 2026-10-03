@@ -2,11 +2,11 @@
 <defs><clipPath id="corner"><rect width="512" height="512" rx="112"/></clipPath></defs>
 <g clip-path="url(#corner)">
 <rect width="512" height="512" fill="#0f766e"/>
-<path fill="#fafaf9" d="M144 64H368A32 32 0 0 1 400 96V416A32 32 0 0 1 368 448H144A32 32 0 0 1 112 416V96A32 32 0 0 1 144 64Z"/>
-  <path fill="#d6d3d1" d="M144 64H150V448H144A32 32 0 0 1 112 416V96A32 32 0 0 1 144 64Z"/>
-  <rect x="182" y="124" width="160" height="20" rx="10" fill="#d6d3d1"/>
-  <rect x="182" y="170" width="112" height="20" rx="10" fill="#d6d3d1"/>
-  <g transform="rotate(-14 290 318)">
+  <rect width="88" height="512" fill="#0b5f58"/>
+<rect x="150" y="100" width="262" height="138" rx="22" fill="#fafaf9"/>
+  <rect x="184" y="136" width="168" height="22" rx="11" fill="#d6d3d1"/>
+  <rect x="184" y="180" width="110" height="22" rx="11" fill="#d6d3d1"/>
+  <g transform="translate(26 74) scale(1.08) rotate(-14 290 318)">
     <path fill="#f97316" d="M190 262H318L378 318L318 374H190A20 20 0 0 1 170 354V282A20 20 0 0 1 190 262Z"/>
     <circle cx="320" cy="318" r="14" fill="#fafaf9"/>
   </g>
