@@ -28,6 +28,9 @@
   import { watchAppUpdate } from './lib/app-update.js';
   import { confirmAction, isInstalledApp } from './lib/dialogs.js';
   import { onInstalledSettingsChange } from './lib/settings-backend.js';
+  import { watchReleaseUpdates } from './lib/release-update.js';
+  import AppUpdateSettings from './lib/AppUpdateSettings.svelte';
+  import ReleaseUpdateDialog from './lib/ReleaseUpdateDialog.svelte';
   import { createTranscriptionHints } from './lib/transcription-hints.js';
   import { createKeyboardReadyClass } from './lib/keyboard-ready-class.js';
   import { isWebFont, loadWebFont } from './lib/editor-fonts.js';
@@ -155,6 +158,8 @@
   let activeWorkspaceId = '';
   let workspaceNoteCounts = {};
   let workspaceWizardOpen = false;
+  // 새 앱 릴리스 안내(macOS·Linux). 자동 확인이나 설정 화면의 "지금 확인"이 채운다.
+  let releaseUpdate = null;
   let appState = 'booting';
   let user = null;
   let repository = null;
@@ -449,12 +454,14 @@
 
     const stopWatchingAppUpdate = watchAppUpdate(() => toast.show($_('dynamic.appUpdateRequired')));
     const stopWatchingSettingsFile = onInstalledSettingsChange(applySettingsFileChange);
+    const stopWatchingReleaseUpdates = watchReleaseUpdates((update) => { releaseUpdate ??= update; });
 
     return () => {
       clearTimeout(lockSessionTimer);
       clearTimeout(listRetryTimer);
       stopWatchingAppUpdate();
       stopWatchingSettingsFile();
+      stopWatchingReleaseUpdates();
       longPress.destroy();
       toast.destroy();
       deletionQueue.cancelAll(true);
@@ -2388,6 +2395,8 @@
         hintsError={$transcriptionHints.error}
         onHintsInput={transcriptionHints.stage}
       />
+
+      <AppUpdateSettings onUpdateFound={(update) => { releaseUpdate = update; }} />
     </div>
   </SheetView>
   {/if}
@@ -2615,6 +2624,10 @@
 
 {#if workspaceWizardOpen}
   <AddWorkspaceDialog onAdd={completeAddWorkspace} onClose={() => workspaceWizardOpen = false} />
+{/if}
+
+{#if releaseUpdate}
+  <ReleaseUpdateDialog update={releaseUpdate} onClose={() => { releaseUpdate = null; }} />
 {/if}
 
 {#if helpTopic}

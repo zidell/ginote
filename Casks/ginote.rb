@@ -7,6 +7,8 @@ cask "ginote" do
   desc "Serverless notes app backed by GitHub Issues"
   homepage "https://note.gitools.net/"
 
+  # 앱이 스스로 새 릴리스를 받는다(docs/DESKTOP.md). brew upgrade가 앱 업데이터와 겹치지 않게 한다.
+  auto_updates true
   depends_on :macos
 
   app "Ginote.app"
