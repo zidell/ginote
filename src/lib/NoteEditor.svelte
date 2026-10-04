@@ -2473,7 +2473,12 @@
     node.addEventListener('input', resize);
     resize();
     return {
-      update: resize,
+      // 값이 코드로 바뀌면(잠금 해제, 원격 갱신 등) 이 호출이 새 값이 textarea에 들어가기 전에 올 수
+      // 있다. 화면 갱신이 끝난 뒤 한 번 더 재서 예전 내용의 높이가 남지 않게 한다.
+      update() {
+        resize();
+        void tick().then(resize);
+      },
       destroy() {
         node.removeEventListener('input', resize);
       }
