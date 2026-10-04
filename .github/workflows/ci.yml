@@ -64,9 +64,12 @@ jobs:
         run: npm ci
 
       # 서명 없이 배포하면 앱이 조용히 업데이트를 멈추므로, 키가 없으면 배포하지 않는다.
+      # 잠금 pepper는 저장소 변수 VITE_NOTE_LOCK_PEPPER가 있으면 그 값, 없으면 소스 기본값이다
+      # (docs/ENCRYPTION.md).
       - name: Build and sign
         env:
           GINOTE_OTA_SIGNING_KEY: ${{ secrets.GINOTE_OTA_SIGNING_KEY }}
+          VITE_NOTE_LOCK_PEPPER: ${{ vars.VITE_NOTE_LOCK_PEPPER }}
         run: |
           if [ -z "$GINOTE_OTA_SIGNING_KEY" ]; then
             echo "::error::GINOTE_OTA_SIGNING_KEY secret is missing."

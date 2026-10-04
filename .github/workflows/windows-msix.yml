@@ -56,6 +56,9 @@ jobs:
 
       # 설치 프로그램은 만들지 않고 ginote.exe만 만든다. 업데이트는 Store·App Installer가 맡는다.
       - name: Build ginote.exe
+        env:
+          # 앱에 함께 들어가는 웹 빌드의 잠금 pepper. 공식 사이트(ci.yml)와 같은 값이다.
+          VITE_NOTE_LOCK_PEPPER: ${{ vars.VITE_NOTE_LOCK_PEPPER }}
         run: npx tauri build --no-bundle
 
       - name: Package for the Microsoft Store

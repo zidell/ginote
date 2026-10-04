@@ -90,6 +90,9 @@ GitHub Actions 등에서 빌드할 때는 같은 이름의 **빌드 환경변수
 Worker를 실행할 때 넣는 변수는 이미 만들어진 Vite 번들에 반영되지 않습니다.
 
 잠금 노트를 만든 뒤에는 웹·데스크톱·모바일의 모든 빌드에서 같은 pepper를 계속 사용하세요.
+이 저장소의 공식 빌드는 GitHub Actions 저장소 변수 `VITE_NOTE_LOCK_PEPPER`를 웹 배포(`ci.yml`),
+데스크톱 릴리스(`release.yml`), Windows MSIX(`windows-msix.yml`) 빌드에 넘깁니다. 변수가
+없으면 소스 기본값으로 빌드됩니다.
 배포 pepper를 바꾸거나 잃어버리면 6자리 숫자를 알고 있어도 기존 잠금 노트를
 읽지 못할 수 있습니다.
 
