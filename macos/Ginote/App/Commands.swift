@@ -35,12 +35,13 @@ struct GinoteCommands: Commands {
             }
             .shortcut(.openInNewWindow)
             .disabled(session?.number == nil)
-        }
-        CommandGroup(after: .saveItem) {
+            // .saveItem 묶음은 문서 앱에만 있어 그 뒤에 두면 메뉴에 나오지 않는다. 새 노트 묶음 끝에 둔다.
+            Divider()
             Button("지금 저장") { session?.saveNow() }
                 .shortcut(.saveNow)
                 .disabled(session == nil)
         }
+
         CommandGroup(after: .textEditing) {
             // 본문 찾기 막대(NSTextView 기본 찾기). 메뉴가 없으면 ⌘F가 아무 일도 하지 않는다.
             Button("찾기…") { TextFind.perform(.showFindInterface) }
@@ -146,11 +147,24 @@ struct GinoteCommands: Commands {
 }
 
 /// 첫 응답자(본문 편집기)에 표준 찾기 동작을 보낸다. 태그로 동작을 고르는 AppKit 규약을 따른다.
+/// 목록·사이드바에 포커스가 있으면 받을 곳이 없어 아무 일도 일어나지 않으므로, 먼저 열린 노트의 본문(또는 미리보기)으로
+/// 포커스를 옮긴다. 커서 위치와 스크롤은 그대로 둔다.
 @MainActor
 enum TextFind {
     static func perform(_ action: NSTextFinder.Action) {
+        if let window = NSApp.keyWindow, !((window.firstResponder as? NSTextView)?.usesFindBar ?? false),
+           let target = noteTextView(in: window.contentView) {
+            window.makeFirstResponder(target)
+        }
         let item = NSMenuItem()
         item.tag = action.rawValue
         NSApp.sendAction(#selector(NSTextView.performFindPanelAction(_:)), to: nil, from: item)
+    }
+
+    private static func noteTextView(in view: NSView?) -> NSTextView? {
+        guard let view else { return nil }
+        if let text = view as? DocumentTextView, text.usesFindBar, !text.isHiddenOrHasHiddenAncestor { return text }
+        for sub in view.subviews { if let found = noteTextView(in: sub) { return found } }
+        return nil
     }
 }

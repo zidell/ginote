@@ -28,6 +28,9 @@ struct NoteListView: View {
                 .onChange(of: workspace.showingSkeleton) { _, loading in
                     if !loading { DispatchQueue.main.async { hideSearch(proxy) } }
                 }
+                // 기억해 둔 목록을 바로 다시 보일 때(노트·휴지통·태그 전환)는 자리표시를 거치지 않으므로 따로 숨긴다.
+                .onChange(of: workspace.scope) { _, _ in DispatchQueue.main.async { hideSearch(proxy) } }
+                .onChange(of: workspace.labelFilter) { _, _ in DispatchQueue.main.async { hideSearch(proxy) } }
                 // ↑(목록 맨 위)·⇧⌘F로 검색칸에 갈 때는 드러낸다.
                 // 움직임 없이 바로 드러낸다(스크롤하는 동안 포커스가 옮겨 가면 첫 키를 놓친다).
                 .onChange(of: app.searchFocusRequest) { _, _ in proxy.scrollTo(Self.searchRowId, anchor: .top) }
@@ -37,11 +40,11 @@ struct NoteListView: View {
     /// 검색어·태그 필터가 없으면 첫 노트를 맨 위로 올려 검색칸을 가린다(위로 스크롤하면 드러난다).
     private func hideSearch(_ proxy: ScrollViewProxy) {
         guard workspace.searchText.isEmpty, workspace.activeQuery.isEmpty, workspace.labelFilter == nil else { return }
-        let first: Int? = workspace.newNote != nil ? NoteSession.newNoteSelectionId
-            : (workspace.displayedPinned.first ?? workspace.displayedRegular.first)?.id
+        let first: Int? = workspace.displayedPinned.first?.id
+            ?? (workspace.newNote != nil ? NoteSession.newNoteSelectionId : workspace.displayedRegular.first?.id)
         guard let first else { return }
         // 고정 섹션이 있으면 그 머리줄("고정됨")을 맨 위에 둔다. 첫 줄을 올리면 머리줄이 그 제목을 덮는다.
-        if workspace.newNote == nil, !workspace.displayedPinned.isEmpty {
+        if !workspace.displayedPinned.isEmpty {
             proxy.scrollTo(Self.pinnedHeaderId, anchor: .top)
         } else {
             proxy.scrollTo(first, anchor: .top)
@@ -132,17 +135,19 @@ struct NoteListView: View {
 
     @ViewBuilder
     private var listRows: some View {
-        if let newNote = workspace.newNote {
-            NoteRowView(title: newNote.displayTitle, issue: nil, session: newNote, preferences: app.settings.preferences,
-                        isOpened: workspace.openedId == NoteSession.newNoteSelectionId)
-                .tag(NoteSession.newNoteSelectionId)
-        }
         // "고정됨"·"노트" 머리는 고를 수 없는 보통 줄이다. 섹션 머리(떠 있는 머리)에 식별자를 달면 SwiftUI 목록이
         // 갱신 중에 죽는다(검색칸을 숨기려고 머리줄로 스크롤해야 한다).
         if !workspace.displayedPinned.isEmpty {
             groupHeader("고정됨").id(Self.pinnedHeaderId)
             ForEach(workspace.displayedPinned) { issue in row(issue) }
             groupHeader("노트")
+        }
+        // 번호를 받기 전의 새 노트는 고정 노트 아래, 보통 노트 맨 위에 둔다. 번호를 받으면 같은 자리(보통 노트 맨 앞)에
+        // 들어가므로 줄이 움직이지 않는다.
+        if let newNote = workspace.newNote {
+            NoteRowView(title: newNote.displayTitle, issue: nil, session: newNote, preferences: app.settings.preferences,
+                        isOpened: workspace.openedId == NoteSession.newNoteSelectionId)
+                .tag(NoteSession.newNoteSelectionId)
         }
         regularRows
     }
@@ -478,7 +483,8 @@ enum ListKeyboard {
         // 목록 맨 위에서 ↑: 검색칸으로(목록이 직접 ↑를 처리하므로 여기서 가로챈다).
         if event.keyCode == 126, plain, app.activePane == .list,
            event.window?.firstResponder is NSTableView, let workspace = app.workspace {
-            let top = (workspace.newNote != nil ? NoteSession.newNoteSelectionId : nil) ?? workspace.displayedIssues.first?.id
+            let top = workspace.displayedPinned.first?.id
+                ?? (workspace.newNote != nil ? NoteSession.newNoteSelectionId : workspace.displayedIssues.first?.id)
             if workspace.selection.isEmpty || (workspace.selection.count == 1 && workspace.selection.first == top) {
                 app.searchFocusRequest += 1
                 return nil

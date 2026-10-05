@@ -200,8 +200,22 @@ struct EditorTextView: NSViewRepresentable {
     }
 }
 
+/// 머리(제목·태그) 아래에 놓이는 글 상자. NSTextView는 크기 변경이 끝나면(사이드바 접기·창 크기 조절)
+/// 스스로 스크롤을 옮기는데, 위에 머리가 있으면 그만큼 밀려 머리가 툴바 밑으로 올라간다. 그 스크롤을 막는다.
+class DocumentTextView: NSTextView {
+    override func viewDidEndLiveResize() {
+        guard let clip = enclosingScrollView?.contentView else { return super.viewDidEndLiveResize() }
+        let origin = clip.bounds.origin
+        super.viewDidEndLiveResize()
+        if clip.bounds.origin != origin {
+            clip.scroll(to: origin)
+            enclosingScrollView?.reflectScrolledClipView(clip)
+        }
+    }
+}
+
 /// 본문 NSTextView. 최대 폭 가운데 정렬, 여러 줄 들여쓰기, ⌘클릭 링크, 파일 붙여넣기·끌어놓기.
-final class GinoteTextView: NSTextView {
+final class GinoteTextView: DocumentTextView {
     /// 포커스가 없을 때의 본문 밝기. 보는 중인지 고치는 중인지 한눈에 구분되게 한다.
     static let unfocusedAlpha: CGFloat = 0.72
     weak var coordinator: EditorTextView.Coordinator?

@@ -338,7 +338,10 @@ final class NoteSession: Identifiable {
     /// 목록에 보일 제목(저장 전 포함).
     var displayTitle: String {
         let resolved = resolvedTitle(trimmedBody: body.trimmingCharacters(in: .whitespacesAndNewlines))
-        return resolved.isEmpty ? Self.placeholderTitle : resolved
+        // 번호를 받기 전의 빈 새 노트는 GitHub에 만들 제목("새 노트")으로 보인다. 저장용 Untitled를 보이면 번호를 받는
+        // 순간 목록 줄의 제목이 바뀐다.
+        if resolved.isEmpty || (number == nil && resolved == Self.untitledTitle) { return Self.placeholderTitle }
+        return resolved
     }
 
     private func resolvedTitle(trimmedBody: String) -> String {

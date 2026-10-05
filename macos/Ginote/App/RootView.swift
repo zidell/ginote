@@ -143,6 +143,8 @@ struct DetailView: View {
 /// 노트를 고르지 않았을 때 노트 칸에 보이는 꺼진 툴바(노트 툴바와 같은 버튼).
 struct InactiveNoteToolbar: ToolbarContent {
     var body: some ToolbarContent {
+        // 노트 툴바와 같은 배치(버튼을 오른쪽 끝에)로 그리려고 같은 빈 자리를 둔다.
+        ToolbarItem(placement: .principal) { ToolbarSlot() }
         ToolbarItemGroup(placement: .primaryAction) {
             ForEach([("첨부", "paperclip"), ("음성 녹음", "mic"), ("태그", "tag"), ("미리보기", "eye"),
                      ("잠금", "lock.open"), ("고정", "pin"), ("더 보기", "ellipsis.circle")], id: \.1) { item in
@@ -151,6 +153,11 @@ struct InactiveNoteToolbar: ToolbarContent {
             }
         }
     }
+}
+
+/// 툴바 가운데의 빈 자리. 노트 칸 버튼들이 늘 오른쪽 끝에 붙게 한다.
+struct ToolbarSlot: View {
+    var body: some View { Color.clear.frame(width: 1, height: 1).accessibilityHidden(true) }
 }
 
 /// 노트를 따로 연 창.

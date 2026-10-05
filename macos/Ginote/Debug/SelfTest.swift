@@ -157,6 +157,22 @@ enum SelfTest {
                     report("ui shortcut done")
                 }
             }
+            // 화면 점검: 새 노트를 만들고 번호를 받기 전·후 목록을 찍는다(GINOTE_UI_NEWNOTE=1). 시험 저장소에 빈 노트가 하나 생긴다.
+            if values["GINOTE_UI_NEWNOTE"] != nil {
+                Task {
+                    _ = await wait("ui newnote list", { app.workspace?.issues.isEmpty == false })
+                    try? await Task.sleep(for: .seconds(1))
+                    if SceneTour.directory == nil { SceneTour.directory = URL(fileURLWithPath: values["GINOTE_SHOT_DIR"] ?? NSTemporaryDirectory()) }
+                    guard let workspace = app.workspace else { return }
+                    let session = workspace.createNote()
+                    try? await Task.sleep(for: .seconds(0.3))
+                    await SceneTour.snap("newnote-before")
+                    _ = await wait("ui newnote number", { session?.number != nil })
+                    try? await Task.sleep(for: .seconds(0.5))
+                    await SceneTour.snap("newnote-after")
+                    report("ui newnote done #\(session?.number.map(String.init) ?? "nil")")
+                }
+            }
             // 화면 점검: 목록 위 검색칸을 드러내고 창을 찍는다(GINOTE_UI_SEARCH=1, GINOTE_SHOT_DIR).
             if values["GINOTE_UI_SEARCH"] != nil {
                 Task {

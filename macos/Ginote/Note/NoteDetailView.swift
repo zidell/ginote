@@ -189,11 +189,14 @@ struct NoteDetailView: View {
 
     @ToolbarContentBuilder
     private var toolbar: some ToolbarContent {
-        // 미리보기 중에는 가운데에 닫기 버튼을 둔다(웹 "닫기 (M)").
+        // 미리보기 중에는 버튼들 앞에 닫기 버튼을 둔다(웹 "닫기 (M)"). 이 자리는 미리보기가 아닐 때도 빈 채로 둔다.
+        // 자리가 있다 없다 하면 SwiftUI가 노트 칸 버튼들을 왼쪽 끝과 오른쪽 끝 사이로 옮긴다.
         ToolbarItem(placement: .principal) {
             if previewing {
                 Button { previewing = false } label: { Label("미리보기 닫기", systemImage: "xmark") .labelStyle(.titleAndIcon) }
                     .help(String(localized: "미리보기 닫기") + app.shortcutHint(.preview))
+            } else {
+                ToolbarSlot()
             }
         }
         ToolbarItemGroup(placement: .primaryAction) {

@@ -91,11 +91,13 @@ final class WorkspaceModel {
     private(set) var counts: GitHubClient.NoteCounts?
     private var countsTask: Task<Void, Never>?
 
-    /// 잠시 모아서 한 번만 센다(연달아 바뀔 때 요청이 몰리지 않게).
+    /// 잠시 모아서 한 번만 센다(연달아 바뀔 때 요청이 몰리지 않게). 방금 이 앱에서 개수를 바꿨으면(휴지통 이동·복원)
+    /// GitHub 개수가 따라올 때까지(10초) 기다렸다 센다. 일찍 세면 옛 개수가 와서 맞춰 둔 개수를 되돌린다.
     func refreshCounts() {
         countsTask?.cancel()
         countsTask = Task { [weak self] in
-            try? await Task.sleep(for: .seconds(1.5))
+            let settle = max(1.5, 10 - Date().timeIntervalSince(self?.localCountChange ?? .distantPast))
+            try? await Task.sleep(for: .seconds(settle))
             guard let self, !Task.isCancelled else { return }
             if let counts = try? await self.client.noteCounts() {
                 self.counts = counts
@@ -104,6 +106,24 @@ final class WorkspaceModel {
         }
     }
     @ObservationIgnored private(set) lazy var voiceHints = VoiceHints(workspace: self)
+    @ObservationIgnored private var localCountChange = Date.distantPast
+
+    /// 휴지통 이동(toTrash)·복원한 노트만큼 사이드바 개수를 바로 맞춘다.
+    private func adjustCounts(for changed: [Issue], toTrash: Bool) {
+        guard !changed.isEmpty else { return }
+        localCountChange = Date()
+        let delta = toTrash ? -changed.count : changed.count
+        guard var next = counts else { return }
+        next.notes = max(0, next.notes + delta)
+        next.trash = max(0, next.trash - delta)
+        for issue in changed {
+            for label in issue.labels.map(\.name) where next.labels[label] != nil {
+                next.labels[label] = max(0, (next.labels[label] ?? 0) + (toTrash ? -1 : 1))
+            }
+        }
+        counts = next
+        app.workspaceNoteCounts[workspace.id] = next.notes
+    }
 
     init(workspace: Workspace, token: String, app: AppModel) {
         self.workspace = workspace
@@ -549,6 +569,7 @@ final class WorkspaceModel {
             }
         }
         selection.subtract(moved.map(\.id))
+        adjustCounts(for: moved, toTrash: true)
         refreshCounts()
         if let opened = openedId, moved.contains(where: { $0.id == opened }) { openedId = nil }
         guard !moved.isEmpty, let undoManager else { return }
@@ -567,6 +588,8 @@ final class WorkspaceModel {
                 hold(reopened)
                 issues.removeAll { $0.id == issue.id }
                 if scope == .notes { issues.insert(reopened, at: 0) }
+                // 목록 머리의 개수: 노트 목록이면 하나 늘고, 휴지통 목록이면 하나 준다.
+                totalCount = totalCount.map { scope == .notes ? $0 + 1 : max(0, $0 - 1) }
                 if reopened.isPinned, scope == .notes, !pinned.contains(where: { $0.id == reopened.id }) { pinned.insert(reopened, at: 0) }
                 sessions[issue.number] = nil
             } catch {
@@ -574,6 +597,7 @@ final class WorkspaceModel {
             }
         }
         selection.subtract(restored.map(\.id))
+        adjustCounts(for: restored, toTrash: false)
         refreshCounts()
         if let opened = openedId, restored.contains(where: { $0.id == opened }) { openedId = nil }
         guard !restored.isEmpty, let undoManager else { return }

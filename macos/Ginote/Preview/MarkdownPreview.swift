@@ -80,7 +80,9 @@ private struct PreviewTextView: NSViewRepresentable {
         // 미리보기임을 알아보게 옅은 회색 바탕을 깐다(웹 markdown-preview).
         scrollView.drawsBackground = true
         scrollView.backgroundColor = NSColor.secondaryLabelColor.withAlphaComponent(0.07)
-        let textView = NSTextView()
+        let textView = DocumentTextView()
+        textView.usesFindBar = true
+        textView.isIncrementalSearchingEnabled = true
         textView.isEditable = false
         textView.isSelectable = true
         textView.drawsBackground = false
