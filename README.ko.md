@@ -1,6 +1,6 @@
 [![CI](https://github.com/zidell/ginote/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/zidell/ginote/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/zidell/ginote/branch/main/graph/badge.svg)](https://codecov.io/gh/zidell/ginote)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![License: GPLv3](https://img.shields.io/badge/license-GPLv3-blue.svg)](LICENSE)
 
 [English](README.md) | **한국어** | [简体中文](README.zh-CN.md) | [日本語](README.ja.md) | [Deutsch](README.de.md) | [Français](README.fr.md) | [Italiano](README.it.md) | [Español](README.es.md)
 
@@ -12,7 +12,7 @@
 
 서비스 주소(누구나 바로 사용 가능): [https://note.gitools.net](https://note.gitools.net)
 
-> 개인이 만들어 무료로 공개하는 앱입니다. 자유롭게 쓰셔도 되지만 기능 제안, 버그 신고, 사용 지원은 받지 않습니다. 원하는 기능이 있으면 MIT 라이선스에 따라 포크해서 고쳐 쓰세요.
+> 개인이 만들어 무료로 공개하는 앱입니다. 자유롭게 쓰셔도 되지만 기능 제안, 버그 신고, 사용 지원은 받지 않습니다. 원하는 기능이 있으면 GPLv3 라이선스에 따라 포크해서 고쳐 쓰세요.
 
 ![Ginote 사용 미리보기](docs/preview.gif)
 
@@ -209,8 +209,8 @@ macOS Homebrew 설치, 로컬 실행, 플랫폼별 패키징과 릴리스 절차
 
 ## 요청과 지원
 
-개인이 만들어 무료로 공개하는 앱입니다. 자유롭게 쓰셔도 되지만 기능 제안, 버그 신고, 사용 지원은 받지 않습니다. 원하는 기능이 있으면 MIT 라이선스에 따라 포크해서 고쳐 쓰세요. 이 저장소의 GitHub Issues는 꺼 두었습니다.
+개인이 만들어 무료로 공개하는 앱입니다. 자유롭게 쓰셔도 되지만 기능 제안, 버그 신고, 사용 지원은 받지 않습니다. 원하는 기능이 있으면 GPLv3 라이선스에 따라 포크해서 고쳐 쓰세요. 이 저장소의 GitHub Issues는 꺼 두었습니다.
 
 ## 라이선스
 
-[MIT License](LICENSE)
+[GNU GPLv3-only](LICENSE)

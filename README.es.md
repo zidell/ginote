@@ -1,6 +1,6 @@
 [![CI](https://github.com/zidell/ginote/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/zidell/ginote/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/zidell/ginote/branch/main/graph/badge.svg)](https://codecov.io/gh/zidell/ginote)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![License: GPLv3](https://img.shields.io/badge/license-GPLv3-blue.svg)](LICENSE)
 
 [English](README.md) | [한국어](README.ko.md) | [简体中文](README.zh-CN.md) | [日本語](README.ja.md) | [Deutsch](README.de.md) | [Français](README.fr.md) | [Italiano](README.it.md) | **Español**
 
@@ -16,7 +16,7 @@ y el navegador se comunica directamente con la API de GitHub, por eso es segura.
 
 App en línea (cualquiera puede usarla gratis): [https://note.gitools.net](https://note.gitools.net)
 
-> Ginote es un proyecto personal publicado gratis. Puedes usarlo libremente, pero no acepto propuestas de funciones, informes de errores ni solicitudes de soporte. Si quieres una función, haz un fork según la licencia MIT y modifícalo tú mismo.
+> Ginote es un proyecto personal publicado gratis. Puedes usarlo libremente, pero no acepto propuestas de funciones, informes de errores ni solicitudes de soporte. Si quieres una función, haz un fork según la licencia GPLv3 y modifícalo tú mismo.
 
 ## Vista previa
 
@@ -182,8 +182,8 @@ Las reglas de desarrollo, los comandos de verificación y el despliegue se descr
 
 ## Solicitudes y soporte
 
-Ginote es un proyecto personal publicado gratis. Puedes usarlo libremente, pero no acepto propuestas de funciones, informes de errores ni solicitudes de soporte. Si quieres una función, haz un fork según la licencia MIT y modifícalo tú mismo. Las GitHub Issues están desactivadas en este repositorio.
+Ginote es un proyecto personal publicado gratis. Puedes usarlo libremente, pero no acepto propuestas de funciones, informes de errores ni solicitudes de soporte. Si quieres una función, haz un fork según la licencia GPLv3 y modifícalo tú mismo. Las GitHub Issues están desactivadas en este repositorio.
 
 ## Licencia
 
-[MIT License](LICENSE)
+[GNU GPLv3-only](LICENSE)

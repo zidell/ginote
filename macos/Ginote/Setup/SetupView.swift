@@ -61,7 +61,7 @@ struct SetupView: View {
             Text("GitHub Issues를 노트앱 속도로.").font(.title3)
             Text("노트는 직접 만든 비공개 GitHub 저장소의 이슈로 저장됩니다. 태그는 라벨, 덧붙인 기록은 댓글, 휴지통은 닫힌 이슈입니다.")
             Text("앱 서버가 없습니다. 이 앱은 GitHub API(음성 기능을 켜면 OpenAI)에만 접속하고, 토큰은 macOS 키체인에 둡니다.")
-            Text("개인이 만들어 공개하는 앱이라 기능 제안·지원은 받지 않습니다. 필요한 기능은 MIT 라이선스에 따라 포크해서 고쳐 쓰세요.")
+            Text("개인이 만들어 공개하는 앱이라 기능 제안·지원은 받지 않습니다. 필요한 기능은 GPLv3 라이선스에 따라 포크해서 고쳐 쓰세요.")
                 .foregroundStyle(.secondary)
         }
     }

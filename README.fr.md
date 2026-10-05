@@ -1,6 +1,6 @@
 [![CI](https://github.com/zidell/ginote/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/zidell/ginote/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/zidell/ginote/branch/main/graph/badge.svg)](https://codecov.io/gh/zidell/ginote)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![License: GPLv3](https://img.shields.io/badge/license-GPLv3-blue.svg)](LICENSE)
 
 [English](README.md) | [한국어](README.ko.md) | [简体中文](README.zh-CN.md) | [日本語](README.ja.md) | [Deutsch](README.de.md) | **Français** | [Italiano](README.it.md) | [Español](README.es.md)
 
@@ -17,7 +17,7 @@ directement avec l'API GitHub, ce qui la rend sûre.
 
 Application en ligne (utilisable librement par tous) : [https://note.gitools.net](https://note.gitools.net)
 
-> Ginote est un projet personnel publié gratuitement. Vous pouvez l'utiliser librement, mais je n'accepte ni propositions de fonctionnalités, ni signalements de bugs, ni demandes d'assistance. Si vous voulez une fonctionnalité, forkez le projet et modifiez-le selon la licence MIT.
+> Ginote est un projet personnel publié gratuitement. Vous pouvez l'utiliser librement, mais je n'accepte ni propositions de fonctionnalités, ni signalements de bugs, ni demandes d'assistance. Si vous voulez une fonctionnalité, forkez le projet et modifiez-le selon la licence GPLv3.
 
 ## Aperçu
 
@@ -187,8 +187,8 @@ Les règles de développement, les commandes de vérification et le déploiement
 
 ## Demandes et assistance
 
-Ginote est un projet personnel publié gratuitement. Vous pouvez l'utiliser librement, mais je n'accepte ni propositions de fonctionnalités, ni signalements de bugs, ni demandes d'assistance. Si vous voulez une fonctionnalité, forkez le projet et modifiez-le selon la licence MIT. Les GitHub Issues sont désactivées pour ce dépôt.
+Ginote est un projet personnel publié gratuitement. Vous pouvez l'utiliser librement, mais je n'accepte ni propositions de fonctionnalités, ni signalements de bugs, ni demandes d'assistance. Si vous voulez une fonctionnalité, forkez le projet et modifiez-le selon la licence GPLv3. Les GitHub Issues sont désactivées pour ce dépôt.
 
 ## Licence
 
-[MIT License](LICENSE)
+[GNU GPLv3-only](LICENSE)

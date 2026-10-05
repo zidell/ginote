@@ -1,6 +1,6 @@
 [![CI](https://github.com/zidell/ginote/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/zidell/ginote/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/zidell/ginote/branch/main/graph/badge.svg)](https://codecov.io/gh/zidell/ginote)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![License: GPLv3](https://img.shields.io/badge/license-GPLv3-blue.svg)](LICENSE)
 
 [English](README.md) | [한국어](README.ko.md) | [简体中文](README.zh-CN.md) | [日本語](README.ja.md) | **Deutsch** | [Français](README.fr.md) | [Italiano](README.it.md) | [Español](README.es.md)
 
@@ -17,7 +17,7 @@ kommuniziert direkt mit der GitHub API – deshalb ist sie sicher.
 
 Live-App (für alle frei nutzbar): [https://note.gitools.net](https://note.gitools.net)
 
-> Ginote ist ein privates Projekt und wird kostenlos veröffentlicht. Du kannst es frei nutzen, aber ich nehme keine Feature-Wünsche, Fehlerberichte oder Support-Anfragen an. Wenn du eine Funktion brauchst, forke das Projekt gemäß der MIT-Lizenz und passe es selbst an.
+> Ginote ist ein privates Projekt und wird kostenlos veröffentlicht. Du kannst es frei nutzen, aber ich nehme keine Feature-Wünsche, Fehlerberichte oder Support-Anfragen an. Wenn du eine Funktion brauchst, forke das Projekt gemäß der GPLv3-Lizenz und passe es selbst an.
 
 ## Vorschau
 
@@ -181,8 +181,8 @@ Entwicklungsregeln, Prüfbefehle und Deployment stehen in [AGENTS.md](AGENTS.md)
 
 ## Wünsche und Support
 
-Ginote ist ein privates Projekt und wird kostenlos veröffentlicht. Du kannst es frei nutzen, aber ich nehme keine Feature-Wünsche, Fehlerberichte oder Support-Anfragen an. Wenn du eine Funktion brauchst, forke das Projekt gemäß der MIT-Lizenz und passe es selbst an. GitHub Issues sind für dieses Repository deaktiviert.
+Ginote ist ein privates Projekt und wird kostenlos veröffentlicht. Du kannst es frei nutzen, aber ich nehme keine Feature-Wünsche, Fehlerberichte oder Support-Anfragen an. Wenn du eine Funktion brauchst, forke das Projekt gemäß der GPLv3-Lizenz und passe es selbst an. GitHub Issues sind für dieses Repository deaktiviert.
 
 ## Lizenz
 
-[MIT License](LICENSE)
+[GNU GPLv3-only](LICENSE)

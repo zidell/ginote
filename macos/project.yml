@@ -56,7 +56,7 @@ targets:
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.productivity
         INFOPLIST_KEY_NSMicrophoneUsageDescription: 음성 노트를 녹음하려면 마이크가 필요합니다.
-        INFOPLIST_KEY_NSHumanReadableCopyright: MIT License
+        INFOPLIST_KEY_NSHumanReadableCopyright: Copyright © 2026 zidell. GPL-3.0-only.
         ENABLE_HARDENED_RUNTIME: NO
         ENABLE_APP_SANDBOX: NO
         DEAD_CODE_STRIPPING: YES

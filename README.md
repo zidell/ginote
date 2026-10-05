@@ -1,6 +1,6 @@
 [![CI](https://github.com/zidell/ginote/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/zidell/ginote/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/zidell/ginote/branch/main/graph/badge.svg)](https://codecov.io/gh/zidell/ginote)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![License: GPLv3](https://img.shields.io/badge/license-GPLv3-blue.svg)](LICENSE)
 
 **English** | [한국어](README.ko.md) | [简体中文](README.zh-CN.md) | [日本語](README.ja.md) | [Deutsch](README.de.md) | [Français](README.fr.md) | [Italiano](README.it.md) | [Español](README.es.md)
 
@@ -12,7 +12,7 @@ read and write the same notes through GitHub's official MCP server.
 
 Live app, free for anyone to use: [https://note.gitools.net](https://note.gitools.net)
 
-> This is a personal project, released for free. You're welcome to use it, but I don't take feature requests, bug reports, or support questions. If you want something changed, fork it and modify it under the MIT license.
+> This is a personal project, released for free. You're welcome to use it, but I don't take feature requests, bug reports, or support questions. If you want something changed, fork it and modify it under the GPLv3 license.
 
 ![Ginote preview](docs/preview.gif)
 
@@ -214,8 +214,8 @@ Development rules, verification commands, and deployment are described in [AGENT
 
 ## Requests and support
 
-This is a personal project, released for free. You're welcome to use it, but I don't take feature requests, bug reports, or support questions. If you want something changed, fork it and modify it under the MIT license. GitHub Issues are turned off for this repository.
+This is a personal project, released for free. You're welcome to use it, but I don't take feature requests, bug reports, or support questions. If you want something changed, fork it and modify it under the GPLv3 license. GitHub Issues are turned off for this repository.
 
 ## License
 
-[MIT License](LICENSE)
+[GNU GPLv3-only](LICENSE)

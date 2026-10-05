@@ -1,6 +1,6 @@
 [![CI](https://github.com/zidell/ginote/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/zidell/ginote/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/zidell/ginote/branch/main/graph/badge.svg)](https://codecov.io/gh/zidell/ginote)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![License: GPLv3](https://img.shields.io/badge/license-GPLv3-blue.svg)](LICENSE)
 
 [English](README.md) | [한국어](README.ko.md) | **简体中文** | [日本語](README.ja.md) | [Deutsch](README.de.md) | [Français](README.fr.md) | [Italiano](README.it.md) | [Español](README.es.md)
 
@@ -15,7 +15,7 @@ SPA 应用：功能几乎原样保留，只把使用体验做得像笔记应用�
 
 在线地址（任何人都可以直接使用）：[https://note.gitools.net](https://note.gitools.net)
 
-> 这是个人制作并免费公开的应用。欢迎自由使用，但不接受功能建议、错误报告或使用支持。如需其他功能，请依据 MIT 许可证 fork 后自行修改。
+> 这是个人制作并免费公开的应用。欢迎自由使用，但不接受功能建议、错误报告或使用支持。如需其他功能，请依据 GPLv3 许可证 fork 后自行修改。
 
 ## 界面
 
@@ -142,8 +142,8 @@ macOS Homebrew 安装、本地运行、各平台打包及发布流程请参阅[�
 
 ## 请求与支持
 
-这是个人制作并免费公开的应用。欢迎自由使用，但不接受功能建议、错误报告或使用支持。如需其他功能，请依据 MIT 许可证 fork 后自行修改。 本仓库已关闭 GitHub Issues。
+这是个人制作并免费公开的应用。欢迎自由使用，但不接受功能建议、错误报告或使用支持。如需其他功能，请依据 GPLv3 许可证 fork 后自行修改。 本仓库已关闭 GitHub Issues。
 
 ## 许可证
 
-[MIT License](LICENSE)
+[GNU GPLv3-only](LICENSE)

@@ -4943,48 +4943,48 @@
         }
       }
     },
-    "개인이 만들어 공개하는 앱이라 기능 제안·지원은 받지 않습니다. 필요한 기능은 MIT 라이선스에 따라 포크해서 고쳐 쓰세요." : {
+    "개인이 만들어 공개하는 앱이라 기능 제안·지원은 받지 않습니다. 필요한 기능은 GPLv3 라이선스에 따라 포크해서 고쳐 쓰세요." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Dies ist ein privates Projekt, das so veröffentlicht wird, wie es ist; Funktionswünsche und Support werden nicht angenommen. Forke es bei Bedarf gemäß MIT-Lizenz und passe es an."
+            "value" : "Dies ist ein privates Projekt, das so veröffentlicht wird, wie es ist; Funktionswünsche und Support werden nicht angenommen. Forke es bei Bedarf gemäß GPLv3-Lizenz und passe es an."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "This is a personal project published as is, so feature requests and support are not accepted. If you need something, fork it under the MIT License and adapt it."
+            "value" : "This is a personal project published as is, so feature requests and support are not accepted. If you need something, fork it under the GPLv3 License and adapt it."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Es un proyecto personal publicado tal cual, así que no se aceptan peticiones de funciones ni soporte. Si necesitas algo, haz un fork bajo la licencia MIT y adáptalo."
+            "value" : "Es un proyecto personal publicado tal cual, así que no se aceptan peticiones de funciones ni soporte. Si necesitas algo, haz un fork bajo la licencia GPLv3 y adáptalo."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Projet personnel publié tel quel : les demandes de fonctions et le support ne sont pas acceptés. Si besoin, forkez-le sous licence MIT et adaptez-le."
+            "value" : "Projet personnel publié tel quel : les demandes de fonctions et le support ne sont pas acceptés. Si besoin, forkez-le sous licence GPLv3 et adaptez-le."
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "È un progetto personale pubblicato così com'è: richieste di funzioni e supporto non sono accettati. Se ti serve qualcosa, fai un fork secondo la licenza MIT e modificalo."
+            "value" : "È un progetto personale pubblicato così com'è: richieste di funzioni e supporto non sono accettati. Se ti serve qualcosa, fai un fork secondo la licenza GPLv3 e modificalo."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "個人が作って公開しているアプリのため、機能の提案やサポートは受け付けていません。必要な機能は MIT ライセンスに従ってフォークして変更してください。"
+            "value" : "個人が作って公開しているアプリのため、機能の提案やサポートは受け付けていません。必要な機能は GPLv3 ライセンスに従ってフォークして変更してください。"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "这是个人制作并公开的应用，不接受功能建议或支持请求。如需其他功能，请依据 MIT 许可证 fork 后自行修改。"
+            "value" : "这是个人制作并公开的应用，不接受功能建议或支持请求。如需其他功能，请依据 GPLv3 许可证 fork 后自行修改。"
           }
         }
       }

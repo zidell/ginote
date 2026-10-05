@@ -3,6 +3,7 @@ name = "ginote"
 version = "0.1.0"
 description = "A serverless notes app backed by GitHub Issues"
 authors = ["zidell"]
+license = "GPL-3.0-only"
 edition = "2021"
 
 [lib]

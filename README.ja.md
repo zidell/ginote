@@ -1,6 +1,6 @@
 [![CI](https://github.com/zidell/ginote/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/zidell/ginote/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/zidell/ginote/branch/main/graph/badge.svg)](https://codecov.io/gh/zidell/ginote)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![License: GPLv3](https://img.shields.io/badge/license-GPLv3-blue.svg)](LICENSE)
 
 [English](README.md) | [한국어](README.ko.md) | [简体中文](README.zh-CN.md) | **日本語** | [Deutsch](README.de.md) | [Français](README.fr.md) | [Italiano](README.it.md) | [Español](README.es.md)
 
@@ -16,7 +16,7 @@ GitHub API と直接通信するので安全です。
 
 サービス URL（誰でもすぐに利用できます）：[https://note.gitools.net](https://note.gitools.net)
 
-> 個人が作って無料で公開しているアプリです。自由にお使いいただけますが、機能の提案、バグ報告、使い方のサポートは受け付けていません。欲しい機能があれば、MIT ライセンスに従ってフォークして改変してください。
+> 個人が作って無料で公開しているアプリです。自由にお使いいただけますが、機能の提案、バグ報告、使い方のサポートは受け付けていません。欲しい機能があれば、GPLv3 ライセンスに従ってフォークして改変してください。
 
 ## 画面
 
@@ -163,8 +163,8 @@ macOS の Homebrew インストール、ローカル実行、プラットフォ�
 
 ## 要望とサポート
 
-個人が作って無料で公開しているアプリです。自由にお使いいただけますが、機能の提案、バグ報告、使い方のサポートは受け付けていません。欲しい機能があれば、MIT ライセンスに従ってフォークして改変してください。 このリポジトリの GitHub Issues は無効にしています。
+個人が作って無料で公開しているアプリです。自由にお使いいただけますが、機能の提案、バグ報告、使い方のサポートは受け付けていません。欲しい機能があれば、GPLv3 ライセンスに従ってフォークして改変してください。 このリポジトリの GitHub Issues は無効にしています。
 
 ## ライセンス
 
-[MIT License](LICENSE)
+[GNU GPLv3-only](LICENSE)

@@ -1,6 +1,6 @@
 [![CI](https://github.com/zidell/ginote/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/zidell/ginote/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/zidell/ginote/branch/main/graph/badge.svg)](https://codecov.io/gh/zidell/ginote)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![License: GPLv3](https://img.shields.io/badge/license-GPLv3-blue.svg)](LICENSE)
 
 [English](README.md) | [한국어](README.ko.md) | [简体中文](README.zh-CN.md) | [日本語](README.ja.md) | [Deutsch](README.de.md) | [Français](README.fr.md) | **Italiano** | [Español](README.es.md)
 
@@ -17,7 +17,7 @@ per questo è sicura.
 
 App online (utilizzabile liberamente da chiunque): [https://note.gitools.net](https://note.gitools.net)
 
-> Ginote è un progetto personale pubblicato gratuitamente. Puoi usarlo liberamente, ma non accetto proposte di funzionalità, segnalazioni di bug né richieste di assistenza. Se ti serve una funzionalità, fai un fork secondo la licenza MIT e modificalo tu stesso.
+> Ginote è un progetto personale pubblicato gratuitamente. Puoi usarlo liberamente, ma non accetto proposte di funzionalità, segnalazioni di bug né richieste di assistenza. Se ti serve una funzionalità, fai un fork secondo la licenza GPLv3 e modificalo tu stesso.
 
 ## Anteprima
 
@@ -180,8 +180,8 @@ Regole di sviluppo, comandi di verifica e deploy sono descritti in [AGENTS.md](A
 
 ## Richieste e assistenza
 
-Ginote è un progetto personale pubblicato gratuitamente. Puoi usarlo liberamente, ma non accetto proposte di funzionalità, segnalazioni di bug né richieste di assistenza. Se ti serve una funzionalità, fai un fork secondo la licenza MIT e modificalo tu stesso. Le GitHub Issues sono disattivate per questo repository.
+Ginote è un progetto personale pubblicato gratuitamente. Puoi usarlo liberamente, ma non accetto proposte di funzionalità, segnalazioni di bug né richieste di assistenza. Se ti serve una funzionalità, fai un fork secondo la licenza GPLv3 e modificalo tu stesso. Le GitHub Issues sono disattivate per questo repository.
 
 ## Licenza
 
-[MIT License](LICENSE)
+[GNU GPLv3-only](LICENSE)
