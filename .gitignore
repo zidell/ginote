@@ -25,6 +25,7 @@ tmp/
 # macOS 네이티브 시험 앱(macos/) 빌드 산출물
 macos/*.xcodeproj
 macos/build/
+macos/Signing.local.xcconfig
 macos/Ginote/Generated/
 macos/Packages/GinoteCore/.build/
 macos/Packages/GinoteCore/.swiftpm/

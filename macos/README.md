@@ -16,11 +16,13 @@ open "build/Build/Products/Release/Ginote Native.app"
 ```
 
 Xcode에서 `GinoteNative.xcodeproj`를 열어 실행해도 된다. 기본 서명은 로컬 실행용(`-`)이다.
-이 서명은 빌드할 때마다 앱 식별값이 바뀌어, 다시 빌드하면 macOS가 키체인 접근 허용을 또 묻는다.
-Developer ID 인증서가 있으면 그 인증서로 서명해 이 질문을 없앤다.
+이 서명은 빌드할 때마다 앱 식별값이 바뀌어, 다시 빌드하면 macOS가 키체인 접근 허용을 또 묻는다
+("항상 허용"도 그 빌드에만 걸린다). 인증서가 있으면 `macos/Signing.local.xcconfig`(커밋하지 않음)에
+서명을 적어 둔다. Xcode·`xcodebuild` 모두 이 파일을 읽으므로 이후 빌드는 늘 같은 서명이 된다.
 
-```bash
-xcodebuild … CODE_SIGN_IDENTITY="Developer ID Application" DEVELOPMENT_TEAM=<팀 ID> build
+```
+CODE_SIGN_IDENTITY = Developer ID Application
+DEVELOPMENT_TEAM = <팀 ID>
 ```
 `/Applications`에 두고 쓰려면 빌드한 `Ginote Native.app`을 복사한다.
 
