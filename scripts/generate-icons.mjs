@@ -3,6 +3,8 @@
 // - 모바일(iOS·Android)과 PWA maskable: 꽉 찬 정사각형. 둥근 모서리는 각 OS가 마스크로 만든다.
 //   iOS는 투명한 부분을 허용하지 않고, Android 적응형 아이콘은 전경·배경을 따로 받는다.
 // - 데스크톱(macOS·Windows·Linux)·웹(public/icon.svg, 파비콘, PWA any): 같은 그림에 둥근 모서리를 씌운다.
+//   macOS(icon.icns)만은 Apple 규격대로 둘레 여백과 그림자를 둔 틀을 쓴다(scripts/mac-icon-svg.mjs).
+//   꽉 찬 그림이면 Dock에서 다른 앱보다 커 보인다.
 //
 // `tauri icon`은 src-tauri/gen/android·gen/apple이 있으면 그 프로젝트 아이콘까지 직접 갱신한다.
 // 실행: npm run icons
@@ -11,6 +13,7 @@ import { copyFileSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync,
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { macIconSvg } from './mac-icon-svg.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SOURCE = join(ROOT, 'src-tauri/icons/source');
@@ -48,6 +51,11 @@ try {
   for (const name of readdirSync(desktop)) {
     if (statSync(join(desktop, name)).isFile()) copyFileSync(join(desktop, name), join(ICONS, name));
   }
+
+  // 2-1) macOS icns는 여백 있는 틀로 다시 만든다.
+  writeFileSync(join(work, 'mac.svg'), macIconSvg(art));
+  tauriIcon(join(work, 'mac.svg'), '-o', join(work, 'mac'));
+  copyFileSync(join(work, 'mac/icon.icns'), join(ICONS, 'icon.icns'));
 
   // 3) 웹: 둥근 SVG·파비콘·PWA any, 정사각형 apple-touch-icon(iOS가 둥글게 깎음)·PWA maskable
   writeFileSync(join(PUBLIC, 'icon.svg'), rounded);
