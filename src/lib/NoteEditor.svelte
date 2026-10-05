@@ -1144,12 +1144,28 @@
     lockPanelError = '';
   }
 
-  function handleLockPinInput(event) {
-    const digits = event.currentTarget.value.replace(/[^0-9]/g, '').slice(0, 6);
-    event.currentTarget.value = digits;
+  function applyLockPin(input, value) {
+    const digits = value.replace(/[^0-9]/g, '').slice(0, 6);
+    input.value = digits;
     lockPanelPin = digits;
     lockPanelError = '';
     if (digits.length === 6 && lockPanelMode !== 'lock' && !lockPanelBusy) void submitLockPanel();
+  }
+
+  function handleLockPinInput(event) {
+    applyLockPin(event.currentTarget, event.currentTarget.value);
+  }
+
+  // 숫자는 입력기를 거치지 않고 누른 자판 위치(Digit1·Numpad1 등)로 받는다. 세벌식처럼 숫자 줄에 한글이 있는
+  // 입력기에서는 숫자 키가 자모가 되어 input 이벤트로는 숫자가 들어오지 않는다.
+  function handleLockPinKeydown(event) {
+    if (event.metaKey || event.ctrlKey || event.altKey) return;
+    const match = /^(?:Digit|Numpad)([0-9])$/.exec(event.code || '');
+    if (!match) return;
+    event.preventDefault();
+    const input = event.currentTarget;
+    if (lockPanelBusy || lockPanelPin.length >= 6) return;
+    applyLockPin(input, lockPanelPin + match[1]);
   }
 
   async function submitLockPanel() {
@@ -3633,6 +3649,7 @@
             autocomplete="off"
             bind:value={lockPanelPin}
             on:input={handleLockPinInput}
+            on:keydown={handleLockPinKeydown}
             aria-label="6자리 잠금 숫자"
             placeholder="000000"
           />

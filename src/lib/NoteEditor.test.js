@@ -1915,6 +1915,27 @@ describe('NoteEditor 노트 잠금', () => {
     expect(document.querySelector('.note-lock-panel')).toBeNull();
   });
 
+  it('숫자 줄에 한글이 있는 입력기(세벌식)에서도 숫자 키 위치로 숫자를 받는다', async () => {
+    renderWithLockSession({ issue: baseIssue });
+
+    await fireEvent.click(menuItem('잠금'));
+    const panel = await waitFor(() => {
+      const element = document.querySelector('.note-lock-panel');
+      expect(element).toBeTruthy();
+      return element;
+    });
+    const input = panel.querySelector('input[type="text"]');
+    // 입력기가 숫자 키를 자모로 바꿔도 key는 'Process'이고 code는 자판 위치다.
+    for (const [index, code] of ['Digit1', 'Digit2', 'Numpad3'].entries()) {
+      const allowed = await fireEvent.keyDown(input, { key: 'Process', code, keyCode: 229 });
+      expect(allowed).toBe(false);
+      expect(input.value).toBe('123'.slice(0, index + 1));
+    }
+    // 보조키와 함께 누른 숫자 키는 건드리지 않는다.
+    await fireEvent.keyDown(input, { key: '4', code: 'Digit4', metaKey: true });
+    expect(input.value).toBe('123');
+  });
+
   it('잠금 패널을 취소하면 아무것도 저장하지 않는다', async () => {
     renderWithLockSession({ issue: baseIssue });
 
