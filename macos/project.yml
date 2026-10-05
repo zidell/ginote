@@ -60,7 +60,7 @@ targets:
         SWIFT_EMIT_LOC_STRINGS: YES
         LOCALIZATION_PREFERS_STRING_CATALOGS: YES
   # 화면 모델 단위 테스트. 앱을 호스트로 띄우지만 창·Dock·포커스는 쓰지 않는다(AppModel.isUnitTest).
-  # GitHub는 GinoteTests/FakeGitHub.swift의 메모리 서버로 바꿔 끼운다.
+  # GitHub는 GinoteCore 패키지의 GinoteTestSupport(FakeGitHub, 메모리 서버)로 바꿔 끼운다.
   GinoteTests:
     type: bundle.unit-test
     platform: macOS
@@ -72,6 +72,8 @@ targets:
     dependencies:
       - target: Ginote
       - package: GinoteCore
+      - package: GinoteCore
+        product: GinoteTestSupport
     settings:
       base:
         GENERATE_INFOPLIST_FILE: YES

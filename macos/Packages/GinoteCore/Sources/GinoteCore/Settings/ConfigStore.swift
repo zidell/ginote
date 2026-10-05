@@ -8,6 +8,9 @@ public final class ConfigStore: @unchecked Sendable {
     public let keychain: Keychain
     /// 처음 실행할 때 Tauri 앱 설정·자격 증명을 가져올지. 디버그 자가 점검은 사람의 설정·키체인을 건드리지 않게 끈다.
     public let importsTauri: Bool
+    /// 가져올 Tauri 설정 폴더와 자격 증명 저장소(테스트는 임시 폴더·시험용 서비스를 넣는다).
+    let tauriDirectory: URL
+    let tauriKeychain: Keychain
     public var configURL: URL { directory.appendingPathComponent("config.toml") }
     public var statusURL: URL { directory.appendingPathComponent("config-status.txt") }
     public var lastGoodURL: URL { directory.appendingPathComponent("state/last-good-config.toml") }
@@ -16,8 +19,11 @@ public final class ConfigStore: @unchecked Sendable {
     private var watchTimer: DispatchSourceTimer?
     private var lastModified: Date?
 
-    public init(directory: URL = ConfigStore.defaultDirectory, keychain: Keychain = Keychain(), importsTauri: Bool = true) {
+    public init(directory: URL = ConfigStore.defaultDirectory, keychain: Keychain = Keychain(), importsTauri: Bool = true,
+                tauriDirectory: URL = ConfigStore.tauriDirectory, tauriKeychain: Keychain = Keychain(service: Keychain.tauriService)) {
         self.importsTauri = importsTauri
+        self.tauriDirectory = tauriDirectory
+        self.tauriKeychain = tauriKeychain
         self.directory = directory
         self.keychain = keychain
         try? FileManager.default.createDirectory(at: directory.appendingPathComponent("state"), withIntermediateDirectories: true)
@@ -59,12 +65,12 @@ public final class ConfigStore: @unchecked Sendable {
             writeStatus(problems: result.problems)
             if result.rewrite { write(result.settings) } else { saveLastGood(source) }
             return .loaded(result.settings, problems: result.problems)
-        } catch let error as AppConfig.SyntaxError {
-            writeStatus(problems: [], syntaxError: error.message)
-            let fallback = (try? String(contentsOf: lastGoodURL, encoding: .utf8)).flatMap { try? AppConfig.parse($0).settings } ?? AppSettings()
-            return .syntaxError(error.message, fallback: fallback)
         } catch {
-            return .syntaxError(error.localizedDescription, fallback: AppSettings())
+            // AppConfig.parse는 문법 오류(AppConfig.SyntaxError)만 던진다.
+            let message = (error as? AppConfig.SyntaxError)?.message ?? error.localizedDescription
+            writeStatus(problems: [], syntaxError: message)
+            let fallback = (try? String(contentsOf: lastGoodURL, encoding: .utf8)).flatMap { try? AppConfig.parse($0).settings } ?? AppSettings()
+            return .syntaxError(message, fallback: fallback)
         }
     }
 
@@ -117,7 +123,7 @@ public final class ConfigStore: @unchecked Sendable {
     /// Tauri 앱의 config.toml이 있으면 워크스페이스와 설정을 가져오고, PAT·OpenAI 키를 이 앱의 Keychain 항목으로 복사한다.
     /// 원본은 건드리지 않는다. macOS가 처음 한 번 Keychain 접근을 물을 수 있다.
     func importFromTauri() -> AppSettings? {
-        let url = Self.tauriDirectory.appendingPathComponent("config.toml")
+        let url = tauriDirectory.appendingPathComponent("config.toml")
         guard let source = try? String(contentsOf: url, encoding: .utf8),
               let parsed = try? AppConfig.parse(source) else { return nil }
         var settings = parsed.settings
@@ -125,7 +131,7 @@ public final class ConfigStore: @unchecked Sendable {
         settings.preferences.theme = .system
         // 웹·Tauri 기본 본문 크기(17)는 사용자가 고른 값이 아니므로 맥 기본값(16)을 쓴다.
         if settings.preferences.editorFontSize == 17 { settings.preferences.editorFontSize = Preferences().editorFontSize }
-        let tauri = Keychain(service: Keychain.tauriService)
+        let tauri = tauriKeychain
         for workspace in settings.workspaces where workspace.rememberToken {
             if let token = tauri.read(Keychain.patAccount(workspace.id)) {
                 keychain.write(Keychain.patAccount(workspace.id), token)

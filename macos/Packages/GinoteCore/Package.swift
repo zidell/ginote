@@ -7,7 +7,9 @@ let package = Package(
     name: "GinoteCore",
     platforms: [.macOS(.v14)],
     products: [
-        .library(name: "GinoteCore", targets: ["GinoteCore"])
+        .library(name: "GinoteCore", targets: ["GinoteCore"]),
+        // 테스트용 가짜 GitHub(메모리 저장소). 이 패키지와 앱(GinoteTests)의 테스트가 함께 쓴다.
+        .library(name: "GinoteTestSupport", targets: ["GinoteTestSupport"])
     ],
     dependencies: [
         .package(url: "https://github.com/LebJe/TOMLKit.git", from: "0.6.0")
@@ -17,9 +19,11 @@ let package = Package(
             name: "GinoteCore",
             dependencies: [.product(name: "TOMLKit", package: "TOMLKit")]
         ),
+        // 공통 모듈에 의존하지 않는다. 앱 테스트에 공통 모듈이 한 벌 더 들어가면 정적 값(sessionOverride)이 갈린다.
+        .target(name: "GinoteTestSupport"),
         .testTarget(
             name: "GinoteCoreTests",
-            dependencies: ["GinoteCore"],
+            dependencies: ["GinoteCore", "GinoteTestSupport"],
             resources: [.copy("Fixtures")]
         )
     ],

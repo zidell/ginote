@@ -1,5 +1,6 @@
 import AppKit
 import GinoteCore
+import GinoteTestSupport
 import XCTest
 @testable import Ginote_Native
 

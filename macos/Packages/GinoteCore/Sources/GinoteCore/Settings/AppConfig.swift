@@ -294,10 +294,9 @@ public enum AppConfig {
         let table: TOMLTable
         do {
             table = try TOMLTable(string: source)
-        } catch let error as TOMLParseError {
-            throw SyntaxError(message: error.debugDescription)
         } catch {
-            throw SyntaxError(message: String(describing: error))
+            // TOMLKit은 TOMLParseError만 던진다. 혹시 다른 오류가 와도 문법 오류로 알린다.
+            throw SyntaxError(message: (error as? TOMLParseError)?.debugDescription ?? String(describing: error))
         }
         var settings = AppSettings()
         var problems: [String] = []
