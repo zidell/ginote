@@ -50,7 +50,21 @@ DEVELOPMENT_TEAM = <팀 ID>
 
 ```bash
 cd macos/Packages/GinoteCore && swift test
+cd macos && xcodegen && xcodebuild -project GinoteNative.xcodeproj -scheme Ginote -derivedDataPath build \
+  -destination 'platform=macOS' test
 ```
+
+`xcodebuild test`는 화면 모델(`WorkspaceModel` 등)을 가짜 GitHub(`GinoteTests/FakeGitHub.swift`, 메모리 저장소)로
+검사한다. 앱을 호스트로 띄우지만 단위 테스트일 때는 창·Dock·포커스를 쓰지 않고(`AppModel.isUnitTest`), 사용자 설정과
+키체인도 건드리지 않는다. 몇 초면 끝나므로 작업 중에 뒤에서 돌려도 된다. CI(`.github/workflows/macos-native.yml`)도
+같은 테스트를 돌린다.
+
+- 목록·개수·저장·병합처럼 모델이 정하는 동작은 여기에 테스트를 더한다. `FakeGitHub.freezeCounts()`는 쓰기 직후
+  GitHub 개수가 늦게 따라오는 상황을 만든다.
+- 줄 순서처럼 화면이 따르는 규칙은 모델에 두고(예: `WorkspaceModel.listRowIds`) 화면과 테스트가 같은 값을 쓰게 한다.
+- 툴바 배치, 스크롤, 포커스, 입력기처럼 실제 창에서만 드러나는 것은 화면 밖 창에서 재현되지 않는다(2026-10-05:
+  사이드바 접기 뒤 스크롤 밀림이 화면 밖 창에서는 재현되지 않음을 대조 테스트로 확인). 아래 "화면을 바꿨을 때 눌러 볼 것"으로
+  확인한다.
 
 웹 코드(`src/lib`)가 만든 기대값과 Swift 결과를 비교한다. 잠금은 양방향(웹 암호문을 Swift가,
 Swift 암호문을 웹이)으로 풀어 본다. Node가 있으면 기대값이 지금 웹 코드와 맞는지도 확인한다.
