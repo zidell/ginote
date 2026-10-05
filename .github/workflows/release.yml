@@ -157,6 +157,8 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           # 앱에 함께 들어가는 웹 빌드의 잠금 pepper. 공식 사이트(ci.yml)와 같은 값이다.
           VITE_NOTE_LOCK_PEPPER: ${{ vars.VITE_NOTE_LOCK_PEPPER }}
+          # 릴리스 빌드라는 표시. 이 값이 없는 빌드(로컬 빌드)는 앱 업데이트를 확인하지 않는다(release_update.rs).
+          GINOTE_RELEASE_BUILD: '1'
         with:
           releaseId: ${{ needs.prepare-release.outputs.release_id }}
           tagName: v${{ env.RELEASE_VERSION }}

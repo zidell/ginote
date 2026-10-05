@@ -15,9 +15,11 @@ pub fn register<R: Runtime>(builder: tauri::Builder<R>) -> tauri::Builder<R> {
 }
 
 /// 이 앱이 스스로 새 릴리스를 받아 설치하는지. 아니면 스토어나 OS가 업데이트를 맡는다.
+/// 로컬에서 빌드한 앱(릴리스 워크플로가 `GINOTE_RELEASE_BUILD`를 넣지 않은 빌드)도 확인하지 않는다. 버전이
+/// 0.1.0으로 찍혀 늘 새 릴리스를 권하고, 설치하면 고쳐 쓰던 로컬 빌드를 덮어쓴다.
 #[tauri::command]
 pub fn release_update_supported() -> bool {
-    cfg!(any(target_os = "macos", target_os = "linux"))
+    cfg!(any(target_os = "macos", target_os = "linux")) && option_env!("GINOTE_RELEASE_BUILD").is_some()
 }
 
 /// 업데이트를 설치한 뒤 새 버전으로 다시 시작한다.
