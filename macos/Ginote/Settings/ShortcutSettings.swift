@@ -188,7 +188,7 @@ extension View {
 
 /// 설정 → 단축키. 칸을 누르고 새 조합을 누르면 바뀐다.
 struct ShortcutSettings: View {
-    @Environment(AppModel.self) private var app
+    private var app: AppModel { .shared }
     @State private var recording: ShortcutCommand?
     @State private var message: String?
 
@@ -256,7 +256,7 @@ struct ShortcutSettings: View {
 
 /// 단축키 칸. 누르면 다음 키 조합을 받는다.
 struct ShortcutRecorder: View {
-    @Environment(AppModel.self) private var app
+    private var app: AppModel { .shared }
     let command: ShortcutCommand
     @Binding var recording: ShortcutCommand?
     @Binding var message: String?
@@ -293,7 +293,7 @@ struct ShortcutRecorder: View {
     private func handle(_ event: NSEvent) {
         let flags = event.modifierFlags.intersection([.command, .option, .control, .shift])
         if event.keyCode == 53, flags.isEmpty { recording = nil; return }
-        guard let shortcut = KeyShortcut(event: event) else { NSSound.beep(); return }
+        guard let shortcut = KeyShortcut(event: event) else { SystemActions.beep(); return }
         guard shortcut.hasCommandModifier else {
             message = String(localized: "⌘·⌃·⌥ 중 하나를 함께 누르세요.")
             return

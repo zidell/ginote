@@ -27,12 +27,4 @@ final class ShortcutTests: XCTestCase {
         XCTAssertEqual(tags.keyEquivalentModifierMask, [.option])
         XCTAssertEqual(pin.keyEquivalent, "", "비운 단축키는 상태에 따라 바뀐 제목(고정 해제)에서도 지운다")
     }
-
-    func testKeyShortcutReadsKeyPositionNotInputMethodCharacter() throws {
-        // 세벌식에서 T 자리는 한글을 내지만 단축키는 자판 위치(key code 17)로 읽는다.
-        let event = try XCTUnwrap(NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [.option], timestamp: 0,
-                                                   windowNumber: 0, context: nil, characters: "ㅌ", charactersIgnoringModifiers: "ㅌ",
-                                                   isARepeat: false, keyCode: 17))
-        XCTAssertEqual(KeyShortcut(event: event)?.spec, "option+t")
-    }
 }

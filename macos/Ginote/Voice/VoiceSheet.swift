@@ -5,7 +5,7 @@ import SwiftUI
 /// 음성 기록을 어디로 보낼지. 웹과 같은 네 가지다.
 struct VoiceRequest: Identifiable {
     enum Target { case newNote, body, newComment, comment(CommentItem) }
-    let id = UUID()
+    var id = UUID()
     let target: Target
     let workspace: WorkspaceModel
     let session: NoteSession?
@@ -26,12 +26,12 @@ enum VoiceLauncher {
 
 /// 녹음 → 전사 → 정제 → 노트에 넣기.
 struct VoiceSheet: View {
-    @Environment(AppModel.self) private var app
+    private var app: AppModel { .shared }
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openSettings) private var openSettings
     let request: VoiceRequest
-    @State private var recorder = VoiceRecorder()
-    @State private var phase: Phase = .recording
+    @State var recorder = VoiceRecorder()
+    @State var phase: Phase = .recording
     @State private var audio: Data?
     /// 키보드 포커스는 완료 버튼에 둔다(닫기·일시정지 버튼은 포커스를 받지 않는다).
     @FocusState private var doneFocused: Bool
@@ -85,7 +85,7 @@ struct VoiceSheet: View {
                 Button("설정 열기") {
                     AppModel.shared.settingsTab = .voice
                     AppModel.shared.voiceAfterSettings = request
-                    openSettings()
+                    SystemActions.openSettings(openSettings)
                     dismiss()
                 }
                     .keyboardShortcut(.defaultAction)
@@ -159,7 +159,7 @@ struct VoiceSheet: View {
 
     private var processing: Bool { [.transcribing, .refining, .delivering].contains(phase) }
 
-    private func close() {
+    func close() {
         // 처리 중에는 닫지 않는다. 실패한 뒤에는 녹음이 사라지므로 묻는다(웹과 같음).
         guard !processing else { return }
         let failed: Bool = { if case .failed = phase { return true }; return false }()
@@ -172,11 +172,9 @@ struct VoiceSheet: View {
         }
     }
 
-    private func saveAudio() {
+    func saveAudio() {
         guard let audio else { return }
-        let panel = NSSavePanel()
-        panel.nameFieldStringValue = VoiceNotes.audioFileName()
-        if panel.runModal() == .OK, let url = panel.url { try? audio.write(to: url) }
+        if let url = Dialogs.saveLocation(suggestedName: VoiceNotes.audioFileName()) { try? audio.write(to: url) }
     }
 
     private var recorderStatus: String {
@@ -211,7 +209,7 @@ struct VoiceSheet: View {
                                             language: Locale.preferredLanguages.first,
                                             hints: workspace.voiceHints.value)
             }
-            guard !transcript.isEmpty else { throw GitHubError(status: 0, message: String(localized: "음성에서 텍스트를 찾지 못했습니다.")) }
+            guard !transcript.isEmpty else { throw AppError(message: String(localized: "음성에서 텍스트를 찾지 못했습니다.")) }
             var refinement = OpenAIVoiceClient.Refinement(title: "", body: transcript, tags: [])
             if !voice.refinementModel.isEmpty {
                 phase = .refining
@@ -222,7 +220,7 @@ struct VoiceSheet: View {
             }
             let knownTags = VoiceNotes.knownTagNames(refinement.tags, labels: workspace.visibleLabels.map(\.name))
             if VoiceNotes.normalizeParagraphs(refinement.body).isEmpty && knownTags.isEmpty {
-                throw GitHubError(status: 0, message: String(localized: "정제된 텍스트와 선택된 태그가 모두 비어 있습니다."))
+                throw AppError(message: String(localized: "정제된 텍스트와 선택된 태그가 모두 비어 있습니다."))
             }
             phase = .delivering
             try await VoiceDelivery.deliver(

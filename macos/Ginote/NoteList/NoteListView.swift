@@ -3,7 +3,7 @@ import SwiftUI
 
 /// 가운데 칸: 노트 목록. 고정 노트는 위 섹션, 끝에 닿으면 더 읽는다.
 struct NoteListView: View {
-    @Environment(AppModel.self) private var app
+    private var app: AppModel { .shared }
     @Environment(\.openWindow) private var openWindow
     @Environment(\.undoManager) private var undoManager
     @Bindable var workspace: WorkspaceModel
@@ -11,7 +11,7 @@ struct NoteListView: View {
 
     static let searchRowId = "list-search"
     /// 키 창의 첫 응답자가 글 입력칸(검색칸 등)인지.
-    static var typingInField: Bool { NSApp.keyWindow?.firstResponder is NSText }
+    static var typingInField: Bool { SystemActions.keyResponder() is NSText }
     static let pinnedHeaderId = "list-pinned-header"
 
     var body: some View {
@@ -76,16 +76,23 @@ struct NoteListView: View {
             guard workspace.selection.count == 1, let id = workspace.selection.first else { return .ignored }
             let opening = workspace.openedId != id
             if opening { workspace.openedId = id }
+            workspace.listReadSelectionId = id
             app.focusEditor(openingNew: opening)
             return .handled
         }
-        // ⏎: 커서의 노트를 연다. 이미 열려 있으면 본문으로 포커스를 옮긴다(웹과 같은 정책).
+        // 첫 ⏎는 열람, 같은 행에서 다음 ⏎는 본문 편집(잠긴 노트는 숫자 입력)으로 들어간다.
         .onKeyPress(.return) {
             if Self.typingInField { return .ignored }
             guard workspace.selection.count == 1, let id = workspace.selection.first else { return .ignored }
-            if workspace.openedId == id { app.editorFocusRequest += 1 } else { workspace.openedId = id }
+            if workspace.listReadSelectionId == id {
+                app.editorFocusRequest += 1
+            } else {
+                workspace.openedId = id
+                workspace.listReadSelectionId = id
+            }
             return .handled
-        }        // ⎋: 휴지통으로 옮기는 중이면 취소하고, 아니면 선택을 푼다(웹과 같음).
+        }
+        // ⎋: 휴지통으로 옮기는 중이면 취소하고, 아니면 선택을 푼다(웹과 같음).
         .onExitCommand { workspace.selection = [] }
         .animation(.easeOut(duration: 0.18), value: workspace.showingSkeleton)
         .overlay { if !workspace.showingSkeleton { emptyState } }
@@ -110,7 +117,7 @@ struct NoteListView: View {
             contextMenu(for: ids)
         } primaryAction: { ids in
             guard ids.count == 1, let id = ids.first, let issue = workspace.issue(id: id) else { return }
-            openWindow(id: "note", value: issue.number)
+            SystemActions.openWindow(openWindow, id: "note", value: issue.number)
         }
         .onDeleteCommand {
             let targets = workspace.selection.compactMap { workspace.issue(id: $0) }
@@ -120,11 +127,12 @@ struct NoteListView: View {
                 else { await workspace.moveToTrash(targets, undoManager: undoManager) }
             }
         }
-        // 클릭으로 하나를 고르면 바로 연다. ↑↓(목록 기본 동작)로 옮긴 커서는 열지 않는다(웹과 같은 정책).
+        // 목록 선택은 키보드 커서다. 마우스에서 온 선택만 열람으로 연다.
         .onChange(of: workspace.selection) { old, selection in
             if selection.count > 1 { workspace.selectionPreviewId = selection.subtracting(old).first ?? workspace.selectionPreviewId }
-            guard !ListKeyboard.movedRecently else { return }
-            if selection.count == 1, let id = selection.first, workspace.openedId != id { workspace.openedId = id }
+            guard ListKeyboard.consumeListClick(), selection.count == 1, let id = selection.first else { return }
+            workspace.openedId = id
+            workspace.listReadSelectionId = id
         }
         .onPasteCommand(of: [.fileURL, .plainText, .png, .tiff]) { providers in
             PasteImporter.newNote(from: providers, workspace: workspace)
@@ -184,10 +192,10 @@ struct NoteListView: View {
     }
 
     @ViewBuilder
-    private func contextMenu(for ids: Set<Int>) -> some View {
+    func contextMenu(for ids: Set<Int>) -> some View {
         let targets = ids.compactMap { workspace.issue(id: $0) }
         if targets.count == 1, let issue = targets.first {
-            Button("새 창에서 열기") { openWindow(id: "note", value: issue.number) }
+            Button("새 창에서 열기") { SystemActions.openWindow(openWindow, id: "note", value: issue.number) }
             Divider()
             if workspace.scope == .notes {
                 Button(issue.isPinned ? "고정 해제" : "고정") { Task { await workspace.togglePin(issue) } }
@@ -226,8 +234,10 @@ struct NoteListView: View {
     private var emptyState: some View {
         if workspace.hasLoaded && !workspace.loading && workspace.displayedIssues.isEmpty && workspace.newNote == nil && workspace.errorMessage == nil {
             // 태그로 걸렀을 때도 검색 결과로 본다(웹과 같음).
-            if !workspace.activeQuery.isEmpty || workspace.labelFilter != nil {
-                ContentUnavailableView.search(text: workspace.activeQuery.isEmpty ? "#\(workspace.labelFilter ?? "")" : workspace.activeQuery)
+            if !workspace.activeQuery.isEmpty {
+                ContentUnavailableView.search(text: workspace.activeQuery)
+            } else if let label = workspace.labelFilter {
+                ContentUnavailableView.search(text: "#\(label)")
             } else if workspace.scope == .trash {
                 ContentUnavailableView("지난 30일 동안 지운 노트가 없습니다", systemImage: "trash")
             } else {
@@ -331,7 +341,7 @@ struct NoteRowView: View {
 
     private var bodyText: String {
         if let session, session.dirty || issue == nil { return session.body }
-        return issue?.body ?? ""
+        return issue?.bodyText ?? ""
     }
 
     private var summary: String {
@@ -340,8 +350,13 @@ struct NoteRowView: View {
         let text = AttachmentLinks.stripManagedBlocks(bodyText)
             .replacingOccurrences(of: #"!?\[\]\([^)\s]*\)"#, with: "", options: .regularExpression)
         var lines = text.components(separatedBy: "\n")
-        // 첫 줄 제목 방식이면 제목 줄은 요약에서 뺀다.
-        let title = issue.map { NoteLock.removeLock(from: $0.title) } ?? session?.displayTitle ?? ""
+        // 첫 줄 제목 방식이면 제목 줄은 요약에서 뺀다. 제목은 본문과 같은 곳(고치는 중이면 세션)에서 가져온다.
+        let title: String
+        if let session, session.dirty || issue == nil {
+            title = session.displayTitle
+        } else {
+            title = issue.map { NoteLock.removeLock(from: $0.title) } ?? ""
+        }
         if let first = lines.first, !title.isEmpty, NoteText.automaticTitle(first) == title { lines.removeFirst() }
         let plain = NoteText.markdownToPlainText(lines.joined(separator: "\n"))
         return plain.isEmpty ? String(localized: "내용 없음") : String(plain.prefix(160))
@@ -372,7 +387,7 @@ struct NoteRowView: View {
 struct SelectionSummaryView: View {
     @Environment(\.undoManager) private var undoManager
     @Bindable var workspace: WorkspaceModel
-    @State private var showingTags = false
+    @State var showingTags = false
 
     private var targets: [Issue] { workspace.selection.compactMap { workspace.issue(id: $0) } }
 
@@ -409,6 +424,7 @@ struct SelectionSummaryView: View {
 @MainActor
 enum ListKeyboard {
     private static var lastMove = Date.distantPast
+    private static var listClickPending = false
     private static var monitor: Any?
     static let navigationKeys: Set<UInt16> = [125, 126, 115, 119, 116, 121]
 
@@ -418,7 +434,7 @@ enum ListKeyboard {
     static let sidebarReclick = Notification.Name("GinoteSidebarReclick")
 
     /// 사이드바(원본 목록 모양의 표)에서 지금 선택된 줄을 한 번 누른 경우에만 알린다.
-    private static func postSidebarReclick(_ event: NSEvent) {
+    static func postSidebarReclick(_ event: NSEvent) {
         guard event.clickCount == 1, let content = event.window?.contentView,
               let hit = content.hitTest(event.locationInWindow) else { return }
         var view: NSView? = hit
@@ -429,8 +445,32 @@ enum ListKeyboard {
         NotificationCenter.default.post(name: sidebarReclick, object: nil)
     }
 
+    /// 키보드 커서가 이미 놓인 노트 행을 클릭하면 선택 변경 알림이 없으므로 직접 열람한다.
+    private static func openSelectedRowOnClick(_ event: NSEvent) {
+        guard event.clickCount == 1,
+              event.modifierFlags.intersection([.command, .shift, .option, .control]).isEmpty,
+              AppModel.shared.activePane == .list,
+              let content = event.window?.contentView,
+              let hit = content.hitTest(event.locationInWindow) else { return }
+        var view: NSView? = hit
+        while let current = view, !(current is NSTableView) { view = current.superview }
+        guard let table = view as? NSTableView, table.effectiveStyle != .sourceList else { return }
+        let row = table.row(at: table.convert(event.locationInWindow, from: nil))
+        guard row >= 0, row == table.selectedRow,
+              let workspace = AppModel.shared.workspace,
+              workspace.selection.count == 1,
+              let id = workspace.selection.first else { return }
+        workspace.openedId = id
+        workspace.listReadSelectionId = id
+    }
+
     /// 코드가 커서를 옮길 때도 열지 않게 표시한다.
-    static func markMoved() { lastMove = Date() }
+    static func markMoved() { lastMove = Date(); listClickPending = false }
+
+    static func consumeListClick() -> Bool {
+        defer { listClickPending = false }
+        return listClickPending
+    }
 
     static func install() {
         guard monitor == nil else { return }
@@ -439,11 +479,13 @@ enum ListKeyboard {
         }
     }
 
-    private static func handle(_ event: NSEvent) -> NSEvent? {
+    static func handle(_ event: NSEvent) -> NSEvent? {
         let app = AppModel.shared
         if event.type == .leftMouseDown {
             app.toolbarKeyFocus = nil
+            listClickPending = true
             postSidebarReclick(event)
+            openSelectedRowOnClick(event)
             return event
         }
         // macOS 목록은 글자를 누르면 그 글자로 시작하는 행으로 선택을 옮긴다(type-select). ⌥T 같은 조합도 글자(†)로
@@ -492,7 +534,7 @@ enum ListKeyboard {
             }
             return nil
         }
-        if navigationKeys.contains(event.keyCode) { lastMove = Date() }
+        if navigationKeys.contains(event.keyCode) { markMoved() }
         // 목록 맨 위에서 ↑: 검색칸으로(목록이 직접 ↑를 처리하므로 여기서 가로챈다).
         if event.keyCode == 126, plain, app.activePane == .list,
            event.window?.firstResponder is NSTableView, let workspace = app.workspace {
@@ -504,13 +546,14 @@ enum ListKeyboard {
         }
         return event
     }
+
 }
 
 /// 목록을 읽는 동안의 자리표시 행. 실제 행과 같은 높이·구성으로 은은하게 깜빡인다.
 struct SkeletonRow: View {
     let seed: Int
     let scale: CGFloat
-    @State private var dim = false
+    @State var dim = false
 
     private var widths: (CGFloat, CGFloat, CGFloat) {
         let titles: [CGFloat] = [0.55, 0.7, 0.45, 0.62, 0.5, 0.66, 0.4, 0.58, 0.52]

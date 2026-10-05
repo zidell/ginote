@@ -13,13 +13,12 @@ enum NoteActions {
     static func copyIssueNumber(number: Int, title: String) {
         let characters = Array(title.trimmingCharacters(in: .whitespacesAndNewlines))
         let short = String(characters.prefix(12)) + (characters.count > 12 ? ".." : "")
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString("Issue #\(number)\(short.isEmpty ? "" : " : \(short)")", forType: .string)
+        SystemActions.copy("Issue #\(number)\(short.isEmpty ? "" : " : \(short)")")
     }
 
     static func openOnGitHub(_ issue: Issue, repo: String) {
         let url = issue.htmlUrl.flatMap(URL.init(string:)) ?? URL(string: "https://github.com/\(repo)/issues/\(issue.number)")!
-        NSWorkspace.shared.open(url)
+        SystemActions.open(url)
     }
 }
 
@@ -46,7 +45,10 @@ enum PasteImporter {
                     ? workspace.newNote : workspace.issue(id: opened).map(workspace.session(for:))
                 if let session {
                     // 휴지통 노트에는 파일을 붙이지 않는다. 글은 위치를 정해야 하므로 안내만 한다.
-                    if !files.isEmpty, !session.isArchived { session.addAttachments(files) }
+                    if !files.isEmpty, !session.isArchived {
+                        // 번호가 있으면 올리기와 저장을 기다린다. 저장이 오류 문구를 지우므로 안내는 그 뒤에 띄운다.
+                        if session.number != nil { await session.attachments.add(files) } else { session.addAttachments(files) }
+                    }
                     if !text.isEmpty { session.errorMessage = String(localized: "붙여넣을 위치를 먼저 클릭하세요.") }
                     return
                 }
@@ -130,8 +132,8 @@ enum MergeRunner {
                 details.append((issue, try await comments, try await files))
             }
             let sources = details.map { source(from: $0.issue, comments: $0.comments, replacements: []) }
-            guard let earliest = NoteMerge.earliest(sources) else { return }
-            let title = earliest.title.isEmpty ? "병합 노트" : earliest.title
+            let earliest = NoteMerge.earliestTitle(sources)
+            let title = earliest.isEmpty ? String(localized: "병합 노트") : earliest
             let labels = LabelNames.unique(details.map(\.issue))
             try assertLength(NoteMerge.formatBody(NoteMerge.timeline(sources)))
 
@@ -187,14 +189,14 @@ enum MergeRunner {
     private static func source(from issue: Issue, comments: [IssueComment], replacements: [(String, String)], repo: String = "") -> NoteMerge.Source {
         let replace = { (text: String) in replacements.isEmpty ? text : NoteMerge.replaceAttachmentURLs(text, repo: repo, replacements: replacements) }
         return NoteMerge.Source(
-            number: issue.number, title: issue.title, createdAt: issue.createdAt, author: issue.user?.login ?? "",
-            body: replace(issue.body ?? ""),
-            comments: comments.map { .init(createdAt: $0.createdAt, author: $0.author, body: replace($0.body ?? "")) })
+            number: issue.number, title: issue.title, createdAt: issue.createdAt, author: issue.author,
+            body: replace(issue.bodyText),
+            comments: comments.map { .init(createdAt: $0.createdAt, author: $0.author, body: replace($0.bodyText)) })
     }
 
     private static func assertLength(_ body: String) throws {
         if NoteText.length(body) > NoteText.maxBodyLength {
-            throw GitHubError(status: 0, message: String(localized: "병합 기록이 노트 최대 길이(\(NoteText.maxBodyLength)자)를 초과합니다."))
+            throw AppError(message: String(localized: "병합 기록이 노트 최대 길이(\(NoteText.maxBodyLength)자)를 초과합니다."))
         }
     }
 }
@@ -203,14 +205,18 @@ enum MergeRunner {
 struct BulkTagPanel: View {
     @Bindable var workspace: WorkspaceModel
     let targets: [Issue]
-    @State private var search = ""
-    @State private var busy = false
+    @State var search = ""
+    @State var busy = false
     @State private var errorMessage: String?
+
+    /// 고른 노트의 지금 상태. 붙이거나 뗀 결과가 목록 모델에 반영되므로 처음 받은 값 대신 그것을 센다.
+    private var current: [Issue] { targets.map { workspace.issue(id: $0.id) ?? $0 } }
 
     private var options: [(name: String, count: Int)] {
         let term = search.trimmingCharacters(in: .whitespaces).drop { $0 == "#" }.lowercased()
+        let current = current
         return workspace.visibleLabels
-            .map { label in (label.name, targets.filter { $0.labels.contains { LabelNames.same($0.name, label.name) } }.count) }
+            .map { label in (label.name, current.filter { $0.labels.contains { LabelNames.same($0.name, label.name) } }.count) }
             .filter { term.isEmpty || $0.0.lowercased().contains(term) }
             .sorted { ($0.1 > 0 ? 0 : 1, $0.0) < ($1.1 > 0 ? 0 : 1, $1.0) }
     }

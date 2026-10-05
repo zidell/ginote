@@ -3,20 +3,20 @@ import SwiftUI
 
 /// 저장소가 없으면 시작 마법사, 있으면 3단 창.
 struct RootView: View {
-    @Environment(AppModel.self) private var app
+    private var app: AppModel { .shared }
 
     var body: some View {
         Group {
-            if app.settings.workspaces.isEmpty {
-                SetupView(mode: .firstRun)
-            } else if let workspace = app.workspace {
+            if let workspace = app.workspace {
                 MainSplitView(workspace: workspace)
-            } else {
+            } else if let active = app.settings.activeWorkspace {
                 ContentUnavailableView {
                     Label("저장소에 연결하는 중", systemImage: "arrow.triangle.2.circlepath")
                 } description: {
-                    Text(app.settings.activeWorkspace?.title ?? "")
+                    Text(active.title)
                 }
+            } else {
+                SetupView(mode: .firstRun)
             }
         }
         .sheet(item: Binding(get: { app.tokenPromptWorkspace }, set: { app.tokenPromptWorkspace = $0 })) { workspace in
@@ -43,9 +43,9 @@ struct RootView: View {
 enum PaneFocus: Hashable { case sidebar, list }
 
 struct MainSplitView: View {
-    @Environment(AppModel.self) private var app
+    private var app: AppModel { .shared }
     @Bindable var workspace: WorkspaceModel
-    @State private var columnVisibility = NavigationSplitViewVisibility.all
+    @State var columnVisibility = NavigationSplitViewVisibility.all
     @FocusState private var pane: PaneFocus?
 
     var body: some View {
@@ -62,9 +62,13 @@ struct MainSplitView: View {
             DetailView(workspace: workspace)
                 .id(workspace.workspace.id)
         }
-        .background(SidebarToggleAligner())
         .focusedSceneValue(\.workspace, workspace)
         .onChange(of: app.listFocusRequest) { _, _ in pane = .list }
+        // 켜자마자 키보드로 목록을 다룰 수 있게 목록에 포커스를 둔다(누르기 전에는 ↑↓·⏎·붙여넣기가 먹지 않았다).
+        .task {
+            try? await Task.sleep(for: .milliseconds(100))
+            if pane == nil { pane = .list }
+        }
         // 병합하는 동안에는 창을 막는다(웹과 같음).
         .overlay {
             if workspace.merging {
@@ -87,7 +91,7 @@ struct MainSplitView: View {
 
 /// 오른쪽 칸: 노트 하나, 여러 노트 선택, 또는 빈 화면.
 struct DetailView: View {
-    @Environment(AppModel.self) private var app
+    private var app: AppModel { .shared }
     @Environment(\.openWindow) private var openWindow
     @Bindable var workspace: WorkspaceModel
 
@@ -127,7 +131,7 @@ struct DetailView: View {
                 // 도움말 바로가기(웹 빈 화면의 보안 | MCP | 앱 | 키보드).
                 HStack(spacing: 14) {
                     ForEach(HelpView.Topic.allCases) { topic in
-                        Button { app.helpTopic = topic; openWindow(id: "help") } label: { Text(topic.title) }
+                        Button { app.helpTopic = topic; SystemActions.openWindow(openWindow, id: "help") } label: { Text(topic.title) }
                             .buttonStyle(.link)
                     }
                 }
@@ -162,7 +166,7 @@ struct ToolbarSlot: View {
 
 /// 노트를 따로 연 창.
 struct NoteWindowView: View {
-    @Environment(AppModel.self) private var app
+    private var app: AppModel { .shared }
     let number: Int
 
     var body: some View {
@@ -200,54 +204,4 @@ enum UIScale {
     static var value: CGFloat { CGFloat(AppModel.shared.settings.preferences.uiScale) }
     static func font(_ size: CGFloat, weight: Font.Weight = .regular) -> Font { .system(size: size * value, weight: weight) }
     static func size(_ points: CGFloat) -> CGFloat { points * value }
-}
-
-/// 사이드바 접기 버튼을 사이드바 칸 오른쪽 끝으로 민다(메모 앱과 같은 자리). SwiftUI는 이 버튼을 신호등 바로 옆에
-/// 고정해 좁은 사이드바에서 가운데처럼 어정쩡하게 보인다. 버튼 앞에 늘어나는 빈칸을 넣는다. SwiftUI가 툴바를 다시
-/// 만들면 빈칸이 빠지므로 창이 갱신될 때마다 확인한다(첫 항목만 보는 가벼운 검사).
-struct SidebarToggleAligner: NSViewRepresentable {
-    func makeNSView(context: Context) -> AlignerView { AlignerView() }
-    func updateNSView(_ view: AlignerView, context: Context) { view.align() }
-
-    final class AlignerView: NSView {
-        private static let toggleId = "com.apple.SwiftUI.navigationSplitView.toggleSidebar"
-        private var observer: NSObjectProtocol?
-
-        override func viewDidMoveToWindow() {
-            super.viewDidMoveToWindow()
-            if let observer { NotificationCenter.default.removeObserver(observer) }
-            observer = nil
-            guard let window else { return }
-            observer = NotificationCenter.default.addObserver(forName: NSWindow.didUpdateNotification, object: window, queue: .main) { [weak self] _ in
-                MainActor.assumeIsolated { self?.align() }
-            }
-            align()
-        }
-
-        func align() {
-            #if DEBUG
-            if ProcessInfo.processInfo.environment["GINOTE_NO_SIDEBAR_ALIGN"] != nil { return }
-            #endif
-            guard let toolbar = window?.toolbar,
-                  let index = toolbar.items.firstIndex(where: { $0.itemIdentifier.rawValue == Self.toggleId }) else { return }
-            let hasSpace = index > 0 && toolbar.items[index - 1].itemIdentifier == .flexibleSpace
-            // 사이드바를 접으면 빈칸이 목록 칸 툴바를 밀어내므로 뺀다. 펴면 다시 넣는다.
-            if sidebarCollapsed {
-                if hasSpace { toolbar.removeItem(at: index - 1) }
-            } else if !hasSpace {
-                toolbar.insertItem(withItemIdentifier: .flexibleSpace, at: index)
-            }
-        }
-
-        /// 창의 첫 분할 칸(사이드바)이 접혔는지.
-        private var sidebarCollapsed: Bool {
-            func findSplit(_ view: NSView) -> NSSplitView? {
-                if let split = view as? NSSplitView, split.arrangedSubviews.count >= 3 { return split }
-                for sub in view.subviews { if let found = findSplit(sub) { return found } }
-                return nil
-            }
-            guard let root = window?.contentView, let split = findSplit(root), let sidebar = split.arrangedSubviews.first else { return false }
-            return split.isSubviewCollapsed(sidebar) || sidebar.isHidden || sidebar.frame.width < 1
-        }
-    }
 }

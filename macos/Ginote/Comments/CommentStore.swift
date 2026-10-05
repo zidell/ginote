@@ -65,7 +65,8 @@ final class CommentItem: Identifiable {
 @MainActor
 @Observable
 final class CommentStore {
-    static let deleteDelay: TimeInterval = 3
+    /// 삭제 유예. 테스트가 줄여 쓴다.
+    static var deleteDelay: TimeInterval = 3
 
     unowned let session: NoteSession
     private(set) var items: [CommentItem] = []
@@ -116,7 +117,7 @@ final class CommentStore {
             let comments = try await client.listComments(number)
             var next: [CommentItem] = []
             for comment in comments {
-                let item = CommentItem(localId: "comment-\(comment.id)", remoteId: comment.id, rawBody: comment.body ?? "", repo: repo,
+                let item = CommentItem(localId: "comment-\(comment.id)", remoteId: comment.id, rawBody: comment.bodyText, repo: repo,
                                        author: comment.author, createdAt: comment.createdAt, updatedAt: comment.updatedAt)
                 next.append(item)
             }
@@ -124,7 +125,7 @@ final class CommentStore {
             if let pin = session.currentPin { decrypt(pin: pin) }
             restorePendingDrafts()
             loaded = true
-            for item in items where item.remoteId != nil { await loadAttachments(item) }
+            for item in items { if let id = item.remoteId { await loadAttachments(item, number: number, id: id) } }
         } catch {
             errorMessage = session.workspace.friendly(error)
         }
@@ -145,8 +146,7 @@ final class CommentStore {
         Task { await load() }
     }
 
-    private func loadAttachments(_ item: CommentItem) async {
-        guard let number = session.number, let id = item.remoteId else { return }
+    private func loadAttachments(_ item: CommentItem, number: Int, id: Int) async {
         if let files = try? await client.listAttachmentFiles(issueNumber: number, commentId: id) {
             item.attachments = files.map(Attachment.init(file:))
         }
@@ -243,7 +243,7 @@ final class CommentStore {
 
     func scheduleDelete(_ item: CommentItem, undoManager: UndoManager?) {
         guard session.isEditable, !item.deleting else { return }
-        guard item.remoteId != nil else {
+        guard let id = item.remoteId, let number = session.number else {
             items.removeAll { $0 === item }
             persistDrafts()
             return
@@ -252,7 +252,7 @@ final class CommentStore {
         deleteTimers[item.localId] = Task { [weak self] in
             try? await Task.sleep(for: .seconds(Self.deleteDelay))
             guard !Task.isCancelled else { return }
-            await self?.commitDelete(item)
+            await self?.commitDelete(item, id: id, number: number)
         }
         undoManager?.registerUndo(withTarget: self) { store in
             Task { @MainActor in store.cancelDelete(item) }
@@ -268,9 +268,8 @@ final class CommentStore {
     }
 
     /// 댓글을 지운 뒤 그 댓글만 쓰던 첨부도 지운다.
-    private func commitDelete(_ item: CommentItem) async {
+    private func commitDelete(_ item: CommentItem, id: Int, number: Int) async {
         deleteTimers[item.localId] = nil
-        guard let id = item.remoteId, let number = session.number else { return }
         item.deleteInFlight = true
         defer { item.deleteInFlight = false }
         do {

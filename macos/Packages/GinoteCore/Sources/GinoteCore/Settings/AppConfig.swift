@@ -291,6 +291,11 @@ public enum AppConfig {
     // MARK: - 읽기
 
     public static func parse(_ source: String, createId: () -> String = { UUID().uuidString.lowercased() }) throws -> ParseResult {
+        // TOML은 따옴표·주석 밖에 ASCII만 허용한다. 그 밖의 글자(한글 등)가 있으면 toml++가 오류 대신 assert로 앱을 죽이는
+        // 경우가 있어(`[[깨진` 2026-10-05 재현) 파서에 넘기기 전에 문법 오류로 알린다.
+        if let line = TOMLScan.firstUnquotedNonASCIILine(source) {
+            throw SyntaxError(message: "Line \(line): only ASCII letters, digits, '-' and '_' may appear outside quotes and comments.")
+        }
         let table: TOMLTable
         do {
             table = try TOMLTable(string: source)
@@ -437,5 +442,52 @@ public enum AppConfig {
         var text = String(format: "%.2f", value)
         if text.hasSuffix("0") { text.removeLast() }
         return text
+    }
+}
+
+/// TOML 원문을 따옴표·주석을 건너뛰며 훑는다.
+enum TOMLScan {
+    private static let delimiters: [(open: [Unicode.Scalar], escapes: Bool)] = [
+        (Array("\"\"\"".unicodeScalars), true), (Array("'''".unicodeScalars), false), (["\""], true), (["'"], false)
+    ]
+
+    /// 따옴표(", ', """, ''')와 주석(#) 밖에 있는 첫 비ASCII 글자의 줄 번호(1부터). 없으면 nil.
+    static func firstUnquotedNonASCIILine(_ source: String) -> Int? {
+        let scalars = Array(source.unicodeScalars)
+        var index = 0
+        var line = 1
+        func at(_ token: [Unicode.Scalar]) -> Bool {
+            index + token.count <= scalars.count && Array(scalars[index..<index + token.count]) == token
+        }
+        while index < scalars.count {
+            let scalar = scalars[index]
+            if scalar == "\n" { line += 1; index += 1; continue }
+            if scalar == "#" {
+                while index < scalars.count, scalars[index] != "\n" { index += 1 }
+                continue
+            }
+            if let delimiter = delimiters.first(where: { at($0.open) }) {
+                index += delimiter.open.count
+                let multiline = delimiter.open.count == 3
+                while index < scalars.count {
+                    if delimiter.escapes, scalars[index] == "\\" {
+                        if index + 1 < scalars.count, scalars[index + 1] == "\n" { line += 1 }
+                        index += 2
+                        continue
+                    }
+                    if at(delimiter.open) { index += delimiter.open.count; break }
+                    if scalars[index] == "\n" {
+                        // 닫지 않은 한 줄 문자열은 줄 끝에서 멈춘다(줄바꿈은 바깥 고리가 센다).
+                        if !multiline { break }
+                        line += 1
+                    }
+                    index += 1
+                }
+                continue
+            }
+            if !scalar.isASCII { return line }
+            index += 1
+        }
+        return nil
     }
 }

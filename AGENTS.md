@@ -42,8 +42,9 @@ npm run build       # 프로덕션 웹 빌드
 npm run icons       # 앱·웹 아이콘 전체 생성
 ```
 
-변경을 마치기 전에 다음을 모두 통과시킨다. CI도 `main` push와 pull request에서 같은 검사를
-하고, 커버리지(`npm run test:coverage`)를 Codecov에 올린다.
+웹·Tauri 코드를 바꿨으면 작업 끝에 다음 검사를 한 번 통과시킨다. Swift 전용 변경은
+[macos/README.md](macos/README.md)의 검사 절차를 따른다. 웹 CI는 `main` push와 pull request에서
+같은 검사를 하고, 웹 커버리지(`npm run test:coverage`)를 Codecov에 올린다.
 
 ```bash
 npm run check
@@ -52,14 +53,19 @@ npm run build
 (cd src-tauri && cargo test --lib)
 ```
 
+테스트는 필요한 것만 돌린다. 고친 코드에 닿는 테스트와 직전에 실패한 테스트만 이름으로 돌리고, 전체 실행은 작업 끝에
+한 번만 한다. 그 뒤 한두 개를 고쳤으면 그 테스트만 다시 돌리고 전체를 또 돌리지 않는다. 화면을 쓰는 테스트(E2E·화면 UI
+테스트)는 특히 그렇다. 도는 동안 사람이 기기를 못 쓴다.
+
 화면·동작을 바꿨으면 검사 통과로 끝내지 않고 직접 실행해 확인한다.
 
 - 사용자에게 "확인해 보세요"라고 넘기지 않는다. 앱을 띄워 고친 곳과 그 주변(같은 화면의 다른 버튼, 상태 전환,
   사이드바 접기·창 크기 같은 배치 변화)을 실제로 누르고 화면을 찍어 본다. 데이터가 바뀌는 동작은 GitHub에서
   결과를 확인하고 되돌린다. 직접 확인하지 못한 부분은 이유와 함께 밝힌다.
-- 맥 네이티브 앱은 먼저 화면 없는 테스트(`swift test`, `xcodebuild … test`, [macos/README.md](macos/README.md)의
-  "검사")를 통과시키고 고친 동작의 테스트를 더한다. 실제 창에서만 드러나는 것(배치·포커스·입력기)은 같은 문서의
-  "화면을 바꿨을 때 눌러 볼 것"을 따른다. 화면을 쓰는 시험은 사람이 쓰는 기기에서는 미리 알리고 한다.
+- 맥 네이티브 앱은 고친 코드에 닿는 Core·모델 단위 테스트와 해당 E2E 시나리오만 실행한다
+  ([macos/README.md](macos/README.md)의 "검사"). 전체 화면 없는 테스트는 작업 끝에 한 번,
+  전체 E2E는 공통 경로나 여러 화면을 함께 바꿨을 때만 명시적으로 실행한다.
+  화면을 쓰는 시험은 사람이 쓰는 기기에서는 미리 알리고 한다.
 - 사용자가 쓰고 있는 앱을 다시 빌드했으면 그 앱을 직접 다시 띄운다. "다시 실행해야 반영된다"고 안내만 하지
   않는다. 맥 네이티브 디버그 앱은 `osascript -e 'tell application id "net.gitools.note.mac" to quit'`로 끝나기
   (쓰던 노트를 저장한다)를 기다린 뒤 `open "macos/build/Build/Products/Debug/Ginote Native.app"`로 열고, 새 프로세스의

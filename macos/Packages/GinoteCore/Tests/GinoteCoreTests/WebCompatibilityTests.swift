@@ -214,11 +214,24 @@ final class WebCompatibilityTests: XCTestCase {
         .deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("scripts")
 
     static func findNode() -> URL? {
-        let candidates = (ProcessInfo.processInfo.environment["PATH"] ?? "").split(separator: ":").map(String.init)
+        let environment = ProcessInfo.processInfo.environment
+        let candidates = [environment["GINOTE_NODE"]].compactMap { $0 }
+            + (environment["PATH"] ?? "").split(separator: ":").map { String($0) + "/node" }
             + ["/opt/homebrew/bin", "/usr/local/bin"]
-        for directory in candidates {
-            let url = URL(fileURLWithPath: directory).appendingPathComponent("node")
-            if FileManager.default.isExecutableFile(atPath: url.path) { return url }
+        for candidate in candidates {
+            let url = URL(fileURLWithPath: candidate.hasSuffix("/node") ? candidate : candidate + "/node")
+            guard FileManager.default.isExecutableFile(atPath: url.path) else { continue }
+            let process = Process()
+            process.executableURL = url
+            process.arguments = ["--version"]
+            let output = Pipe()
+            process.standardOutput = output
+            process.standardError = Pipe()
+            guard (try? process.run()) != nil else { continue }
+            process.waitUntilExit()
+            let version = String(decoding: output.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
+            guard let major = Int(version.dropFirst().split(separator: ".").first ?? ""), major >= 22 else { continue }
+            return url
         }
         return nil
     }

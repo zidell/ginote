@@ -40,6 +40,9 @@ public enum NoteMerge {
         GitHubDate.parse(value).map { $0.timeIntervalSince1970 * 1000 } ?? Double(Int.max)
     }
 
+    /// 가장 이른 노트의 제목(없으면 빈 글). 병합 노트의 제목으로 쓴다.
+    public static func earliestTitle(_ sources: [Source]) -> String { earliest(sources)?.title ?? "" }
+
     public static func earliest(_ sources: [Source]) -> Source? {
         sources.sorted { left, right in
             let l = comparableDate(left.createdAt), r = comparableDate(right.createdAt)

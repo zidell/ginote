@@ -44,7 +44,9 @@ struct Attachment: Identifiable, Hashable {
 @MainActor
 @Observable
 final class AttachmentStore {
-    static let deleteDelay: TimeInterval = 5
+    /// 삭제 유예와 실패 뒤 다시 시도할 때까지의 시간. 테스트가 줄여 쓴다.
+    static var deleteDelay: TimeInterval = 5
+    static var retryDelay: TimeInterval = 15
 
     unowned let session: NoteSession
     private(set) var items: [Attachment] = []
@@ -75,7 +77,8 @@ final class AttachmentStore {
         do {
             let files = try await client.listAttachmentFiles(issueNumber: number)
             guard uploadingNames.isEmpty, deletingPath == nil else { return }
-            let byPath = Dictionary(files.map { ($0.path, $0) }, uniquingKeysWith: { first, _ in first })
+            var byPath: [String: RepoFile] = [:]
+            for file in files where byPath[file.path] == nil { byPath[file.path] = file }
             var linked: [Attachment] = []
             var seen = Set<String>()
             for path in AttachmentLinks.parsePaths(AttachmentLinks.expand(session.body, repo: repo)) {
@@ -177,8 +180,7 @@ final class AttachmentStore {
     }
 
     func copyMarkdown(_ item: Attachment) {
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(markdownLink(item), forType: .string)
+        SystemActions.copy(markdownLink(item))
     }
 
     /// 본문 맨 끝에 링크를 넣고 바로 저장한다.
@@ -230,7 +232,7 @@ final class AttachmentStore {
     }
 
     /// 본문 링크를 지우고 저장한 뒤 파일을 지운다. 404는 이미 지워진 것으로 본다.
-    private func commitDelete(_ item: Attachment) async {
+    func commitDelete(_ item: Attachment) async {
         guard pendingDeletes[item.path] != nil else { return }
         timers[item.path] = nil
         let link = AttachmentLinks.compress(markdownLink(item), repo: repo)
@@ -238,7 +240,7 @@ final class AttachmentStore {
             session.edit(body: AttachmentLinks.removeLink(session.body, link: link))
         }
         guard await session.saveForced() else {
-            startTimer(item, at: Date().addingTimeInterval(15))
+            startTimer(item, at: Date().addingTimeInterval(Self.retryDelay))
             return
         }
         deletingPath = item.path
@@ -248,7 +250,7 @@ final class AttachmentStore {
         } catch let error as GitHubError where error.status == 404 {
         } catch {
             errorMessage = session.workspace.friendly(error)
-            startTimer(item, at: Date().addingTimeInterval(15))
+            startTimer(item, at: Date().addingTimeInterval(Self.retryDelay))
             return
         }
         pendingDeletes[item.path] = nil
@@ -257,7 +259,7 @@ final class AttachmentStore {
         persist()
     }
 
-    private func persist() {
+    func persist() {
         guard let number = session.number else { return }
         let deletes = items.compactMap { item -> LocalState.PendingAttachmentDelete? in
             guard let date = pendingDeletes[item.path] else { return nil }
@@ -295,7 +297,7 @@ final class AttachmentStore {
     func download(_ item: Attachment) async {
         do {
             let source = try await localFile(item)
-            let downloads = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask)[0]
+            let downloads = SystemActions.downloadsDirectory
             var target = downloads.appendingPathComponent(item.name)
             var counter = 2
             while FileManager.default.fileExists(atPath: target.path) {
@@ -305,7 +307,7 @@ final class AttachmentStore {
                 counter += 1
             }
             try FileManager.default.copyItem(at: source, to: target)
-            NSWorkspace.shared.activateFileViewerSelecting([target])
+            SystemActions.reveal([target])
         } catch {
             errorMessage = session.workspace.friendly(error)
         }
@@ -315,8 +317,11 @@ final class AttachmentStore {
 /// 첨부 파일 캐시. 경로에 UUID가 있고 blob sha가 내용이므로 sha를 키로 쓴다.
 actor ThumbnailCache {
     static let shared = ThumbnailCache()
-    let directory: URL = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
-        .appendingPathComponent(ConfigStore.bundleIdentifier).appendingPathComponent("attachments")
+    /// 단위 테스트는 사용자 앱의 캐시와 섞이지 않게 임시 폴더를 쓴다.
+    let directory: URL = (AppModel.isUnitTest
+        ? FileManager.default.temporaryDirectory.appendingPathComponent("ginote-unittest-cache")
+        : FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0].appendingPathComponent(ConfigStore.bundleIdentifier))
+        .appendingPathComponent("attachments")
     private var thumbnails: [String: NSImage] = [:]
 
     func file(sha: String, name: String) -> URL? {

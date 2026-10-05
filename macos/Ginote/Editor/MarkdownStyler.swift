@@ -15,13 +15,13 @@ enum MarkdownStyler {
     private static let strike = try! NSRegularExpression(pattern: #"~~(?=\S)(.+?)(?<=\S)~~"#)
 
     static func restyle(_ textView: NSTextView, style: EditorStyle) {
-        guard let storage = textView.textStorage else { return }
+        let storage = textView.textStorage!
         apply(storage, range: NSRange(location: 0, length: storage.length), style: style)
     }
 
     /// 방금 고친 문단만 다시 칠한다.
     static func restyleEditedParagraphs(_ textView: NSTextView, style: EditorStyle) {
-        guard let storage = textView.textStorage else { return }
+        let storage = textView.textStorage!
         let text = storage.string as NSString
         let selection = textView.selectedRange()
         let start = max(0, selection.location - 1)
@@ -35,50 +35,42 @@ enum MarkdownStyler {
     }
 
     private static func apply(_ storage: NSTextStorage, range: NSRange, style: EditorStyle) {
-        guard range.length > 0 || storage.length == 0 else { return }
         let base = style.font
         let paragraph = style.paragraphStyle
         let text = storage.string
         storage.beginEditing()
         storage.setAttributes([.font: base, .paragraphStyle: paragraph, .foregroundColor: NSColor.textColor], range: range)
 
-        heading.enumerateMatches(in: text, range: range) { match, _, _ in
-            guard let match else { return }
+        for match in heading.matches(in: text, range: range) {
             let level = match.range(at: 1).length
             let scale: CGFloat = [1.5, 1.3, 1.15, 1.05, 1, 1][min(level, 6) - 1]
             let font = NSFontManager.shared.convert(base, toHaveTrait: .boldFontMask).withSize(base.pointSize * scale)
             storage.addAttribute(.font, value: font, range: match.range)
             storage.addAttribute(.foregroundColor, value: NSColor.secondaryLabelColor, range: match.range(at: 1))
         }
-        bold.enumerateMatches(in: text, range: range) { match, _, _ in
-            guard let match else { return }
-            let current = storage.attribute(.font, at: match.range.location, effectiveRange: nil) as? NSFont ?? base
+        for match in bold.matches(in: text, range: range) {
+            // 위에서 모든 글자에 글꼴을 넣었다.
+            let current = storage.attribute(.font, at: match.range.location, effectiveRange: nil) as! NSFont
             storage.addAttribute(.font, value: NSFontManager.shared.convert(current, toHaveTrait: .boldFontMask), range: match.range)
         }
-        italic.enumerateMatches(in: text, range: range) { match, _, _ in
-            guard let match else { return }
-            let current = storage.attribute(.font, at: match.range.location, effectiveRange: nil) as? NSFont ?? base
+        for match in italic.matches(in: text, range: range) {
+            let current = storage.attribute(.font, at: match.range.location, effectiveRange: nil) as! NSFont
             storage.addAttribute(.font, value: NSFontManager.shared.convert(current, toHaveTrait: .italicFontMask), range: match.range)
         }
-        strike.enumerateMatches(in: text, range: range) { match, _, _ in
-            guard let match else { return }
+        for match in strike.matches(in: text, range: range) {
             storage.addAttribute(.strikethroughStyle, value: NSUnderlineStyle.single.rawValue, range: match.range)
         }
-        quote.enumerateMatches(in: text, range: range) { match, _, _ in
-            guard let match else { return }
+        for match in quote.matches(in: text, range: range) {
             storage.addAttribute(.foregroundColor, value: NSColor.secondaryLabelColor, range: match.range)
         }
-        listMarker.enumerateMatches(in: text, range: range) { match, _, _ in
-            guard let match else { return }
+        for match in listMarker.matches(in: text, range: range) {
             storage.addAttribute(.foregroundColor, value: NSColor.controlAccentColor, range: match.range)
         }
         let mono = NSFont.monospacedSystemFont(ofSize: base.pointSize * 0.92, weight: .regular)
-        code.enumerateMatches(in: text, range: range) { match, _, _ in
-            guard let match else { return }
-            storage.addAttributes([.font: mono, .backgroundColor: NSColor.quaternaryLabelColor], range: match.range)
+        for match in code.matches(in: text, range: range) {
+            storage.addAttributes([.font: mono, .ginoteInlineCode: true], range: match.range)
         }
-        link.enumerateMatches(in: text, range: range) { match, _, _ in
-            guard let match else { return }
+        for match in link.matches(in: text, range: range) {
             storage.addAttributes([.foregroundColor: NSColor.linkColor, .underlineStyle: NSUnderlineStyle.single.rawValue], range: match.range)
         }
         styleCodeBlocks(storage, text: text, mono: mono)
@@ -89,12 +81,11 @@ enum MarkdownStyler {
     private static func styleCodeBlocks(_ storage: NSTextStorage, text: String, mono: NSFont) {
         let nsText = text as NSString
         var openStart: Int?
-        fence.enumerateMatches(in: text, range: NSRange(location: 0, length: nsText.length)) { match, _, _ in
-            guard let match else { return }
+        for match in fence.matches(in: text, range: NSRange(location: 0, length: nsText.length)) {
             if let start = openStart {
                 let block = NSRange(location: start, length: NSMaxRange(match.range) - start)
                 storage.setAttributes([.font: mono, .foregroundColor: NSColor.secondaryLabelColor,
-                                       .paragraphStyle: storage.attribute(.paragraphStyle, at: start, effectiveRange: nil) ?? NSParagraphStyle.default],
+                                       .paragraphStyle: storage.attribute(.paragraphStyle, at: start, effectiveRange: nil)!],
                                       range: block)
                 openStart = nil
             } else {

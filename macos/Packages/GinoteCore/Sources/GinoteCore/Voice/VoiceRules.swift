@@ -105,9 +105,12 @@ public struct OpenAIVoiceClient: Sendable {
     public let apiKey: String
     let session: URLSession
 
-    public init(apiKey: String, session: URLSession = .shared) {
+    /// 테스트가 가짜 OpenAI(URLProtocol)를 끼우는 자리. 비어 있으면 기본 세션을 쓴다.
+    nonisolated(unsafe) public static var sessionOverride: URLSession?
+
+    public init(apiKey: String, session: URLSession? = nil) {
         self.apiKey = apiKey
-        self.session = session
+        self.session = session ?? Self.sessionOverride ?? .shared
     }
 
     public struct Refinement: Equatable, Sendable {

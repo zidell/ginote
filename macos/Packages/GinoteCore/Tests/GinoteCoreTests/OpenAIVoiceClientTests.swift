@@ -1,4 +1,5 @@
 import Foundation
+import GinoteTestSupport
 import XCTest
 @testable import GinoteCore
 
@@ -8,9 +9,7 @@ final class OpenAIVoiceClientTests: XCTestCase {
 
     override func setUp() {
         FakeOpenAI.reset()
-        let configuration = URLSessionConfiguration.ephemeral
-        configuration.protocolClasses = [FakeOpenAI.self]
-        client = OpenAIVoiceClient(apiKey: "sk-test", session: URLSession(configuration: configuration))
+        client = OpenAIVoiceClient(apiKey: "sk-test", session: FakeOpenAI.session)
     }
 
     func testTranscribeSendsMultipartWithLanguageAndHints() async throws {
@@ -77,41 +76,23 @@ final class OpenAIVoiceClientTests: XCTestCase {
         } catch { XCTFail("\(error)") }
     }
 
-    func testDefaultSessionIsShared() {
+    func testDefaultSessionIsSharedUnlessOverridden() {
         XCTAssertTrue(OpenAIVoiceClient(apiKey: "k").session === URLSession.shared)
+        let fake = FakeOpenAI.session
+        OpenAIVoiceClient.sessionOverride = fake
+        defer { OpenAIVoiceClient.sessionOverride = nil }
+        XCTAssertTrue(OpenAIVoiceClient(apiKey: "k").session === fake)
     }
-}
 
-final class FakeOpenAI: URLProtocol {
-    nonisolated(unsafe) static var reply: [String: Any] = [:]
-    nonisolated(unsafe) static var status = 200
-    nonisolated(unsafe) static var lastRequest: URLRequest?
-    nonisolated(unsafe) static var lastBody = Data()
-
-    static func reset() { reply = [:]; status = 200; lastRequest = nil; lastBody = Data() }
-
-    override class func canInit(with request: URLRequest) -> Bool { true }
-    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
-    override func stopLoading() {}
-
-    override func startLoading() {
-        Self.lastRequest = request
-        var body = request.httpBody ?? Data()
-        if body.isEmpty, let stream = request.httpBodyStream {
-            stream.open()
-            var buffer = [UInt8](repeating: 0, count: 65_536)
-            while stream.hasBytesAvailable {
-                let read = stream.read(&buffer, maxLength: buffer.count)
-                if read <= 0 { break }
-                body.append(buffer, count: read)
-            }
-            stream.close()
-        }
-        Self.lastBody = body
-        let data = (try? JSONSerialization.data(withJSONObject: Self.reply)) ?? Data()
-        let response = HTTPURLResponse(url: request.url!, statusCode: Self.status, httpVersion: "HTTP/1.1", headerFields: ["Content-Type": "application/json"])!
-        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
-        client?.urlProtocol(self, didLoad: data)
-        client?.urlProtocolDidFinishLoading(self)
+    func testQueuedRepliesPerPath() async throws {
+        FakeOpenAI.answer("/v1/models", ["data": [["id": "first"]]])
+        FakeOpenAI.answer("/v1/models", status: 500, ["error": ["message": "둘째 실패"]])
+        let first = try await client.listModels()
+        XCTAssertEqual(first, ["first"])
+        do { _ = try await client.listModels(); XCTFail() } catch let error as GitHubError { XCTAssertEqual(error.message, "둘째 실패") }
+        FakeOpenAI.reply = ["data": []]
+        let fallback = try await client.listModels()
+        XCTAssertEqual(fallback, [])
+        XCTAssertEqual(FakeOpenAI.requests, ["/v1/models", "/v1/models", "/v1/models"])
     }
 }

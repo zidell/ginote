@@ -76,8 +76,6 @@ final class NoteSession: Identifiable {
         restoreLocalDraft()
         if lockState == .locked, let pin = app.lockSession.pin {
             reuseSessionPin(pin)
-        } else if lockState == .locked {
-            lockPrompt = .unlock(message: nil)
         }
     }
 
@@ -95,9 +93,9 @@ final class NoteSession: Identifiable {
     private func setUpStores() {
         attachments = AttachmentStore(session: self)
         comments = CommentStore(session: self)
-        managedLinksProvider = { [weak self] in
-            guard let self else { return nil }
-            return self.attachments.managedLinks(commentLinkedPaths: self.comments.linkedPaths)
+        // 이 세션이 가진 클로저라 세션보다 오래 살지 않는다.
+        managedLinksProvider = { [unowned self] in
+            self.attachments.managedLinks(commentLinkedPaths: self.comments.linkedPaths)
         }
         onUnlock = { [weak self] pin in
             self?.comments.decrypt(pin: pin)
@@ -162,15 +160,10 @@ final class NoteSession: Identifiable {
     }
 
     func chooseAttachments() {
-        let panel = NSOpenPanel()
-        panel.allowsMultipleSelection = true
-        panel.canChooseDirectories = false
-        panel.message = String(localized: "노트에 첨부할 파일을 고르세요.")
-        let handler: (NSApplication.ModalResponse) -> Void = { [weak self] response in
-            guard response == .OK else { return }
-            self?.addAttachments(panel.urls)
+        Task {
+            let urls = await Dialogs.chooseFiles(message: String(localized: "노트에 첨부할 파일을 고르세요."))
+            addAttachments(urls)
         }
-        if let window = NSApp.keyWindow { panel.beginSheetModal(for: window, completionHandler: handler) } else { handler(panel.runModal()) }
     }
 
     func allocate(pendingFiles: [URL]) {
@@ -226,7 +219,7 @@ final class NoteSession: Identifiable {
         issue = remote
         let locked = NoteLock.isLockedTitle(remote.title)
         title = NoteLock.removeLock(from: remote.title)
-        let remoteBody = remote.body ?? ""
+        let remoteBody = remote.bodyText
         encryptedBody = locked ? remoteBody : ""
         body = locked ? "" : AttachmentLinks.compress(AttachmentLinks.stripManagedBlocks(remoteBody), repo: repo)
         preservedManagedLinks = locked ? [] : AttachmentLinks.managedLinks(remoteBody)
@@ -427,8 +420,10 @@ final class NoteSession: Identifiable {
         let seconds = delay ?? Double(app.settings.preferences.autoSaveSeconds)
         saveTimer = Task { [weak self] in
             if seconds > 0 { try? await Task.sleep(for: .seconds(seconds)) }
-            guard !Task.isCancelled else { return }
-            await self?.save()
+            guard !Task.isCancelled, let self else { return }
+            // 기다림이 끝나면 저장은 따로 돌린다. 타이머를 취소해도(지금 저장·잠그기 등) 이미 보낸 요청은 끝까지 간다.
+            // 같은 작업 안에서 저장하면 취소가 GitHub 요청까지 끊어 "연결하지 못했습니다"가 뜬다.
+            Task { await self.save() }
         }
     }
 
@@ -510,7 +505,7 @@ final class NoteSession: Identifiable {
                     reopen = true
                 }
             }
-            guard let target else { throw GitHubError(status: 0, message: String(localized: "새 노트를 준비하지 못했습니다.")) }
+            guard let target else { throw AppError(message: String(localized: "새 노트를 준비하지 못했습니다.")) }
 
             try await workspace.ensureLabels(labels)
             let remoteNote = try noteForRemote(note, issueNumber: target.number)
@@ -529,9 +524,9 @@ final class NoteSession: Identifiable {
                     saved = try await workspace.client.updateIssue(saved.number, reopened)
                 } else {
                     var discarded = saved
-                    if let previous, saved.title == remoteNote.title, saved.body ?? "" == remoteNote.body {
+                    if let previous, saved.title == remoteNote.title, saved.bodyText == remoteNote.body {
                         discarded = try await workspace.client.updateIssue(saved.number, NoteDraft(
-                            title: previous.title, body: previous.body ?? "", labels: previous.labels.map(\.name)))
+                            title: previous.title, body: previous.bodyText, labels: previous.labels.map(\.name)))
                     }
                     discarded.state = "closed"
                     discardLocalChanges(discarded)
@@ -540,7 +535,7 @@ final class NoteSession: Identifiable {
             }
 
             issue = saved
-            if lockState != .plain { encryptedBody = saved.body ?? encryptedBody }
+            if lockState != .plain { encryptedBody = saved.bodyText }
             lastRemoteNote = note
             workspace.apply(saved)
             let hasNewerChanges = savingRevision != revision || signature(currentNote()) != noteSignature
@@ -563,10 +558,8 @@ final class NoteSession: Identifiable {
     private func noteForRemote(_ note: CurrentNote, issueNumber: Int) throws -> NoteDraft {
         let clean = AttachmentLinks.stripManagedBlocks(note.body)
         let manual = Set(AttachmentLinks.parsePaths(AttachmentLinks.expand(clean, repo: repo)))
-        let links = managedLinks().filter { link in
-            guard let path = AttachmentLinks.parsePaths(link).first else { return false }
-            return !manual.contains(path)
-        }
+        // 본문에 직접 넣은 첨부는 관리 블록에서 뺀다.
+        let links = managedLinks().filter { link in !AttachmentLinks.parsePaths(link).contains(where: manual.contains) }
         let remoteBody = AttachmentLinks.expand(AttachmentLinks.withManagedBlock(clean, links: links), repo: repo)
         switch lockState {
         case .plain:
@@ -574,7 +567,7 @@ final class NoteSession: Identifiable {
         case .locked:
             return NoteDraft(title: NoteLock.addLock(to: note.title), body: encryptedBody, labels: note.labels)
         case .unlocked:
-            guard let pin = activePin else { throw GitHubError(status: 0, message: String(localized: "잠금 세션이 만료되었습니다.")) }
+            guard let pin = activePin else { throw AppError(message: String(localized: "잠금 세션이 만료되었습니다.")) }
             encryptedBody = try app.noteLock.encrypt(remoteBody, pin: pin, issueNumber: issueNumber)
             return NoteDraft(title: NoteLock.addLock(to: note.title), body: encryptedBody, labels: note.labels)
         }
@@ -599,7 +592,8 @@ final class NoteSession: Identifiable {
 
     // MARK: - 잠금
 
-    private var activePin: String?
+    /// 지금 열어 둔 숫자. 잠긴 동안에는 없다.
+    var activePin: String?
 
     /// 잠그기: 기억한 숫자가 있으면 바로 잠그고, 없으면 숫자를 묻는다.
     func requestLock() {
@@ -665,15 +659,11 @@ final class NoteSession: Identifiable {
 
     private func revealWithSessionPin(_ pin: String? = nil) async {
         defer { reusingPin = false }
-        guard lockState == .locked, let pin = pin ?? app.lockSession.pin, pin != rejectedPin else {
-            if lockState == .locked, lockPrompt == nil { lockPrompt = .unlock(message: nil) }
-            return
-        }
+        guard lockState == .locked, let pin = pin ?? app.lockSession.pin, pin != rejectedPin else { return }
         do {
             try unlock(pin: pin)
         } catch {
             rejectedPin = pin
-            lockPrompt = .unlock(message: String(localized: "6자리 숫자가 맞지 않거나 잠긴 이슈가 아닙니다."))
         }
     }
 

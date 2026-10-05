@@ -3,24 +3,24 @@ import SwiftUI
 
 /// 오른쪽 칸(또는 별도 창)의 노트 하나.
 struct NoteDetailView: View {
-    @Environment(AppModel.self) private var app
+    private var app: AppModel { .shared }
     @Environment(\.undoManager) private var undoManager
     @Bindable var session: NoteSession
     /// 여러 개를 고르는 중 마지막으로 누른 노트: 첨부·기록까지 읽기 전용으로 보인다(웹과 같음).
     var readOnly = false
     /// 따로 연 창처럼 처음부터 본문에 포커스를 둘 때.
     var focusOnAppear = false
-    @State private var bodyText = ""
-    @State private var focusRequest = 0
-    @State private var showingTags = false
+    @State var bodyText = ""
+    @State var focusRequest = 0
+    @State var showingTags = false
     /// 태그 창을 열기 전에 키보드 포커스가 있던 곳. 창을 닫으면 그리로 돌려보낸다. 돌려보내지 않으면 AppKit이
     /// 툴바 첫 버튼(사이드바 접기)에 포커스를 줘 스페이스 한 번에 사이드바가 접힌다.
-    @State private var focusBeforeTags = WeakResponder()
-    @State private var showingReplace = false
-    @State private var previewing = false
+    @State var focusBeforeTags = WeakResponder()
+    @State var showingReplace = false
+    @State var previewing = false
     /// 파일을 노트 위로 끌어 온 중(웹 is-dragging-files: 점선 테두리와 옅은 배경).
-    @State private var dropTargeted = false
-    @State private var editorDropTargeted = false
+    @State var dropTargeted = false
+    @State var editorDropTargeted = false
 
     private var preferences: Preferences { app.settings.preferences }
     private var showsPreview: Bool { previewing || readOnly }
@@ -51,11 +51,7 @@ struct NoteDetailView: View {
             return true
         } isTargeted: { dropTargeted = $0 }
         .focusedSceneValue(\.noteSession, readOnly ? nil : session)
-        .focusedSceneValue(\.noteCommands, readOnly ? nil : NoteCommandHandlers(
-            showTags: { showingTags = true },
-            togglePreview: { previewing.toggle() },
-            showReplace: { showingReplace = true },
-            focusEditor: { focusRequest += 1 }))
+        .focusedSceneValue(\.noteCommands, readOnly ? nil : commandHandlers)
         .onAppear {
             bodyText = session.body
             if app.pendingEditorFocus {
@@ -63,12 +59,12 @@ struct NoteDetailView: View {
                 if session.lockState == .locked { session.lockPrompt = .unlock(message: nil) } else { focusRequest += 1 }
             }
             if focusOnAppear, session.lockState != .locked { focusRequest += 1 }
-            else if session.isNew || session.issue?.body?.isEmpty == true { focusRequest += 1 }
+            else if session.isNew { focusRequest += 1 }
         }
         .onChange(of: session.body) { _, value in if value != bodyText { bodyText = value } }
         .onChange(of: showingTags) { _, showing in
             if showing {
-                focusBeforeTags.value = NSApp.keyWindow?.firstResponder
+                focusBeforeTags.value = SystemActions.keyResponder()
             } else if let responder = focusBeforeTags.value, let window = (responder as? NSView)?.window {
                 DispatchQueue.main.async { window.makeFirstResponder(responder) }
                 focusBeforeTags.value = nil
@@ -87,6 +83,15 @@ struct NoteDetailView: View {
         .onDisappear { Task { await session.flush() } }
     }
 
+    /// 메뉴(Commands)가 이 노트 화면에 시키는 일.
+    var commandHandlers: NoteCommandHandlers {
+        NoteCommandHandlers(
+            showTags: { showingTags = true },
+            togglePreview: { previewing.toggle() },
+            showReplace: { showingReplace = true },
+            focusEditor: { focusRequest += 1 })
+    }
+
     // MARK: - 위쪽: 제목, 태그
 
     /// 본문 스크롤 안에 넣는 머리. 노트 칸의 끌어 놓기는 바깥 SwiftUI 화면에 달려 있어, 따로 그려지는 이 영역에도 단다.
@@ -99,7 +104,7 @@ struct NoteDetailView: View {
     }
 
     @ViewBuilder
-    private var header: some View {
+    var header: some View {
         VStack(alignment: .leading, spacing: 8) {
             if preferences.titleMode == .separate {
                 TextField("제목", text: Binding(get: { session.title }, set: { session.edit(title: $0) }))
@@ -276,7 +281,7 @@ struct NoteDetailView: View {
         session.isPinned ? String(localized: "고정 해제") : String(localized: "고정")
     }
 
-    private var statusText: String {
+    var statusText: String {
         var parts: [String] = []
         if let number = session.number { parts.append("#\(number)") } else { parts.append(session.allocationFailed ? String(localized: "번호를 받지 못함") : String(localized: "새 노트")) }
         if let issue = session.issue { parts.append(String(localized: "수정 \(dateText(issue.updatedAt))")) }
@@ -351,6 +356,7 @@ struct TagRowView: View {
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(.secondary)
+                .accessibilityIdentifier("note-add-tag")
                 .popover(isPresented: $showingPicker, arrowEdge: .bottom) {
                     TagPickerView(session: session).frame(width: 300, height: 340)
                 }
@@ -363,10 +369,10 @@ struct TagRowView: View {
 /// 노트 태그 선택기. 최대 12개 후보, `이름: 설명`으로 새 태그 만들기.
 struct TagPickerView: View {
     @Bindable var session: NoteSession
-    @State private var search = ""
+    @State var search = ""
     @State private var errorMessage: String?
-    @State private var busy = false
-    @State private var highlighted = -1
+    @State var busy = false
+    @State var highlighted = -1
     @FocusState private var focused: Bool
 
     private var matches: [GitHubLabel] {
@@ -381,7 +387,8 @@ struct TagPickerView: View {
 
     private var newName: String { NoteText.normalizeTagName(TagDefinition.parse(search).name) }
     private var canCreate: Bool {
-        !newName.isEmpty && !PinLabel.isPin(newName) && !session.workspace.visibleLabels.contains(where: { LabelNames.same($0.name, newName) })
+        // 고정 라벨(ginote:pin)은 `:`에서 이름이 잘려 여기 올 수 없다.
+        !newName.isEmpty && !session.workspace.visibleLabels.contains(where: { LabelNames.same($0.name, newName) })
     }
     /// ↑↓로 고를 수 있는 줄 수(후보 + "만들기").
     private var rowCount: Int { matches.count + (canCreate ? 1 : 0) }
@@ -493,7 +500,6 @@ struct LockedPlaceholder: View {
             } else {
                 Text("잠긴 노트").font(.title3)
                 Button("잠금 열기…") { session.lockPrompt = .unlock(message: nil) }
-                    .keyboardShortcut(.defaultAction)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

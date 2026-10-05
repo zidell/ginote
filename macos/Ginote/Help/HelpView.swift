@@ -28,7 +28,7 @@ struct HelpView: View {
         }
     }
 
-    @State private var topic: Topic? = AppModel.shared.helpTopic
+    @State var topic: Topic? = AppModel.shared.helpTopic
 
     var body: some View {
         NavigationSplitView {
@@ -55,7 +55,7 @@ struct HelpView: View {
     }
 }
 
-private struct SecurityHelp: View {
+struct SecurityHelp: View {
     var body: some View {
         Text("보안과 데이터").font(.title2.bold())
         Text("Ginote에는 앱 서버가 없습니다. 이 앱은 GitHub API에 직접 연결하고, 음성 기능을 켠 경우에만 OpenAI에 연결합니다.")
@@ -74,8 +74,8 @@ private struct SecurityHelp: View {
     }
 }
 
-private struct McpHelp: View {
-    @Environment(AppModel.self) private var app
+struct McpHelp: View {
+    private var app: AppModel { .shared }
 
     var body: some View {
         let repo = app.workspace?.repo ?? ""
@@ -102,13 +102,12 @@ private struct McpHelp: View {
     }
 
     private func copy(_ text: String) {
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(text, forType: .string)
+        SystemActions.copy(text)
     }
 }
 
-private struct KeyboardHelp: View {
-    @Environment(AppModel.self) private var app
+struct KeyboardHelp: View {
+    private var app: AppModel { .shared }
 
     /// 설정 → 단축키에서 바꾼 값을 그대로 보인다. 여러 명령을 한 줄에 묶으면 " / "로 잇는다.
     private func keys(_ commands: ShortcutCommand...) -> String {
@@ -151,15 +150,15 @@ private struct KeyboardHelp: View {
     }
 }
 
-private struct AboutHelp: View {
-    @Environment(AppModel.self) private var app
+struct AboutHelp: View {
+    private var app: AppModel { .shared }
 
     var body: some View {
         Text("Ginote Native").font(.title2.bold())
         Text("버전 \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "")")
         Text("macOS 전용 시험 앱입니다. 웹·데스크톱(Tauri) 앱과 같은 저장소를 그대로 씁니다.").foregroundStyle(.secondary)
         LabeledContent("설정 파일") {
-            Button(app.configStore.configURL.path) { NSWorkspace.shared.activateFileViewerSelecting([app.configStore.configURL]) }
+            Button(app.configStore.configURL.path) { SystemActions.reveal([app.configStore.configURL]) }
                 .buttonStyle(.link)
         }
         Text("터미널에서 `Ginote --config-path`로 위치를 확인할 수 있습니다. 실행 중에 고쳐도 1초 안에 반영되고, 결과는 같은 폴더의 config-status.txt에 남습니다.")

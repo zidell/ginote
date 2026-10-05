@@ -6,6 +6,9 @@ options:
     macOS: "14.0"
   developmentLanguage: ko
   createIntermediateGroups: true
+configs:
+  Debug: debug
+  Release: release
 packages:
   GinoteCore:
     path: Packages/GinoteCore
@@ -59,8 +62,7 @@ targets:
         DEAD_CODE_STRIPPING: YES
         SWIFT_EMIT_LOC_STRINGS: YES
         LOCALIZATION_PREFERS_STRING_CATALOGS: YES
-  # 화면 모델 단위 테스트. 앱을 호스트로 띄우지만 창·Dock·포커스는 쓰지 않는다(AppModel.isUnitTest).
-  # GitHub는 GinoteCore 패키지의 GinoteTestSupport(FakeGitHub, 메모리 서버)로 바꿔 끼운다.
+  # 저장·동기화 모델 단위 테스트. GitHub는 메모리 서버로 바꿔 끼운다.
   GinoteTests:
     type: bundle.unit-test
     platform: macOS

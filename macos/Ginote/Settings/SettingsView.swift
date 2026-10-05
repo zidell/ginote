@@ -6,7 +6,7 @@ enum SettingsTab: String, Hashable { case general, editor, list, workspaces, voi
 
 /// 설정 창(⌘,). 바꾸는 즉시 반영하고 config.toml에 쓴다(macos/DESIGN.md §5.5).
 struct SettingsView: View {
-    @Environment(AppModel.self) private var app
+    private var app: AppModel { .shared }
 
     var body: some View {
         @Bindable var app = app
@@ -28,7 +28,7 @@ private func minutesLabel(_ minutes: Int) -> String {
 }
 
 struct GeneralSettings: View {
-    @Environment(AppModel.self) private var app
+    private var app: AppModel { .shared }
 
     var body: some View {
         Form {
@@ -54,7 +54,7 @@ struct GeneralSettings: View {
             Toggle("화면 잠금·잠자기 때 잠금 숫자 지우기", isOn: binding(\.preferences.clearLockOnSleep))
             Section {
                 LabeledContent("설정 파일") {
-                    Button("Finder에서 보기") { NSWorkspace.shared.activateFileViewerSelecting([app.configStore.configURL]) }
+                    Button("Finder에서 보기") { SystemActions.reveal([app.configStore.configURL]) }
                 }
                 Text("언어는 시스템 설정 → 일반 → 언어 및 지역 → 앱별 언어에서 바꿉니다.")
                     .font(.caption).foregroundStyle(.secondary)
@@ -69,7 +69,7 @@ struct GeneralSettings: View {
 }
 
 struct EditorSettings: View {
-    @Environment(AppModel.self) private var app
+    private var app: AppModel { .shared }
 
     var body: some View {
         Form {
@@ -126,7 +126,7 @@ final class FontChooser: NSObject, NSFontChanging {
         let manager = NSFontManager.shared
         manager.target = self
         manager.setSelectedFont(current, isMultiple: false)
-        manager.orderFrontFontPanel(nil)
+        SystemActions.showFontPanel(manager)
     }
 
     nonisolated func changeFont(_ sender: NSFontManager?) {
@@ -142,7 +142,7 @@ final class FontChooser: NSObject, NSFontChanging {
 }
 
 struct ListSettings: View {
-    @Environment(AppModel.self) private var app
+    private var app: AppModel { .shared }
 
     var body: some View {
         Form {
@@ -164,7 +164,7 @@ struct ListSettings: View {
 struct WorkspaceSettings: View {
     private var selectedIndex: Int? { app.settings.workspaces.firstIndex { $0.id == selection } }
 
-    @Environment(AppModel.self) private var app
+    private var app: AppModel { .shared }
     @State private var selection: String?
     /// 태그를 보이는 저장소. 태그는 저장소마다 따로라 고른 저장소의 것만 다룬다(없으면 지금 저장소).
     @State private var tagModel: WorkspaceModel?
@@ -211,7 +211,11 @@ struct WorkspaceSettings: View {
             .background(RoundedRectangle(cornerRadius: 6).fill(Color(nsColor: .controlBackgroundColor)))
             HStack {
                 Button { app.showingAddWorkspace = true } label: { Image(systemName: "plus") }
+                    .help("저장소 추가")
+                    .accessibilityLabel("저장소 추가")
                 Button { Task { await disconnect() } } label: { Image(systemName: "minus") }
+                    .help("연결 해제")
+                    .accessibilityLabel("연결 해제")
                     .disabled(selection == nil)
                 Divider().frame(height: 16)
                 // 맨 위·맨 아래면 끈다.
@@ -241,7 +245,7 @@ struct WorkspaceSettings: View {
         }
     }
 
-    private func move(_ offset: Int) {
+    func move(_ offset: Int) {
         guard let selection else { return }
         app.updateSettings { settings in
             guard let index = settings.workspaces.firstIndex(where: { $0.id == selection }) else { return }
@@ -251,7 +255,7 @@ struct WorkspaceSettings: View {
         }
     }
 
-    private func disconnect() async {
+    func disconnect() async {
         guard let selection, let workspace = app.settings.workspaces.first(where: { $0.id == selection }) else { return }
         let confirmed = await Dialogs.confirm(String(localized: "\(workspace.repo) 연결을 해제할까요? 이 Mac에 저장된 토큰도 지웁니다. GitHub의 노트는 그대로 남습니다."),
                                               confirmTitle: String(localized: "연결 해제"), destructive: true)
@@ -264,10 +268,10 @@ struct WorkspaceSettings: View {
 /// 저장소 하나의 태그(설정 → 저장소에서 고른 저장소).
 struct WorkspaceTags: View {
     @Bindable var workspace: WorkspaceModel
-    @State private var newTag = ""
+    @State var newTag = ""
     /// 마지막 안내. 성공은 초록, 오류는 빨강(웹 설정의 성공 안내 상자).
     @State private var notice: (text: String, isError: Bool)?
-    @State private var busy = false
+    @State var busy = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -310,8 +314,8 @@ struct TagSettingsRow: View {
     let label: GitHubLabel
     /// (안내, 오류인지)
     let report: (String, Bool) -> Void
-    @State private var text = ""
-    @State private var saving = false
+    @State var text = ""
+    @State var saving = false
 
     var body: some View {
         HStack {
@@ -351,11 +355,11 @@ struct TagSettingsRow: View {
 }
 
 struct VoiceSettingsView: View {
-    @Environment(AppModel.self) private var app
-    @State private var keyInput = ""
-    @State private var editingKey = false
-    @State private var models = AppModel.shared.localState.voiceModelLists
-    @State private var refreshing = false
+    private var app: AppModel { .shared }
+    @State var keyInput = ""
+    @State var editingKey = false
+    @State var models = AppModel.shared.localState.voiceModelLists
+    @State var refreshing = false
     @State private var modelError: String?
 
     var body: some View {

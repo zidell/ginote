@@ -162,3 +162,37 @@ final class VoiceAndConfigTests: XCTestCase {
         }
     }
 }
+
+/// 따옴표·주석 밖의 비ASCII 글자는 파서에 넘기기 전에 문법 오류로 알린다(toml++가 assert로 죽는 입력이 있다).
+final class TOMLScanTests: XCTestCase {
+    func testFindsNonASCIIOutsideQuotesAndComments() {
+        XCTAssertNil(TOMLScan.firstUnquotedNonASCIILine("a = \"한글\" # 주석도 한글\nb = '리터럴'"))
+        XCTAssertNil(TOMLScan.firstUnquotedNonASCIILine("a = \"\"\"\n여러 줄\n\"\"\"\nb = '''\n리터럴 여러 줄\n'''"))
+        XCTAssertNil(TOMLScan.firstUnquotedNonASCIILine("a = \"따옴표 \\\" 안\"\nb = \"줄 잇기 \\\n다음\""))
+        XCTAssertEqual(TOMLScan.firstUnquotedNonASCIILine("a = 1\n[[깨진"), 2)
+        XCTAssertEqual(TOMLScan.firstUnquotedNonASCIILine("a = \"닫지 않음\n키 = 1"), 2)
+        XCTAssertEqual(TOMLScan.firstUnquotedNonASCIILine("a = \"\"\"\n\n\"\"\"\n한 = 1"), 4)
+        XCTAssertNil(TOMLScan.firstUnquotedNonASCIILine(""))
+        XCTAssertNil(TOMLScan.firstUnquotedNonASCIILine("a = \"끝 역슬래시 \\"))
+    }
+
+    func testParseReportsNonASCIIAsSyntaxErrorWithoutCrashing() {
+        for source in ["[[깨진", "한글키 = 1", "[display]\nui_scale = 1.0\n테마 = \"dark\""] {
+            XCTAssertThrowsError(try AppConfig.parse(source), source) { error in
+                XCTAssertTrue((error as? AppConfig.SyntaxError)?.message.hasPrefix("Line ") ?? false)
+            }
+        }
+    }
+}
+
+/// 흔한 깨진 설정은 앱을 죽이지 않고 문법 오류가 된다.
+final class TOMLMalformedTests: XCTestCase {
+    func testMalformedSourcesThrowInsteadOfCrashing() {
+        let sources = ["[[abc", "[a", "[[a]", "[]", "[[]]", "a = [1,", "a = {", "a = {b = 1", "a.b. = 1", "= 1", "a =", "a = 1 2",
+                       "a = \"\\u12\"", "a = 1979-05-27T", "a = 0x", "a = 1__0", "a = tru", "a = \"\"\"", "a = '''", "a = \"",
+                       "[display\nui_scale = 1", "a = [[1], [", "a = 1\na = 2", "[a]\n[a]", "a = .5", "a = +", "\"키 = 1"]
+        for source in sources {
+            XCTAssertThrowsError(try AppConfig.parse(source), source)
+        }
+    }
+}

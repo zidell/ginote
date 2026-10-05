@@ -148,10 +148,14 @@ enum E2E {
         await SceneTour.snap(String(format: "%02d-%@", shotIndex, name))
     }
 
-    /// GINOTE_E2E_ONLY에 이름이 있으면 그 항목만 돌린다(쉼표로 여럿). 없으면 모두 돌린다.
+    /// 실행기는 선택한 항목만 넘긴다. 전체 실행은 명시적인 "all"이다.
+    static let scenarioKeys: Set<String> = [
+        "list", "up", "new", "comments", "tags", "toolbar", "search", "multi", "lock",
+        "trash", "profile", "paste", "comment-undo", "replace", "tag-filter", "trash-view", "paging"
+    ]
     static let only: Set<String>? = {
         let names = (SelfTest.values["GINOTE_E2E_ONLY"] ?? "").split(separator: ",").map { String($0).trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
-        return names.isEmpty ? nil : Set(names)
+        return names == ["all"] ? nil : Set(names)
     }()
 
     static func enabled(_ key: String) -> Bool { only?.contains(key) ?? true }
@@ -172,6 +176,17 @@ enum E2E {
     // MARK: - 시나리오
 
     static func run(app: AppModel, repo: String, token: String) async {
+        let selected = only
+        guard SelfTest.values["GINOTE_E2E_ONLY"] == "all"
+            || (selected.map { !$0.isEmpty && $0.isSubset(of: scenarioKeys) } ?? false) else {
+            check(false, "e2e scenario", "Choose: \(scenarioKeys.sorted().joined(separator: ",")) or all")
+            SelfTest.finish()
+            return
+        }
+        await runSelected(app: app, repo: repo, token: token)
+    }
+
+    static func runSelected(app: AppModel, repo: String, token: String) async {
         SceneTour.directory = URL(fileURLWithPath: SelfTest.values["GINOTE_SHOT_DIR"] ?? NSTemporaryDirectory())
         try? FileManager.default.createDirectory(at: SceneTour.directory, withIntermediateDirectories: true)
         Dialogs.autoAnswer = true

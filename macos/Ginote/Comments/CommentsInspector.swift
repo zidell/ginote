@@ -14,14 +14,16 @@ struct CommentsSection: View {
 
     private var canAdd: Bool { session.isEditable && !readOnly && !rendered && session.number != nil }
     /// 아직 기록을 받지 못했고 GitHub가 기록이 있다고 알려 준 동안. 그 수만큼(최대 3개) 자리표시를 보인다.
-    private var loadingFirst: Bool { !store.loaded && store.items.isEmpty && (session.issue?.comments ?? 0) > 0 }
+    private var loadingFirst: Bool { !store.loaded && store.items.isEmpty && pendingCount > 0 }
+    /// GitHub가 알려 준 기록 수(새 노트는 0).
+    private var pendingCount: Int { session.issue?.comments ?? 0 }
 
     var body: some View {
         if session.lockState != .locked, loadingFirst || !store.items.isEmpty || canAdd {
             VStack(alignment: .leading, spacing: 0) {
                 Divider()
                 if loadingFirst {
-                    ForEach(0..<min(session.issue?.comments ?? 0, 3), id: \.self) { index in
+                    ForEach(0..<min(pendingCount, 3), id: \.self) { index in
                         if index > 0 { Divider().opacity(0.5) }
                         CommentSkeleton(seed: index)
                     }
@@ -65,7 +67,6 @@ struct CommentCard: View {
     var rendered = false
     var readOnly = false
     @FocusState private var focused: Bool
-    @State private var choosingFiles = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -82,7 +83,12 @@ struct CommentCard: View {
                             VoiceLauncher.start(.comment(item), session: session)
                         }
                             .disabled(item.remoteId == nil)
-                        Button("파일 첨부…") { choosingFiles = true }
+                        Button("파일 첨부…") {
+                            Task {
+                                let urls = await Dialogs.chooseFiles(message: String(localized: "기록에 첨부할 파일을 고르세요."))
+                                if !urls.isEmpty { await store.addAttachments(urls, to: item) }
+                            }
+                        }
                             .disabled(item.remoteId == nil)
                         Divider()
                         Button("삭제", role: .destructive) { store.scheduleDelete(item, undoManager: undoManager) }
@@ -160,9 +166,6 @@ struct CommentCard: View {
                 CommentSkeleton.measured(proxy.size.height, scale: CGFloat(AppModel.shared.settings.preferences.uiScale))
             }
         })
-        .fileImporter(isPresented: $choosingFiles, allowedContentTypes: [.item], allowsMultipleSelection: true) { result in
-            if case .success(let urls) = result { Task { await store.addAttachments(urls, to: item) } }
-        }
         .onAppear {
             guard store.focusedCommentId == item.localId else { return }
             store.focusedCommentId = nil
@@ -216,8 +219,7 @@ struct CommentAttachmentChip: View {
             .contextMenu {
                 Button("미리보기") { QuickLook.show(items: item.attachments, start: attachment, session: session) }
                 Button("Markdown 복사") {
-                    NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString(AttachmentLinks.composeLink(repo: session.repo, path: attachment.path, name: attachment.name, type: attachment.type), forType: .string)
+                    SystemActions.copy(AttachmentLinks.composeLink(repo: session.repo, path: attachment.path, name: attachment.name, type: attachment.type))
                 }
                 if session.isEditable {
                     if item.pendingAttachmentDeletes[attachment.path] != nil {
@@ -235,7 +237,7 @@ struct AudioAttachmentPlayer: View {
     @Bindable var session: NoteSession
     let rawURL: String
     @State private var player: AVPlayer?
-    @State private var failed = false
+    @State var failed = false
 
     var body: some View {
         Group {

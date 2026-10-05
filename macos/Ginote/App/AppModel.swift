@@ -15,7 +15,7 @@ final class AppModel {
 
     /// 디버그 빌드의 자가 점검은 사용자 설정·키체인과 섞이지 않게 따로 둔다(Debug/SelfTest.swift).
     /// 단위 테스트(XCTest)가 앱을 띄운 경우. 창을 띄우지 않고 사용자 설정·키체인을 건드리지 않는다.
-    static var isUnitTest: Bool {
+    nonisolated static var isUnitTest: Bool {
         #if DEBUG
         return ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
         #else
@@ -96,6 +96,14 @@ final class AppModel {
     var editorFocusRequest = 0
     /// 노트를 여는 동시에 본문으로 들어갈 때. 새로 뜬 노트 화면이 받아 간다.
     var pendingEditorFocus = false
+    /// 메뉴 명령(GinoteCommands)이 넘겨 둔 메인 창 열기. 메인 창 없이 시작했을 때 쓴다.
+    @ObservationIgnored var openMainWindow: (() -> Void)?
+
+    /// 메인 창을 닫고(설정 창만 남기고) 끝내면 다음 실행에 창 복원이 아무 창도 되살리지 않는다. 그때 메인 창을 연다.
+    func openMainWindowIfMissing() {
+        guard !NSApp.windows.contains(where: { $0.isVisible && $0.identifier?.rawValue.hasPrefix("main") == true }) else { return }
+        openMainWindow?()
+    }
 
     /// 열린 노트의 본문으로 포커스를 옮긴다. 방금 연 노트면 화면이 뜬 뒤에 옮긴다.
     func focusEditor(openingNew: Bool) {
@@ -146,8 +154,8 @@ final class AppModel {
             openAIKey = configStore.keychain.read(Keychain.openAIAccount) ?? ""
         }
         lockSession.minutes = settings.preferences.lockSessionMinutes
-        lockSession.onExpire = { [weak self] in
-            guard let self else { return }
+        // 앱 모델은 앱이 끝날 때까지 산다.
+        lockSession.onExpire = { [unowned self] in
             let models = [self.workspace].compactMap { $0 } + self.cachedWorkspaces.values.map(\.model)
             for session in models.flatMap({ $0.sessions.values }) { Task { await session.expireLock() } }
         }
@@ -220,8 +228,6 @@ final class AppModel {
     }
 
     // MARK: - 워크스페이스
-
-    func token(for workspace: Workspace) -> String? { tokens[workspace.id] }
 
     /// 저장소의 화면 모델. 지금 저장소나 기억해 둔 모델이 있으면 그것을, 없으면 토큰으로 새로 만들어 기억한다
     /// (설정 → 저장소에서 다른 저장소의 태그를 다룰 때). 토큰이 없으면 nil.
@@ -342,18 +348,20 @@ final class AppModel {
         }
         let monitor = NWPathMonitor()
         monitor.pathUpdateHandler = { [weak self] path in
-            Task { @MainActor in
-                guard let self else { return }
-                let satisfied = path.status == .satisfied
-                defer { self.lastPathSatisfied = satisfied }
-                if satisfied && !self.lastPathSatisfied { await self.workspace?.refresh(background: true) }
-            }
+            let satisfied = path.status == .satisfied
+            Task { @MainActor in await self?.networkChanged(satisfied: satisfied) }
         }
         monitor.start(queue: .global(qos: .utility))
         pathMonitor = monitor
     }
 
-    private func clearLockOnSleepIfNeeded() {
+    /// 네트워크가 끊겼다 돌아오면 목록을 새로 읽는다.
+    func networkChanged(satisfied: Bool) async {
+        defer { lastPathSatisfied = satisfied }
+        if satisfied && !lastPathSatisfied { await workspace?.refresh(background: true) }
+    }
+
+    func clearLockOnSleepIfNeeded() {
         guard settings.preferences.clearLockOnSleep else { return }
         lockSession.clear()
     }

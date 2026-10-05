@@ -9,7 +9,8 @@ enum NoteScope: Hashable { case notes, trash }
 @Observable
 final class WorkspaceModel {
     static let pinnedPageSize = 100
-    static let retryDelays: [Double] = [2, 5, 15]
+    /// 읽기 실패 뒤 다시 시도할 간격(초). 테스트가 줄여 쓴다.
+    static var retryDelays: [Double] = [2, 5, 15]
     static let refreshCooldown: TimeInterval = 30
 
     var workspace: Workspace
@@ -71,7 +72,14 @@ final class WorkspaceModel {
 
     // 선택과 열린 노트
     /// 목록의 커서(키보드 이동·여러 개 선택). 커서를 옮기는 것만으로는 노트를 열지 않는다(웹과 같은 정책).
-    var selection: Set<Int> = [] { didSet { DebugTrace.log("selection \(selection.sorted())") } }
+    var selection: Set<Int> = [] {
+        didSet {
+            if selection != oldValue { listReadSelectionId = nil }
+            DebugTrace.log("selection \(selection.sorted())")
+        }
+    }
+    /// 목록에서 클릭하거나 Enter로 열람한 행. 커서가 다른 행으로 움직이면 다음 Enter는 다시 열람부터 시작한다.
+    var listReadSelectionId: Int?
     /// 오른쪽에 열린 노트. 클릭하거나 ⏎를 누를 때만 바뀐다.
     /// 여러 개를 고르는 중 마지막으로 누른 노트. 오른쪽에 읽기 전용으로 보인다(웹과 같음).
     var selectionPreviewId: Int?
@@ -95,9 +103,9 @@ final class WorkspaceModel {
     /// GitHub 개수가 따라올 때까지(10초) 기다렸다 센다. 일찍 세면 옛 개수가 와서 맞춰 둔 개수를 되돌린다.
     func refreshCounts() {
         countsTask?.cancel()
+        // 아직 개수가 없으면(저장소를 처음 열 때) 기다리지 않고 바로 센다. 기다리면 사이드바 개수가 몇 초 비어 있다.
+        let settle = counts == nil ? 0 : max(1.5, 10 - Date().timeIntervalSince(localCountChange))
         countsTask = Task { [weak self] in
-            // 아직 개수가 없으면(저장소를 처음 열 때) 기다리지 않고 바로 센다. 기다리면 사이드바 개수가 몇 초 비어 있다.
-            let settle = self?.counts == nil ? 0 : max(1.5, 10 - Date().timeIntervalSince(self?.localCountChange ?? .distantPast))
             try? await Task.sleep(for: .seconds(settle))
             guard let self, !Task.isCancelled else { return }
             if let counts = try? await self.client.noteCounts() {
@@ -114,7 +122,7 @@ final class WorkspaceModel {
         guard var next = counts else { return }
         let before = Set(previous.labels.map(\.name)), after = Set(issue.labels.map(\.name))
         for name in after.subtracting(before) { next.labels[name, default: 0] += 1 }
-        for name in before.subtracting(after) { next.labels[name] = max(0, (next.labels[name] ?? 0) - 1) }
+        for name in before.subtracting(after) { next.labels[name] = max(0, next.labels[name, default: 0] - 1) }
         localCountChange = Date()
         counts = next
         refreshCounts()
@@ -139,8 +147,8 @@ final class WorkspaceModel {
         next.notes = max(0, next.notes + delta)
         next.trash = max(0, next.trash - delta)
         for issue in changed {
-            for label in issue.labels.map(\.name) where next.labels[label] != nil {
-                next.labels[label] = max(0, (next.labels[label] ?? 0) + (toTrash ? -1 : 1))
+            for label in issue.labels.map(\.name) {
+                if let count = next.labels[label] { next.labels[label] = max(0, count + (toTrash ? -1 : 1)) }
             }
         }
         counts = next
@@ -294,7 +302,7 @@ final class WorkspaceModel {
         if background {
             guard ignoringCooldown || Date().timeIntervalSince(lastRefresh) >= Self.refreshCooldown, !loading else { return }
             // 설정 창이 열려 있으면 건너뛴다(웹과 같음).
-            if NSApp.windows.contains(where: { $0.isVisible && $0.identifier?.rawValue.contains("Settings") == true }) { return }
+            if SystemActions.settingsWindowVisible() { return }
         }
         let succeeded = await load(background: background)
         if !succeeded { lastRefresh = .distantPast }
@@ -337,12 +345,14 @@ final class WorkspaceModel {
             var seen = Set<Int>()
             pinned = applyHolds(pinnedResult.items, state: state, label: PinLabel.name).filter { seen.insert($0.id).inserted }
             totalCount = result.totalCount.map { term.isEmpty ? $0 : min($0, result.items.count) }
-            searchLimitReached = !term.isEmpty && (result.totalCount ?? 0) > result.items.count
+            // 검색 결과(term이 있을 때)는 늘 전체 개수를 준다.
+            searchLimitReached = !term.isEmpty && result.totalCount! > result.items.count
             pruneSelection()
             retryAttempt = 0
             hasLoaded = true
             refreshCounts()
-            if !background { errorMessage = nil }
+            // 실패 뒤 다시 시도(조용한 읽기)가 성공해도 오류 줄을 지운다. 지우지 않으면 복구된 뒤에도 오류가 남는다.
+            errorMessage = nil
             return true
         } catch {
             guard version == requestVersion else { return false }
@@ -422,7 +432,8 @@ final class WorkspaceModel {
         retryAttempt += 1
         Task { [weak self] in
             try? await Task.sleep(for: .seconds(delay))
-            await self?.load(background: !(self?.issues.isEmpty ?? true))
+            guard let self else { return }
+            await self.load(background: !self.issues.isEmpty)
         }
     }
 
@@ -469,7 +480,7 @@ final class WorkspaceModel {
 
     /// 새 노트: 화면에 바로 띄우고, 빈 이슈를 만들어 번호를 받는다. 지금 거는 태그 필터는 미리 붙인다.
     func createNote(body: String = "", files: [URL] = []) -> NoteSession? {
-        DebugTrace.log("createNote existing=\(newNote != nil) number=\(newNote?.number.map(String.init) ?? "nil")")
+        DebugTrace.log("createNote existing=\(newNote != nil)")
         if let newNote, newNote.number == nil {
             // 번호를 못 받았어도 쓰던 내용을 버리지 않는다. 다시 받아 본다.
             if newNote.allocationFailed { newNote.retryAllocation() }
@@ -698,7 +709,7 @@ final class WorkspaceModel {
     func createLabel(definition: String) async throws -> GitHubLabel {
         let parsed = TagDefinition.parse(definition)
         let limited = TagDefinition.limit(name: NoteText.normalizeTagName(parsed.name), description: parsed.description)
-        guard !limited.name.isEmpty else { throw GitHubError(status: 0, message: String(localized: "태그 이름을 입력하세요.")) }
+        guard !limited.name.isEmpty else { throw AppError(message: String(localized: "태그 이름을 입력하세요.")) }
         let created = try await client.createLabel(limited.name, description: limited.description)
         if !labels.contains(where: { LabelNames.same($0.name, created.name) }) { labels.append(created) }
         labels.sort { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
@@ -708,7 +719,7 @@ final class WorkspaceModel {
     func renameLabel(_ label: GitHubLabel, definition: String) async throws {
         let parsed = TagDefinition.parse(definition, currentName: label.name)
         let limited = TagDefinition.limit(name: parsed.name, description: parsed.description)
-        guard !limited.name.isEmpty else { throw GitHubError(status: 0, message: String(localized: "태그 이름을 입력하세요.")) }
+        guard !limited.name.isEmpty else { throw AppError(message: String(localized: "태그 이름을 입력하세요.")) }
         guard limited.name != label.name || limited.description != (label.description ?? "") else { return }
         let renamed = try await client.renameLabel(label.name, to: limited.name, description: limited.description)
         replaceLabel(label.name, with: renamed)

@@ -4,10 +4,10 @@ import SwiftUI
 
 /// 목록 칸 맨 위의 검색. `#`을 치면 태그 후보가 뜨고 ↑↓·⏎로 고른다. 걸린 태그 필터는 칩으로 보인다.
 struct ListSearchBar: View {
-    @Environment(AppModel.self) private var app
+    private var app: AppModel { .shared }
     @Bindable var workspace: WorkspaceModel
     var pane: FocusState<PaneFocus?>.Binding
-    @State private var highlighted = -1
+    @State var highlighted = -1
 
     private var suggestions: [GitHubLabel] {
         let text = workspace.searchText.trimmingCharacters(in: .whitespaces)
@@ -91,7 +91,6 @@ struct ListSearchBar: View {
                 .background(Capsule().fill(Color(hex: TagColor.hex(for: label)).opacity(0.25)))
             }
         }
-
     }
 
     private func pick(_ label: GitHubLabel) {

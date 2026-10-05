@@ -16,30 +16,33 @@ extension FocusedValues {
 }
 
 /// 메뉴바 명령(macos/DESIGN.md §5.4). 웹의 한 글자 단축키를 ⌘ 조합으로 옮겼고, 설정 → 단축키에서 바꿀 수 있다.
+/// 각 항목이 하는 일과 켜짐 조건은 CommandActions에 있다(키 창 없이도 검사할 수 있게).
 struct GinoteCommands: Commands {
     @FocusedValue(\.workspace) private var workspace
     @FocusedValue(\.noteSession) private var session
     @FocusedValue(\.noteCommands) private var handlers
     @Environment(\.openWindow) private var openWindow
 
+    private var actions: CommandActions { CommandActions(workspace: workspace, session: session, handlers: handlers) }
+
     var body: some Commands {
+        // 메뉴 명령은 창이 하나도 없어도 만들어진다. AppDelegate가 메인 창 없이 시작했을 때 쓰도록 창 열기를 넘겨 둔다.
+        let _ = AppModel.shared.openMainWindow = { [openWindow] in openWindow(id: "main") }
         CommandGroup(replacing: .newItem) {
-            Button("새 노트") { _ = workspace?.createNote() }
+            Button("새 노트") { actions.newNote() }
                 .shortcut(.newNote)
-                .disabled(workspace == nil || workspace?.newNoteBlocked == true)
-            Button("음성으로 새 노트") { workspace.map { VoiceLauncher.start(.newNote, workspace: $0) } }
+                .disabled(!actions.canCreateNote)
+            Button("음성으로 새 노트") { actions.newVoiceNote() }
                 .shortcut(.newVoiceNote)
-                .disabled(workspace == nil || workspace?.newNote != nil || (workspace?.selection.count ?? 0) > 1)
-            Button("새 창에서 열기") {
-                if let number = session?.number { openWindow(id: "note", value: number) }
-            }
-            .shortcut(.openInNewWindow)
-            .disabled(session?.number == nil)
+                .disabled(!actions.canCreateVoiceNote)
+            Button("새 창에서 열기") { actions.openInNewWindow(openWindow) }
+                .shortcut(.openInNewWindow)
+                .disabled(!actions.hasNumber)
             // .saveItem 묶음은 문서 앱에만 있어 그 뒤에 두면 메뉴에 나오지 않는다. 새 노트 묶음 끝에 둔다.
             Divider()
-            Button("지금 저장") { session?.saveNow() }
+            Button("지금 저장") { actions.saveNow() }
                 .shortcut(.saveNow)
-                .disabled(session == nil)
+                .disabled(!actions.hasSession)
         }
 
         CommandGroup(after: .textEditing) {
@@ -55,10 +58,10 @@ struct GinoteCommands: Commands {
             Divider()
             Button("노트 검색") { AppModel.shared.searchFocusRequest += 1 }
                 .shortcut(.searchNotes)
-                .disabled(workspace == nil)
-            Button("찾아 바꾸기…") { handlers?.showReplace() }
+                .disabled(!actions.hasWorkspace)
+            Button("찾아 바꾸기…") { actions.showReplace() }
                 .shortcut(.replace)
-                .disabled(session?.isEditable != true)
+                .disabled(!actions.canEdit)
         }
         CommandGroup(after: .toolbar) {
             Button("확대") { AppModel.shared.zoom(by: 0.1) }
@@ -70,59 +73,41 @@ struct GinoteCommands: Commands {
             Divider()
         }
         CommandGroup(after: .sidebar) {
-            Button("Markdown 미리보기") { handlers?.togglePreview() }
+            Button("Markdown 미리보기") { actions.togglePreview() }
                 .shortcut(.preview)
-                .disabled(session == nil || session?.lockState == .locked)
-            Button("새로고침") {
-                Task {
-                    await workspace?.refresh(background: false)
-                    await session?.reloadFromGitHub()
-                }
-            }
-            .shortcut(.refresh)
-            .disabled(workspace == nil)
+                .disabled(!actions.canPreview)
+            Button("새로고침") { Task { await actions.refresh() } }
+                .shortcut(.refresh)
+                .disabled(!actions.hasWorkspace)
         }
         CommandMenu("노트") {
-            Button("태그…") { handlers?.showTags() }
+            Button("태그…") { actions.showTags() }
                 .shortcut(.tags)
-                .disabled(session?.isEditable != true)
-            Button("파일 첨부…") { session?.chooseAttachments() }
+                .disabled(!actions.canEdit)
+            Button("파일 첨부…") { actions.attachFiles() }
                 .shortcut(.attachFiles)
-                .disabled(session?.isEditable != true)
-            Button("음성 녹음") { session.map { VoiceLauncher.start(.body, session: $0) } }
+                .disabled(!actions.canEdit)
+            Button("음성 녹음") { actions.recordVoice() }
                 .shortcut(.voiceRecording)
-                .disabled(session?.isEditable != true || session?.number == nil || (workspace?.selection.count ?? 0) > 1)
+                .disabled(!actions.canRecordVoice)
             Divider()
-            Button(lockTitle) { session?.requestLock() }
+            Button(actions.lockTitle) { actions.lock() }
                 .shortcut(.lock)
-                .disabled(session == nil || session?.isArchived == true)
-            Button(session?.isPinned == true ? "고정 해제" : "고정") {
-                if let workspace, let issue = session?.issue { Task { await workspace.togglePin(issue) } }
-            }
-            .shortcut(.pin)
-            .disabled(session?.issue == nil || session?.isArchived == true || workspace?.pinMutation == true)
+                .disabled(!actions.canLock)
+            Button(actions.pinTitle) { actions.togglePin() }
+                .shortcut(.pin)
+                .disabled(!actions.canPin)
             Divider()
-            Button("이슈 번호 복사") {
-                if let session, let number = session.number { NoteActions.copyIssueNumber(number: number, title: session.displayTitle) }
-            }
-            .shortcut(.copyIssueNumber)
-            .disabled(session?.number == nil)
-            Button("GitHub에서 보기") {
-                if let session, let issue = session.issue { NoteActions.openOnGitHub(issue, repo: session.repo) }
-            }
-            .shortcut(.openOnGitHub)
-            .disabled(session?.issue == nil)
+            Button("이슈 번호 복사") { actions.copyIssueNumber() }
+                .shortcut(.copyIssueNumber)
+                .disabled(!actions.hasNumber)
+            Button("GitHub에서 보기") { actions.openOnGitHub() }
+                .shortcut(.openOnGitHub)
+                .disabled(!actions.hasIssue)
             Divider()
-            Button(session?.isArchived == true ? "복원" : "휴지통으로 이동") {
-                guard let workspace, let issue = session?.issue else { return }
-                let undo = NSApp.keyWindow?.undoManager
-                Task {
-                    if issue.isClosed { await workspace.restore([issue], undoManager: undo) }
-                    else { await workspace.moveToTrash([issue], undoManager: undo) }
-                }
-            }
-            .shortcut(.moveToTrash)
-            .disabled(session?.issue == nil)
+            Button(actions.trashTitle) { actions.toggleTrash(undoManager: NSApp.keyWindow?.undoManager) }
+                .shortcut(.moveToTrash)
+                .disabled(!actions.hasIssue)
         }
         CommandMenu("저장소") {
             ForEach(Array(AppModel.shared.settings.workspaces.prefix(9).enumerated()), id: \.element.id) { index, item in
@@ -133,15 +118,79 @@ struct GinoteCommands: Commands {
             Button("저장소 추가…") { AppModel.shared.showingAddWorkspace = true }
         }
         CommandGroup(replacing: .help) {
-            Button("Ginote 도움말") { openWindow(id: "help") }
+            Button("Ginote 도움말") { SystemActions.openWindow(openWindow, id: "help") }
         }
     }
+}
 
-    private var lockTitle: String {
+/// 메뉴 항목이 하는 일과 켜짐 조건. 지금 창의 저장소·노트(포커스 값)를 받아 쓴다.
+@MainActor
+struct CommandActions {
+    let workspace: WorkspaceModel?
+    let session: NoteSession?
+    let handlers: NoteCommandHandlers?
+
+    var hasWorkspace: Bool { workspace != nil }
+    var hasSession: Bool { session != nil }
+    var hasNumber: Bool { session?.number != nil }
+    var hasIssue: Bool { session?.issue != nil }
+    var canEdit: Bool { session?.isEditable == true }
+    private var selectingSeveral: Bool { (workspace?.selection.count ?? 0) > 1 }
+    var canCreateNote: Bool { workspace.map { !$0.newNoteBlocked } ?? false }
+    var canCreateVoiceNote: Bool { workspace.map { $0.newNote == nil } ?? false && !selectingSeveral }
+    var canPreview: Bool { session.map { $0.lockState != .locked } ?? false }
+    var canRecordVoice: Bool { canEdit && hasNumber && !selectingSeveral }
+    var canLock: Bool { session.map { !$0.isArchived } ?? false }
+    var canPin: Bool { hasIssue && session?.isArchived != true && workspace?.pinMutation != true }
+
+    var lockTitle: String {
         switch session?.lockState {
         case .locked?: return String(localized: "잠금 열기")
         case .unlocked?: return String(localized: "잠금 풀기")
         default: return String(localized: "잠금")
+        }
+    }
+
+    var pinTitle: String { session?.isPinned == true ? String(localized: "고정 해제") : String(localized: "고정") }
+    var trashTitle: String { session?.isArchived == true ? String(localized: "복원") : String(localized: "휴지통으로 이동") }
+
+    func newNote() { _ = workspace?.createNote() }
+    func newVoiceNote() { if let workspace { VoiceLauncher.start(.newNote, workspace: workspace) } }
+
+    func openInNewWindow(_ openWindow: OpenWindowAction) {
+        if let number = session?.number { SystemActions.openWindow(openWindow, id: "note", value: number) }
+    }
+
+    func saveNow() { session?.saveNow() }
+    func showReplace() { handlers?.showReplace() }
+    func togglePreview() { handlers?.togglePreview() }
+    func showTags() { handlers?.showTags() }
+    func attachFiles() { session?.chooseAttachments() }
+    func recordVoice() { if let session { VoiceLauncher.start(.body, session: session) } }
+    func lock() { session?.requestLock() }
+
+    func refresh() async {
+        await workspace?.refresh(background: false)
+        await session?.reloadFromGitHub()
+    }
+
+    func togglePin() {
+        if let workspace, let issue = session?.issue { Task { await workspace.togglePin(issue) } }
+    }
+
+    func copyIssueNumber() {
+        if let session, let number = session.number { NoteActions.copyIssueNumber(number: number, title: session.displayTitle) }
+    }
+
+    func openOnGitHub() {
+        if let session, let issue = session.issue { NoteActions.openOnGitHub(issue, repo: session.repo) }
+    }
+
+    func toggleTrash(undoManager: UndoManager?) {
+        guard let workspace, let issue = session?.issue else { return }
+        Task {
+            if issue.isClosed { await workspace.restore([issue], undoManager: undoManager) }
+            else { await workspace.moveToTrash([issue], undoManager: undoManager) }
         }
     }
 }
@@ -152,13 +201,17 @@ struct GinoteCommands: Commands {
 @MainActor
 enum TextFind {
     static func perform(_ action: NSTextFinder.Action) {
-        if let window = NSApp.keyWindow, !((window.firstResponder as? NSTextView)?.usesFindBar ?? false),
+        let window = SystemActions.keyWindow()
+        if let window, !((window.firstResponder as? NSTextView)?.usesFindBar ?? false),
            let target = noteTextView(in: window.contentView) {
             window.makeFirstResponder(target)
         }
         let item = NSMenuItem()
         item.tag = action.rawValue
-        NSApp.sendAction(#selector(NSTextView.performFindPanelAction(_:)), to: nil, from: item)
+        let selector = #selector(NSTextView.performFindPanelAction(_:))
+        // 키 창의 첫 응답자부터 응답자 사슬을 따라 보낸다(to: nil과 같다).
+        if window?.firstResponder?.tryToPerform(selector, with: item) == true { return }
+        NSApp.sendAction(selector, to: nil, from: item)
     }
 
     private static func noteTextView(in view: NSView?) -> NSTextView? {

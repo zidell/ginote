@@ -28,6 +28,9 @@ public final class FakeGitHub: URLProtocol {
     nonisolated(unsafe) private static var branchExists = true
     nonisolated(unsafe) private static var isEmpty = false
     nonisolated(unsafe) private static var rawAsJSON = false
+    nonisolated(unsafe) private static var closeBeforePatch: Set<Int> = []
+    nonisolated(unsafe) private static var delay: TimeInterval = 0
+    nonisolated(unsafe) private static var nullDescriptions: Set<String> = []
 
     public static var session: URLSession {
         let configuration = URLSessionConfiguration.ephemeral
@@ -40,7 +43,7 @@ public final class FakeGitHub: URLProtocol {
             issues = [:]; labels = [:]; comments = [:]; files = [:]
             nextNumber = 1; nextCommentId = 1; clock = 0; shaCounter = 0
             frozen = nil; failures = []; overrides = [:]; log = []
-            branchExists = true; isEmpty = false; rawAsJSON = false
+            branchExists = true; isEmpty = false; rawAsJSON = false; closeBeforePatch = []; delay = 0; nullDescriptions = []
         }
     }
 
@@ -57,7 +60,35 @@ public final class FakeGitHub: URLProtocol {
         }
     }
 
-    public static func addLabel(_ name: String, description: String = "") { lock.withLock { labels[name] = description } }
+    /// 다른 기기에서 이슈를 고친 것처럼 바꾼다. updated_at도 함께 바뀐다.
+    public static func editIssue(_ number: Int, title: String? = nil, body: String? = nil, state: String? = nil) {
+        lock.withLock {
+            guard var issue = issues[number] else { return }
+            tick()
+            if let title { issue["title"] = title }
+            if let body { issue["body"] = body }
+            if let state { issue["state"] = state; issue["closed_at"] = state == "closed" ? now() : NSNull() }
+            issue["updated_at"] = now()
+            issues[number] = issue
+        }
+    }
+
+    /// 응답마다 이만큼 늦게 답한다. 저장 중에 다른 일이 끼어드는 경우를 만들 때 쓴다.
+    public static var latency: TimeInterval {
+        get { lock.withLock { delay } }
+        set { lock.withLock { delay = newValue } }
+    }
+
+    /// 다음 PATCH가 오기 직전에 다른 기기가 이 이슈를 닫은 것처럼 만든다(GET과 PATCH 사이에 닫힘).
+    public static func closeBeforeNextPatch(_ number: Int) { lock.withLock { _ = closeBeforePatch.insert(number) } }
+
+    /// description이 nil이면 GitHub처럼 설명을 null로 돌려준다.
+    public static func addLabel(_ name: String, description: String? = "") {
+        lock.withLock {
+            labels[name] = description ?? ""
+            if description == nil { nullDescriptions.insert(name) } else { nullDescriptions.remove(name) }
+        }
+    }
 
     @discardableResult
     public static func addComment(to number: Int, body: String) -> Int {
@@ -118,6 +149,8 @@ public final class FakeGitHub: URLProtocol {
     override public func stopLoading() {}
 
     override public func startLoading() {
+        let wait = Self.latency
+        if wait > 0 { Thread.sleep(forTimeInterval: wait) }
         let (status, payload, headers) = Self.lock.withLock { Self.respond(request) }
         let data: Data
         if let raw = payload as? Data { data = raw } else {
@@ -247,6 +280,7 @@ public final class FakeGitHub: URLProtocol {
         guard parts.count >= 5, parts[3] == "issues", let number = Int(parts[4]), var issue = issues[number] else { return notFound }
         if parts.count == 5 {
             if method == "PATCH" {
+                if closeBeforePatch.remove(number) != nil { issue["state"] = "closed" }
                 tick()
                 if let title = body["title"] as? String { issue["title"] = title }
                 if let text = body["body"] as? String { issue["body"] = text }
@@ -388,6 +422,7 @@ public final class FakeGitHub: URLProtocol {
                                       "created_at": now(), "updated_at": now(), "html_url": "https://github.com/\(repo)/issues/\(number)"]
         nextCommentId += 1
         comments[number, default: []].append(comment)
+        issues[number]?["comments"] = comments[number]?.count ?? 0
         return comment
     }
 
@@ -400,7 +435,7 @@ public final class FakeGitHub: URLProtocol {
     }
 
     private static func labelJSON(_ name: String) -> [String: Any] {
-        ["name": name, "color": "888888", "description": labels[name] ?? ""]
+        ["name": name, "color": "888888", "description": nullDescriptions.contains(name) ? NSNull() as Any : labels[name] ?? "" as Any]
     }
 
     private static func names(of issue: [String: Any]) -> [String] {

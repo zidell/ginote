@@ -5,13 +5,13 @@ import SwiftUI
 struct SetupView: View {
     enum Mode { case firstRun, addWorkspace }
 
-    @Environment(AppModel.self) private var app
+    private var app: AppModel { .shared }
     @Environment(\.dismiss) private var dismiss
     let mode: Mode
-    @State private var step = 0
-    @State private var repo = ""
-    @State private var token = ""
-    @State private var verifying = false
+    @State var step = 0
+    @State var repo = ""
+    @State var token = ""
+    @State var verifying = false
     @State private var errorMessage: String?
 
     private var steps: [Int] { mode == .firstRun ? [0, 1, 2, 3] : [2, 3] }
@@ -119,10 +119,10 @@ struct SetupView: View {
 
 /// 토큰을 기억하지 않았거나 만료된 저장소를 열 때 토큰을 다시 받는다.
 struct TokenPromptView: View {
-    @Environment(AppModel.self) private var app
+    private var app: AppModel { .shared }
     let workspace: Workspace
-    @State private var token = ""
-    @State private var verifying = false
+    @State var token = ""
+    @State var verifying = false
     @State private var errorMessage: String?
 
     var body: some View {

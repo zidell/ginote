@@ -4,13 +4,13 @@ import SwiftUI
 
 /// 6자리 잠금 숫자 시트. 숫자만 받고, 열 때는 6번째 숫자에서 바로 제출한다.
 struct LockSheet: View {
-    @Environment(AppModel.self) private var app
+    private var app: AppModel { .shared }
     @Environment(\.dismiss) private var dismiss
     @Bindable var session: NoteSession
     let prompt: NoteSession.LockPrompt
-    @State private var pin = ""
+    @State var pin = ""
     @State private var errorMessage: String?
-    @State private var busy = false
+    @State var busy = false
 
     private var isLocking: Bool { prompt == .lock }
 
@@ -86,8 +86,8 @@ struct LockSheet: View {
 struct ReplaceSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Bindable var session: NoteSession
-    @State private var search = ""
-    @State private var replacement = ""
+    @State var search = ""
+    @State var replacement = ""
 
     private var result: (count: Int, example: String?, output: String?, error: String?) {
         guard !search.isEmpty else { return (0, nil, nil, nil) }

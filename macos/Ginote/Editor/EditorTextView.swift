@@ -73,7 +73,12 @@ struct EditorTextView: NSViewRepresentable {
         scrollView.drawsBackground = false
         scrollView.autohidesScrollers = true
 
-        let textView = GinoteTextView()
+        let storage = NSTextStorage()
+        let layout = InlineCodeLayoutManager()
+        let container = NSTextContainer()
+        storage.addLayoutManager(layout)
+        layout.addTextContainer(container)
+        let textView = GinoteTextView(frame: .zero, textContainer: container)
         textView.delegate = context.coordinator
         textView.coordinator = context.coordinator
         textView.isRichText = false
@@ -117,9 +122,11 @@ struct EditorTextView: NSViewRepresentable {
 
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
         context.coordinator.parent = self
-        guard let textView = context.coordinator.textView else { return }
-        (scrollView.documentView as? NoteDocumentView)?.setHeader(header)
-        (scrollView.documentView as? NoteDocumentView)?.setFooter(footer)
+        // makeNSView가 만든 문서 뷰와 글 상자다.
+        let document = scrollView.documentView as! NoteDocumentView
+        let textView = document.textView as! GinoteTextView
+        document.setHeader(header)
+        document.setFooter(footer)
         textView.isEditable = editable
         textView.placeholderString = placeholder
         if textView.lockTinted != lockTinted {
@@ -154,6 +161,7 @@ struct EditorTextView: NSViewRepresentable {
 
     private func apply(_ style: EditorStyle, to textView: GinoteTextView) {
         textView.font = style.font
+        textView.placeholderFont = style.font
         textView.defaultParagraphStyle = style.paragraphStyle
         textView.typingAttributes = [.font: style.font, .paragraphStyle: style.paragraphStyle, .foregroundColor: NSColor.textColor]
         textView.maxContentWidth = style.maxWidth
@@ -189,7 +197,7 @@ struct EditorTextView: NSViewRepresentable {
         func textView(_ textView: NSTextView, shouldChangeTextIn range: NSRange, replacementString text: String?) -> Bool {
             guard let text else { return true }
             let next = (textView.string as NSString).length - range.length + (text as NSString).length
-            if next > NoteText.maxBodyLength && next > (textView.string as NSString).length { NSSound.beep(); return false }
+            if next > NoteText.maxBodyLength && next > (textView.string as NSString).length { SystemActions.beep(); return false }
             return true
         }
 
@@ -223,6 +231,8 @@ final class GinoteTextView: DocumentTextView {
     private var isFocusedForEditing = false
     var maxContentWidth: CGFloat = 840
     var placeholderString = ""
+    /// 자리 글 글꼴(편집기 스타일의 글꼴).
+    var placeholderFont = NSFont.systemFont(ofSize: 17)
 
     override func setFrameSize(_ newSize: NSSize) {
         super.setFrameSize(newSize)
@@ -280,7 +290,7 @@ final class GinoteTextView: DocumentTextView {
         super.draw(dirtyRect)
         guard string.isEmpty, !placeholderString.isEmpty, !hasMarkedText() else { return }
         let attributes: [NSAttributedString.Key: Any] = [
-            .font: font ?? NSFont.systemFont(ofSize: 17),
+            .font: placeholderFont,
             .foregroundColor: NSColor.placeholderTextColor
         ]
         (placeholderString as NSString).draw(at: NSPoint(x: textContainerInset.width, y: textContainerInset.height), withAttributes: attributes)
@@ -297,8 +307,9 @@ final class GinoteTextView: DocumentTextView {
     }
 
     /// ⎋: 조합 중이 아니면 목록으로 포커스를 돌린다(웹에서 ⎋가 입력칸을 벗어나는 것과 같다).
+    /// 조합 중이면 아무것도 하지 않는다(입력기 몫). NSTextView에는 cancelOperation:이 없어 super로 넘기면 앱이 죽는다.
     override func cancelOperation(_ sender: Any?) {
-        guard !hasMarkedText() else { return super.cancelOperation(sender) }
+        guard !hasMarkedText() else { return }
         coordinator?.parent.onEscape()
     }
 
@@ -358,7 +369,7 @@ final class GinoteTextView: DocumentTextView {
 
     override func mouseDown(with event: NSEvent) {
         if event.modifierFlags.contains(.command), let url = link(at: event) {
-            NSWorkspace.shared.open(url)
+            SystemActions.open(url)
             return
         }
         super.mouseDown(with: event)
@@ -375,11 +386,11 @@ final class GinoteTextView: DocumentTextView {
         let menu = super.menu(for: event) ?? NSMenu()
         if let url = link(at: event) {
             menu.insertItem(.separator(), at: 0)
-            let copy = NSMenuItem(title: String(localized: "링크 복사"), action: #selector(copyLink(_:)), keyEquivalent: "")
+            let copy = NSMenuItem(title: String(localized: "링크 복사"), action: #selector(ginoteCopyLink(_:)), keyEquivalent: "")
             copy.representedObject = url
             copy.target = self
             menu.insertItem(copy, at: 0)
-            let open = NSMenuItem(title: String(localized: "링크 열기"), action: #selector(openLink(_:)), keyEquivalent: "")
+            let open = NSMenuItem(title: String(localized: "링크 열기"), action: #selector(ginoteOpenLink(_:)), keyEquivalent: "")
             open.representedObject = url
             open.target = self
             menu.insertItem(open, at: 0)
@@ -387,14 +398,14 @@ final class GinoteTextView: DocumentTextView {
         return menu
     }
 
-    @objc private func openLink(_ sender: NSMenuItem) {
-        if let url = sender.representedObject as? URL { NSWorkspace.shared.open(url) }
+    // NSTextView에 같은 이름(openLink:·copyLink:)의 내부 동작이 있어, 그 이름을 쓰면 NSTextView가 항목을 끈다.
+    @objc private func ginoteOpenLink(_ sender: NSMenuItem) {
+        if let url = sender.representedObject as? URL { SystemActions.open(url) }
     }
 
-    @objc private func copyLink(_ sender: NSMenuItem) {
+    @objc private func ginoteCopyLink(_ sender: NSMenuItem) {
         guard let url = sender.representedObject as? URL else { return }
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(url.absoluteString, forType: .string)
+        SystemActions.copy(url.absoluteString)
     }
 
     // MARK: - 파일 붙여넣기·끌어놓기
@@ -406,7 +417,7 @@ final class GinoteTextView: DocumentTextView {
     }
 
     override func paste(_ sender: Any?) {
-        if handleFiles(from: NSPasteboard.general) { return }
+        if handleFiles(from: SystemActions.pasteboard) { return }
         super.paste(sender)
     }
 
@@ -446,11 +457,7 @@ final class FindBarScrollView: NSScrollView {
     private func adjustForFindBar() {
         DispatchQueue.main.async { [self] in
             let barHeight = isFindBarVisible ? (findBarView?.frame.height ?? 0) : 0
-            let target = -(contentView.contentInsets.top + barHeight - (automaticallyAdjustsContentInsets ? 0 : 0))
             let top = -max(contentView.contentInsets.top, barHeight)
-            #if DEBUG
-            DebugTrace.log("findbar visible=\(isFindBarVisible) bar=\(barHeight) clipInsets=\(contentView.contentInsets.top) minY=\(contentView.bounds.minY) target=\(target)")
-            #endif
             if contentView.bounds.minY <= 1 {
                 contentView.scroll(to: NSPoint(x: 0, y: top))
                 reflectScrolledClipView(contentView)
@@ -467,7 +474,7 @@ final class NoteDocumentView: NSView {
     /// 기록 추가 직후 새 빈 입력칸에 포커스를 줄 때 보낸다.
     static let focusNewCommentNotification = Notification.Name("GinoteFocusNewComment")
     let textView: NSTextView
-    private let footer = NSHostingView(rootView: AnyView(EmptyView()))
+    private let footer = FooterHostingView(rootView: AnyView(EmptyView()))
     private var footerHeight: CGFloat = 0
     private var hasFooter = false
     private let header = NSHostingView(rootView: AnyView(EmptyView()))
@@ -500,11 +507,12 @@ final class NoteDocumentView: NSView {
         NotificationCenter.default.addObserver(self, selector: #selector(focusNewComment), name: Self.focusNewCommentNotification, object: nil)
     }
 
+    @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError() }
 
     /// 기록 영역에서 비어 있는 마지막 입력칸(방금 추가한 기록)을 찾아 포커스를 주고 보이게 스크롤한다.
     @objc private func focusNewComment() {
-        guard let window, window.isKeyWindow || window.isMainWindow else { return }
+        guard let window, SystemActions.isActiveWindow(window) else { return }
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
             self.layoutSubtreeIfNeeded()
@@ -583,20 +591,7 @@ final class NoteDocumentView: NSView {
         relayout()
     }
 
-    /// 기록 입력칸도 본문처럼 자동 따옴표·대시·맞춤법 고침을 끈다(웹 textarea와 같게, Markdown 원문 보존).
-    private func configureFooterEditors(_ view: NSView) {
-        if let text = view as? NSTextView, text.isEditable, text.isAutomaticQuoteSubstitutionEnabled || text.isAutomaticSpellingCorrectionEnabled {
-            text.isAutomaticQuoteSubstitutionEnabled = false
-            text.isAutomaticDashSubstitutionEnabled = false
-            text.isAutomaticTextReplacementEnabled = false
-            text.isAutomaticSpellingCorrectionEnabled = false
-            text.isContinuousSpellCheckingEnabled = false
-        }
-        view.subviews.forEach(configureFooterEditors)
-    }
-
     func relayout() {
-        if hasFooter { configureFooterEditors(footer) }
         let width = enclosingScrollView?.contentSize.width ?? bounds.width
         guard width > 0 else { return }
         if abs(frame.width - width) > 0.5 { setFrameSize(NSSize(width: width, height: frame.height)) }
@@ -619,6 +614,26 @@ final class NoteDocumentView: NSView {
         let visible = enclosingScrollView?.contentSize.height ?? 0
         let total = max(top + (hasFooter ? footerHeight : 0), visible)
         if abs(frame.height - total) > 0.5 { setFrameSize(NSSize(width: width, height: total)) }
+    }
+}
+
+/// 기록 영역을 그리는 호스팅 뷰. SwiftUI가 입력칸(TextEditor)을 만들 때마다 본문처럼 자동 따옴표·대시·맞춤법 고침을
+/// 끈다(웹 textarea와 같게, Markdown 원문 보존). 입력칸은 기록을 추가하거나 읽어 온 뒤 늦게 생기므로 배치할 때마다 본다.
+final class FooterHostingView: NSHostingView<AnyView> {
+    override func layout() {
+        super.layout()
+        Self.configureEditors(in: self)
+    }
+
+    static func configureEditors(in view: NSView) {
+        if let text = view as? NSTextView, text.isEditable, text.isAutomaticQuoteSubstitutionEnabled || text.isAutomaticSpellingCorrectionEnabled {
+            text.isAutomaticQuoteSubstitutionEnabled = false
+            text.isAutomaticDashSubstitutionEnabled = false
+            text.isAutomaticTextReplacementEnabled = false
+            text.isAutomaticSpellingCorrectionEnabled = false
+            text.isContinuousSpellCheckingEnabled = false
+        }
+        view.subviews.forEach(configureEditors)
     }
 }
 

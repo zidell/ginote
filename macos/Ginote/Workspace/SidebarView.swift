@@ -7,7 +7,7 @@ enum SidebarItem: Hashable {
 
 /// 왼쪽 칸: 저장소, 보관함(노트·휴지통), 태그.
 struct SidebarView: View {
-    @Environment(AppModel.self) private var app
+    private var app: AppModel { .shared }
     @Bindable var workspace: WorkspaceModel
     var pane: FocusState<PaneFocus?>.Binding
 
@@ -50,8 +50,10 @@ struct SidebarView: View {
             .foregroundStyle(.secondary)
     }
 
-    private func activeMark(_ active: Bool) -> some View {
-        Image(systemName: "checkmark").font(UIScale.font(10)).foregroundStyle(.secondary).opacity(active ? 1 : 0)
+    private func activeBackground(_ active: Bool) -> some View {
+        RoundedRectangle(cornerRadius: 6)
+            .fill(active ? Color.black.opacity(0.14) : .clear)
+            .padding(.horizontal, 4)
     }
 
     var body: some View {
@@ -69,21 +71,22 @@ struct SidebarView: View {
                         }
                         Spacer(minLength: 4)
                         countBadge(app.workspaceNoteCounts[item.id])
-                        if item.id == workspace.workspace.id {
-                            activeMark(true)
-                        } else if index < 9 {
+                        if index < 9 {
                             Text("⌘\(index + 1)").font(UIScale.font(10)).foregroundStyle(.tertiary)
                         }
                     }
                     .tag(SidebarItem.workspace(item.id))
+                    .listRowBackground(activeBackground(item.id == workspace.workspace.id))
                     .help(item.repo)
                 }
             }
             Section("보관함") {
-                HStack { Label("노트", systemImage: "note.text"); Spacer(); countBadge(workspace.counts?.notes); activeMark(activeItem == .notes) }
+                HStack { Label("노트", systemImage: "note.text"); Spacer(); countBadge(workspace.counts?.notes) }
                     .tag(SidebarItem.notes)
-                HStack { Label("휴지통", systemImage: "trash"); Spacer(); countBadge(workspace.counts?.trash); activeMark(activeItem == .trash) }
+                    .listRowBackground(activeBackground(activeItem == .notes))
+                HStack { Label("휴지통", systemImage: "trash"); Spacer(); countBadge(workspace.counts?.trash) }
                     .tag(SidebarItem.trash)
+                    .listRowBackground(activeBackground(activeItem == .trash))
                     .help("휴지통에는 지난 30일 동안 옮긴 노트만 보입니다.")
             }
             if !workspace.visibleLabels.isEmpty {
@@ -97,9 +100,9 @@ struct SidebarView: View {
                             }
                             Spacer()
                             countBadge(workspace.counts?.labels[label.name])
-                            activeMark(activeItem == .tag(label.name))
                         }
                         .tag(SidebarItem.tag(label.name))
+                        .listRowBackground(activeBackground(activeItem == .tag(label.name)))
                         .help(label.description ?? label.name)
                     }
                 }
@@ -149,7 +152,7 @@ struct AvatarView: View {
     let size: CGFloat
 
     var body: some View {
-        AsyncImage(url: URL(string: "https://github.com/\(owner).png?size=\(Int(size * 2))")) { image in
+        AsyncImage(url: SystemActions.avatarURL(owner: owner, size: Int(size * 2))) { image in
             image.resizable()
         } placeholder: {
             Image(systemName: "person.crop.circle").resizable().foregroundStyle(.secondary)
@@ -171,12 +174,12 @@ extension Color {
 struct ProfileSettingsButton: View {
     @Environment(\.openSettings) private var openSettings
     let login: String?
-    @State private var hovering = false
+    @State var hovering = false
 
     var body: some View {
         Button {
             AppModel.shared.settingsTab = .general
-            openSettings()
+            SystemActions.openSettings(openSettings)
         } label: {
             HStack(spacing: 6) {
                 if let login {

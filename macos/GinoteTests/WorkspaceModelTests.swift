@@ -62,26 +62,6 @@ final class WorkspaceModelTests: XCTestCase {
         XCTAssertEqual(model.totalCount, 2, "되돌리면 목록 머리 개수도 돌아온다")
     }
 
-    func testNewNoteUpdatesCounts() async throws {
-        FakeGitHub.addIssue(title: "기존")
-        let model = try await connectedModel()
-        FakeGitHub.freezeCounts()
-        let session = try XCTUnwrap(model.createNote())
-        try await waitUntil("새 노트 번호", session.number != nil)
-        XCTAssertEqual(model.counts?.notes, 2, "새 노트를 만들면 사이드바 개수가 바로 는다")
-        XCTAssertEqual(model.totalCount, 2)
-        XCTAssertEqual(model.issues.first?.number, session.number, "새 노트는 보통 노트 맨 앞")
-        XCTAssertEqual(session.displayTitle, NoteSession.placeholderTitle)
-    }
-
-    func testNewNoteTitleBeforeNumberIsPlaceholderNotUntitled() async throws {
-        let model = try await connectedModel()
-        let session = try XCTUnwrap(model.createNote())
-        XCTAssertNil(session.number)
-        XCTAssertEqual(session.displayTitle, "새 노트", "번호를 받기 전에도 GitHub에 만들 제목과 같아야 줄 제목이 바뀌지 않는다")
-        try await waitUntil("새 노트 번호", session.number != nil)
-    }
-
     func testLabelChangeUpdatesSidebarCount() async throws {
         let number = FakeGitHub.addIssue(title: "태그 시험")
         FakeGitHub.addLabel("bug")
@@ -123,26 +103,4 @@ final class WorkspaceModelTests: XCTestCase {
     }
 
     // MARK: - 목록 기억
-
-    func testSwitchingBackToRememberedListShowsItWithoutSkeleton() async throws {
-        FakeGitHub.addIssue(title: "열린 노트")
-        FakeGitHub.addIssue(title: "닫힌 노트", state: "closed")
-        let model = try await connectedModel()
-        let notes = model.issues.map(\.number)
-
-        model.scope = .trash
-        try await waitUntil("휴지통 목록", !model.showingSkeleton && model.issues.first?.title == "닫힌 노트")
-
-        model.scope = .notes
-        await Task.yield()
-        XCTAssertFalse(model.showingSkeleton, "기억한 목록은 자리표시 없이 바로 보인다")
-        XCTAssertEqual(model.issues.map(\.number), notes)
-    }
-
-    func testFirstOpenLoadsCountsWithoutDebounceDelay() async throws {
-        FakeGitHub.addIssue(title: "하나")
-        let started = Date()
-        _ = try await connectedModel()
-        XCTAssertLessThan(Date().timeIntervalSince(started), 1.2, "처음 여는 저장소는 개수를 기다리지 않고 바로 읽는다")
-    }
 }

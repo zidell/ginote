@@ -49,6 +49,9 @@ public struct Issue: Codable, Hashable, Identifiable, Sendable {
         self.comments = comments; self.user = user; self.htmlUrl = htmlUrl; self.pullRequest = nil
     }
 
+    /// 본문. GitHub는 빈 본문을 null로 줄 수 있다.
+    public var bodyText: String { body ?? "" }
+    public var author: String { user?.login ?? "" }
     public var isClosed: Bool { state == "closed" }
     public var isPinned: Bool { labels.contains { PinLabel.isPin($0.name) } }
     public var isLocked: Bool { NoteLock.isLockedTitle(title) }
@@ -64,6 +67,7 @@ public struct IssueComment: Codable, Hashable, Identifiable, Sendable {
     public var htmlUrl: String?
 
     public var author: String { user?.login ?? "" }
+    public var bodyText: String { body ?? "" }
 }
 
 /// 첨부 브랜치의 파일.

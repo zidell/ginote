@@ -1,6 +1,6 @@
 name: macOS native tests
 
-# 맥 네이티브 앱(macos/)의 화면 없는 테스트. 공통 모듈(GinoteCore)과 화면 모델(GinoteTests, 가짜 GitHub)을 검사한다.
+# 맥 네이티브 앱의 데이터 규약과 저장 상태 전이만 검사한다.
 # 실제 GitHub나 비밀값은 쓰지 않는다.
 on:
   push:
@@ -31,14 +31,14 @@ jobs:
         with:
           node-version: 22
 
-      - name: GinoteCore tests
+      - name: Core contracts
         working-directory: macos/Packages/GinoteCore
-        run: swift test
+        run: GINOTE_NODE="$(command -v node)" swift test
 
       - name: Install XcodeGen
         run: brew install xcodegen
 
-      - name: App model tests
+      - name: Model state transitions
         working-directory: macos
         run: |
           xcodegen

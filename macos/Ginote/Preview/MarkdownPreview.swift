@@ -6,7 +6,7 @@ import SwiftUI
 /// Markdown 미리보기(⇧⌘M). WebView 없이 swift-markdown으로 파싱해 글자 속성으로 그린다.
 /// GFM, 한 줄 바꿈은 줄바꿈(웹 `breaks: true`와 같음). HTML은 앱이 쓰는 `<audio>`만 바꾸고 나머지는 원문으로 보인다.
 struct MarkdownPreview: View {
-    @Environment(AppModel.self) private var app
+    private var app: AppModel { .shared }
     let markdown: String
     let title: String?
     let maxWidth: CGFloat
@@ -15,7 +15,7 @@ struct MarkdownPreview: View {
     /// 본문 아래에 이어 붙일 기록(댓글) 영역.
     var header: AnyView?
     var footer: AnyView?
-    @State private var images: [String: NSImage] = [:]
+    @State var images: [String: NSImage] = [:]
 
     var body: some View {
         PreviewTextView(attributed: render(), maxWidth: maxWidth, initialScrollRatio: initialScrollRatio, onScroll: onScroll, header: header, footer: footer)
@@ -80,7 +80,12 @@ private struct PreviewTextView: NSViewRepresentable {
         // 미리보기임을 알아보게 옅은 회색 바탕을 깐다(웹 markdown-preview).
         scrollView.drawsBackground = true
         scrollView.backgroundColor = NSColor.secondaryLabelColor.withAlphaComponent(0.07)
-        let textView = DocumentTextView()
+        let storage = NSTextStorage()
+        let layout = InlineCodeLayoutManager()
+        let container = NSTextContainer()
+        storage.addLayoutManager(layout)
+        layout.addTextContainer(container)
+        let textView = DocumentTextView(frame: .zero, textContainer: container)
         textView.usesFindBar = true
         textView.isIncrementalSearchingEnabled = true
         textView.isEditable = false
@@ -101,7 +106,8 @@ private struct PreviewTextView: NSViewRepresentable {
     }
 
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
-        guard let document = scrollView.documentView as? NoteDocumentView else { return }
+        // makeNSView가 만든 문서 뷰다.
+        let document = scrollView.documentView as! NoteDocumentView
         let textView = document.textView
         document.setHeader(header)
         document.setFooter(footer)
@@ -178,7 +184,12 @@ private struct AttributedRenderer: MarkupVisitor {
     mutating func visitText(_ text: Markdown.Text) -> NSMutableAttributedString { self.text(text.string) }
     mutating func visitSoftBreak(_ softBreak: SoftBreak) -> NSMutableAttributedString { text("\n") }
     mutating func visitLineBreak(_ lineBreak: LineBreak) -> NSMutableAttributedString { text("\n") }
-    mutating func visitInlineCode(_ inlineCode: InlineCode) -> NSMutableAttributedString { text(inlineCode.code, mono: true) }
+    mutating func visitInlineCode(_ inlineCode: InlineCode) -> NSMutableAttributedString {
+        let result = text(inlineCode.code, mono: true)
+        result.removeAttribute(.backgroundColor, range: NSRange(location: 0, length: result.length))
+        result.addAttribute(.ginoteInlineCode, value: true, range: NSRange(location: 0, length: result.length))
+        return result
+    }
 
     mutating func visitEmphasis(_ emphasis: Emphasis) -> NSMutableAttributedString {
         traits.insert(.italicFontMask); defer { traits.remove(.italicFontMask) }
@@ -218,7 +229,7 @@ private struct AttributedRenderer: MarkupVisitor {
         }
         let attachment = NSTextAttachment()
         let width = min(loaded.size.width, 640)
-        let scale = loaded.size.width > 0 ? width / loaded.size.width : 1
+        let scale = width / max(loaded.size.width, 1)
         attachment.image = loaded
         attachment.bounds = CGRect(x: 0, y: 0, width: width, height: loaded.size.height * scale)
         return NSMutableAttributedString(attachment: attachment)
@@ -270,7 +281,8 @@ private struct AttributedRenderer: MarkupVisitor {
     }
 
     mutating func visitCodeBlock(_ codeBlock: CodeBlock) -> NSMutableAttributedString {
-        let result = text(codeBlock.code.hasSuffix("\n") ? codeBlock.code : codeBlock.code + "\n", mono: true)
+        // 코드 끝 줄바꿈은 하나로 맞춘다.
+        let result = text(codeBlock.code.replacingOccurrences(of: "\n*$", with: "\n", options: .regularExpression), mono: true)
         result.addAttribute(.paragraphStyle, value: paragraphStyle(spacing: 0.2), range: NSRange(location: 0, length: result.length))
         return result
     }
@@ -287,7 +299,8 @@ private struct AttributedRenderer: MarkupVisitor {
         indent += 22
         defer { indent -= 22 }
         for (offset, child) in children.enumerated() {
-            guard let item = child as? ListItem else { continue }
+            // 목록의 자식은 늘 항목(ListItem)이다.
+            let item = child as! ListItem
             var marker = ordered ? "\(start + offset). " : "• "
             if let checkbox = item.checkbox { marker = checkbox == .checked ? "☑ " : "☐ " }
             let content = NSMutableAttributedString()

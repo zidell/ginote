@@ -18,6 +18,11 @@ struct AttachmentStripView: View {
     }
 
     var body: some View {
+        Group { strip }
+    }
+
+    @ViewBuilder
+    private var strip: some View {
         if !store.items.isEmpty || !store.uploadingNames.isEmpty || placeholderCount > 0 {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
@@ -130,7 +135,7 @@ struct AttachmentTile: View {
     }
 
     /// Finder로 끌어내면 내려받은 파일을 건넨다.
-    private func dragProvider() -> NSItemProvider {
+    func dragProvider() -> NSItemProvider {
         let provider = NSItemProvider()
         provider.suggestedName = item.name
         let store = store
@@ -149,7 +154,7 @@ struct AttachmentTile: View {
 @MainActor
 final class QuickLook: NSObject, QLPreviewPanelDataSource, QLPreviewPanelDelegate {
     static let shared = QuickLook()
-    private var urls: [URL] = []
+    private(set) var urls: [URL] = []
 
     static func show(store: AttachmentStore, start: Attachment) {
         show(items: store.items, start: start, session: store.session)
@@ -164,21 +169,27 @@ final class QuickLook: NSObject, QLPreviewPanelDataSource, QLPreviewPanelDelegat
                 if item.path == start.path { startIndex = urls.count }
                 urls.append(url)
             }
-            guard !urls.isEmpty, let panel = QLPreviewPanel.shared() else { return }
+            guard !urls.isEmpty else { return }
             shared.urls = urls
-            panel.dataSource = shared
-            panel.delegate = shared
-            panel.reloadData()
-            panel.currentPreviewItemIndex = startIndex
-            panel.makeKeyAndOrderFront(nil)
-            shared.observeFocusLoss()
+            SystemActions.quickLook(shared, start: startIndex)
         }
+    }
+
+    /// 패널을 띄운다(SystemActions.quickLook이 부른다).
+    func present(start: Int) {
+        guard let panel = QLPreviewPanel.shared() else { return }
+        panel.dataSource = self
+        panel.delegate = self
+        panel.reloadData()
+        panel.currentPreviewItemIndex = start
+        panel.makeKeyAndOrderFront(nil)
+        observeFocusLoss()
     }
 
     private var observers: [NSObjectProtocol] = []
 
     /// 미리보기 중에 다른 앱으로 가거나 앱의 다른 창을 누르면 패널을 닫는다.
-    private func observeFocusLoss() {
+    func observeFocusLoss() {
         guard observers.isEmpty else { return }
         let center = NotificationCenter.default
         let close: (Notification) -> Void = { note in
