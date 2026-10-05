@@ -25,7 +25,10 @@ adb install -r src-tauri/gen/android/app/build/outputs/apk/universal/debug/app-u
 `--debug` 빌드도 내장 `dist`와 OTA를 그대로 씁니다(`tauri android dev`만 Vite 개발 서버를
 엽니다). 디버그 빌드는 WebView 원격 디버깅이 켜져 있어 Chrome `chrome://inspect`나
 `adb forward tcp:9333 localabstract:webview_devtools_remote_<pid>`로 앱 안에서 코드를
-실행해 볼 수 있습니다. OTA 데이터는 `adb shell run-as net.gitools.note ls ota`로 봅니다.
+실행해 볼 수 있습니다. 그 주소의 `http://localhost:9333/json`에서 WebSocket을 받아 CDP
+`Runtime.evaluate`를 보냅니다. OTA 데이터는 `adb shell run-as net.gitools.note ls ota`로 봅니다.
+화면이 두 개인 기기(Pixel Fold 등)는 `adb exec-out screencap`에 경고 문구가 섞이므로
+`adb shell screencap -p /sdcard/s.png` 뒤 `adb pull`로 받습니다.
 
 ### 직접 고친 부분
 
@@ -69,6 +72,10 @@ xcrun simctl install booted ~/Library/Developer/Xcode/DerivedData/ginote-*/Build
 `tauri ios build`가 마지막에 복사해 두는 `src-tauri/gen/apple/build/arm64-sim/Ginote.app`은
 이미 있으면 갱신되지 않을 때가 있어(2026-10-03 확인), 설치는 DerivedData의 앱으로 합니다.
 디버그 빌드의 WebView는 Safari 웹 속성이나 `ios_webkit_debug_proxy`로 원격 검사할 수 있습니다.
+`ios_webkit_debug_proxy`는 시뮬레이터 소켓(`lsof -aUc launchd_sim`로 찾는
+`com.apple.webinspectord_sim.socket`)에 붙이고, `Target.sendMessageToTarget`으로 감싼
+`Runtime.evaluate`를 보냅니다. WebKit은 Promise 결과를 바로 돌려주지 않으므로 결과를 전역 변수에
+담았다가 다시 읽습니다.
 
 ### 직접 고친 부분
 
