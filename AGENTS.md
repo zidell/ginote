@@ -16,6 +16,11 @@ Ginote를 개발·검증·배포하는 규칙과 절차를 모은 시작 문서�
 | [docs/ENCRYPTION.md](docs/ENCRYPTION.md) | 노트 잠금의 암호화 형식, 보호 경계, 배포 pepper |
 | [docs/CODE_SIGNING.md](docs/CODE_SIGNING.md) | 플랫폼별 서명과 개인정보 처리 범위 |
 | [docs/screencasting.md](docs/screencasting.md) | README 미리보기 GIF 생성 |
+| [macos/DESIGN.md](macos/DESIGN.md) | macOS 네이티브(Swift) 시험 앱 설계(로컬 빌드 전용): 웹과 공유하는 데이터 규약, 화면, pepper |
+
+맥 네이티브 앱(`macos/`)을 고칠 때의 빌드·시험 방법은 [macos/README.md](macos/README.md)에 있다. E2E는
+앱을 앞으로 가져와 키보드·마우스를 쓰므로, 사람이 쓰는 기기에서는 먼저 묻고 실패한 항목만 이름으로 다시
+돌린다(전체를 되풀이하지 않는다).
 
 저장소 루트에 `AGENTS.local.md`가 있으면 작업 전에 먼저 읽는다. 특정 개발 기기에만 해당하는
 내용(로컬 도구 경로, 서명 키 위치, 시험 절차)을 담는 파일이며 커밋하지 않는다(`.gitignore`).

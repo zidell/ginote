@@ -21,3 +21,10 @@ docs/preview/frames
 
 # 커밋하지 않는 개인 작업용 스크래치 폴더
 tmp/
+
+# macOS 네이티브 시험 앱(macos/) 빌드 산출물
+macos/*.xcodeproj
+macos/build/
+macos/Ginote/Generated/
+macos/Packages/GinoteCore/.build/
+macos/Packages/GinoteCore/.swiftpm/

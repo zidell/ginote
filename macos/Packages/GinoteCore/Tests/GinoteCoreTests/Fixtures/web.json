@@ -1,0 +1,1257 @@
+{
+  "deterministic": {
+    "notes": [
+      {
+        "input": "",
+        "automaticTitle": "",
+        "automaticTitle10": "",
+        "plainText": "",
+        "firstLinePreview": "",
+        "shortenMiddle12": "",
+        "normalizeTagName": "",
+        "dueDate": null,
+        "dueBadge": null
+      },
+      {
+        "input": "   ",
+        "automaticTitle": "",
+        "automaticTitle10": "",
+        "plainText": "",
+        "firstLinePreview": "",
+        "shortenMiddle12": "   ",
+        "normalizeTagName": "",
+        "dueDate": null,
+        "dueBadge": null
+      },
+      {
+        "input": "첫 줄이 제목\n두 번째 줄",
+        "automaticTitle": "첫 줄이 제목",
+        "automaticTitle10": "첫 줄이 제목",
+        "plainText": "첫 줄이 제목 두 번째 줄",
+        "firstLinePreview": "첫 줄이 제목",
+        "shortenMiddle12": "첫 줄이 제… 번째 줄",
+        "normalizeTagName": "첫-줄이-제목-두-번째-줄",
+        "dueDate": null,
+        "dueBadge": null
+      },
+      {
+        "input": "  앞뒤 공백  \r\n다음",
+        "automaticTitle": "앞뒤 공백",
+        "automaticTitle10": "앞뒤 공백",
+        "plainText": "앞뒤 공백 다음",
+        "firstLinePreview": "앞뒤 공백",
+        "shortenMiddle12": "  앞뒤 공… \r\n다음",
+        "normalizeTagName": "앞뒤-공백-다음",
+        "dueDate": null,
+        "dueBadge": null
+      },
+      {
+        "input": "가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가",
+        "automaticTitle": "가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가",
+        "automaticTitle10": "가가가가가가가가가가",
+        "plainText": "가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가",
+        "firstLinePreview": "가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가",
+        "shortenMiddle12": "가가가가가가…가가가가가",
+        "normalizeTagName": "가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가",
+        "dueDate": null,
+        "dueBadge": null
+      },
+      {
+        "input": "📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝",
+        "automaticTitle": "📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝",
+        "automaticTitle10": "📝📝📝📝📝📝📝📝📝📝",
+        "plainText": "📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝",
+        "firstLinePreview": "📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝",
+        "shortenMiddle12": "📝📝📝📝📝📝…📝📝📝📝📝",
+        "normalizeTagName": "📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝",
+        "dueDate": null,
+        "dueBadge": null
+      },
+      {
+        "input": "# **제목**\n- [x] [링크](https://example.com)와 `코드`",
+        "automaticTitle": "# **제목**",
+        "automaticTitle10": "# **제목**",
+        "plainText": "제목 링크와 코드",
+        "firstLinePreview": "제목",
+        "shortenMiddle12": "# **제목… `코드`",
+        "normalizeTagName": "-**제목**---[x]-[링크](https://example.com)와-`코드`",
+        "dueDate": null,
+        "dueBadge": null
+      },
+      {
+        "input": "![풍경](https://example.com/a.png) 다음 문장",
+        "automaticTitle": "![풍경](https://example.com/a.png) 다음 문장",
+        "automaticTitle10": "![풍경](http",
+        "plainText": "풍경 다음 문장",
+        "firstLinePreview": "풍경 다음 문장",
+        "shortenMiddle12": "![풍경](…다음 문장",
+        "normalizeTagName": "![풍경](https://example.com/a.png)-다음-문장",
+        "dueDate": null,
+        "dueBadge": null
+      },
+      {
+        "input": "> 인용문 _강조_ ~~취소~~",
+        "automaticTitle": "> 인용문 _강조_ ~~취소~~",
+        "automaticTitle10": "> 인용문 _강조_",
+        "plainText": "인용문 강조 취소",
+        "firstLinePreview": "인용문 강조 취소",
+        "shortenMiddle12": "> 인용문 …~취소~~",
+        "normalizeTagName": ">-인용문-_강조_-~~취소~~",
+        "dueDate": null,
+        "dueBadge": null
+      },
+      {
+        "input": "1. 첫째\n2) 둘째",
+        "automaticTitle": "1. 첫째",
+        "automaticTitle10": "1. 첫째",
+        "plainText": "첫째 둘째",
+        "firstLinePreview": "첫째",
+        "shortenMiddle12": "1. 첫째\n2) 둘째",
+        "normalizeTagName": "1.-첫째-2)-둘째",
+        "dueDate": null,
+        "dueBadge": null
+      },
+      {
+        "input": "```js\nconst a = 1;\n```\n본문",
+        "automaticTitle": "```js",
+        "automaticTitle10": "```js",
+        "plainText": "const a = 1; 본문",
+        "firstLinePreview": "",
+        "shortenMiddle12": "```js\n…``\n본문",
+        "normalizeTagName": "```js-const-a-=-1;-```-본문",
+        "dueDate": null,
+        "dueBadge": null
+      },
+      {
+        "input": "[참조]: https://x.y \"t\"\n남는 줄",
+        "automaticTitle": "[참조]: https://x.y \"t\"",
+        "automaticTitle10": "[참조]: http",
+        "plainText": "남는 줄",
+        "firstLinePreview": "",
+        "shortenMiddle12": "[참조]: …\n남는 줄",
+        "normalizeTagName": "[참조]:-https://x.y-\"t\"-남는-줄",
+        "dueDate": null,
+        "dueBadge": null
+      },
+      {
+        "input": "<b>굵게</b> \\*별표\\*",
+        "automaticTitle": "<b>굵게</b> \\*별표\\*",
+        "automaticTitle10": "<b>굵게</b> ",
+        "plainText": "굵게 \\별표\\",
+        "firstLinePreview": "굵게 \\별표\\",
+        "shortenMiddle12": "<b>굵게<…*별표\\*",
+        "normalizeTagName": "<b>굵게</b>-\\*별표\\*",
+        "dueDate": null,
+        "dueBadge": null
+      },
+      {
+        "input": "---\n구분선 뒤",
+        "automaticTitle": "---",
+        "automaticTitle10": "---",
+        "plainText": "구분선 뒤",
+        "firstLinePreview": "",
+        "shortenMiddle12": "---\n구분선 뒤",
+        "normalizeTagName": "----구분선-뒤",
+        "dueDate": null,
+        "dueBadge": null
+      },
+      {
+        "input": "due: 2026-09-23\n본문",
+        "automaticTitle": "due: 2026-09-23",
+        "automaticTitle10": "due: 2026-",
+        "plainText": "due: 2026-09-23 본문",
+        "firstLinePreview": "due: 2026-09-23",
+        "shortenMiddle12": "due: 2…23\n본문",
+        "normalizeTagName": "due:-2026-09-23-본문",
+        "dueDate": "2026-9-23",
+        "dueBadge": {
+          "days": -11,
+          "label": "D+11",
+          "date": "2026-09-23"
+        }
+      },
+      {
+        "input": "Due: 2026-02-30",
+        "automaticTitle": "Due: 2026-02-30",
+        "automaticTitle10": "Due: 2026-",
+        "plainText": "Due: 2026-02-30",
+        "firstLinePreview": "Due: 2026-02-30",
+        "shortenMiddle12": "Due: 2…02-30",
+        "normalizeTagName": "Due:-2026-02-30",
+        "dueDate": null,
+        "dueBadge": null
+      },
+      {
+        "input": "**Due: 2026-9-3**",
+        "automaticTitle": "**Due: 2026-9-3**",
+        "automaticTitle10": "**Due: 202",
+        "plainText": "Due: 2026-9-3",
+        "firstLinePreview": "Due: 2026-9-3",
+        "shortenMiddle12": "**Due:…9-3**",
+        "normalizeTagName": "**Due:-2026-9-3**",
+        "dueDate": "2026-9-3",
+        "dueBadge": {
+          "days": -31,
+          "label": "D+31",
+          "date": "2026-09-03"
+        }
+      },
+      {
+        "input": "## Due: 2026-12-31",
+        "automaticTitle": "## Due: 2026-12-31",
+        "automaticTitle10": "## Due: 20",
+        "plainText": "Due: 2026-12-31",
+        "firstLinePreview": "Due: 2026-12-31",
+        "shortenMiddle12": "## Due…12-31",
+        "normalizeTagName": "-Due:-2026-12-31",
+        "dueDate": "2026-12-31",
+        "dueBadge": {
+          "days": 88,
+          "label": "D-88",
+          "date": "2026-12-31"
+        }
+      },
+      {
+        "input": "due: 2026-10-04 extra",
+        "automaticTitle": "due: 2026-10-04 extra",
+        "automaticTitle10": "due: 2026-",
+        "plainText": "due: 2026-10-04 extra",
+        "firstLinePreview": "due: 2026-10-04 extra",
+        "shortenMiddle12": "due: 2…extra",
+        "normalizeTagName": "due:-2026-10-04-extra",
+        "dueDate": null,
+        "dueBadge": null
+      },
+      {
+        "input": "Mixed 한글 and English 😀 text",
+        "automaticTitle": "Mixed 한글 and English 😀 text",
+        "automaticTitle10": "Mixed 한글 a",
+        "plainText": "Mixed 한글 and English 😀 text",
+        "firstLinePreview": "Mixed 한글 and English 😀 text",
+        "shortenMiddle12": "Mixed … text",
+        "normalizeTagName": "Mixed-한글-and-English-😀-text",
+        "dueDate": null,
+        "dueBadge": null
+      },
+      {
+        "input": "\t탭으로 시작\n",
+        "automaticTitle": "탭으로 시작",
+        "automaticTitle10": "탭으로 시작",
+        "plainText": "탭으로 시작",
+        "firstLinePreview": "탭으로 시작",
+        "shortenMiddle12": "\t탭으로 시작\n",
+        "normalizeTagName": "탭으로-시작",
+        "dueDate": null,
+        "dueBadge": null
+      },
+      {
+        "input": "#태그 이름",
+        "automaticTitle": "#태그 이름",
+        "automaticTitle10": "#태그 이름",
+        "plainText": "#태그 이름",
+        "firstLinePreview": "#태그 이름",
+        "shortenMiddle12": "#태그 이름",
+        "normalizeTagName": "태그-이름",
+        "dueDate": null,
+        "dueBadge": null
+      },
+      {
+        "input": "##  여러 칸  공백 ",
+        "automaticTitle": "##  여러 칸  공백",
+        "automaticTitle10": "##  여러 칸  ",
+        "plainText": "여러 칸 공백",
+        "firstLinePreview": "여러 칸 공백",
+        "shortenMiddle12": "##  여러…  공백 ",
+        "normalizeTagName": "-여러-칸-공백",
+        "dueDate": null,
+        "dueBadge": null
+      },
+      {
+        "input": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "automaticTitle": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "automaticTitle10": "aaaaaaaaaa",
+        "plainText": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "firstLinePreview": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "shortenMiddle12": "aaaaaa…aaaaa",
+        "normalizeTagName": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "dueDate": null,
+        "dueBadge": null
+      }
+    ],
+    "linkAtCursor": [
+      {
+        "body": "앞 [GitHub](https://github.com/example/repo) 뒤",
+        "cursor": 2,
+        "link": {
+          "url": "https://github.com/example/repo",
+          "start": 2,
+          "end": 43
+        }
+      },
+      {
+        "body": "앞 [GitHub](https://github.com/example/repo) 뒤",
+        "cursor": 4,
+        "link": {
+          "url": "https://github.com/example/repo",
+          "start": 2,
+          "end": 43
+        }
+      },
+      {
+        "body": "앞 [GitHub](https://github.com/example/repo) 뒤",
+        "cursor": 20,
+        "link": {
+          "url": "https://github.com/example/repo",
+          "start": 2,
+          "end": 43
+        }
+      },
+      {
+        "body": "앞 [GitHub](https://github.com/example/repo) 뒤",
+        "cursor": 45,
+        "link": null
+      },
+      {
+        "body": "문서: https://example.com/guide?q=note.",
+        "cursor": 0,
+        "link": null
+      },
+      {
+        "body": "문서: https://example.com/guide?q=note.",
+        "cursor": 10,
+        "link": {
+          "url": "https://example.com/guide?q=note",
+          "start": 4,
+          "end": 36
+        }
+      },
+      {
+        "body": "문서: https://example.com/guide?q=note.",
+        "cursor": 36,
+        "link": {
+          "url": "https://example.com/guide?q=note",
+          "start": 4,
+          "end": 36
+        }
+      },
+      {
+        "body": "문서: https://example.com/guide?q=note.",
+        "cursor": 37,
+        "link": null
+      },
+      {
+        "body": "![사진](https://example.com/a.png) 일반 텍스트",
+        "cursor": 3,
+        "link": null
+      },
+      {
+        "body": "![사진](https://example.com/a.png) 일반 텍스트",
+        "cursor": 20,
+        "link": {
+          "url": "https://example.com/a.png",
+          "start": 6,
+          "end": 31
+        }
+      },
+      {
+        "body": "(https://example.com/path) 괄호 [제목 \"x\"](https://a.b/c \"t\")",
+        "cursor": 5,
+        "link": {
+          "url": "https://example.com/path",
+          "start": 1,
+          "end": 25
+        }
+      },
+      {
+        "body": "(https://example.com/path) 괄호 [제목 \"x\"](https://a.b/c \"t\")",
+        "cursor": 30,
+        "link": {
+          "url": "https://a.b/c",
+          "start": 30,
+          "end": 57
+        }
+      },
+      {
+        "body": "(https://example.com/path) 괄호 [제목 \"x\"](https://a.b/c \"t\")",
+        "cursor": 40,
+        "link": {
+          "url": "https://a.b/c",
+          "start": 30,
+          "end": 57
+        }
+      },
+      {
+        "body": "😀 https://ex.com/😀path 끝",
+        "cursor": 3,
+        "link": {
+          "url": "https://ex.com/😀path",
+          "start": 3,
+          "end": 24
+        }
+      },
+      {
+        "body": "😀 https://ex.com/😀path 끝",
+        "cursor": 10,
+        "link": {
+          "url": "https://ex.com/😀path",
+          "start": 3,
+          "end": 24
+        }
+      },
+      {
+        "body": "😀 https://ex.com/😀path 끝",
+        "cursor": 18,
+        "link": {
+          "url": "https://ex.com/😀path",
+          "start": 3,
+          "end": 24
+        }
+      }
+    ],
+    "dueLabels": [
+      {
+        "days": -3,
+        "label": "D+3"
+      },
+      {
+        "days": -1,
+        "label": "D+1"
+      },
+      {
+        "days": 0,
+        "label": "D-DAY"
+      },
+      {
+        "days": 1,
+        "label": "D-1"
+      },
+      {
+        "days": 12,
+        "label": "D-12"
+      }
+    ],
+    "tagColors": [
+      {
+        "name": "여행",
+        "color": "d84f8d"
+      },
+      {
+        "name": "업무",
+        "color": "d84fd2"
+      },
+      {
+        "name": "아이디어",
+        "color": "4fd8bd"
+      },
+      {
+        "name": "ab",
+        "color": "4f72d8"
+      },
+      {
+        "name": "ba",
+        "color": "724fd8"
+      },
+      {
+        "name": "Work",
+        "color": "d84f96"
+      },
+      {
+        "name": "é",
+        "color": "4f5fd8"
+      },
+      {
+        "name": "é",
+        "color": "4f5fd8"
+      },
+      {
+        "name": "😀 emoji",
+        "color": "4f9dd8"
+      },
+      {
+        "name": "",
+        "color": "d84f4f"
+      }
+    ],
+    "tagDefinitions": [
+      {
+        "value": "업무: 회사 일",
+        "current": null,
+        "parsed": {
+          "name": "업무",
+          "description": "회사 일"
+        }
+      },
+      {
+        "value": "업무",
+        "current": null,
+        "parsed": {
+          "name": "업무",
+          "description": ""
+        }
+      },
+      {
+        "value": " 이름 : 설명 : 더 ",
+        "current": null,
+        "parsed": {
+          "name": "이름",
+          "description": "설명 : 더"
+        }
+      },
+      {
+        "value": "a:b: 설명",
+        "current": "a:b",
+        "parsed": {
+          "name": "a:b",
+          "description": "설명"
+        }
+      },
+      {
+        "value": "a:b",
+        "current": "a:b",
+        "parsed": {
+          "name": "a:b",
+          "description": ""
+        }
+      },
+      {
+        "value": ":설명만",
+        "current": null,
+        "parsed": {
+          "name": "",
+          "description": "설명만"
+        }
+      }
+    ],
+    "tagLimits": [
+      {
+        "tag": {
+          "name": "가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가",
+          "description": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀"
+        },
+        "limited": {
+          "name": "가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가",
+          "description": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀"
+        }
+      },
+      {
+        "tag": {
+          "name": "  짧음 ",
+          "description": ""
+        },
+        "limited": {
+          "name": "짧음",
+          "description": ""
+        }
+      }
+    ],
+    "repoAddresses": [
+      {
+        "input": "octo/notes",
+        "parsed": {
+          "owner": "octo",
+          "name": "notes",
+          "fullName": "octo/notes"
+        }
+      },
+      {
+        "input": "https://github.com/octo/notes.git",
+        "parsed": {
+          "owner": "octo",
+          "name": "notes",
+          "fullName": "octo/notes"
+        }
+      },
+      {
+        "input": " /octo/notes/ ",
+        "parsed": {
+          "owner": "octo",
+          "name": "notes",
+          "fullName": "octo/notes"
+        }
+      },
+      {
+        "input": "octo",
+        "parsed": null
+      },
+      {
+        "input": "a/b/c",
+        "parsed": null
+      },
+      {
+        "input": "HTTP://GitHub.com/x/y",
+        "parsed": {
+          "owner": "x",
+          "name": "y",
+          "fullName": "x/y"
+        }
+      }
+    ],
+    "tokens": [
+      {
+        "input": "​ghp_abc﻿ ",
+        "normalized": "ghp_abc"
+      },
+      {
+        "input": " github_pat_x⁠",
+        "normalized": "github_pat_x"
+      }
+    ],
+    "patURLs": [
+      {
+        "input": "octo/notes",
+        "url": "https://github.com/settings/personal-access-tokens/new?name=Ginote+-+notes&description=Ginote+access+for+octo%2Fnotes&expires_in=none&issues=write&contents=write&target_name=octo"
+      },
+      {
+        "input": "",
+        "url": "https://github.com/settings/personal-access-tokens/new?name=Ginote&description=Ginote+repository+access&expires_in=none&issues=write&contents=write"
+      },
+      {
+        "input": "someone/a-very-long-repository-name-for-notes",
+        "url": "https://github.com/settings/personal-access-tokens/new?name=Ginote+-+a-very-long-repository-name-for&description=Ginote+access+for+someone%2Fa-very-long-repository-name-for-notes&expires_in=none&issues=write&contents=write&target_name=someone"
+      }
+    ],
+    "attachments": {
+      "repo": "octo/notes",
+      "links": [
+        "![](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f5-%EC%82%AC%EC%A7%84.png)",
+        "[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f6-plan%201.pdf)",
+        "[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/comments/77/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f7-a%23b.txt)"
+      ],
+      "rawURL": "https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/9/a%20b%23c/%ED%95%9C%EA%B8%80.png",
+      "isImageCases": [
+        {
+          "name": "a.PNG",
+          "type": null,
+          "link": "![](https://github.com/octo/notes/raw/ginote-assets/p/a.PNG)"
+        },
+        {
+          "name": "b.pdf",
+          "type": null,
+          "link": "[](https://github.com/octo/notes/raw/ginote-assets/p/b.pdf)"
+        },
+        {
+          "name": "c",
+          "type": "image/heic",
+          "link": "![](https://github.com/octo/notes/raw/ginote-assets/p/c)"
+        },
+        {
+          "name": "d.webp",
+          "type": "application/octet-stream",
+          "link": "![](https://github.com/octo/notes/raw/ginote-assets/p/d.webp)"
+        }
+      ],
+      "bodies": [
+        {
+          "body": "",
+          "paths": [],
+          "stripped": "",
+          "managedLinks": [],
+          "withBlock": "<!-- ginote:attachments:start -->\n\n![](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f5-%EC%82%AC%EC%A7%84.png)\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f6-plan%201.pdf)\n\n<!-- ginote:attachments:end -->",
+          "withoutBlock": "",
+          "compressed": "",
+          "roundTrip": "",
+          "removedFirst": "",
+          "inserted": [
+            {
+              "position": null,
+              "result": "[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f6-plan%201.pdf)\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/comments/77/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f7-a%23b.txt)"
+            },
+            {
+              "position": 0,
+              "result": "[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f6-plan%201.pdf)\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/comments/77/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f7-a%23b.txt)"
+            },
+            {
+              "position": 3,
+              "result": "[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f6-plan%201.pdf)\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/comments/77/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f7-a%23b.txt)"
+            },
+            {
+              "position": 0,
+              "result": "[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f6-plan%201.pdf)\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/comments/77/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f7-a%23b.txt)"
+            }
+          ]
+        },
+        {
+          "body": "본문만 있음",
+          "paths": [],
+          "stripped": "본문만 있음",
+          "managedLinks": [],
+          "withBlock": "<!-- ginote:attachments:start -->\n\n![](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f5-%EC%82%AC%EC%A7%84.png)\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f6-plan%201.pdf)\n\n<!-- ginote:attachments:end -->\n\n본문만 있음",
+          "withoutBlock": "본문만 있음",
+          "compressed": "본문만 있음",
+          "roundTrip": "본문만 있음",
+          "removedFirst": "본문만 있음",
+          "inserted": [
+            {
+              "position": null,
+              "result": "본문만 있음\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f6-plan%201.pdf)\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/comments/77/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f7-a%23b.txt)"
+            },
+            {
+              "position": 0,
+              "result": "[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f6-plan%201.pdf)\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/comments/77/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f7-a%23b.txt)\n\n본문만 있음"
+            },
+            {
+              "position": 3,
+              "result": "본문만\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f6-plan%201.pdf)\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/comments/77/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f7-a%23b.txt)\n\n 있음"
+            },
+            {
+              "position": 6,
+              "result": "본문만 있음\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f6-plan%201.pdf)\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/comments/77/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f7-a%23b.txt)"
+            }
+          ]
+        },
+        {
+          "body": "<!-- ginote:attachments:start -->\n\n![](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f5-%EC%82%AC%EC%A7%84.png)\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f6-plan%201.pdf)\n\n<!-- ginote:attachments:end -->\n\n본문 첫 줄\n\n둘째 문단",
+          "paths": [
+            ".issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f5-사진.png",
+            ".issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f6-plan 1.pdf"
+          ],
+          "stripped": "본문 첫 줄\n\n둘째 문단",
+          "managedLinks": [
+            "![](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f5-%EC%82%AC%EC%A7%84.png)",
+            "[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f6-plan%201.pdf)"
+          ],
+          "withBlock": "<!-- ginote:attachments:start -->\n\n![](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f5-%EC%82%AC%EC%A7%84.png)\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f6-plan%201.pdf)\n\n<!-- ginote:attachments:end -->\n\n본문 첫 줄\n\n둘째 문단",
+          "withoutBlock": "본문 첫 줄\n\n둘째 문단",
+          "compressed": "<!-- ginote:attachments:start -->\n\n![]({repo}/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f5-%EC%82%AC%EC%A7%84.png)\n\n[]({repo}/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f6-plan%201.pdf)\n\n<!-- ginote:attachments:end -->\n\n본문 첫 줄\n\n둘째 문단",
+          "roundTrip": "<!-- ginote:attachments:start -->\n\n![](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f5-%EC%82%AC%EC%A7%84.png)\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f6-plan%201.pdf)\n\n<!-- ginote:attachments:end -->\n\n본문 첫 줄\n\n둘째 문단",
+          "removedFirst": "<!-- ginote:attachments:start -->\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f6-plan%201.pdf)\n\n<!-- ginote:attachments:end -->\n\n본문 첫 줄\n\n둘째 문단",
+          "inserted": [
+            {
+              "position": null,
+              "result": "<!-- ginote:attachments:start -->\n\n![](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f5-%EC%82%AC%EC%A7%84.png)\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f6-plan%201.pdf)\n\n<!-- ginote:attachments:end -->\n\n본문 첫 줄\n\n둘째 문단\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f6-plan%201.pdf)\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/comments/77/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f7-a%23b.txt)"
+            },
+            {
+              "position": 0,
+              "result": "[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f6-plan%201.pdf)\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/comments/77/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f7-a%23b.txt)\n\n<!-- ginote:attachments:start -->\n\n![](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f5-%EC%82%AC%EC%A7%84.png)\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f6-plan%201.pdf)\n\n<!-- ginote:attachments:end -->\n\n본문 첫 줄\n\n둘째 문단"
+            },
+            {
+              "position": 3,
+              "result": "<!-\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f6-plan%201.pdf)\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/comments/77/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f7-a%23b.txt)\n\n- ginote:attachments:start -->\n\n![](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f5-%EC%82%AC%EC%A7%84.png)\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f6-plan%201.pdf)\n\n<!-- ginote:attachments:end -->\n\n본문 첫 줄\n\n둘째 문단"
+            },
+            {
+              "position": 356,
+              "result": "<!-- ginote:attachments:start -->\n\n![](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f5-%EC%82%AC%EC%A7%84.png)\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f6-plan%201.pdf)\n\n<!-- ginote:attachments:end -->\n\n본문 첫 줄\n\n둘째 문단\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f6-plan%201.pdf)\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/comments/77/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f7-a%23b.txt)"
+            }
+          ]
+        },
+        {
+          "body": "<!-- ginote:attachments:start -->\n\n![](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f5-%EC%82%AC%EC%A7%84.png)\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f6-plan%201.pdf)\n\n<!-- ginote:attachments:end -->\n\n본문 첫 줄\n\n둘째 문단\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/comments/77/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f7-a%23b.txt)",
+          "paths": [
+            ".issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f5-사진.png",
+            ".issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f6-plan 1.pdf",
+            ".issue-note-assets/issues/31/comments/77/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f7-a#b.txt"
+          ],
+          "stripped": "본문 첫 줄\n\n둘째 문단\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/comments/77/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f7-a%23b.txt)",
+          "managedLinks": [
+            "![](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f5-%EC%82%AC%EC%A7%84.png)",
+            "[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f6-plan%201.pdf)"
+          ],
+          "withBlock": "<!-- ginote:attachments:start -->\n\n![](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f5-%EC%82%AC%EC%A7%84.png)\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f6-plan%201.pdf)\n\n<!-- ginote:attachments:end -->\n\n본문 첫 줄\n\n둘째 문단\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/comments/77/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f7-a%23b.txt)",
+          "withoutBlock": "본문 첫 줄\n\n둘째 문단\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/comments/77/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f7-a%23b.txt)",
+          "compressed": "<!-- ginote:attachments:start -->\n\n![]({repo}/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f5-%EC%82%AC%EC%A7%84.png)\n\n[]({repo}/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f6-plan%201.pdf)\n\n<!-- ginote:attachments:end -->\n\n본문 첫 줄\n\n둘째 문단\n\n[]({repo}/.issue-note-assets/issues/31/comments/77/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f7-a%23b.txt)",
+          "roundTrip": "<!-- ginote:attachments:start -->\n\n![](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f5-%EC%82%AC%EC%A7%84.png)\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f6-plan%201.pdf)\n\n<!-- ginote:attachments:end -->\n\n본문 첫 줄\n\n둘째 문단\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/comments/77/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f7-a%23b.txt)",
+          "removedFirst": "<!-- ginote:attachments:start -->\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f6-plan%201.pdf)\n\n<!-- ginote:attachments:end -->\n\n본문 첫 줄\n\n둘째 문단\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/comments/77/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f7-a%23b.txt)",
+          "inserted": [
+            {
+              "position": null,
+              "result": "<!-- ginote:attachments:start -->\n\n![](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f5-%EC%82%AC%EC%A7%84.png)\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f6-plan%201.pdf)\n\n<!-- ginote:attachments:end -->\n\n본문 첫 줄\n\n둘째 문단\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/comments/77/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f7-a%23b.txt)\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f6-plan%201.pdf)\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/comments/77/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f7-a%23b.txt)"
+            },
+            {
+              "position": 0,
+              "result": "[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f6-plan%201.pdf)\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/comments/77/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f7-a%23b.txt)\n\n<!-- ginote:attachments:start -->\n\n![](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f5-%EC%82%AC%EC%A7%84.png)\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f6-plan%201.pdf)\n\n<!-- ginote:attachments:end -->\n\n본문 첫 줄\n\n둘째 문단\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/comments/77/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f7-a%23b.txt)"
+            },
+            {
+              "position": 3,
+              "result": "<!-\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f6-plan%201.pdf)\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/comments/77/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f7-a%23b.txt)\n\n- ginote:attachments:start -->\n\n![](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f5-%EC%82%AC%EC%A7%84.png)\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f6-plan%201.pdf)\n\n<!-- ginote:attachments:end -->\n\n본문 첫 줄\n\n둘째 문단\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/comments/77/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f7-a%23b.txt)"
+            },
+            {
+              "position": 497,
+              "result": "<!-- ginote:attachments:start -->\n\n![](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f5-%EC%82%AC%EC%A7%84.png)\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f6-plan%201.pdf)\n\n<!-- ginote:attachments:end -->\n\n본문 첫 줄\n\n둘째 문단\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/comments/77/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f7-a%23b.txt)\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f6-plan%201.pdf)\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/comments/77/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f7-a%23b.txt)"
+            }
+          ]
+        },
+        {
+          "body": "수동 ![](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f5-%EC%82%AC%EC%A7%84.png) 링크",
+          "paths": [
+            ".issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f5-사진.png"
+          ],
+          "stripped": "수동 ![](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f5-%EC%82%AC%EC%A7%84.png) 링크",
+          "managedLinks": [],
+          "withBlock": "<!-- ginote:attachments:start -->\n\n![](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f5-%EC%82%AC%EC%A7%84.png)\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f6-plan%201.pdf)\n\n<!-- ginote:attachments:end -->\n\n수동 ![](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f5-%EC%82%AC%EC%A7%84.png) 링크",
+          "withoutBlock": "수동 ![](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f5-%EC%82%AC%EC%A7%84.png) 링크",
+          "compressed": "수동 ![]({repo}/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f5-%EC%82%AC%EC%A7%84.png) 링크",
+          "roundTrip": "수동 ![](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f5-%EC%82%AC%EC%A7%84.png) 링크",
+          "removedFirst": "수동  링크",
+          "inserted": [
+            {
+              "position": null,
+              "result": "수동 ![](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f5-%EC%82%AC%EC%A7%84.png) 링크\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f6-plan%201.pdf)\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/comments/77/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f7-a%23b.txt)"
+            },
+            {
+              "position": 0,
+              "result": "[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f6-plan%201.pdf)\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/comments/77/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f7-a%23b.txt)\n\n수동 ![](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f5-%EC%82%AC%EC%A7%84.png) 링크"
+            },
+            {
+              "position": 3,
+              "result": "수동 \n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f6-plan%201.pdf)\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/comments/77/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f7-a%23b.txt)\n\n![](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f5-%EC%82%AC%EC%A7%84.png) 링크"
+            },
+            {
+              "position": 147,
+              "result": "수동 ![](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f5-%EC%82%AC%EC%A7%84.png) 링크\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f6-plan%201.pdf)\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/comments/77/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f7-a%23b.txt)"
+            }
+          ]
+        },
+        {
+          "body": "<!-- ginote:attachments:start -->\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f6-plan%201.pdf)\n\n<!-- ginote:attachments:end -->",
+          "paths": [
+            ".issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f6-plan 1.pdf"
+          ],
+          "stripped": "",
+          "managedLinks": [
+            "[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f6-plan%201.pdf)"
+          ],
+          "withBlock": "<!-- ginote:attachments:start -->\n\n![](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f5-%EC%82%AC%EC%A7%84.png)\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f6-plan%201.pdf)\n\n<!-- ginote:attachments:end -->",
+          "withoutBlock": "",
+          "compressed": "<!-- ginote:attachments:start -->\n\n[]({repo}/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f6-plan%201.pdf)\n\n<!-- ginote:attachments:end -->",
+          "roundTrip": "<!-- ginote:attachments:start -->\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f6-plan%201.pdf)\n\n<!-- ginote:attachments:end -->",
+          "removedFirst": "<!-- ginote:attachments:start -->\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f6-plan%201.pdf)\n\n<!-- ginote:attachments:end -->",
+          "inserted": [
+            {
+              "position": null,
+              "result": "<!-- ginote:attachments:start -->\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f6-plan%201.pdf)\n\n<!-- ginote:attachments:end -->\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f6-plan%201.pdf)\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/comments/77/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f7-a%23b.txt)"
+            },
+            {
+              "position": 0,
+              "result": "[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f6-plan%201.pdf)\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/comments/77/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f7-a%23b.txt)\n\n<!-- ginote:attachments:start -->\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f6-plan%201.pdf)\n\n<!-- ginote:attachments:end -->"
+            },
+            {
+              "position": 3,
+              "result": "<!-\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f6-plan%201.pdf)\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/comments/77/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f7-a%23b.txt)\n\n- ginote:attachments:start -->\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f6-plan%201.pdf)\n\n<!-- ginote:attachments:end -->"
+            },
+            {
+              "position": 198,
+              "result": "<!-- ginote:attachments:start -->\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f6-plan%201.pdf)\n\n<!-- ginote:attachments:end -->\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f6-plan%201.pdf)\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/comments/77/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f7-a%23b.txt)"
+            }
+          ]
+        },
+        {
+          "body": "앞\n\n\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f6-plan%201.pdf)\n\n\n뒤",
+          "paths": [
+            ".issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f6-plan 1.pdf"
+          ],
+          "stripped": "앞\n\n\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f6-plan%201.pdf)\n\n\n뒤",
+          "managedLinks": [],
+          "withBlock": "<!-- ginote:attachments:start -->\n\n![](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f5-%EC%82%AC%EC%A7%84.png)\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f6-plan%201.pdf)\n\n<!-- ginote:attachments:end -->\n\n앞\n\n\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f6-plan%201.pdf)\n\n\n뒤",
+          "withoutBlock": "앞\n\n\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f6-plan%201.pdf)\n\n\n뒤",
+          "compressed": "앞\n\n\n\n[]({repo}/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f6-plan%201.pdf)\n\n\n뒤",
+          "roundTrip": "앞\n\n\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f6-plan%201.pdf)\n\n\n뒤",
+          "removedFirst": "앞\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f6-plan%201.pdf)\n\n뒤",
+          "inserted": [
+            {
+              "position": null,
+              "result": "앞\n\n\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f6-plan%201.pdf)\n\n\n뒤\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f6-plan%201.pdf)\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/comments/77/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f7-a%23b.txt)"
+            },
+            {
+              "position": 0,
+              "result": "[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f6-plan%201.pdf)\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/comments/77/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f7-a%23b.txt)\n\n앞\n\n\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f6-plan%201.pdf)\n\n\n뒤"
+            },
+            {
+              "position": 3,
+              "result": "앞\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f6-plan%201.pdf)\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/comments/77/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f7-a%23b.txt)\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f6-plan%201.pdf)\n\n\n뒤"
+            },
+            {
+              "position": 139,
+              "result": "앞\n\n\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f6-plan%201.pdf)\n\n\n뒤\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f6-plan%201.pdf)\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/comments/77/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f7-a%23b.txt)"
+            }
+          ]
+        },
+        {
+          "body": "[이름 \\] 포함](https://github.com/o/r/raw/ginote-assets/x/%ED%95%9C.png)",
+          "paths": [
+            "x/한.png"
+          ],
+          "stripped": "[이름 \\] 포함](https://github.com/o/r/raw/ginote-assets/x/%ED%95%9C.png)",
+          "managedLinks": [],
+          "withBlock": "<!-- ginote:attachments:start -->\n\n![](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f5-%EC%82%AC%EC%A7%84.png)\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f6-plan%201.pdf)\n\n<!-- ginote:attachments:end -->\n\n[이름 \\] 포함](https://github.com/o/r/raw/ginote-assets/x/%ED%95%9C.png)",
+          "withoutBlock": "[이름 \\] 포함](https://github.com/o/r/raw/ginote-assets/x/%ED%95%9C.png)",
+          "compressed": "[이름 \\] 포함](https://github.com/o/r/raw/ginote-assets/x/%ED%95%9C.png)",
+          "roundTrip": "[이름 \\] 포함](https://github.com/o/r/raw/ginote-assets/x/%ED%95%9C.png)",
+          "removedFirst": "[이름 \\] 포함](https://github.com/o/r/raw/ginote-assets/x/%ED%95%9C.png)",
+          "inserted": [
+            {
+              "position": null,
+              "result": "[이름 \\] 포함](https://github.com/o/r/raw/ginote-assets/x/%ED%95%9C.png)\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f6-plan%201.pdf)\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/comments/77/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f7-a%23b.txt)"
+            },
+            {
+              "position": 0,
+              "result": "[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f6-plan%201.pdf)\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/comments/77/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f7-a%23b.txt)\n\n[이름 \\] 포함](https://github.com/o/r/raw/ginote-assets/x/%ED%95%9C.png)"
+            },
+            {
+              "position": 3,
+              "result": "[이름\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f6-plan%201.pdf)\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/comments/77/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f7-a%23b.txt)\n\n \\] 포함](https://github.com/o/r/raw/ginote-assets/x/%ED%95%9C.png)"
+            },
+            {
+              "position": 68,
+              "result": "[이름 \\] 포함](https://github.com/o/r/raw/ginote-assets/x/%ED%95%9C.png)\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f6-plan%201.pdf)\n\n[](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/31/comments/77/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f7-a%23b.txt)"
+            }
+          ]
+        }
+      ]
+    },
+    "lockTitles": [
+      {
+        "title": "메모",
+        "locked": false,
+        "added": "🔒 메모",
+        "removed": "메모"
+      },
+      {
+        "title": "🔒 메모",
+        "locked": true,
+        "added": "🔒 메모",
+        "removed": "메모"
+      },
+      {
+        "title": "🔒메모",
+        "locked": true,
+        "added": "🔒 메모",
+        "removed": "메모"
+      },
+      {
+        "title": "🔒   ",
+        "locked": true,
+        "added": "🔒",
+        "removed": ""
+      },
+      {
+        "title": "",
+        "locked": false,
+        "added": "🔒",
+        "removed": ""
+      },
+      {
+        "title": "가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가",
+        "locked": false,
+        "added": "🔒 가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가",
+        "removed": "가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가"
+      }
+    ],
+    "lockPins": [
+      {
+        "value": "123456",
+        "pin": "123456"
+      },
+      {
+        "value": "12-34-56",
+        "pin": "123456"
+      },
+      {
+        "value": "1234567",
+        "pin": "123456"
+      },
+      {
+        "value": "12345",
+        "pin": ""
+      },
+      {
+        "value": "abc",
+        "pin": ""
+      },
+      {
+        "value": "１２３４５６",
+        "pin": ""
+      }
+    ],
+    "merge": {
+      "timeZone": "Asia/Seoul",
+      "repo": "octo/notes",
+      "issues": [
+        {
+          "number": 12,
+          "title": "둘째",
+          "created_at": "2026-10-02T03:00:00Z",
+          "user": {
+            "login": "zidell"
+          },
+          "body": "둘째 본문 ![](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/12/u-a.png)",
+          "comments": [
+            {
+              "createdAt": "2026-10-02T03:00:00Z",
+              "author": "zidell",
+              "body": "같은 시각 댓글"
+            },
+            {
+              "createdAt": "2026-10-03T00:00:00Z",
+              "author": "",
+              "body": "  "
+            }
+          ]
+        },
+        {
+          "number": 7,
+          "title": "첫째",
+          "created_at": "2026-10-01T23:59:59Z",
+          "user": {
+            "login": "zidell"
+          },
+          "body": "첫째 본문",
+          "comments": []
+        },
+        {
+          "number": 9,
+          "title": "",
+          "created_at": "not-a-date",
+          "user": null,
+          "body": "",
+          "comments": []
+        }
+      ],
+      "replacements": [
+        [
+          ".issue-note-assets/issues/12/u-a.png",
+          ".issue-note-assets/issues/40/v-a.png"
+        ]
+      ],
+      "earliest": 7,
+      "timeline": [
+        {
+          "kind": "body",
+          "issueNumber": 7,
+          "createdAt": "2026-10-01T23:59:59Z"
+        },
+        {
+          "kind": "body",
+          "issueNumber": 12,
+          "createdAt": "2026-10-02T03:00:00Z"
+        },
+        {
+          "kind": "body",
+          "issueNumber": 9,
+          "createdAt": "not-a-date"
+        }
+      ],
+      "body": "## 2026-10-02 08:59:59 @zidell\n\n첫째 본문\n\n## 2026-10-02 12:00:00 @zidell\n\n둘째 본문 ![](https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/40/v-a.png)\n\n## 알 수 없는 시각\n\n_내용 없음_",
+      "comments": [
+        {
+          "issueNumber": 12,
+          "body": "같은 시각 댓글"
+        }
+      ]
+    },
+    "voice": {
+      "paragraphs": [
+        {
+          "input": "한 줄\n두 줄\r\n\n\n세 줄  ",
+          "output": "한 줄\n\n두 줄\n\n세 줄"
+        },
+        {
+          "input": "",
+          "output": ""
+        },
+        {
+          "input": "\n\n앞뒤\n\n",
+          "output": "앞뒤"
+        }
+      ],
+      "titles": [
+        {
+          "input": "  제목   여러   칸  ",
+          "output": "제목 여러 칸"
+        },
+        {
+          "input": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+          "output": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        }
+      ],
+      "compose": [
+        {
+          "input": {
+            "titleMode": "first-line",
+            "body": "본문",
+            "suggestedTitle": "제안"
+          },
+          "output": {
+            "title": "제안",
+            "body": "제안\n\n본문"
+          }
+        },
+        {
+          "input": {
+            "titleMode": "first-line",
+            "body": "본문 첫 줄\n둘째",
+            "suggestedTitle": ""
+          },
+          "output": {
+            "title": "본문 첫 줄",
+            "body": "본문 첫 줄\n둘째"
+          }
+        },
+        {
+          "input": {
+            "titleMode": "separate",
+            "body": "본문",
+            "suggestedTitle": "제안"
+          },
+          "output": {
+            "title": "제안",
+            "body": "본문"
+          }
+        },
+        {
+          "input": {
+            "titleMode": "separate",
+            "body": "첫 줄\n둘째",
+            "suggestedTitle": ""
+          },
+          "output": {
+            "title": "첫 줄",
+            "body": "첫 줄\n둘째"
+          }
+        },
+        {
+          "input": {
+            "titleMode": "separate",
+            "body": "",
+            "suggestedTitle": ""
+          },
+          "output": {
+            "title": "음성 기록",
+            "body": ""
+          }
+        },
+        {
+          "input": {
+            "titleMode": "first-line",
+            "body": "",
+            "suggestedTitle": "제안"
+          },
+          "output": {
+            "title": "음성 기록",
+            "body": ""
+          }
+        }
+      ],
+      "audioLink": "<audio controls preload=\"metadata\" src=\"https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/5/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f5-voice-2026.m4a\"><a href=\"https://github.com/octo/notes/raw/ginote-assets/.issue-note-assets/issues/5/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f5-voice-2026.m4a\">🎙 원본 음성 다운로드</a></audio>",
+      "audioPath": ".issue-note-assets/issues/5/0f1e2d3c-4b5a-4c7d-8e9f-a0b1c2d3e4f5-voice-2026.m4a",
+      "upgrades": [
+        {
+          "input": "- 전사 오류와 오타, 띄어쓰기, 문장부호를 자연스럽게 정리합니다.\n- 의미 단위가 드러나도록 필요한 곳에만 문단 구분 줄바꿈을 넣습니다.\n- 원문의 의미와 말투를 유지하고, 불확실한 내용은 추측해 고치지 않습니다.\n- 요약·재서술·내용 추가 없이, 애매하면 원문을 유지합니다.",
+          "output": "목적: 전사문을 거의 그대로 유지하면서 정확하고 읽기 편하게 다듬습니다.\n\n- 확실한 전사 오류·오타, 띄어쓰기, 문장부호만 자연스럽게 바로잡습니다.\n- 원문의 의미·말투·정보량·불확실성은 그대로 보존합니다. 종결 어미와 높임의 정도도 원문에 쓰인 그대로 둡니다.\n- 말한 내용을 그대로 남기는 기록이므로, 3인칭 서술이나 요약·해설로 바꾸지 않습니다.\n- 의미 단위가 드러나는 곳에만 문단을 나누고, 판단이 어려운 표현은 원문대로 둡니다."
+        },
+        {
+          "input": "목적: 전사문을 거의 그대로 유지하면서 정확하고 읽기 편하게 다듬습니다.\n\n- 확실한 전사 오류·오타, 띄어쓰기, 문장부호만 자연스럽게 바로잡습니다.\n- 원문의 의미·말투·정보량·불확실성은 그대로 보존합니다.\n- 의미 단위가 드러나는 곳에만 문단을 나누고, 판단이 어려운 표현은 원문대로 둡니다.",
+          "output": "목적: 전사문을 거의 그대로 유지하면서 정확하고 읽기 편하게 다듬습니다.\n\n- 확실한 전사 오류·오타, 띄어쓰기, 문장부호만 자연스럽게 바로잡습니다.\n- 원문의 의미·말투·정보량·불확실성은 그대로 보존합니다. 종결 어미와 높임의 정도도 원문에 쓰인 그대로 둡니다.\n- 말한 내용을 그대로 남기는 기록이므로, 3인칭 서술이나 요약·해설로 바꾸지 않습니다.\n- 의미 단위가 드러나는 곳에만 문단을 나누고, 판단이 어려운 표현은 원문대로 둡니다."
+        },
+        {
+          "input": "목적: 두서없이 말한 음성 발화를, 화자가 실제로 전달하려던 내용을 빠짐없이 담은 자연스러운 기록문으로 만듭니다. 요약하거나 새 글을 쓰지 말고 발화의 뜻을 보존합니다.\n\n- 사실·판단·감정·요청·불확실성의 정도·시제·인물·말투를 유지합니다. 원문에 없는 내용은 보태지 않고, 애매하면 그대로 둡니다.\n- 기록의 의미에 기여하지 않는 추임새, 단순 머뭇거림, 문장을 찾으며 생긴 끊김, 뜻이 같은 단순 반복만 정리합니다. 삭제하면 확신·감정·대조·강조·횟수의 의미가 달라지는 표현은 남깁니다.\n- 뒤 표현이 앞 표현을 명백히 부정하거나 같은 자리를 대체할 때만 앞 표현을 지우고 최종 표현을 기록합니다. 이유·범위·우선순위를 보태거나 관점을 바꾼 말은 모두 남기며, 판단이 애매하면 삭제하지 않습니다.\n- 명백한 전사 오류·오타만 고치고, 확신할 수 없는 단어·고유명사·숫자는 바꾸지 않습니다. 띄어쓰기·문장부호·어순은 뜻을 바꾸지 않는 범위에서 다듬습니다.\n- 내용은 빠뜨리지 않고, 의미상 문단을 구분합니다. 한 문단의 크기가 너무 길어지지 않게 합니다. 정제된 기록문만 출력합니다.",
+          "output": "목적: 두서없이 말한 음성 발화를, 말한 사람이 직접 쓴 메모처럼 내용을 빠짐없이 담아 읽기 좋게 정리합니다.\n\n- 말한 사람 본인의 1인칭 시점으로, 자기 노트에 직접 쓴 글처럼 씁니다. 발화를 밖에서 설명하지 말고 말한 내용 자체를 씁니다. \"화자는·그는\" 같은 3인칭 지칭, \"~라고 말했다·전했다·표현했다\" 같은 전달·보도 표현, \"~에 대해 이야기하고 있다·~라는 내용이다·~를 언급한다\" 같은 해설 표현은 쓰지 않습니다.\n  예) 원문 \"리얼타임 기능 말인데, 그 순서가 좀 꼬여\" → ○ \"리얼타임 기능은 순서가 좀 꼬여.\" × \"리얼타임 기능에 대해 이야기하고 있다. 순서가 꼬이는 문제가 있다.\"\n- 종결 어미와 높임의 정도는 원문 그대로 유지합니다. 반말로 말했으면 반말로, 존댓말로 말했으면 존댓말로 씁니다.\n- 사실·판단·감정·요청·불확실성의 정도·시제·인물·말투를 보존하고, 원문에서 확인되는 정보만 사용합니다.\n- 의미를 이루는 표현을 중심으로 문장을 만들고, 단순 추임새·머뭇거림·말을 찾는 끊김·같은 뜻의 반복은 자연스럽게 정리합니다. 확신·감정·대조·강조·횟수의 의미는 살립니다.\n- 앞말을 명백히 수정하거나 대체한 최종 표현을 반영하고, 이유·범위·우선순위·관점의 변화는 모두 담습니다.\n- 확실한 전사 오류만 바로잡고, 애매한 단어·고유명사·숫자는 원문대로 둡니다."
+        },
+        {
+          "input": "목적: 두서없이 말한 음성 발화를, 화자가 전달하려던 내용을 빠짐없이 담은 자연스러운 기록문으로 만듭니다.\n\n- 사실·판단·감정·요청·불확실성의 정도·시제·인물·말투를 보존하고, 원문에서 확인되는 정보만 사용합니다.\n- 의미를 이루는 표현을 중심으로 문장을 만들고, 단순 추임새·머뭇거림·말을 찾는 끊김·같은 뜻의 반복은 자연스럽게 정리합니다. 확신·감정·대조·강조·횟수의 의미는 살립니다.\n- 앞말을 명백히 수정하거나 대체한 최종 표현을 반영하고, 이유·범위·우선순위·관점의 변화는 모두 담습니다.\n- 확실한 전사 오류만 바로잡고, 애매한 단어·고유명사·숫자는 원문대로 둡니다. 의미에 맞게 문장과 문단을 매끄럽게 구성합니다.",
+          "output": "목적: 두서없이 말한 음성 발화를, 말한 사람이 직접 쓴 메모처럼 내용을 빠짐없이 담아 읽기 좋게 정리합니다.\n\n- 말한 사람 본인의 1인칭 시점으로, 자기 노트에 직접 쓴 글처럼 씁니다. 발화를 밖에서 설명하지 말고 말한 내용 자체를 씁니다. \"화자는·그는\" 같은 3인칭 지칭, \"~라고 말했다·전했다·표현했다\" 같은 전달·보도 표현, \"~에 대해 이야기하고 있다·~라는 내용이다·~를 언급한다\" 같은 해설 표현은 쓰지 않습니다.\n  예) 원문 \"리얼타임 기능 말인데, 그 순서가 좀 꼬여\" → ○ \"리얼타임 기능은 순서가 좀 꼬여.\" × \"리얼타임 기능에 대해 이야기하고 있다. 순서가 꼬이는 문제가 있다.\"\n- 종결 어미와 높임의 정도는 원문 그대로 유지합니다. 반말로 말했으면 반말로, 존댓말로 말했으면 존댓말로 씁니다.\n- 사실·판단·감정·요청·불확실성의 정도·시제·인물·말투를 보존하고, 원문에서 확인되는 정보만 사용합니다.\n- 의미를 이루는 표현을 중심으로 문장을 만들고, 단순 추임새·머뭇거림·말을 찾는 끊김·같은 뜻의 반복은 자연스럽게 정리합니다. 확신·감정·대조·강조·횟수의 의미는 살립니다.\n- 앞말을 명백히 수정하거나 대체한 최종 표현을 반영하고, 이유·범위·우선순위·관점의 변화는 모두 담습니다.\n- 확실한 전사 오류만 바로잡고, 애매한 단어·고유명사·숫자는 원문대로 둡니다."
+        },
+        {
+          "input": "목적: 두서없이 말한 음성 발화를, 화자가 전달하려던 내용을 빠짐없이 담은 자연스러운 기록문으로 만듭니다.\n\n- 사실·판단·감정·요청·불확실성의 정도·시제·인물·말투를 보존하고, 원문에서 확인되는 정보만 사용합니다. 문장의 종결 어미와 높임의 정도(반말·해요체·합니다체)는 원문 그대로 둡니다.\n- 의미를 이루는 표현을 중심으로 문장을 만들고, 단순 추임새·머뭇거림·말을 찾는 끊김·같은 뜻의 반복은 자연스럽게 정리합니다. 확신·감정·대조·강조·횟수의 의미는 살립니다.\n- 앞말을 명백히 수정하거나 대체한 최종 표현을 반영하고, 이유·범위·우선순위·관점의 변화는 모두 담습니다.\n- 확실한 전사 오류만 바로잡고, 애매한 단어·고유명사·숫자는 원문대로 둡니다. 의미에 맞게 문장과 문단을 매끄럽게 구성합니다.",
+          "output": "목적: 두서없이 말한 음성 발화를, 말한 사람이 직접 쓴 메모처럼 내용을 빠짐없이 담아 읽기 좋게 정리합니다.\n\n- 말한 사람 본인의 1인칭 시점으로, 자기 노트에 직접 쓴 글처럼 씁니다. 발화를 밖에서 설명하지 말고 말한 내용 자체를 씁니다. \"화자는·그는\" 같은 3인칭 지칭, \"~라고 말했다·전했다·표현했다\" 같은 전달·보도 표현, \"~에 대해 이야기하고 있다·~라는 내용이다·~를 언급한다\" 같은 해설 표현은 쓰지 않습니다.\n  예) 원문 \"리얼타임 기능 말인데, 그 순서가 좀 꼬여\" → ○ \"리얼타임 기능은 순서가 좀 꼬여.\" × \"리얼타임 기능에 대해 이야기하고 있다. 순서가 꼬이는 문제가 있다.\"\n- 종결 어미와 높임의 정도는 원문 그대로 유지합니다. 반말로 말했으면 반말로, 존댓말로 말했으면 존댓말로 씁니다.\n- 사실·판단·감정·요청·불확실성의 정도·시제·인물·말투를 보존하고, 원문에서 확인되는 정보만 사용합니다.\n- 의미를 이루는 표현을 중심으로 문장을 만들고, 단순 추임새·머뭇거림·말을 찾는 끊김·같은 뜻의 반복은 자연스럽게 정리합니다. 확신·감정·대조·강조·횟수의 의미는 살립니다.\n- 앞말을 명백히 수정하거나 대체한 최종 표현을 반영하고, 이유·범위·우선순위·관점의 변화는 모두 담습니다.\n- 확실한 전사 오류만 바로잡고, 애매한 단어·고유명사·숫자는 원문대로 둡니다."
+        },
+        {
+          "input": "목적: 두서없이 말한 음성 발화를, 말한 사람이 직접 쓴 메모처럼 내용을 빠짐없이 담아 읽기 좋게 정리합니다.\n\n- 말한 사람 본인의 1인칭 시점으로, 자기 노트에 직접 쓴 글처럼 씁니다. \"화자는·그는\" 같은 3인칭 지칭과 \"~라고 말했다·전했다·표현했다\" 같은 전달·보도 표현은 쓰지 않습니다.\n- 종결 어미와 높임의 정도는 원문 그대로 유지합니다. 반말로 말했으면 반말로, 존댓말로 말했으면 존댓말로 씁니다.\n- 사실·판단·감정·요청·불확실성의 정도·시제·인물·말투를 보존하고, 원문에서 확인되는 정보만 사용합니다.\n- 의미를 이루는 표현을 중심으로 문장을 만들고, 단순 추임새·머뭇거림·말을 찾는 끊김·같은 뜻의 반복은 자연스럽게 정리합니다. 확신·감정·대조·강조·횟수의 의미는 살립니다.\n- 앞말을 명백히 수정하거나 대체한 최종 표현을 반영하고, 이유·범위·우선순위·관점의 변화는 모두 담습니다.\n- 확실한 전사 오류만 바로잡고, 애매한 단어·고유명사·숫자는 원문대로 둡니다.",
+          "output": "목적: 두서없이 말한 음성 발화를, 말한 사람이 직접 쓴 메모처럼 내용을 빠짐없이 담아 읽기 좋게 정리합니다.\n\n- 말한 사람 본인의 1인칭 시점으로, 자기 노트에 직접 쓴 글처럼 씁니다. 발화를 밖에서 설명하지 말고 말한 내용 자체를 씁니다. \"화자는·그는\" 같은 3인칭 지칭, \"~라고 말했다·전했다·표현했다\" 같은 전달·보도 표현, \"~에 대해 이야기하고 있다·~라는 내용이다·~를 언급한다\" 같은 해설 표현은 쓰지 않습니다.\n  예) 원문 \"리얼타임 기능 말인데, 그 순서가 좀 꼬여\" → ○ \"리얼타임 기능은 순서가 좀 꼬여.\" × \"리얼타임 기능에 대해 이야기하고 있다. 순서가 꼬이는 문제가 있다.\"\n- 종결 어미와 높임의 정도는 원문 그대로 유지합니다. 반말로 말했으면 반말로, 존댓말로 말했으면 존댓말로 씁니다.\n- 사실·판단·감정·요청·불확실성의 정도·시제·인물·말투를 보존하고, 원문에서 확인되는 정보만 사용합니다.\n- 의미를 이루는 표현을 중심으로 문장을 만들고, 단순 추임새·머뭇거림·말을 찾는 끊김·같은 뜻의 반복은 자연스럽게 정리합니다. 확신·감정·대조·강조·횟수의 의미는 살립니다.\n- 앞말을 명백히 수정하거나 대체한 최종 표현을 반영하고, 이유·범위·우선순위·관점의 변화는 모두 담습니다.\n- 확실한 전사 오류만 바로잡고, 애매한 단어·고유명사·숫자는 원문대로 둡니다."
+        },
+        {
+          "input": "목적: 두서없이 길게 말한 음성 발화 전체를 이해해, 화자가 최종적으로 남기려는 생각을 결론·결정·요청과 핵심 근거가 또렷한 기록문으로 구성합니다.\n\n- 전사문 전체에서 화자의 최종 입장, 결정 사항, 요청, 해야 할 일과 핵심 이유를 파악합니다. 발화의 흐름과 순서를 기본으로 삼고, 흩어진 근거와 결론을 연결하거나 시간 흐름을 분명히 할 때만 필요한 범위에서 재배열합니다.\n- 생각을 수정하거나 대체한 경우 최종 표현을 반영합니다. 반복·말실수·말을 찾는 과정·철회된 표현은 덜어 내고, 서로 다른 이유·조건·우선순위·예외·감정·강조는 구분해 담습니다.\n- 결론이 열려 있으면 남아 있는 선택지와 보류 상태를 간결하게 기록합니다.\n- 원문에서 확인되는 사실·의도·관계만으로 구성하며, 확실하지 않은 단어·고유명사·숫자·날짜는 원문대로 둡니다.\n- 화자의 말투와 의도, 단호함·망설임·감정의 정도를 살린 자연스럽고 매끄러운 기록문으로 씁니다.",
+          "output": "목적: 두서없이 길게 말한 음성 발화 전체를 이해해, 말한 사람이 직접 쓴 메모처럼 결론·결정·요청과 핵심 근거가 또렷한 글로 정리합니다.\n\n- 말한 사람 본인의 1인칭 시점으로, 자기 노트에 직접 쓴 글처럼 씁니다. 발화를 밖에서 설명하지 말고 말한 내용 자체를 씁니다. \"화자는·그는\" 같은 3인칭 지칭, \"~라고 말했다·전했다·표현했다\" 같은 전달·보도 표현, \"~에 대해 이야기하고 있다·~라는 내용이다·~를 언급한다\" 같은 해설 표현은 쓰지 않습니다.\n  예) 원문 \"리얼타임 기능 말인데, 그 순서가 좀 꼬여\" → ○ \"리얼타임 기능은 순서가 좀 꼬여.\" × \"리얼타임 기능에 대해 이야기하고 있다. 순서가 꼬이는 문제가 있다.\"\n- 문장을 새로 구성하더라도 종결 어미와 높임의 정도는 원문에 쓰인 말투를 그대로 유지합니다.\n- 전사문 전체에서 최종 입장, 결정 사항, 요청, 해야 할 일과 핵심 이유를 파악합니다. 발화의 흐름과 순서를 기본으로 삼고, 흩어진 근거와 결론을 연결하거나 시간 흐름을 분명히 할 때만 필요한 범위에서 재배열합니다.\n- 생각을 수정하거나 대체한 경우 최종 표현을 반영합니다. 반복·말실수·말을 찾는 과정·철회된 표현은 덜어 내고, 서로 다른 이유·조건·우선순위·예외·감정·강조는 구분해 담습니다.\n- 결론이 열려 있으면 남아 있는 선택지와 보류 상태를 간결하게 기록합니다.\n- 원문에서 확인되는 사실·의도·관계만으로 구성하며, 확실하지 않은 단어·고유명사·숫자·날짜는 원문대로 둡니다.\n- 단호함·망설임·감정의 정도를 살린 자연스럽고 매끄러운 글로 씁니다."
+        },
+        {
+          "input": "목적: 두서없이 길게 말한 음성 발화 전체를 이해해, 화자가 최종적으로 남기려는 생각을 결론·결정·요청과 핵심 근거가 또렷한 기록문으로 구성합니다.\n\n- 전사문 전체에서 화자의 최종 입장, 결정 사항, 요청, 해야 할 일과 핵심 이유를 파악합니다. 발화의 흐름과 순서를 기본으로 삼고, 흩어진 근거와 결론을 연결하거나 시간 흐름을 분명히 할 때만 필요한 범위에서 재배열합니다.\n- 생각을 수정하거나 대체한 경우 최종 표현을 반영합니다. 반복·말실수·말을 찾는 과정·철회된 표현은 덜어 내고, 서로 다른 이유·조건·우선순위·예외·감정·강조는 구분해 담습니다.\n- 결론이 열려 있으면 남아 있는 선택지와 보류 상태를 간결하게 기록합니다.\n- 원문에서 확인되는 사실·의도·관계만으로 구성하며, 확실하지 않은 단어·고유명사·숫자·날짜는 원문대로 둡니다.\n- 화자의 말투와 의도, 단호함·망설임·감정의 정도를 살린 자연스럽고 매끄러운 기록문으로 씁니다. 문장을 새로 구성하더라도 종결 어미와 높임의 정도(반말·해요체·합니다체)는 원문에 쓰인 말투를 그대로 유지합니다.",
+          "output": "목적: 두서없이 길게 말한 음성 발화 전체를 이해해, 말한 사람이 직접 쓴 메모처럼 결론·결정·요청과 핵심 근거가 또렷한 글로 정리합니다.\n\n- 말한 사람 본인의 1인칭 시점으로, 자기 노트에 직접 쓴 글처럼 씁니다. 발화를 밖에서 설명하지 말고 말한 내용 자체를 씁니다. \"화자는·그는\" 같은 3인칭 지칭, \"~라고 말했다·전했다·표현했다\" 같은 전달·보도 표현, \"~에 대해 이야기하고 있다·~라는 내용이다·~를 언급한다\" 같은 해설 표현은 쓰지 않습니다.\n  예) 원문 \"리얼타임 기능 말인데, 그 순서가 좀 꼬여\" → ○ \"리얼타임 기능은 순서가 좀 꼬여.\" × \"리얼타임 기능에 대해 이야기하고 있다. 순서가 꼬이는 문제가 있다.\"\n- 문장을 새로 구성하더라도 종결 어미와 높임의 정도는 원문에 쓰인 말투를 그대로 유지합니다.\n- 전사문 전체에서 최종 입장, 결정 사항, 요청, 해야 할 일과 핵심 이유를 파악합니다. 발화의 흐름과 순서를 기본으로 삼고, 흩어진 근거와 결론을 연결하거나 시간 흐름을 분명히 할 때만 필요한 범위에서 재배열합니다.\n- 생각을 수정하거나 대체한 경우 최종 표현을 반영합니다. 반복·말실수·말을 찾는 과정·철회된 표현은 덜어 내고, 서로 다른 이유·조건·우선순위·예외·감정·강조는 구분해 담습니다.\n- 결론이 열려 있으면 남아 있는 선택지와 보류 상태를 간결하게 기록합니다.\n- 원문에서 확인되는 사실·의도·관계만으로 구성하며, 확실하지 않은 단어·고유명사·숫자·날짜는 원문대로 둡니다.\n- 단호함·망설임·감정의 정도를 살린 자연스럽고 매끄러운 글로 씁니다."
+        },
+        {
+          "input": "목적: 두서없이 길게 말한 음성 발화 전체를 이해해, 말한 사람이 직접 쓴 메모처럼 결론·결정·요청과 핵심 근거가 또렷한 글로 정리합니다.\n\n- 말한 사람 본인의 1인칭 시점으로, 자기 노트에 직접 쓴 글처럼 씁니다. \"화자는·그는\" 같은 3인칭 지칭과 \"~라고 말했다·전했다·표현했다\" 같은 전달·보도 표현은 쓰지 않습니다.\n- 문장을 새로 구성하더라도 종결 어미와 높임의 정도는 원문에 쓰인 말투를 그대로 유지합니다.\n- 전사문 전체에서 최종 입장, 결정 사항, 요청, 해야 할 일과 핵심 이유를 파악합니다. 발화의 흐름과 순서를 기본으로 삼고, 흩어진 근거와 결론을 연결하거나 시간 흐름을 분명히 할 때만 필요한 범위에서 재배열합니다.\n- 생각을 수정하거나 대체한 경우 최종 표현을 반영합니다. 반복·말실수·말을 찾는 과정·철회된 표현은 덜어 내고, 서로 다른 이유·조건·우선순위·예외·감정·강조는 구분해 담습니다.\n- 결론이 열려 있으면 남아 있는 선택지와 보류 상태를 간결하게 기록합니다.\n- 원문에서 확인되는 사실·의도·관계만으로 구성하며, 확실하지 않은 단어·고유명사·숫자·날짜는 원문대로 둡니다.\n- 단호함·망설임·감정의 정도를 살린 자연스럽고 매끄러운 글로 씁니다.",
+          "output": "목적: 두서없이 길게 말한 음성 발화 전체를 이해해, 말한 사람이 직접 쓴 메모처럼 결론·결정·요청과 핵심 근거가 또렷한 글로 정리합니다.\n\n- 말한 사람 본인의 1인칭 시점으로, 자기 노트에 직접 쓴 글처럼 씁니다. 발화를 밖에서 설명하지 말고 말한 내용 자체를 씁니다. \"화자는·그는\" 같은 3인칭 지칭, \"~라고 말했다·전했다·표현했다\" 같은 전달·보도 표현, \"~에 대해 이야기하고 있다·~라는 내용이다·~를 언급한다\" 같은 해설 표현은 쓰지 않습니다.\n  예) 원문 \"리얼타임 기능 말인데, 그 순서가 좀 꼬여\" → ○ \"리얼타임 기능은 순서가 좀 꼬여.\" × \"리얼타임 기능에 대해 이야기하고 있다. 순서가 꼬이는 문제가 있다.\"\n- 문장을 새로 구성하더라도 종결 어미와 높임의 정도는 원문에 쓰인 말투를 그대로 유지합니다.\n- 전사문 전체에서 최종 입장, 결정 사항, 요청, 해야 할 일과 핵심 이유를 파악합니다. 발화의 흐름과 순서를 기본으로 삼고, 흩어진 근거와 결론을 연결하거나 시간 흐름을 분명히 할 때만 필요한 범위에서 재배열합니다.\n- 생각을 수정하거나 대체한 경우 최종 표현을 반영합니다. 반복·말실수·말을 찾는 과정·철회된 표현은 덜어 내고, 서로 다른 이유·조건·우선순위·예외·감정·강조는 구분해 담습니다.\n- 결론이 열려 있으면 남아 있는 선택지와 보류 상태를 간결하게 기록합니다.\n- 원문에서 확인되는 사실·의도·관계만으로 구성하며, 확실하지 않은 단어·고유명사·숫자·날짜는 원문대로 둡니다.\n- 단호함·망설임·감정의 정도를 살린 자연스럽고 매끄러운 글로 씁니다."
+        },
+        {
+          "input": "",
+          "output": "목적: 전사문을 거의 그대로 유지하면서 정확하고 읽기 편하게 다듬습니다.\n\n- 확실한 전사 오류·오타, 띄어쓰기, 문장부호만 자연스럽게 바로잡습니다.\n- 원문의 의미·말투·정보량·불확실성은 그대로 보존합니다. 종결 어미와 높임의 정도도 원문에 쓰인 그대로 둡니다.\n- 말한 내용을 그대로 남기는 기록이므로, 3인칭 서술이나 요약·해설로 바꾸지 않습니다.\n- 의미 단위가 드러나는 곳에만 문단을 나누고, 판단이 어려운 표현은 원문대로 둡니다."
+        },
+        {
+          "input": "  ",
+          "output": "목적: 전사문을 거의 그대로 유지하면서 정확하고 읽기 편하게 다듬습니다.\n\n- 확실한 전사 오류·오타, 띄어쓰기, 문장부호만 자연스럽게 바로잡습니다.\n- 원문의 의미·말투·정보량·불확실성은 그대로 보존합니다. 종결 어미와 높임의 정도도 원문에 쓰인 그대로 둡니다.\n- 말한 내용을 그대로 남기는 기록이므로, 3인칭 서술이나 요약·해설로 바꾸지 않습니다.\n- 의미 단위가 드러나는 곳에만 문단을 나누고, 판단이 어려운 표현은 원문대로 둡니다."
+        },
+        {
+          "input": "내가 고친 규칙",
+          "output": "내가 고친 규칙"
+        }
+      ],
+      "classified": {
+        "transcription": [
+          "gpt-4o-transcribe",
+          "gpt-transcribe",
+          "whisper-1"
+        ],
+        "refinement": [
+          "gpt-4.1",
+          "gpt-5.6-luna",
+          "o3-mini"
+        ]
+      },
+      "masks": [
+        {
+          "input": "",
+          "output": ""
+        },
+        {
+          "input": "short",
+          "output": "••••••••••••"
+        },
+        {
+          "input": "sk-proj-abcdefghijklmnopqrstuvwxyz0123456789",
+          "output": "sk-proj-ab...0123456789"
+        }
+      ]
+    }
+  },
+  "lock": {
+    "testPepper": "fixture-pepper::not-a-real-deployment-value",
+    "defaultPepper": [
+      {
+        "pin": "123456",
+        "issue": 1,
+        "body": "비밀 본문\n두 번째 줄 😀",
+        "payload": "AnqtVcUHem7oALJ9PJC3QIu/rZ89ZWMUSJ9ifGdVOMa7Ig0ublixBvAUyWST4XT0jLnISdrb2jEGSHyx8EOt5waYb8ym1aTlLmx3k0VR"
+      },
+      {
+        "pin": "000000",
+        "issue": 31,
+        "body": "",
+        "payload": "AldtFPp1Pxbr2j7gC0Zp5XOnxRnJFtw+gNys1IYv4j+DynBGKlzOXgNWv3kV"
+      },
+      {
+        "pin": "987654",
+        "issue": 4021,
+        "body": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "payload": "AmxhBKz/7Br0RVjLO+d0+azBWjLFfpEWe6TAOUJrToqtcRdBrDbn1xe7HBW3p3oO4ZHuIbLeud5xjNofW+t4PfgiGPnqwBz9bK+xOHAwlnFehUE0AF2pmWgNEMahByZpEjibk891/TUNNm3b4zPLkhpTEVLkc7rB9oeBBAGwyEby93ZTdvgjwuQ49QCiUzy0qbKz4BwF8AMKK+sai65TLkvKIjNh68j95Qw01loiSbUbq0EP2nHLpwwsioXt8jm5CMC+dVRUVxrjiMUQm2giudpVqxOqknN3kfWT74prM5s0eMZQNwhcIZjTcTSI/Z3ylyIDNsLWralsthp/Ys9fAcavD4ILwpbDwmVVRYN8++fNGcO5Zw//bYhq5OWXazMvkbbRqI/tkV8/S8svCXQBaGMOjRnnZXk5LpJ4WrkBwaNVK65TvflUjZB82eP2HQOdYItYCNlUGQu+EdJDBO9OrxT4oayD7gMl2oMls+pfh4wCV1fo3XAzmutPNWqBSLmP37o2m6q8u01Ef2+l9KpsZgYbcy92mVgNpmok6U03OT2BhJFnwiLk6Ru8nLf07quJ5HLWUQWdAsL9yjW0xSD3HPSz+x6pE20YEZqFbVTiLJpOspB6BHcGQ5Y+3NBNEw5u1uM4ALJxYPXoWEjMW4TtUTSzfBghGQAPQXdqD4pSdbLhOr6+Pa4w4y8FULTDE1Zu7vcXeBGurG1oFNvu64McKChL3KgeSH2mtcJOlejdsmXf00WX24Ca8xFBi7MkQQM6Ck5x7wi/kAKxJof9HDXBrbdFCXI/ejn7cLZiPLeEQr+HuEk8xyJQCPLuLl2Fg4vgkkKtzeFIqIbSoohAKCEdovPHwRpFOd7nCJ2314ZJf+OtVjKFdyeNcA37TEBLOZupPxKEBEA3f+g7ZmJQMxVQVwMBp72TXzCIj4183ZTAn314Vt6nwEb3bKC7Vy57O57bH7+AYNIVH7Jmo5IOyGSj43KHIYzq/IZCJCd9NEohfa5l4itI8tckW73FanVyAO8GLEJsEIUAj44SbYt1WZN/6qpp05YNnBPsyK6KQu/fO2tDtqyFsDeA2zhCFZKFJTHr0/stc3YTGysaNSjqW35fZZCtxignBp9d6nq67cYq06R2Gb40tRmAmLfxAIhdi7/LyHAMYcZna2CWgAqoz2PCfd+k93cYVh48yOebCBdlWYWkq2P+KIu8e2Jqfdz2LPXWehtpA113ysSOgTjlVX6NcRaZgVFsTug/wl/o/BxlIelqUXl5Wz5PATSbYzA9PdKZR7CO9JPUVMhS2u4zd+iESNy1dg4n4KN4DzzNaFVgnro8AxsbSp0+mW3ihWV+27EZlKaFW6iCFGpDo2wyuXgBJvsiE9ed+ByARhu7+valMku538F4iwDk22zmw11x/p+qwGEZaW+oKkNAXvub5SxvMF2Ont+eMO/XfjkyjbMabjK9VoblhJnuuJA6IjkDr9gKjtpMdIV3sKkMcUAO4jsmEqMxjQNI2EVB6IXHMqC5pIJFxj/aAaazZTkt51oyxP0gRsT8Udmz5g3+vCdaw6wR++bO94nAgaLrLtASlIDqeZx9JOSNQq6S4z1L+U6jmnrFTCo+t0pClVQjhsQrFvpp38mBlX050KTQRxYI48CDxDAzXzRZeB1je8PC0OCEi+gURxSe0FVgW6kRhHw/xHRAUcb2q22q+k9J1K9GL6rbeDXnEgM3k1yjQui7QAMmkrb9QmAdS1qJs6PDs/jBv7ittpnZMfUXsb3LyEPe0anoVfL6dLwCIoTXW4WXasxHhqNzPdjFgMd9iJyupHOi5AAmi3c7g+oZaRl71xT+yKHj8OCy4ukzN2e/A6MfF+LqpqXr8dClhyNL22H7K0hHsUTulbwzbERXCFbX0cmwFdnSITNCy2Y0L2l7vDYc7wv8x7krVcsJvvg6tlDI11Y1IgMgKd55k4aUT/4hhy7eOobzXrnJ7zQEuqlzu95ul+n2I2SfVcm305j94sfTXU8VXyPtzCbn13fBkXRYHGyRnKePD9pSLqtX9ebhpTwh4Jh3LXNDio0ApoLI4sVTGhGesTdTVmi29YbqZFAHatw4NrRXUsqNxQFa5HfTSTWNeBQwFCGXLeXHGuF+gTVi36+aQmxYemSAhK8mIQlHIeX3Y8jpwlmV0vRQ1O6yE2ysE6bBCMVyPP9fo1w6VCuEp5QbQgznAV4rwN3EdwpNcfqV2JyN+B1gR8vmOV30RUvvG0plv+abcUpWPeY/V08NiQQu/D281GqiOhkFxUn4HhF/OIi1Niz/8IyNbAdqYGd6ZMxUy7WER0I84n6y0NE3TKoegWbF5sMY9123TjJYXlBH6IKn+klN2vldkCUyjFZQUiskoMdYezLI1FJvaPFsxgZvgEwNNvjrGM2UlCFfqwUve/A1qP2Z0pCr3TF0N+ubSiWZmqgDCVFxyZWZAgGnDxDNFxnYFxQ3VwDzpcEJnwnm1jrO38RODPcIFG3Qju2K4iiLUUhG7tF86S8i4scJIVL17WmAuyfJSOWCm6tGaLnsNBE5nSHm3iDeKC1eTd2HMuVHc6k2URVBxz+2jsvTNVhETFYeR+MI76/OHmTCeQpuwh5mMAMxjmTXxyy2NA5uWhXQfqFApDLt1jfM0uaxoTHPaoN/GQYXwHJ5NmRl86PWF9eFM6XPtJOB7BBy80wO6HWFJdIUrrdeBEqEi0SKem18ieFR6Xm0wLWzsnYKTh5RHs0="
+      }
+    ],
+    "customPepper": [
+      {
+        "pin": "123456",
+        "issue": 1,
+        "body": "비밀 본문\n두 번째 줄 😀",
+        "payload": "AngSp7Y7yrG0cTl5DU/nMKwPWAIuh2Zjo61Gy0B03t3SCo8rHyAkyd2rQSJMszgrciXPSe/BS72jApdM8N5/s4mM2umL1gMhIOeiwDir"
+      },
+      {
+        "pin": "000000",
+        "issue": 31,
+        "body": "",
+        "payload": "AphFk9Z9AyNiouqwEIbamYoBPlREnC4/Z8zr5g83EKJPRWSuOH4gMxJwWKUD"
+      },
+      {
+        "pin": "987654",
+        "issue": 4021,
+        "body": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "payload": "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"
+      }
+    ]
+  }
+}

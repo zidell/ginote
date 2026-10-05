@@ -1,0 +1,14 @@
+#!/bin/bash
+# 시험 저장소에 연결한 앱을 띄우고 그대로 둔다(눈으로 확인용). 사용자 설정·키체인은 쓰지 않는다.
+#
+#   macos/scripts/ui.sh [노트 번호]
+set -u
+ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+APP="$ROOT/macos/build/Build/Products/Debug/Ginote Native.app/Contents/MacOS/Ginote"
+OUT="${GINOTE_UI_OUT:-${TMPDIR:-/tmp}/ginote-ui}"
+REPO="${GINOTE_TEST_REPO:?GINOTE_TEST_REPO=owner/시험저장소 를 지정하세요}"
+pkill -f "Ginote Native.app/Contents/MacOS/Ginote"; sleep 1
+rm -rf "$OUT/config"; mkdir -p "$OUT/config"
+GINOTE_SELF_TEST=ui GINOTE_UI_SELECT="${1:-}" GINOTE_CONFIG_DIR="$OUT/config" GINOTE_TEST_REPO="$REPO" \
+GINOTE_DEBUG_TOKEN="$(gh auth token)" GINOTE_SELF_TEST_LOG="$OUT/ui.log" GINOTE_TRACE_LOG="$OUT/trace.log" \
+"$APP" > "$OUT/stdout.txt" 2>&1 &

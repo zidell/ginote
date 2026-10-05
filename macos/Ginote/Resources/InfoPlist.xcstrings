@@ -1,0 +1,60 @@
+{
+  "sourceLanguage": "ko",
+  "strings": {
+    "NSMicrophoneUsageDescription": {
+      "comment": "Privacy - Microphone Usage Description",
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ginote Native benötigt das Mikrofon, um Sprachnotizen aufzunehmen."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ginote Native needs the microphone to record voice notes."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ginote Native necesita el micrófono para grabar notas de voz."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ginote Native a besoin du micro pour enregistrer des notes vocales."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ginote Native ha bisogno del microfono per registrare note vocali."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "音声ノートを録音するにはマイクが必要です。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "음성 노트를 녹음하려면 마이크가 필요합니다."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "录制语音笔记需要使用麦克风。"
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}
