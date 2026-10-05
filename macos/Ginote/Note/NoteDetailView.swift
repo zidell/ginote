@@ -26,8 +26,6 @@ struct NoteDetailView: View {
     var body: some View {
         VStack(spacing: 0) {
             if let message = session.errorMessage { errorBanner(message) }
-            header
-            Divider().opacity(0.4)
             content
         }
         .overlay { deletionOverlay }
@@ -80,6 +78,15 @@ struct NoteDetailView: View {
 
     // MARK: - 위쪽: 제목, 태그
 
+    /// 본문 스크롤 안에 넣는 머리. 노트 칸의 끌어 놓기는 바깥 SwiftUI 화면에 달려 있어, 따로 그려지는 이 영역에도 단다.
+    private var scrollingHeader: AnyView {
+        AnyView(header.dropDestination(for: URL.self) { urls, _ in
+            guard editable, !urls.isEmpty else { return false }
+            session.addAttachments(urls.filter(\.isFileURL))
+            return true
+        } isTargeted: { dropTargeted = $0 })
+    }
+
     @ViewBuilder
     private var header: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -106,8 +113,6 @@ struct NoteDetailView: View {
         .padding(.vertical, 10)
         .frame(maxWidth: CGFloat(preferences.editorMaxWidth) + 48, alignment: .leading)
         .frame(maxWidth: .infinity)
-        // 잠금 노트(잠김·열림)는 머리 띠를 황금빛으로 칠해 일반 노트와 구분한다(웹 툴바 is-lock-protected).
-        .background(session.lockState == .plain ? Color.clear : LockTint.band)
     }
 
     // MARK: - 본문
@@ -115,13 +120,18 @@ struct NoteDetailView: View {
     @ViewBuilder
     private var content: some View {
         if session.lockState == .locked {
-            LockedPlaceholder(session: session)
+            // 잠긴 노트는 본문 대신 자리표시를 둔다. 머리도 같은 잠금 빛 바탕 위에 둔다.
+            VStack(spacing: 0) {
+                header.background(Color(nsColor: LockTint.body))
+                LockedPlaceholder(session: session)
+            }
         } else if showsPreview {
             MarkdownPreview(markdown: AttachmentLinks.expand(session.body, repo: session.repo),
                             title: preferences.titleMode == .separate ? session.title : nil,
                             maxWidth: CGFloat(preferences.editorMaxWidth),
                             initialScrollRatio: session.scrollRatio,
                             onScroll: { session.scrollRatio = $0 },
+                            header: scrollingHeader,
                             footer: commentsFooter)
                 .onExitCommand { previewing = false }
         } else {
@@ -144,6 +154,7 @@ struct NoteDetailView: View {
                 onFiles: { urls in session.addAttachments(urls) },
                 onImages: { images in session.addAttachments(images.compactMap { TemporaryFiles.write($0) }) },
                 onDragTargeted: { editorDropTargeted = $0 },
+                header: scrollingHeader,
                 footer: commentsFooter
             )
         }
@@ -182,37 +193,37 @@ struct NoteDetailView: View {
         ToolbarItem(placement: .principal) {
             if previewing {
                 Button { previewing = false } label: { Label("미리보기 닫기", systemImage: "xmark") .labelStyle(.titleAndIcon) }
-                    .help("미리보기 닫기 (⇧⌘M)")
+                    .help(String(localized: "미리보기 닫기") + app.shortcutHint(.preview))
             }
         }
         ToolbarItemGroup(placement: .primaryAction) {
             // 올리는 중이거나 30개를 채우면 끈다(웹과 같음).
             Button { session.chooseAttachments() } label: { Label("첨부", systemImage: "paperclip") }
                 .help(session.attachments.uploadingNames.isEmpty
-                      ? (attachmentsFull ? String(localized: "노트당 첨부파일은 최대 \(AttachmentLinks.maxPerNote)개까지 추가할 수 있습니다.") : String(localized: "파일 첨부 (⇧⌘A)"))
+                      ? (attachmentsFull ? String(localized: "노트당 첨부파일은 최대 \(AttachmentLinks.maxPerNote)개까지 추가할 수 있습니다.") : String(localized: "파일 첨부") + app.shortcutHint(.attachFiles))
                       : String(localized: "업로드 중 (\(session.attachments.uploadingNames.count)개)"))
                 .disabled(!session.isEditable || !session.attachments.uploadingNames.isEmpty || attachmentsFull)
             Button { VoiceLauncher.start(.body, session: session) } label: { Label("음성 녹음", systemImage: "mic") }
-                .voiceAvailability(app.openAIKey, help: String(localized: "음성 녹음 (⇧⌘E)"))
+                .voiceAvailability(app.openAIKey, help: String(localized: "음성 녹음") + app.shortcutHint(.voiceRecording))
                 .disabled(!session.isEditable || session.number == nil)
             Button { showingTags = true } label: { Label("태그", systemImage: "tag") }
-                .help("태그 (⇧⌘T)")
+                .help(String(localized: "태그") + app.shortcutHint(.tags))
                 .disabled(!session.isEditable)
             Toggle(isOn: $previewing) { Label("미리보기", systemImage: "eye") }
                 .toggleStyle(.button)
-                .help("Markdown 미리보기 (⇧⌘M)")
+                .help(String(localized: "Markdown 미리보기") + app.shortcutHint(.preview))
                 .disabled(session.lockState == .locked)
             Button { session.requestLock() } label: {
                 Label(lockLabel, systemImage: session.lockState == .plain ? "lock.open" : session.lockState == .locked ? "lock.fill" : "lock.open.fill")
                     .foregroundStyle(session.lockState == .plain ? AnyShapeStyle(.primary) : AnyShapeStyle(LockTint.icon))
             }
-            .help(lockLabel + " (⇧⌘L)")
+            .help(lockLabel + app.shortcutHint(.lock))
             .disabled(session.isArchived)
             if let issue = session.issue, !session.isArchived {
                 Button { Task { await session.workspace.togglePin(issue) } } label: {
                     Label(pinLabel, systemImage: session.isPinned ? "pin.fill" : "pin")
                 }
-                .help(pinLabel + " (⇧⌘P)")
+                .help(pinLabel + app.shortcutHint(.pin))
                 .disabled(session.workspace.pinMutation)
             }
             Menu {
@@ -441,8 +452,6 @@ struct TagPickerView: View {
 /// 잠금 노트 색(웹 --ui-lock 황금빛).
 enum LockTint {
     static let icon = Color(nsColor: .systemOrange)
-    /// 머리 띠(웹 툴바와 같은 12%).
-    static let band = Color(nsColor: .systemOrange).opacity(0.12)
     /// 본문 배경(읽는 중). 편집 중에는 편집 배경에 같은 빛을 섞는다.
     static let body = NSColor.systemOrange.withAlphaComponent(0.06)
 }

@@ -11,7 +11,6 @@ struct SetupView: View {
     @State private var step = 0
     @State private var repo = ""
     @State private var token = ""
-    @State private var remember = true
     @State private var verifying = false
     @State private var errorMessage: String?
 
@@ -94,7 +93,7 @@ struct SetupView: View {
             Text("Fine-grained 개인 액세스 토큰(PAT)을 만드세요. Repository access는 이 저장소만, 권한은 Issues: Read and write(필수)와 Contents: Read and write(첨부파일)입니다.")
             Link("\(RepoAddress.parse(repo)?.name ?? "Ginote")용 PAT 만들기", destination: URL(string: RepoAddress.patCreationURL(repo))!)
             SecureField("github_pat_…", text: $token).textFieldStyle(.roundedBorder)
-            Toggle("이 Mac의 키체인에 토큰 기억", isOn: $remember)
+            Text("토큰은 이 Mac의 키체인에 저장합니다.").font(.caption).foregroundStyle(.secondary)
         }
     }
 
@@ -106,7 +105,7 @@ struct SetupView: View {
         defer { verifying = false }
         do {
             _ = try await GitHubClient(token: normalized, repo: address.fullName).verify()
-            app.addWorkspace(repo: address.fullName, token: normalized, remember: remember)
+            app.addWorkspace(repo: address.fullName, token: normalized, remember: true)
             if mode == .addWorkspace { dismiss() }
         } catch let error as GitHubError {
             errorMessage = error.status == 401 ? String(localized: "PAT가 올바르지 않거나 폐기되었습니다.")
@@ -123,7 +122,6 @@ struct TokenPromptView: View {
     @Environment(AppModel.self) private var app
     let workspace: Workspace
     @State private var token = ""
-    @State private var remember = true
     @State private var verifying = false
     @State private var errorMessage: String?
 
@@ -133,7 +131,6 @@ struct TokenPromptView: View {
             Text("이 저장소에 연결할 PAT를 입력하세요.").foregroundStyle(.secondary)
             Link("PAT 만들기", destination: URL(string: RepoAddress.patCreationURL(workspace.repo))!)
             SecureField("github_pat_…", text: $token).textFieldStyle(.roundedBorder)
-            Toggle("이 Mac의 키체인에 토큰 기억", isOn: $remember)
             if let errorMessage { Text(errorMessage).foregroundStyle(.red) }
             HStack {
                 Button("다른 저장소…") { app.tokenPromptWorkspace = nil; app.showingAddWorkspace = true }
@@ -146,7 +143,6 @@ struct TokenPromptView: View {
         }
         .padding(20)
         .frame(width: 440)
-        .onAppear { remember = workspace.rememberToken }
     }
 
     private func connect() async {
@@ -155,7 +151,7 @@ struct TokenPromptView: View {
         defer { verifying = false }
         do {
             _ = try await GitHubClient(token: normalized, repo: workspace.repo).verify()
-            app.setToken(normalized, for: workspace, remember: remember)
+            app.setToken(normalized, for: workspace, remember: true)
         } catch {
             errorMessage = (error as? GitHubError)?.status == 401 ? String(localized: "PAT가 올바르지 않거나 폐기되었습니다.") : error.localizedDescription
         }

@@ -187,6 +187,22 @@ public enum AppConfig {
                       return .string(s.voice.refinementPrompt)
                   })
         ]
+        for command in ShortcutCommand.allCases {
+            list.append(Entry(path: ["shortcuts", command.rawValue],
+                              doc: ["\(command.englishName). Default: \(jsonQuoted(command.defaultSpec)). Applied immediately."],
+                              get: { .string($0.shortcuts[command] ?? command.defaultSpec) },
+                              set: { s, raw in
+                                  let text = raw.string?.trimmingCharacters(in: .whitespaces) ?? command.defaultSpec
+                                  if text.isEmpty { s.shortcuts[command] = ""; return .string("") }
+                                  guard let shortcut = KeyShortcut.parse(text), shortcut.hasCommandModifier else {
+                                      s.shortcuts[command] = command.defaultSpec
+                                      return .string(command.defaultSpec)
+                                  }
+                                  // 보조키 순서·별칭(alt, command 등)만 다르면 받아들이고, 다음에 쓸 때 정리한 형식으로 쓴다.
+                                  s.shortcuts[command] = shortcut.spec
+                                  return .string(raw.string ?? shortcut.spec)
+                              }))
+        }
         return list
     }()
 
@@ -194,7 +210,15 @@ public enum AppConfig {
         "display": "Appearance of Ginote Native on this Mac.",
         "display.list_row": "Items shown in each row of the note list.",
         "behavior": "Saving, loading and locking.",
-        "voice": "Voice notes (OpenAI). The API key is stored in the macOS Keychain, not here."
+        "voice": "Voice notes (OpenAI). The API key is stored in the macOS Keychain, not here.",
+        "shortcuts": [
+            "Menu keyboard shortcuts (Settings > Shortcuts).",
+            "# Format: modifiers then a key, joined by \"+\": \"shift+cmd+t\", \"option+t\", \"ctrl+option+cmd+n\".",
+            "# Modifiers: ctrl, option, shift, cmd. Keys: a letter, digit or punctuation character, or one of",
+            "# return, delete, forward_delete, escape, tab, space, up, down, left, right, home, end, page_up, page_down,",
+            "# plus, minus. Every shortcut needs cmd, ctrl or option. \"\" (empty) removes the shortcut.",
+            "# cmd+1..cmd+9 always switch workspaces."
+        ].joined(separator: "\n")
     ]
 
     static let header = [
@@ -326,9 +350,15 @@ public enum AppConfig {
             }
         }
 
-        let known: Set<String> = ["version", "active_workspace", "workspaces", "display", "behavior", "voice"]
+        let used = ShortcutCommand.allCases.compactMap { command in settings.shortcut(command).map { ($0, command) } }
+        for (shortcut, commands) in Dictionary(grouping: used, by: \.0) where commands.count > 1 {
+            let names = commands.map { "shortcuts.\($0.1.rawValue)" }.sorted().joined(separator: ", ")
+            problems.append("\(names) share \(jsonQuoted(shortcut.spec)); only one of them responds to it.")
+        }
+
+        let known: Set<String> = ["version", "active_workspace", "workspaces", "display", "behavior", "voice", "shortcuts"]
         for key in table.keys where !known.contains(key) { problems.append("Unknown key \"\(key)\" is ignored.") }
-        for section in ["display", "behavior", "voice"] {
+        for section in ["display", "behavior", "voice", "shortcuts"] {
             for key in table[section]?.table?.keys ?? [] {
                 let isKnown = entries.contains { $0.path[0] == section && $0.path[1] == key }
                 if !isKnown { problems.append("Unknown key \"\(section).\(key)\" is ignored.") }

@@ -50,9 +50,9 @@ struct NoteListView: View {
 
     private var list: some View {
         List(selection: $workspace.selection) {
-            // 검색칸은 목록 첫 줄이다. 여백은 목록 줄 여백 하나만 쓴다(검색칸 자체 여백과 겹치면 어색하게 넓다).
+            // 검색칸은 목록 첫 줄이다. 줄 여백을 없애 검색칸 좌우 끝을 노트 줄의 글 끝에 맞춘다(목록이 주는 기본 여백만 남김).
             ListSearchBar(workspace: workspace, pane: pane)
-                .listRowInsets(EdgeInsets(top: 6, leading: 8, bottom: 2, trailing: 8))
+                .listRowInsets(EdgeInsets(top: 2, leading: 0, bottom: 2, trailing: 0))
                 .listRowSeparator(.hidden)
             .id(Self.searchRowId)
             if workspace.showingSkeleton || (!workspace.hasLoaded && workspace.errorMessage == nil) {
@@ -96,11 +96,11 @@ struct NoteListView: View {
         .toolbar {
             ToolbarItemGroup {
                 Button { VoiceLauncher.start(.newNote, workspace: workspace) } label: { Label("음성으로 새 노트", systemImage: "mic") }
-                    .voiceAvailability(app.openAIKey, help: String(localized: "음성으로 새 노트 (⌥⌘N)"))
+                    .voiceAvailability(app.openAIKey, help: String(localized: "음성으로 새 노트") + app.shortcutHint(.newVoiceNote))
                     .overlay { KeyFocusRing(visible: app.toolbarKeyFocus == .voice) }
                     .disabled(workspace.newNoteBlocked)
                 Button { _ = workspace.createNote() } label: { Label("새 노트", systemImage: "square.and.pencil") }
-                    .help("새 노트 (⌘N)")
+                    .help(String(localized: "새 노트") + app.shortcutHint(.newNote))
                     .disabled(workspace.newNoteBlocked)
                     .overlay { KeyFocusRing(visible: app.toolbarKeyFocus == .newNote) }
             }
@@ -427,6 +427,11 @@ enum ListKeyboard {
         if event.type == .leftMouseDown {
             app.toolbarKeyFocus = nil
             return event
+        }
+        // macOS 목록은 글자를 누르면 그 글자로 시작하는 행으로 선택을 옮긴다(type-select). ⌥T 같은 조합도 글자(†)로
+        // 받아 노트가 바뀌므로 사이드바·노트 목록에서 끈다. 단축키는 메뉴(설정 → 단축키)로만 받는다.
+        if let table = event.window?.firstResponder as? NSTableView, table.allowsTypeSelect {
+            table.allowsTypeSelect = false
         }
         let plain = event.modifierFlags.intersection([.command, .shift, .option, .control]).isEmpty
         // 병합하는 동안에는 메뉴 단축키까지 모든 키를 막는다(웹과 같음).

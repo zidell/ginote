@@ -14,6 +14,8 @@ struct SidebarView: View {
     /// 키보드 커서. ↑↓는 커서만 옮기고 ⏎·클릭으로 적용한다(목록과 같은 정책). 화살표마다 저장소가 바뀌거나
     /// 목록을 다시 읽지 않게 하려는 것이다.
     @State private var cursor: SidebarItem?
+    /// 클릭으로 커서가 바뀌어 막 적용한 시각. 같은 클릭의 손을 뗄 때 "다시 누름(새로고침)"으로 보지 않으려고 둔다.
+    @State private var appliedByClick = Date.distantPast
 
     private var activeItem: SidebarItem {
         if let label = workspace.labelFilter { return .tag(label) }
@@ -26,6 +28,20 @@ struct SidebarView: View {
         case .notes: workspace.labelFilter = nil; workspace.scope = .notes
         case .trash: workspace.labelFilter = nil; workspace.scope = .trash
         case .tag(let name): workspace.labelFilter = name
+        }
+    }
+
+    private func isActive(_ item: SidebarItem) -> Bool {
+        if case .workspace(let id) = item { return id == workspace.workspace.id }
+        return item == activeItem
+    }
+
+    /// 이미 보고 있는 저장소·보관함·태그를 다시 누르거나 ⏎를 누르면 새로 읽는다. 다른 항목은 기억해 둔 목록을 바로 보인다.
+    private func choose(_ item: SidebarItem) {
+        if isActive(item) {
+            Task { await workspace.refresh(background: false) }
+        } else {
+            apply(item)
         }
     }
 
@@ -62,14 +78,17 @@ struct SidebarView: View {
                         }
                     }
                     .tag(SidebarItem.workspace(item.id))
+                    .simultaneousGesture(TapGesture().onEnded { clicked(.workspace(item.id)) })
                     .help(item.repo)
                 }
             }
             Section("보관함") {
                 HStack { Label("노트", systemImage: "note.text"); Spacer(); countBadge(workspace.counts?.notes); activeMark(activeItem == .notes) }
                     .tag(SidebarItem.notes)
+                    .simultaneousGesture(TapGesture().onEnded { clicked(.notes) })
                 HStack { Label("휴지통", systemImage: "trash"); Spacer(); countBadge(workspace.counts?.trash); activeMark(activeItem == .trash) }
                     .tag(SidebarItem.trash)
+                    .simultaneousGesture(TapGesture().onEnded { clicked(.trash) })
                     .help("휴지통에는 지난 30일 동안 옮긴 노트만 보입니다.")
             }
             if !workspace.visibleLabels.isEmpty {
@@ -86,6 +105,7 @@ struct SidebarView: View {
                             activeMark(activeItem == .tag(label.name))
                         }
                         .tag(SidebarItem.tag(label.name))
+                        .simultaneousGesture(TapGesture().onEnded { clicked(.tag(label.name)) })
                         .help(label.description ?? label.name)
                     }
                 }
@@ -96,6 +116,7 @@ struct SidebarView: View {
         .onChange(of: cursor) { _, item in
             DebugTrace.log("sidebar cursor \(String(describing: item)) keyboard=\(ListKeyboard.movedRecently)")
             guard !ListKeyboard.movedRecently, let item else { return }
+            appliedByClick = Date()
             apply(item)
         }
         .onChange(of: activeItem) { _, item in
@@ -104,7 +125,7 @@ struct SidebarView: View {
             if cursor != item { ListKeyboard.markMoved(); cursor = item }
         }
         .onKeyPress(.return) {
-            if let cursor { apply(cursor) }
+            if let cursor { choose(cursor) }
             return .handled
         }
         .listStyle(.sidebar)
@@ -122,6 +143,14 @@ struct SidebarView: View {
         .safeAreaInset(edge: .bottom) {
             ProfileSettingsButton(login: workspace.user?.login)
         }
+    }
+}
+
+extension SidebarView {
+    /// 클릭을 뗄 때. 이 클릭으로 막 바뀐 항목이면 이미 적용했으므로 넘어간다.
+    fileprivate func clicked(_ item: SidebarItem) {
+        guard Date().timeIntervalSince(appliedByClick) > 0.6 else { return }
+        choose(item)
     }
 }
 

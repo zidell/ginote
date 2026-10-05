@@ -108,17 +108,34 @@ private struct McpHelp: View {
 }
 
 private struct KeyboardHelp: View {
-    let rows: [(LocalizedStringResource, LocalizedStringResource)] = [
-        ("⌘N", "새 노트"), ("⌥⌘N", "음성으로 새 노트"), ("⌥⏎", "새 창에서 열기"), ("⌘S", "지금 저장"),
-        ("⌘Z", "실행 취소 (휴지통 이동·첨부/기록 삭제 포함)"), ("⌘F / ⌥⌘F", "노트 안에서 찾기 / 찾아 바꾸기"),
-        ("⇧⌘M", "Markdown 미리보기"), ("⌘R", "새로고침"), ("⇧⌘T", "태그"), ("⇧⌘A", "파일 첨부"),
-        ("⇧⌘E", "음성 녹음(본문에 추가)"), ("⇧⌘L", "잠금 / 잠금 열기 / 잠금 풀기"), ("⇧⌘P", "고정 / 고정 해제"),
-        ("⌃⌘C", "이슈 번호 복사"), ("⇧⌘O", "GitHub에서 보기"), ("⌘⌫", "휴지통으로 이동 / 복원"),
-        ("⌘1–⌘9", "저장소 전환"), ("⇧⌘F", "노트 검색(#태그)"),
-        ("↑ ↓", "커서 이동(열지 않음)"), ("↑(목록 맨 위)", "검색칸 → 새 노트 → 음성으로 새 노트"), ("⏎", "열기 · 한 번 더 누르면 본문으로"),
-        ("← →", "사이드바 ⇄ 목록 ⇄ 본문"), ("⎋(본문)", "목록으로 돌아가기"), ("⌘+ / ⌘- / ⌘0", "글자 확대 / 축소 / 실제 크기"),
-        ("⌘클릭 · ⇧클릭", "여러 노트 선택"), ("⌘클릭(본문 링크)", "링크 열기"), ("Space(첨부)", "Quick Look"), ("⎋", "시트 닫기·선택 해제")
-    ]
+    @Environment(AppModel.self) private var app
+
+    /// 설정 → 단축키에서 바꾼 값을 그대로 보인다. 여러 명령을 한 줄에 묶으면 " / "로 잇는다.
+    private func keys(_ commands: ShortcutCommand...) -> String {
+        commands.map { app.shortcut($0)?.symbol ?? "–" }.joined(separator: " / ")
+    }
+
+    private var rows: [(String, String)] {
+        [
+            (keys(.newNote), String(localized: "새 노트")), (keys(.newVoiceNote), String(localized: "음성으로 새 노트")),
+            (keys(.openInNewWindow), String(localized: "새 창에서 열기")), (keys(.saveNow), String(localized: "지금 저장")),
+            ("⌘Z", String(localized: "실행 취소 (휴지통 이동·첨부/기록 삭제 포함)")),
+            (keys(.find, .replace), String(localized: "노트 안에서 찾기 / 찾아 바꾸기")),
+            (keys(.preview), String(localized: "Markdown 미리보기")), (keys(.refresh), String(localized: "새로고침")),
+            (keys(.tags), String(localized: "태그")), (keys(.attachFiles), String(localized: "파일 첨부")),
+            (keys(.voiceRecording), String(localized: "음성 녹음(본문에 추가)")),
+            (keys(.lock), String(localized: "잠금 / 잠금 열기 / 잠금 풀기")), (keys(.pin), String(localized: "고정 / 고정 해제")),
+            (keys(.copyIssueNumber), String(localized: "이슈 번호 복사")), (keys(.openOnGitHub), String(localized: "GitHub에서 보기")),
+            (keys(.moveToTrash), String(localized: "휴지통으로 이동 / 복원")),
+            ("⌘1–⌘9", String(localized: "저장소 전환")), (keys(.searchNotes), String(localized: "노트 검색(#태그)")),
+            ("↑ ↓", String(localized: "커서 이동(열지 않음)")), (String(localized: "↑(목록 맨 위)"), String(localized: "검색칸 → 새 노트 → 음성으로 새 노트")),
+            ("⏎", String(localized: "열기 · 한 번 더 누르면 본문으로")),
+            ("← →", String(localized: "사이드바 ⇄ 목록 ⇄ 본문")), (String(localized: "⎋(본문)"), String(localized: "목록으로 돌아가기")),
+            (keys(.zoomIn, .zoomOut, .actualSize), String(localized: "글자 확대 / 축소 / 실제 크기")),
+            (String(localized: "⌘클릭 · ⇧클릭"), String(localized: "여러 노트 선택")), (String(localized: "⌘클릭(본문 링크)"), String(localized: "링크 열기")),
+            (String(localized: "Space(첨부)"), "Quick Look"), ("⎋", String(localized: "시트 닫기·선택 해제"))
+        ]
+    }
 
     var body: some View {
         Text("단축키").font(.title2.bold())

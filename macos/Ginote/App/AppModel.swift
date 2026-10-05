@@ -9,7 +9,8 @@ import Observation
 final class AppModel {
     static let shared = AppModel()
 
-    let configStore = ConfigStore(directory: AppModel.configDirectory, keychain: Keychain(service: AppModel.keychainService))
+    let configStore = ConfigStore(directory: AppModel.configDirectory, keychain: Keychain(service: AppModel.keychainService),
+                                  importsTauri: !AppModel.isSelfTest)
     let localState = LocalState(directory: AppModel.configDirectory.appendingPathComponent("state"))
 
     /// 디버그 빌드의 자가 점검은 사용자 설정·키체인과 섞이지 않게 따로 둔다(Debug/SelfTest.swift).
@@ -18,6 +19,23 @@ final class AppModel {
         if let path = ProcessInfo.processInfo.environment["GINOTE_CONFIG_DIR"] { return URL(fileURLWithPath: path) }
         #endif
         return ConfigStore.defaultDirectory
+    }
+
+    /// 자가 점검(GINOTE_CONFIG_DIR로 따로 둔 설정 폴더)으로 실행 중인지.
+    static var isSelfTest: Bool {
+        #if DEBUG
+        return ProcessInfo.processInfo.environment["GINOTE_CONFIG_DIR"] != nil
+        #else
+        return false
+        #endif
+    }
+
+    static var skipsKeychain: Bool {
+        #if DEBUG
+        return ProcessInfo.processInfo.environment["GINOTE_SELF_TEST"] == "ui"
+        #else
+        return false
+        #endif
     }
 
     static var keychainService: String {
@@ -106,10 +124,14 @@ final class AppModel {
             settings = fallback
             configNotice = String(localized: "config.toml 문법이 틀려 마지막 정상 설정으로 열었습니다. 같은 폴더의 config-status.txt를 확인하세요.") + "\n" + message
         }
-        for workspace in settings.workspaces where workspace.rememberToken {
-            if let token = configStore.keychain.read(Keychain.patAccount(workspace.id)) { tokens[workspace.id] = token }
+        // 화면 점검(GINOTE_SELF_TEST=ui)은 토큰을 환경변수로 받으므로 키체인을 읽지 않는다. 읽으면 시험용 항목의 접근
+        // 허용을 묻는 창이 사람이 쓰는 화면에 뜬다.
+        if !Self.skipsKeychain {
+            for workspace in settings.workspaces where workspace.rememberToken {
+                if let token = configStore.keychain.read(Keychain.patAccount(workspace.id)) { tokens[workspace.id] = token }
+            }
+            openAIKey = configStore.keychain.read(Keychain.openAIAccount) ?? ""
         }
-        openAIKey = configStore.keychain.read(Keychain.openAIAccount) ?? ""
         lockSession.minutes = settings.preferences.lockSessionMinutes
         lockSession.onExpire = { [weak self] in
             guard let self else { return }
@@ -135,6 +157,7 @@ final class AppModel {
     }
 
     private func didChangeSettings(from previous: AppSettings) {
+        if previous.shortcuts != settings.shortcuts { MenuShortcuts.apply(settings) }
         if previous.preferences.theme != settings.preferences.theme { applyTheme() }
         lockSession.minutes = settings.preferences.lockSessionMinutes
         if previous.preferences.notesPerPage != settings.preferences.notesPerPage {
@@ -186,6 +209,17 @@ final class AppModel {
     // MARK: - 워크스페이스
 
     func token(for workspace: Workspace) -> String? { tokens[workspace.id] }
+
+    /// 저장소의 화면 모델. 지금 저장소나 기억해 둔 모델이 있으면 그것을, 없으면 토큰으로 새로 만들어 기억한다
+    /// (설정 → 저장소에서 다른 저장소의 태그를 다룰 때). 토큰이 없으면 nil.
+    func model(forWorkspace id: String) -> WorkspaceModel? {
+        if let workspace, workspace.workspace.id == id { return workspace }
+        if let cached = cachedWorkspaces[id] { return cached.model }
+        guard let record = settings.workspaces.first(where: { $0.id == id }), let token = tokens[id], !token.isEmpty else { return nil }
+        let model = WorkspaceModel(workspace: record, token: token, app: self)
+        cachedWorkspaces[id] = (model, .distantPast)
+        return model
+    }
 
     /// 연결 확인을 마친 새 저장소를 추가하고 그 저장소로 전환한다.
     func addWorkspace(repo: String, token: String, remember: Bool) {

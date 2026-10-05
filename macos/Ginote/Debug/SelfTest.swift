@@ -91,7 +91,7 @@ enum SelfTest {
         if app.settings.workspaces.isEmpty { app.addWorkspace(repo: repo, token: token, remember: false) }
         // 화면 점검 모드: 시험 저장소에 연결만 하고 앱을 그대로 둔다.
         if values["GINOTE_SELF_TEST"] == "ui" {
-            // 화면 점검: 설정 창을 지정한 탭으로 연다(GINOTE_UI_SETTINGS=general|editor|list|workspaces|tags|voice).
+            // 화면 점검: 설정 창을 지정한 탭으로 연다(GINOTE_UI_SETTINGS=general|editor|list|workspaces|voice|shortcuts).
             if let tab = values["GINOTE_UI_SETTINGS"] {
                 Task {
                     _ = await wait("ui settings list", { app.workspace?.issues.isEmpty == false })
@@ -108,13 +108,90 @@ enum SelfTest {
                         report("ui settings tab \(next)")
                     }
                     report("ui settings opened \(tab)")
+                    try? await Task.sleep(for: .seconds(2))
+                    if SceneTour.directory == nil { SceneTour.directory = URL(fileURLWithPath: values["GINOTE_SHOT_DIR"] ?? NSTemporaryDirectory()) }
+                    if let settings = NSApp.windows.first(where: { $0.isVisible && $0.identifier?.rawValue.contains("Settings") == true }) {
+                        await SceneTour.snap("settings", window: settings)
+                    }
+                    report("ui settings shot")
+                }
+            }
+            // 화면 점검: 단축키를 바꾸면 메뉴 항목에 바로 반영되는지(GINOTE_UI_SHORTCUT=1).
+            if values["GINOTE_UI_SHORTCUT"] != nil {
+                Task {
+                    @MainActor func menuKey(_ title: String) -> String {
+                        func find(_ menu: NSMenu) -> NSMenuItem? {
+                            for item in menu.items {
+                                if item.title == title { return item }
+                                if let sub = item.submenu, let found = find(sub) { return found }
+                            }
+                            return nil
+                        }
+                        guard let item = NSApp.mainMenu.flatMap(find) else { return "missing" }
+                        return "\(item.keyEquivalentModifierMask.rawValue)+\(item.keyEquivalent)"
+                    }
+                    _ = await wait("ui shortcut list", { app.workspace?.issues.isEmpty == false })
+                    report("menu 태그… before \(menuKey("태그…"))")
+                    app.updateSettings { $0.shortcuts[.tags] = "option+t" }
+                    try? await Task.sleep(for: .seconds(1))
+                    report("menu 태그… after \(menuKey("태그…"))")
+                    NSApp.mainMenu?.items.forEach { $0.submenu?.update() }
+                    try? await Task.sleep(for: .seconds(0.5))
+                    report("menu 태그… after update \(menuKey("태그…"))")
+                    if let first = app.workspace?.displayedIssues.first { app.workspace?.open(first.id) }
+                    try? await Task.sleep(for: .seconds(1.5))
+                    report("menu 태그… after open \(menuKey("태그…"))")
+                    app.updateSettings { $0.shortcuts[.tags] = "" }
+                    try? await Task.sleep(for: .seconds(1))
+                    report("menu 태그… cleared \(menuKey("태그…"))")
+                    app.settingsTab = .shortcuts
+                    if let appMenu = NSApp.mainMenu?.items.first?.submenu,
+                       let index = appMenu.items.firstIndex(where: { $0.title.hasPrefix("설정") || $0.title.hasPrefix("Settings") }) {
+                        appMenu.performActionForItem(at: index)
+                    }
+                    try? await Task.sleep(for: .seconds(1.5))
+                    if SceneTour.directory == nil { SceneTour.directory = URL(fileURLWithPath: values["GINOTE_SHOT_DIR"] ?? NSTemporaryDirectory()) }
+                    if let settings = NSApp.windows.first(where: { $0.isVisible && $0.identifier?.rawValue.contains("Settings") == true }) {
+                        await SceneTour.snap("shortcuts", window: settings)
+                    }
+                    report("ui shortcut done")
+                }
+            }
+            // 화면 점검: 목록 위 검색칸을 드러내고 창을 찍는다(GINOTE_UI_SEARCH=1, GINOTE_SHOT_DIR).
+            if values["GINOTE_UI_SEARCH"] != nil {
+                Task {
+                    _ = await wait("ui search list", { app.workspace?.issues.isEmpty == false })
+                    try? await Task.sleep(for: .seconds(1.5))
+                    app.searchFocusRequest += 1
+                    try? await Task.sleep(for: .seconds(1))
+                    if SceneTour.directory == nil { SceneTour.directory = URL(fileURLWithPath: values["GINOTE_SHOT_DIR"] ?? NSTemporaryDirectory()) }
+                    await SceneTour.snap("search")
+                    report("ui search shot")
                 }
             }
             if values["GINOTE_UI_TOOLBAR"] != nil {
                 Task {
+                    @MainActor func dump(_ stage: String) async {
+                        for window in NSApp.windows where window.isVisible {
+                            report("toolbar[\(stage)] \(window.title): \(window.toolbar?.items.map { item in "\(item.itemIdentifier.rawValue.prefix(52))\(item.view.map { " frame=\($0.frame) hidden=\($0.isHidden) win=\($0.window != nil)" } ?? "")" } ?? [])")
+                        }
+                        if SceneTour.directory == nil { SceneTour.directory = URL(fileURLWithPath: values["GINOTE_SHOT_DIR"] ?? NSTemporaryDirectory()) }
+                        await SceneTour.snap("toolbar-\(stage)")
+                    }
                     try? await Task.sleep(for: .seconds(4))
-                    for window in NSApp.windows where window.isVisible {
-                        report("toolbar \(window.title): \(window.toolbar?.items.map { "\($0.itemIdentifier.rawValue)" } ?? [])")
+                    await dump("start")
+                    // 저장소를 둘 이상 두고 오가도 사이드바 접기 버튼이 남는지(GINOTE_UI_TOOLBAR=switch).
+                    guard values["GINOTE_UI_TOOLBAR"] == "switch" else { return }
+                    if app.settings.workspaces.count < 2 { app.addWorkspace(repo: repo, token: token, remember: false) }
+                    try? await Task.sleep(for: .seconds(4))
+                    await dump("added")
+                    for round in 1...2 {
+                        app.switchWorkspace(number: 1)
+                        try? await Task.sleep(for: .seconds(3))
+                        await dump("switch\(round)-1")
+                        app.switchWorkspace(number: 2)
+                        try? await Task.sleep(for: .seconds(3))
+                        await dump("switch\(round)-2")
                     }
                 }
             }

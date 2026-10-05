@@ -60,6 +60,8 @@ struct EditorTextView: NSViewRepresentable {
     var onImages: ([NSImage]) -> Void = { _ in }
     /// 파일을 편집기 위로 끌어 온 동안 true(노트 칸 끌어 올리기 표시).
     var onDragTargeted: (Bool) -> Void = { _ in }
+    /// 본문 위에 붙여 함께 스크롤할 머리(제목·태그·첨부).
+    var header: AnyView?
     /// 본문 아래에 이어 붙일 기록(댓글) 영역.
     var footer: AnyView?
 
@@ -97,6 +99,7 @@ struct EditorTextView: NSViewRepresentable {
 
         let document = NoteDocumentView(textView: textView)
         scrollView.documentView = document
+        document.setHeader(header)
         document.setFooter(footer)
         context.coordinator.textView = textView
         scrollView.contentView.postsBoundsChangedNotifications = true
@@ -115,6 +118,7 @@ struct EditorTextView: NSViewRepresentable {
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
         context.coordinator.parent = self
         guard let textView = context.coordinator.textView else { return }
+        (scrollView.documentView as? NoteDocumentView)?.setHeader(header)
         (scrollView.documentView as? NoteDocumentView)?.setFooter(footer)
         textView.isEditable = editable
         textView.placeholderString = placeholder
@@ -271,8 +275,7 @@ final class GinoteTextView: NSTextView {
     // MARK: - 단축키
 
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
-        if event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command,
-           event.charactersIgnoringModifiers == "s" {
+        if let save = AppModel.shared.shortcut(.saveNow), KeyShortcut(event: event) == save {
             coordinator?.parent.onSaveShortcut()
             return true
         }
@@ -442,8 +445,9 @@ final class FindBarScrollView: NSScrollView {
     }
 }
 
-/// 본문(편집기·미리보기) 글 상자 아래에 기록(댓글)을 붙여 한 스크롤로 보이는 문서 뷰. 웹처럼 글 상자는
-/// 최소 300pt에서 내용만큼 늘고, 기록은 그 바로 아래에 이어진다.
+/// 본문(편집기·미리보기) 글 상자 위에 머리(제목·태그·첨부)를, 아래에 기록(댓글)을 붙여 한 스크롤로 보이는 문서 뷰.
+/// 웹처럼 글 상자는 최소 300pt에서 내용만큼 늘고, 기록은 그 바로 아래에 이어진다. 머리는 따로 바탕을 칠하지 않아
+/// 본문과 같은 바탕(편집 중·잠금 빛)을 쓴다.
 final class NoteDocumentView: NSView {
     static let minimumTextHeight: CGFloat = 300
     /// 기록 추가 직후 새 빈 입력칸에 포커스를 줄 때 보낸다.
@@ -452,6 +456,9 @@ final class NoteDocumentView: NSView {
     private let footer = NSHostingView(rootView: AnyView(EmptyView()))
     private var footerHeight: CGFloat = 0
     private var hasFooter = false
+    private let header = NSHostingView(rootView: AnyView(EmptyView()))
+    private var headerHeight: CGFloat = 0
+    private var hasHeader = false
 
     override var isFlipped: Bool { true }
 
@@ -471,6 +478,9 @@ final class NoteDocumentView: NSView {
         footer.wantsLayer = true
         footer.layer?.masksToBounds = true
         addSubview(footer)
+        header.sizingOptions = []
+        header.isHidden = true
+        addSubview(header)
         textView.postsFrameChangedNotifications = true
         NotificationCenter.default.addObserver(self, selector: #selector(textFrameChanged), name: NSView.frameDidChangeNotification, object: textView)
         NotificationCenter.default.addObserver(self, selector: #selector(focusNewComment), name: Self.focusNewCommentNotification, object: nil)
@@ -521,6 +531,28 @@ final class NoteDocumentView: NSView {
         relayout()
     }
 
+    /// 위에 붙일 SwiftUI 화면. nil이면 머리를 숨긴다.
+    func setHeader(_ view: AnyView?) {
+        hasHeader = view != nil
+        header.isHidden = !hasHeader
+        guard let view else { headerHeight = 0; relayout(); return }
+        header.rootView = AnyView(
+            view
+                .fixedSize(horizontal: false, vertical: true)
+                .background(GeometryReader { proxy in Color.clear.preference(key: FooterHeightKey.self, value: proxy.size.height) })
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                .onPreferenceChange(FooterHeightKey.self) { [weak self] height in
+                    MainActor.assumeIsolated {
+                        guard let self, abs(self.headerHeight - height) > 0.5 else { return }
+                        self.headerHeight = height
+                        self.relayout()
+                    }
+                }
+                .environment(AppModel.shared)
+        )
+        relayout()
+    }
+
     @objc private func textFrameChanged() { relayout() }
 
     override func resizeSubviews(withOldSize oldSize: NSSize) {
@@ -554,7 +586,10 @@ final class NoteDocumentView: NSView {
         let width = enclosingScrollView?.contentSize.width ?? bounds.width
         guard width > 0 else { return }
         if abs(frame.width - width) > 0.5 { setFrameSize(NSSize(width: width, height: frame.height)) }
-        if textView.frame.origin != .zero { textView.setFrameOrigin(.zero) }
+        let headerSpace = hasHeader ? headerHeight : 0
+        let headerFrame = NSRect(x: 0, y: 0, width: width, height: headerSpace)
+        if header.frame != headerFrame { header.frame = headerFrame }
+        if textView.frame.origin != NSPoint(x: 0, y: headerSpace) { textView.setFrameOrigin(NSPoint(x: 0, y: headerSpace)) }
         if textView.frame.width != width { textView.setFrameSize(NSSize(width: width, height: textView.frame.height)) }
         // 글 배치를 지금 끝내 글 상자 높이를 맞춘 뒤 그 아래에 기록을 놓는다(배치가 늦으면 기록이 글과 겹친다).
         if let container = textView.textContainer, let layout = textView.layoutManager {

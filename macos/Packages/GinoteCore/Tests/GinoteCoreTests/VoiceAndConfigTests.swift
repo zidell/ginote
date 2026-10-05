@@ -78,6 +78,49 @@ final class VoiceAndConfigTests: XCTestCase {
         XCTAssertFalse(parsed.rewrite)
     }
 
+    func testShortcutParsing() {
+        XCTAssertEqual(KeyShortcut.parse("alt+T")?.spec, "option+t")
+        XCTAssertEqual(KeyShortcut.parse("cmd+shift+t")?.spec, "shift+cmd+t")
+        XCTAssertEqual(KeyShortcut.parse("option+t")?.symbol, "⌥T")
+        XCTAssertEqual(KeyShortcut.parse("cmd+plus")?.symbol, "⌘+")
+        XCTAssertEqual(KeyShortcut.parse("cmd+-")?.spec, "cmd+minus")
+        XCTAssertEqual(KeyShortcut.parse("option+return")?.symbol, "⌥⏎")
+        XCTAssertNil(KeyShortcut.parse("cmd++"))
+        XCTAssertNil(KeyShortcut.parse("hyper+t"))
+        XCTAssertNil(KeyShortcut.parse("cmd+cmd+t"))
+        XCTAssertNil(KeyShortcut.parse(""))
+        for command in ShortcutCommand.allCases {
+            XCTAssertNotNil(KeyShortcut.parse(command.defaultSpec), command.rawValue)
+            XCTAssertEqual(KeyShortcut.parse(command.defaultSpec)?.spec, command.defaultSpec, command.rawValue)
+        }
+    }
+
+    func testConfigShortcuts() throws {
+        var settings = AppSettings()
+        settings.shortcuts[.tags] = "option+t"
+        settings.shortcuts[.pin] = ""
+        let parsed = try AppConfig.parse(AppConfig.render(settings))
+        XCTAssertEqual(parsed.settings.shortcuts, settings.shortcuts)
+        XCTAssertNil(parsed.settings.shortcut(.pin))
+        XCTAssertEqual(parsed.problems, [])
+
+        let source = """
+        [shortcuts]
+        tags = "alt+cmd+t"
+        pin = "t"
+        lock = "nonsense"
+        refresh = "cmd+option+t"
+        """
+        let result = try AppConfig.parse(source)
+        XCTAssertEqual(result.settings.shortcuts[.tags], "option+cmd+t")
+        XCTAssertEqual(result.settings.shortcuts[.pin], "shift+cmd+p")
+        XCTAssertEqual(result.settings.shortcuts[.lock], "shift+cmd+l")
+        XCTAssertTrue(result.problems.contains { $0.hasPrefix("shortcuts.pin = \"t\" is not allowed") })
+        XCTAssertTrue(result.problems.contains { $0.hasPrefix("shortcuts.lock = \"nonsense\" is not allowed") })
+        XCTAssertTrue(result.problems.contains { $0.hasPrefix("shortcuts.refresh, shortcuts.tags share \"option+cmd+t\"") })
+        XCTAssertFalse(result.problems.contains { $0.contains("shortcuts.tags = ") })
+    }
+
     func testConfigReportsAndFixesBadValues() throws {
         let source = """
         version = 1

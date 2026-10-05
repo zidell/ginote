@@ -24,11 +24,12 @@ final class WorkspaceModel {
     var scope: NoteScope = .notes {
         didSet {
             guard scope != oldValue else { return }
+            stashList(ListKey(scope: oldValue, label: labelFilter))
             selection = []
             openedId = nil
             searchText = ""
             activeQuery = ""
-            Task { await reload() }
+            Task { await showList() }
         }
     }
     /// 태그 필터와 검색어는 함께 걸지 않는다(웹은 검색칸이 `#태그`로 바뀐다). 태그를 걸면 검색어를 지우고
@@ -36,13 +37,14 @@ final class WorkspaceModel {
     var labelFilter: String? {
         didSet {
             guard labelFilter != oldValue else { return }
+            stashList(ListKey(scope: scope, label: oldValue))
             if labelFilter != nil {
                 searchText = ""
                 activeQuery = ""
                 selection = []
                 openedId = nil
             }
-            Task { await reload() }
+            Task { await showList() }
         }
     }
     var searchText = ""
@@ -201,6 +203,42 @@ final class WorkspaceModel {
     }
 
     func reload() async { await load(background: false) }
+
+    // MARK: - 보관함·태그별 목록 기억
+
+    /// 노트·휴지통·태그 목록을 오갈 때 이미 읽은 목록을 바로 다시 보인다(저장소 목록 기억과 같은 시간 동안).
+    /// 다시 보인 뒤에는 자리표시 없이 조용히 새로 읽어 그 사이 바뀐 것(휴지통 이동 등)을 맞춘다.
+    private struct ListKey: Hashable { var scope: NoteScope; var label: String? }
+    private struct ListSnapshot {
+        var issues: [Issue], pinned: [Issue], hasMore: Bool, totalCount: Int?, page: Int, savedAt: Date
+    }
+    private var listCache: [ListKey: ListSnapshot] = [:]
+
+    private func stashList(_ key: ListKey) {
+        guard hasLoaded, !showingSkeleton, activeQuery.isEmpty, errorMessage == nil else { return }
+        listCache[key] = ListSnapshot(issues: issues, pinned: pinned, hasMore: hasMore, totalCount: totalCount, page: page, savedAt: Date())
+    }
+
+    private func showList() async {
+        let key = ListKey(scope: scope, label: labelFilter)
+        let maxAge = TimeInterval(preferences.workspaceCacheMinutes * 60)
+        guard activeQuery.isEmpty, let cached = listCache[key], Date().timeIntervalSince(cached.savedAt) < maxAge else {
+            await reload()
+            return
+        }
+        requestVersion += 1 // 앞서 보낸 요청의 결과가 이 목록을 덮지 않게 한다.
+        issues = cached.issues
+        pinned = cached.pinned
+        hasMore = cached.hasMore
+        totalCount = cached.totalCount
+        page = cached.page
+        searchLimitReached = false
+        errorMessage = nil
+        loading = false
+        showingSkeleton = false
+        pruneSelection()
+        await load(background: true)
+    }
 
     /// 앱 활성화·깨어남·온라인 복구 때. 30초 안에는 다시 하지 않는다.
     func refresh(background: Bool, ignoringCooldown: Bool = false) async {

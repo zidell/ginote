@@ -44,10 +44,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         Task { @MainActor in
             AppModel.shared.applyTheme()
+            MenuShortcuts.install()
             // ⌘= (Shift 없이 누른 +/= 키)도 확대로 받는다. 메뉴의 ⌘+는 Shift가 필요한 배열이 많다.
             NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
                 let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask).subtracting([.numericPad, .function])
-                if flags == .command, event.charactersIgnoringModifiers == "=" {
+                if flags == .command, event.charactersIgnoringModifiers == "=",
+                   MainActor.assumeIsolated({ AppModel.shared.shortcut(.zoomIn)?.spec == ShortcutCommand.zoomIn.defaultSpec }) {
                     MainActor.assumeIsolated { AppModel.shared.zoom(by: 0.1) }
                     return nil
                 }

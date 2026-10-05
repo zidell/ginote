@@ -6,6 +6,8 @@ public final class ConfigStore: @unchecked Sendable {
 
     public let directory: URL
     public let keychain: Keychain
+    /// 처음 실행할 때 Tauri 앱 설정·자격 증명을 가져올지. 디버그 자가 점검은 사람의 설정·키체인을 건드리지 않게 끈다.
+    public let importsTauri: Bool
     public var configURL: URL { directory.appendingPathComponent("config.toml") }
     public var statusURL: URL { directory.appendingPathComponent("config-status.txt") }
     public var lastGoodURL: URL { directory.appendingPathComponent("state/last-good-config.toml") }
@@ -14,7 +16,8 @@ public final class ConfigStore: @unchecked Sendable {
     private var watchTimer: DispatchSourceTimer?
     private var lastModified: Date?
 
-    public init(directory: URL = ConfigStore.defaultDirectory, keychain: Keychain = Keychain()) {
+    public init(directory: URL = ConfigStore.defaultDirectory, keychain: Keychain = Keychain(), importsTauri: Bool = true) {
+        self.importsTauri = importsTauri
         self.directory = directory
         self.keychain = keychain
         try? FileManager.default.createDirectory(at: directory.appendingPathComponent("state"), withIntermediateDirectories: true)
@@ -40,7 +43,7 @@ public final class ConfigStore: @unchecked Sendable {
     /// 시작할 때 읽는다. 파일이 없으면 Tauri 설정을 가져오거나 기본값으로 만든다.
     public func load() -> LoadResult {
         if !FileManager.default.fileExists(atPath: configURL.path) {
-            let settings = importFromTauri() ?? AppSettings()
+            let settings = (importsTauri ? importFromTauri() : nil) ?? AppSettings()
             write(settings)
             writeStatus(problems: [])
             return .loaded(settings, problems: [])

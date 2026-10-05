@@ -2,7 +2,7 @@ import AppKit
 import GinoteCore
 import SwiftUI
 
-enum SettingsTab: String, Hashable { case general, editor, list, workspaces, tags, voice }
+enum SettingsTab: String, Hashable { case general, editor, list, workspaces, voice, shortcuts }
 
 /// 설정 창(⌘,). 바꾸는 즉시 반영하고 config.toml에 쓴다(macos/DESIGN.md §5.5).
 struct SettingsView: View {
@@ -15,8 +15,8 @@ struct SettingsView: View {
             EditorSettings().tabItem { Label("편집기", systemImage: "textformat") }.tag(SettingsTab.editor)
             ListSettings().tabItem { Label("목록", systemImage: "list.bullet") }.tag(SettingsTab.list)
             WorkspaceSettings().tabItem { Label("저장소", systemImage: "externaldrive.connected.to.line.below") }.tag(SettingsTab.workspaces)
-            TagSettings().tabItem { Label("태그", systemImage: "tag") }.tag(SettingsTab.tags)
             VoiceSettingsView().tabItem { Label("음성", systemImage: "mic") }.tag(SettingsTab.voice)
+            ShortcutSettings().tabItem { Label("단축키", systemImage: "keyboard") }.tag(SettingsTab.shortcuts)
         }
         .frame(width: 600)
         .frame(minHeight: 420)
@@ -166,15 +166,18 @@ struct WorkspaceSettings: View {
 
     @Environment(AppModel.self) private var app
     @State private var selection: String?
+    /// 태그를 보이는 저장소. 태그는 저장소마다 따로라 고른 저장소의 것만 다룬다(없으면 지금 저장소).
+    @State private var tagModel: WorkspaceModel?
+
+    private var tagWorkspaceId: String? { selection ?? app.settings.activeWorkspace?.id }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            // 표(Table)·목록(List) 대신 단순 세로 목록으로 그린다. 설정 탭을 저장소 → 태그로 넘길 때 SwiftUI 표와
-            // 목록이 한꺼번에 바뀌며 앱이 죽는다(AppKitOutlineTableCoordinator, 2026-10-05 재현).
+            // 표(Table)·목록(List) 대신 단순 세로 목록으로 그린다. 설정 탭을 넘길 때 SwiftUI 표와 목록이 한꺼번에
+            // 바뀌며 앱이 죽는다(AppKitOutlineTableCoordinator, 2026-10-05 재현).
             HStack {
                 Text("표시 이름").frame(maxWidth: .infinity, alignment: .leading)
                 Text("저장소").frame(maxWidth: .infinity, alignment: .leading)
-                Text("토큰 기억").frame(width: 70)
             }
             .font(.caption).foregroundStyle(.secondary)
             .padding(.horizontal, 8)
@@ -196,18 +199,6 @@ struct WorkspaceSettings: View {
                                 if workspace.id == app.settings.activeWorkspace?.id { Text("현재").font(.caption).foregroundStyle(.secondary) }
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)
-                            Toggle("", isOn: Binding(get: { workspace.rememberToken }, set: { value in
-                                if value, let token = app.token(for: workspace) {
-                                    app.configStore.keychain.write(Keychain.patAccount(workspace.id), token)
-                                }
-                                app.updateSettings { settings in
-                                    if let index = settings.workspaces.firstIndex(where: { $0.id == workspace.id }) {
-                                        settings.workspaces[index].rememberToken = value
-                                    }
-                                }
-                            }))
-                            .labelsHidden()
-                            .frame(width: 70)
                         }
                         .padding(.horizontal, 8).padding(.vertical, 6)
                         .background(RoundedRectangle(cornerRadius: 5).fill(selection == workspace.id ? Color.accentColor.opacity(0.2) : .clear))
@@ -216,6 +207,7 @@ struct WorkspaceSettings: View {
                     }
                 }
             }
+            .frame(maxHeight: 150)
             .background(RoundedRectangle(cornerRadius: 6).fill(Color(nsColor: .controlBackgroundColor)))
             HStack {
                 Button { app.showingAddWorkspace = true } label: { Image(systemName: "plus") }
@@ -234,8 +226,19 @@ struct WorkspaceSettings: View {
                 }
                 .disabled(selection == nil)
             }
+            Divider().padding(.vertical, 4)
+            if let tagModel {
+                WorkspaceTags(workspace: tagModel)
+                    .id(tagModel.workspace.id)
+            } else {
+                ContentUnavailableView("이 저장소의 토큰이 없어 태그를 읽을 수 없습니다", systemImage: "tag")
+            }
         }
         .padding()
+        .task(id: tagWorkspaceId) {
+            tagModel = tagWorkspaceId.flatMap { app.model(forWorkspace: $0) }
+            if let tagModel, tagModel.labels.isEmpty { await tagModel.loadLabels() }
+        }
     }
 
     private func move(_ offset: Int) {
@@ -258,16 +261,16 @@ struct WorkspaceSettings: View {
     }
 }
 
-struct TagSettings: View {
-    @Environment(AppModel.self) private var app
+/// 저장소 하나의 태그(설정 → 저장소에서 고른 저장소).
+struct WorkspaceTags: View {
+    @Bindable var workspace: WorkspaceModel
     @State private var newTag = ""
     /// 마지막 안내. 성공은 초록, 오류는 빨강(웹 설정의 성공 안내 상자).
     @State private var notice: (text: String, isError: Bool)?
     @State private var busy = false
 
     var body: some View {
-        if let workspace = app.workspace {
-            VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 8) {
                 Text("\(workspace.workspace.title)의 태그. ‘이름: 설명’ 형식으로 쓰면 설명이 음성 정제의 태그 분류에도 쓰입니다.")
                     .font(.caption).foregroundStyle(.secondary)
                 HStack {
@@ -286,10 +289,6 @@ struct TagSettings: View {
                 }
                 .background(RoundedRectangle(cornerRadius: 6).fill(Color(nsColor: .controlBackgroundColor)))
                 if let notice { Text(notice.text).foregroundStyle(notice.isError ? .red : .green).font(.caption) }
-            }
-            .padding()
-        } else {
-            ContentUnavailableView("연결된 저장소가 없습니다", systemImage: "tag")
         }
     }
 

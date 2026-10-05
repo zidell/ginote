@@ -72,6 +72,8 @@ public struct AppSettings: Equatable, Sendable {
     public var activeWorkspaceId = ""
     public var preferences = Preferences()
     public var voice = VoicePreferences()
+    /// 메뉴 단축키(`option+cmd+t` 형식). 빈 글이면 그 명령에 단축키가 없다.
+    public var shortcuts = ShortcutCommand.defaults
 
     public init() {}
 

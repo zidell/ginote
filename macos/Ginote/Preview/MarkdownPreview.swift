@@ -13,11 +13,12 @@ struct MarkdownPreview: View {
     var initialScrollRatio: Double = 0
     var onScroll: (Double) -> Void = { _ in }
     /// 본문 아래에 이어 붙일 기록(댓글) 영역.
+    var header: AnyView?
     var footer: AnyView?
     @State private var images: [String: NSImage] = [:]
 
     var body: some View {
-        PreviewTextView(attributed: render(), maxWidth: maxWidth, initialScrollRatio: initialScrollRatio, onScroll: onScroll, footer: footer)
+        PreviewTextView(attributed: render(), maxWidth: maxWidth, initialScrollRatio: initialScrollRatio, onScroll: onScroll, header: header, footer: footer)
             .task(id: markdown) { await loadImages() }
     }
 
@@ -57,6 +58,7 @@ private struct PreviewTextView: NSViewRepresentable {
     let maxWidth: CGFloat
     let initialScrollRatio: Double
     let onScroll: (Double) -> Void
+    let header: AnyView?
     let footer: AnyView?
 
     func makeCoordinator() -> Coordinator { Coordinator(onScroll: onScroll) }
@@ -88,6 +90,7 @@ private struct PreviewTextView: NSViewRepresentable {
         textView.textContainer?.lineFragmentPadding = 0
         let document = NoteDocumentView(textView: textView)
         scrollView.documentView = document
+        document.setHeader(header)
         document.setFooter(footer)
         scrollView.contentView.postsBoundsChangedNotifications = true
         NotificationCenter.default.addObserver(context.coordinator, selector: #selector(Coordinator.didScroll(_:)),
@@ -98,6 +101,7 @@ private struct PreviewTextView: NSViewRepresentable {
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
         guard let document = scrollView.documentView as? NoteDocumentView else { return }
         let textView = document.textView
+        document.setHeader(header)
         document.setFooter(footer)
         let ratio = scrollView.contentView.bounds.minY / max(1, document.bounds.height)
         textView.textStorage?.setAttributedString(attributed)

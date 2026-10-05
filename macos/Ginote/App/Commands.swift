@@ -15,7 +15,7 @@ extension FocusedValues {
     @Entry var noteCommands: NoteCommandHandlers?
 }
 
-/// 메뉴바 명령(macos/DESIGN.md §5.4). 웹의 한 글자 단축키를 ⌘ 조합으로 옮겼다.
+/// 메뉴바 명령(macos/DESIGN.md §5.4). 웹의 한 글자 단축키를 ⌘ 조합으로 옮겼고, 설정 → 단축키에서 바꿀 수 있다.
 struct GinoteCommands: Commands {
     @FocusedValue(\.workspace) private var workspace
     @FocusedValue(\.noteSession) private var session
@@ -25,52 +25,52 @@ struct GinoteCommands: Commands {
     var body: some Commands {
         CommandGroup(replacing: .newItem) {
             Button("새 노트") { _ = workspace?.createNote() }
-                .keyboardShortcut("n")
+                .shortcut(.newNote)
                 .disabled(workspace == nil || workspace?.newNoteBlocked == true)
             Button("음성으로 새 노트") { workspace.map { VoiceLauncher.start(.newNote, workspace: $0) } }
-                .keyboardShortcut("n", modifiers: [.command, .option])
+                .shortcut(.newVoiceNote)
                 .disabled(workspace == nil || workspace?.newNote != nil || (workspace?.selection.count ?? 0) > 1)
             Button("새 창에서 열기") {
                 if let number = session?.number { openWindow(id: "note", value: number) }
             }
-            .keyboardShortcut(.return, modifiers: .option)
+            .shortcut(.openInNewWindow)
             .disabled(session?.number == nil)
         }
         CommandGroup(after: .saveItem) {
             Button("지금 저장") { session?.saveNow() }
-                .keyboardShortcut("s")
+                .shortcut(.saveNow)
                 .disabled(session == nil)
         }
         CommandGroup(after: .textEditing) {
             // 본문 찾기 막대(NSTextView 기본 찾기). 메뉴가 없으면 ⌘F가 아무 일도 하지 않는다.
             Button("찾기…") { TextFind.perform(.showFindInterface) }
-                .keyboardShortcut("f")
+                .shortcut(.find)
             Button("다음 찾기") { TextFind.perform(.nextMatch) }
-                .keyboardShortcut("g")
+                .shortcut(.findNext)
             Button("이전 찾기") { TextFind.perform(.previousMatch) }
-                .keyboardShortcut("g", modifiers: [.command, .shift])
+                .shortcut(.findPrevious)
             Button("선택 항목으로 찾기") { TextFind.perform(.setSearchString) }
-                .keyboardShortcut("e")
+                .shortcut(.useSelectionForFind)
             Divider()
             Button("노트 검색") { AppModel.shared.searchFocusRequest += 1 }
-                .keyboardShortcut("f", modifiers: [.command, .shift])
+                .shortcut(.searchNotes)
                 .disabled(workspace == nil)
             Button("찾아 바꾸기…") { handlers?.showReplace() }
-                .keyboardShortcut("f", modifiers: [.command, .option])
+                .shortcut(.replace)
                 .disabled(session?.isEditable != true)
         }
         CommandGroup(after: .toolbar) {
             Button("확대") { AppModel.shared.zoom(by: 0.1) }
-                .keyboardShortcut("+")
+                .shortcut(.zoomIn)
             Button("축소") { AppModel.shared.zoom(by: -0.1) }
-                .keyboardShortcut("-")
+                .shortcut(.zoomOut)
             Button("실제 크기") { AppModel.shared.resetZoom() }
-                .keyboardShortcut("0")
+                .shortcut(.actualSize)
             Divider()
         }
         CommandGroup(after: .sidebar) {
             Button("Markdown 미리보기") { handlers?.togglePreview() }
-                .keyboardShortcut("m", modifiers: [.command, .shift])
+                .shortcut(.preview)
                 .disabled(session == nil || session?.lockState == .locked)
             Button("새로고침") {
                 Task {
@@ -78,38 +78,38 @@ struct GinoteCommands: Commands {
                     await session?.reloadFromGitHub()
                 }
             }
-            .keyboardShortcut("r")
+            .shortcut(.refresh)
             .disabled(workspace == nil)
         }
         CommandMenu("노트") {
             Button("태그…") { handlers?.showTags() }
-                .keyboardShortcut("t", modifiers: [.command, .shift])
+                .shortcut(.tags)
                 .disabled(session?.isEditable != true)
             Button("파일 첨부…") { session?.chooseAttachments() }
-                .keyboardShortcut("a", modifiers: [.command, .shift])
+                .shortcut(.attachFiles)
                 .disabled(session?.isEditable != true)
             Button("음성 녹음") { session.map { VoiceLauncher.start(.body, session: $0) } }
-                .keyboardShortcut("e", modifiers: [.command, .shift])
+                .shortcut(.voiceRecording)
                 .disabled(session?.isEditable != true || session?.number == nil || (workspace?.selection.count ?? 0) > 1)
             Divider()
             Button(lockTitle) { session?.requestLock() }
-                .keyboardShortcut("l", modifiers: [.command, .shift])
+                .shortcut(.lock)
                 .disabled(session == nil || session?.isArchived == true)
             Button(session?.isPinned == true ? "고정 해제" : "고정") {
                 if let workspace, let issue = session?.issue { Task { await workspace.togglePin(issue) } }
             }
-            .keyboardShortcut("p", modifiers: [.command, .shift])
+            .shortcut(.pin)
             .disabled(session?.issue == nil || session?.isArchived == true || workspace?.pinMutation == true)
             Divider()
             Button("이슈 번호 복사") {
                 if let session, let number = session.number { NoteActions.copyIssueNumber(number: number, title: session.displayTitle) }
             }
-            .keyboardShortcut("c", modifiers: [.command, .control])
+            .shortcut(.copyIssueNumber)
             .disabled(session?.number == nil)
             Button("GitHub에서 보기") {
                 if let session, let issue = session.issue { NoteActions.openOnGitHub(issue, repo: session.repo) }
             }
-            .keyboardShortcut("o", modifiers: [.command, .shift])
+            .shortcut(.openOnGitHub)
             .disabled(session?.issue == nil)
             Divider()
             Button(session?.isArchived == true ? "복원" : "휴지통으로 이동") {
@@ -120,7 +120,7 @@ struct GinoteCommands: Commands {
                     else { await workspace.moveToTrash([issue], undoManager: undo) }
                 }
             }
-            .keyboardShortcut(.delete, modifiers: .command)
+            .shortcut(.moveToTrash)
             .disabled(session?.issue == nil)
         }
         CommandMenu("저장소") {

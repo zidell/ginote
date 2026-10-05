@@ -112,7 +112,7 @@ enum SceneTour {
             appMenu.performActionForItem(at: index)
         }
         try? await Task.sleep(for: .seconds(1))
-        for (tab, name) in [(SettingsTab.general, "general"), (.editor, "editor"), (.list, "list"), (.workspaces, "workspaces"), (.tags, "tags"), (.voice, "voice")] {
+        for (tab, name) in [(SettingsTab.general, "general"), (.editor, "editor"), (.list, "list"), (.workspaces, "workspaces"), (.voice, "voice"), (.shortcuts, "shortcuts")] {
             app.settingsTab = tab
             try? await Task.sleep(for: .seconds(0.8))
             await snap("15-settings-\(name)", window: settingsWindow())

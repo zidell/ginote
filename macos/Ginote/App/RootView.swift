@@ -11,7 +11,6 @@ struct RootView: View {
                 SetupView(mode: .firstRun)
             } else if let workspace = app.workspace {
                 MainSplitView(workspace: workspace)
-                    .id(workspace.workspace.id)
             } else {
                 ContentUnavailableView {
                     Label("저장소에 연결하는 중", systemImage: "arrow.triangle.2.circlepath")
@@ -50,14 +49,18 @@ struct MainSplitView: View {
     @FocusState private var pane: PaneFocus?
 
     var body: some View {
+        // 저장소를 바꾸면 목록·노트 칸만 새로 만든다. 분할 화면 자체를 새로 만들면(.id) SwiftUI가 사이드바 접기
+        // 버튼을 10pt로 줄여 그려 버튼이 사라진다. 사이드바는 그대로 두어 키보드 커서가 고른 저장소에 남게 한다.
         NavigationSplitView(columnVisibility: $columnVisibility) {
             SidebarView(workspace: workspace, pane: $pane)
                 .navigationSplitViewColumnWidth(min: 180, ideal: 220, max: 320)
         } content: {
             NoteListView(workspace: workspace, pane: $pane)
+                .id(workspace.workspace.id)
                 .navigationSplitViewColumnWidth(min: 260, ideal: 340, max: 520)
         } detail: {
             DetailView(workspace: workspace)
+                .id(workspace.workspace.id)
         }
         .background(SidebarToggleAligner())
         .focusedSceneValue(\.workspace, workspace)

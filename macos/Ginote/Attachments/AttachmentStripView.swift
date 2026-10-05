@@ -50,7 +50,7 @@ struct AttachmentStripView: View {
                             .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
-                        .help("파일 첨부 (⇧⌘A)")
+                        .help(String(localized: "파일 첨부") + AppModel.shared.shortcutHint(.attachFiles))
                     }
                 }
                 .padding(.vertical, 2)
