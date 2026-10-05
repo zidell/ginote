@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { attachmentRawUrl } from './attachments.js';
-import { earliestIssue, formatMergedBody, mergeTimeline, replaceAttachmentUrls } from './note-merge.js';
+import { earliestIssue, formatMergedBody, mergedComments, mergeTimeline, replaceAttachmentUrls } from './note-merge.js';
 
 describe('note merge', () => {
   const first = {
@@ -22,11 +22,14 @@ describe('note merge', () => {
     comments: [{ id: 2, body: '중간 댓글', createdAt: '2026-01-01T11:00:00Z', author: 'dave', url: '' }]
   };
 
-  it('가장 먼저 만든 이슈를 기준으로 정하고 본문과 댓글을 시간순으로 섞는다', () => {
+  it('가장 먼저 만든 이슈를 기준으로 정하고, 본문은 본문끼리 댓글은 댓글끼리 시간순으로 모은다', () => {
     expect(earliestIssue([second, first])).toBe(first);
-    expect(mergeTimeline([second, first]).map((entry) => entry.body)).toEqual([
-      '첫 본문', '둘째 본문', '중간 댓글', '나중 댓글'
-    ]);
+    expect(mergeTimeline([second, first]).map((entry) => entry.body)).toEqual(['첫 본문', '둘째 본문']);
+    expect(mergedComments([second, first]).map((entry) => entry.body)).toEqual(['중간 댓글', '나중 댓글']);
+  });
+
+  it('내용이 빈 댓글은 옮기지 않는다', () => {
+    expect(mergedComments([{ ...first, comments: [{ body: '  ', createdAt: '2026-01-02T09:00:00Z' }] }])).toEqual([]);
   });
 
   it('원래 시각과 작성자만 초 단위 헤딩으로 갖는 병합 본문을 만든다', () => {

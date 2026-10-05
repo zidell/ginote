@@ -2,6 +2,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 
 vi.mock('./github.js', () => ({
   createIssue: vi.fn(),
+  createIssueComment: vi.fn(async () => ({})),
   downloadAttachment: vi.fn(),
   getIssue: vi.fn(),
   listAllIssueAttachmentFiles: vi.fn(),
@@ -13,6 +14,7 @@ vi.mock('./github.js', () => ({
 
 import {
   createIssue,
+  createIssueComment,
   downloadAttachment,
   getIssue,
   listAllIssueAttachmentFiles,
@@ -61,7 +63,10 @@ describe('mergeIssues', () => {
     const [, , number, saved] = updateIssue.mock.calls[0];
     expect(number).toBe(90);
     expect(saved.body).toContain('첫 본문');
-    expect(saved.body).toContain('첫 댓글');
+    // 원본 댓글은 본문이 아니라 새 노트의 댓글로 옮긴다.
+    expect(saved.body).not.toContain('첫 댓글');
+    expect(createIssueComment).toHaveBeenCalledWith('token', 'octo/notes', 90, '첫 댓글');
+    expect(result.mergedIssue.comments).toBe(1);
     expect(saved.body).toContain('issues/90/copied-photo.png');
     expect(saved.body).not.toContain('issues/2/photo.png');
 
@@ -115,6 +120,16 @@ describe('mergeIssues', () => {
     expect(failure.message).toBe('upload failed');
     expect(setIssueState.mock.calls.map((call) => call.slice(2))).toEqual([[90, 'closed']]);
     expect(updateIssue).not.toHaveBeenCalled();
+  });
+
+  it('댓글을 옮기다 실패하면 임시 노트를 휴지통으로 보내고 원본은 닫지 않는다', async () => {
+    createIssueComment.mockRejectedValueOnce(new Error('comment failed'));
+
+    const failure = await mergeIssues('token', 'octo/notes', [{ number: 1 }, { number: 2 }]).catch((reason) => reason);
+
+    expect(failure.message).toBe('comment failed');
+    expect(failure.draftNumber).toBe(90);
+    expect(setIssueState.mock.calls.map((call) => call.slice(2))).toEqual([[90, 'closed']]);
   });
 
   it('임시 노트를 닫지 못해도 원래 실패 원인을 알린다', async () => {

@@ -1,5 +1,6 @@
 import {
   createIssue,
+  createIssueComment,
   downloadAttachment,
   getIssue,
   listAllIssueAttachmentFiles,
@@ -11,7 +12,7 @@ import {
 import { MAX_ISSUE_BODY_LENGTH } from './github-limits.js';
 import { translate } from './i18n.js';
 import { uniqueIssueLabelNames } from './issue-labels.js';
-import { earliestIssue, formatMergedBody, mergeTimeline, replaceAttachmentUrls } from './note-merge.js';
+import { earliestIssue, formatMergedBody, mergedComments, mergeTimeline, replaceAttachmentUrls } from './note-merge.js';
 
 const PLACEHOLDER_BODY = '> 병합 기록을 준비하는 중입니다.';
 
@@ -73,7 +74,8 @@ function withCopiedAttachmentUrls(sourceDetails, repo, attachmentPaths) {
   }));
 }
 
-// 여러 노트를 시간순 기록 하나로 합친 새 노트를 만들고 원본을 휴지통으로 보낸다.
+// 여러 노트를 하나로 합친 새 노트를 만들고 원본을 휴지통으로 보낸다. 원본 본문은 시간순으로 새 노트 본문에,
+// 원본 댓글은 새 노트의 댓글로 시간순으로 다시 남긴다.
 // 새 노트가 완성되기 전에는 원본을 닫지 않으므로, 어느 단계가 실패해도 원본 기록은 그대로 남는다.
 export async function mergeIssues(token, repo, sources) {
   let draft = null;
@@ -88,9 +90,16 @@ export async function mergeIssues(token, repo, sources) {
 
     draft = await createIssue(token, repo, { title, body: PLACEHOLDER_BODY, labels });
     const attachmentPaths = await copyAttachments(token, repo, sourceDetails, draft.number);
-    const body = formatMergedBody(mergeTimeline(withCopiedAttachmentUrls(sourceDetails, repo, attachmentPaths)));
+    const copied = withCopiedAttachmentUrls(sourceDetails, repo, attachmentPaths);
+    const body = formatMergedBody(mergeTimeline(copied));
     assertWithinLimit(body);
     mergedIssue = await updateIssue(token, repo, draft.number, { title, body, labels });
+    let commentCount = 0;
+    for (const comment of mergedComments(copied)) {
+      await createIssueComment(token, repo, draft.number, comment.body);
+      commentCount += 1;
+    }
+    if (commentCount) mergedIssue = { ...mergedIssue, comments: commentCount };
   } catch (reason) {
     // 완성 전의 결과물은 휴지통으로 보낸다. 복사된 파일은 그 이슈의 첨부로 남았다가
     // 기존 휴지통 정리 정책에 따라 함께 제거된다.

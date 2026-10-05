@@ -12,31 +12,38 @@ export function earliestIssue(issues) {
   ))[0] || null;
 }
 
+function byTime(left, right) {
+  return comparableDate(left.createdAt) - comparableDate(right.createdAt)
+    || Number(left.issueNumber) - Number(right.issueNumber);
+}
+
+// 병합 노트 본문이 될 원본 본문들. 원본 댓글은 본문에 넣지 않고 mergedComments로 따로 옮긴다.
 export function mergeTimeline(issues) {
   return issues
-    .flatMap((issue) => [
-      {
-        kind: 'body',
-        createdAt: issue.created_at,
-        author: issue.user?.login || '',
-        body: issue.body || '',
-        issueNumber: issue.number,
-        issueTitle: issue.title || ''
-      },
-      ...(issue.comments || []).map((comment) => ({
-        kind: 'comment',
-        createdAt: comment.createdAt,
-        author: comment.author || '',
-        body: comment.body || '',
-        issueNumber: issue.number,
-        issueTitle: issue.title || ''
-      }))
-    ])
-    .sort((left, right) => (
-      comparableDate(left.createdAt) - comparableDate(right.createdAt)
-      || Number(left.issueNumber) - Number(right.issueNumber)
-      || (left.kind === 'body' ? -1 : 1)
-    ));
+    .map((issue) => ({
+      kind: 'body',
+      createdAt: issue.created_at,
+      author: issue.user?.login || '',
+      body: issue.body || '',
+      issueNumber: issue.number,
+      issueTitle: issue.title || ''
+    }))
+    .sort(byTime);
+}
+
+// 병합 노트에 댓글로 다시 남길 원본 댓글들(시간순). 내용이 빈 댓글은 GitHub가 받지 않으므로 뺀다.
+export function mergedComments(issues) {
+  return issues
+    .flatMap((issue) => (issue.comments || []).map((comment) => ({
+      kind: 'comment',
+      createdAt: comment.createdAt,
+      author: comment.author || '',
+      body: comment.body || '',
+      issueNumber: issue.number,
+      issueTitle: issue.title || ''
+    })))
+    .filter((comment) => comment.body.trim())
+    .sort(byTime);
 }
 
 export function replaceAttachmentUrls(body, repo, replacements) {

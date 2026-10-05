@@ -326,10 +326,20 @@ async function createAttachmentBranchRef(token, repo, sha) {
   });
 }
 
-async function ensureAttachmentBranch(token, repo) {
-  if (await attachmentBranchExists(token, repo)) return;
+// 브랜치가 하나도 없는 빈 저장소의 기본 브랜치를 marker 파일 하나로 한 번 초기화한다. 빈 저장소에는
+// 실행할 workflow가 없으므로 CI를 깨우는 문제도 생기지 않는다.
+async function initializeEmptyRepository(token, repo) {
+  await request(`/repos/${repo}/contents/${ATTACHMENT_STORAGE_MARKER.split('/').map(encodeURIComponent).join('/')}`, token, {
+    method: 'PUT',
+    body: JSON.stringify({
+      message: 'Initialize empty repository for Ginote attachment storage',
+      content: btoa(ATTACHMENT_STORAGE_MARKER_CONTENT)
+    })
+  });
+}
 
-  const tree = await request(`/repos/${repo}/git/trees`, token, {
+function createAttachmentTree(token, repo) {
+  return request(`/repos/${repo}/git/trees`, token, {
     method: 'POST',
     body: JSON.stringify({
       tree: [{
@@ -340,6 +350,21 @@ async function ensureAttachmentBranch(token, repo) {
       }]
     })
   });
+}
+
+async function ensureAttachmentBranch(token, repo) {
+  if (await attachmentBranchExists(token, repo)) return;
+
+  let tree;
+  try {
+    tree = await createAttachmentTree(token, repo);
+  } catch (reason) {
+    // 커밋이 하나도 없는 빈 저장소는 git 데이터 API(트리·커밋)부터 409 "Git Repository is empty"로
+    // 거부한다. 기본 브랜치를 먼저 초기화한 뒤 다시 만든다.
+    if (reason?.status !== 409 || !await repositoryHasNoBranches(token, repo)) throw reason;
+    await initializeEmptyRepository(token, repo);
+    tree = await createAttachmentTree(token, repo);
+  }
   const commit = await request(`/repos/${repo}/git/commits`, token, {
     method: 'POST',
     body: JSON.stringify({
@@ -360,13 +385,7 @@ async function ensureAttachmentBranch(token, repo) {
     // 못하게 한다. 이 경우에만 marker로 기본 브랜치를 한 번 초기화한다. 빈
     // 저장소에는 실행할 workflow가 없으므로 CI를 깨우는 문제도 생기지 않는다.
     if (reason?.status === 422 && await repositoryHasNoBranches(token, repo)) {
-      await request(`/repos/${repo}/contents/${ATTACHMENT_STORAGE_MARKER.split('/').map(encodeURIComponent).join('/')}`, token, {
-        method: 'PUT',
-        body: JSON.stringify({
-          message: 'Initialize empty repository for Ginote attachment storage',
-          content: btoa(ATTACHMENT_STORAGE_MARKER_CONTENT)
-        })
-      });
+      await initializeEmptyRepository(token, repo);
       try {
         await createAttachmentBranchRef(token, repo, commit.sha);
         return;

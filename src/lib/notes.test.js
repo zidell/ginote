@@ -7,6 +7,7 @@ import {
   markdownToPlainText,
   shortenMiddle
 } from './notes.js';
+import { UNTITLED_TITLE, separateModeTitle } from './notes.js';
 
 describe('automaticTitle', () => {
   it('첫 줄의 앞뒤 공백을 제거해 제목으로 사용한다', () => {
@@ -97,5 +98,14 @@ describe('normalizeTagName', () => {
 
   it('빈 값은 빈 문자열로 둔다', () => {
     expect(normalizeTagName('  #  ')).toBe('');
+  });
+});
+
+describe('Untitled 제목', () => {
+  it('별도 제목 모드에서 제목이 없거나 Untitled면 본문 첫 줄을 쓰고, 본문도 없으면 Untitled', () => {
+    expect(separateModeTitle('', '')).toBe(UNTITLED_TITLE);
+    expect(separateModeTitle('Untitled', '첫 줄\n둘째')).toBe('첫 줄');
+    expect(separateModeTitle('', '첫 줄')).toBe('첫 줄');
+    expect(separateModeTitle('직접 쓴 제목', '첫 줄')).toBe('직접 쓴 제목');
   });
 });

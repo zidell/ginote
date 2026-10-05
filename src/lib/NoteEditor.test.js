@@ -1589,6 +1589,26 @@ describe('NoteEditor 태그', () => {
     expect(savedNote.labels).toContain('ginote:pin');
   });
 
+  it('본문이 빈 노트에도 태그를 붙이면 Untitled 제목으로 저장한다', async () => {
+    const issue = { ...baseIssue, title: '새 노트', body: '', labels: [] };
+    render(NoteEditor, {
+      token: 't',
+      repo: 'owner/repo',
+      issue,
+      availableLabels: [{ name: 'work' }],
+      ignoreRecoveredDraft: true,
+      autoSaveSeconds: 9999
+    });
+
+    const pickerButton = document.querySelector('.detail-toolbar-actions-desktop .tag-picker > button');
+    await fireEvent.click(pickerButton);
+    await fireEvent.click(screen.getByRole('button', { name: '#work' }));
+
+    await waitFor(() => expect(updateIssue).toHaveBeenCalled());
+    expect(updateIssue.mock.calls[0].slice(0, 3)).toEqual(['t', 'owner/repo', issue.number]);
+    expect(updateIssue.mock.calls[0][3]).toMatchObject({ title: 'Untitled', body: '', labels: ['work'] });
+  });
+
   it('이미 붙은 태그를 선택기에서 다시 누르면 제거한다', async () => {
     const issue = { ...baseIssue, labels: [{ name: 'Work' }] };
     render(NoteEditor, {
@@ -1970,6 +1990,26 @@ describe('NoteEditor 노트 잠금', () => {
       .toContain('잠금 시간이 만료되었습니다'));
     expect(bodyTextarea.readOnly).toBe(true);
     expect(bodyTextarea.value).toBe('enc|123456|5|만료 직전 수정');
+  });
+
+  it('잠금을 풀면 잠금 중에 암호화해 둔 댓글도 평문으로 다시 저장한다', async () => {
+    listIssueComments.mockResolvedValueOnce([{
+      id: 7,
+      body: 'enc|123456|5|잠금 중 댓글',
+      author: 'octocat',
+      avatarUrl: '',
+      createdAt: '2026-09-01T00:00:00Z',
+      updatedAt: '2026-09-01T00:00:00Z',
+      url: ''
+    }]);
+    renderWithLockSession({ issue: { ...lockedIssue, comments: 1 }, lockPin: '123456' });
+    await waitFor(() => expect(document.querySelector('.inline-body').value).toBe('비밀 본문'), { timeout: 3000 });
+    await waitFor(() => expect([...document.querySelectorAll('.note-comment-item textarea')].map((node) => node.value))
+      .toContain('잠금 중 댓글'));
+
+    await fireEvent.click(menuItem('잠금 풀기'));
+
+    await waitFor(() => expect(updateIssueComment).toHaveBeenCalledWith('t', 'owner/repo', 7, '잠금 중 댓글'));
   });
 
   it('열린 잠금 노트에서 잠금을 풀면 평문 본문과 자물쇠 없는 제목으로 저장한다', async () => {

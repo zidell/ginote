@@ -725,6 +725,43 @@ describe('GitHub API client', () => {
     });
   });
 
+  it('커밋이 없는 빈 저장소에서 트리 생성이 409로 거부되면 기본 브랜치를 먼저 초기화하고 다시 만든다', async () => {
+    // 실제 GitHub는 빈 저장소에서 git/trees부터 409 "Git Repository is empty"를 돌려준다.
+    fetch
+      .mockResolvedValueOnce(jsonResponse({ message: 'Not Found' }, { status: 404 }))
+      .mockResolvedValueOnce(jsonResponse({ message: 'Git Repository is empty.' }, { status: 409 }))
+      .mockResolvedValueOnce(jsonResponse({ default_branch: 'main' }))
+      .mockResolvedValueOnce(jsonResponse({ message: 'Git Repository is empty.' }, { status: 409 }))
+      .mockResolvedValueOnce(jsonResponse({ content: { sha: 'marker-sha' } }))
+      .mockResolvedValueOnce(jsonResponse({ sha: 'tree-sha' }))
+      .mockResolvedValueOnce(jsonResponse({ sha: 'root-commit-sha' }))
+      .mockResolvedValueOnce(jsonResponse({ ref: 'refs/heads/ginote-assets' }))
+      .mockResolvedValueOnce(jsonResponse([]));
+
+    await expect(listIssueAttachmentFiles('token', 'owner/repo', 31)).resolves.toEqual([]);
+
+    const [markerUrl, markerOptions] = fetch.mock.calls[4];
+    expect(decodeURIComponent(new URL(markerUrl).pathname))
+      .toBe('/repos/owner/repo/contents/.issue-note-assets/.ginote-storage');
+    expect(markerOptions.method).toBe('PUT');
+    expect(new URL(fetch.mock.calls[5][0]).pathname).toBe('/repos/owner/repo/git/trees');
+    expect(JSON.parse(fetch.mock.calls[7][1].body)).toEqual({
+      ref: 'refs/heads/ginote-assets',
+      sha: 'root-commit-sha'
+    });
+  });
+
+  it('브랜치가 있는 저장소에서 트리 생성이 409로 거부되면 초기화하지 않고 오류를 알린다', async () => {
+    fetch
+      .mockResolvedValueOnce(jsonResponse({ message: 'Not Found' }, { status: 404 }))
+      .mockResolvedValueOnce(jsonResponse({ message: 'Conflict' }, { status: 409 }))
+      .mockResolvedValueOnce(jsonResponse({ default_branch: 'main' }))
+      .mockResolvedValueOnce(jsonResponse({ ref: 'refs/heads/main' }));
+
+    await expect(listIssueAttachmentFiles('token', 'owner/repo', 31)).rejects.toMatchObject({ status: 409 });
+    expect(fetch).toHaveBeenCalledTimes(4);
+  });
+
   it('빈 저장소 초기화 후 재시도에서 다른 창이 먼저 브랜치를 만들었으면 그 브랜치를 쓴다', async () => {
     fetch
       .mockResolvedValueOnce(jsonResponse({ message: 'Not Found' }, { status: 404 }))

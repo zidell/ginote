@@ -11,7 +11,7 @@
   import { MAX_ISSUE_BODY_LENGTH, MAX_ISSUE_COMMENT_LENGTH } from './github-limits.js';
   import MarkdownViewer from './MarkdownViewer.svelte';
   import TagPicker from './TagPicker.svelte';
-  import { automaticTitle, linkAtCursor, shortenMiddle } from './notes.js';
+  import { UNTITLED_TITLE, automaticTitle, linkAtCursor, separateModeTitle, shortenMiddle } from './notes.js';
   import { loadPendingWork, pendingWorkScope, updatePendingWork } from './pending-work.js';
   import { readDraftStore, writeDraftStore } from './draft-store.js';
   import {
@@ -1015,8 +1015,9 @@
     const resolvedTitle = lockState === 'locked'
       ? title.trim()
       : titleMode === 'first-line'
-      ? automaticTitle(trimmedBody) || (attachments.length ? $_("m.c33437b1cb") : '')
-      : title.trim();
+      // 본문이 비어도 태그부터 저장할 수 있게 Untitled를 제목으로 쓴다(GitHub는 빈 제목만 거부한다).
+      ? automaticTitle(trimmedBody) || (attachments.length ? $_("m.c33437b1cb") : UNTITLED_TITLE)
+      : separateModeTitle(title, trimmedBody);
     return {
       title: resolvedTitle,
       body: trimmedBody,
@@ -1279,6 +1280,13 @@
     changed();
     clearTimeout(remoteTimer);
     await flushPendingWork({ reason: 'unlock', allowPaused: true, force: true });
+    // 잠금 중에 암호화해 저장한 댓글도 평문으로 다시 저장한다. 그대로 두면 평문 노트에서는 댓글을 풀
+    // 길이 없어, 숫자를 알아도 다시 읽지 못한다. 풀지 못한 댓글(다른 숫자로 잠긴 것)은 건드리지 않는다.
+    const savedComments = comments.filter((comment) => !comment.isNew && !isLockedPayload(comment.body));
+    for (const comment of savedComments) {
+      markCommentDirty(comment);
+      await saveComment(comment, true);
+    }
   }
 
   async function resolveRemoteIssue() {

@@ -1,3 +1,14 @@
+// 본문이 비어 제목을 정할 수 없을 때 쓰는 제목. GitHub는 빈 제목을 받지 않으므로 태그부터 붙여도 저장되게 한다.
+// 본문이 들어오면 첫 줄로 바뀐다(별도 제목 모드에서도 이 제목이면 첫 줄로 바꾼다).
+export const UNTITLED_TITLE = 'Untitled';
+
+// 별도 제목 모드: 직접 쓴 제목이 없거나 Untitled면 본문 첫 줄, 그것도 없으면 Untitled.
+export function separateModeTitle(title, body) {
+  const typed = String(title || '').trim();
+  if (typed && typed !== UNTITLED_TITLE) return typed;
+  return automaticTitle(String(body || '').trim()) || UNTITLED_TITLE;
+}
+
 export function automaticTitle(value, maxLength = 50) {
   const text = String(value || '');
   const lineEnd = text.search(/\r?\n/);
