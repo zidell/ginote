@@ -96,7 +96,8 @@ final class WorkspaceModel {
     func refreshCounts() {
         countsTask?.cancel()
         countsTask = Task { [weak self] in
-            let settle = max(1.5, 10 - Date().timeIntervalSince(self?.localCountChange ?? .distantPast))
+            // 아직 개수가 없으면(저장소를 처음 열 때) 기다리지 않고 바로 센다. 기다리면 사이드바 개수가 몇 초 비어 있다.
+            let settle = self?.counts == nil ? 0 : max(1.5, 10 - Date().timeIntervalSince(self?.localCountChange ?? .distantPast))
             try? await Task.sleep(for: .seconds(settle))
             guard let self, !Task.isCancelled else { return }
             if let counts = try? await self.client.noteCounts() {
@@ -107,6 +108,27 @@ final class WorkspaceModel {
     }
     @ObservationIgnored private(set) lazy var voiceHints = VoiceHints(workspace: self)
     @ObservationIgnored private var localCountChange = Date.distantPast
+
+    /// 열린 노트의 태그가 바뀐 만큼 사이드바 태그 개수를 바로 맞춘다(GitHub 개수는 늦게 따라온다).
+    private func adjustLabelCounts(from previous: Issue, to issue: Issue) {
+        guard var next = counts else { return }
+        let before = Set(previous.labels.map(\.name)), after = Set(issue.labels.map(\.name))
+        for name in after.subtracting(before) { next.labels[name, default: 0] += 1 }
+        for name in before.subtracting(after) { next.labels[name] = max(0, (next.labels[name] ?? 0) - 1) }
+        localCountChange = Date()
+        counts = next
+        refreshCounts()
+    }
+
+    /// 새로 만든 노트만큼 사이드바 개수를 바로 늘린다.
+    private func addCount(for issue: Issue) {
+        guard var next = counts else { return }
+        localCountChange = Date()
+        next.notes += 1
+        for label in issue.labels.map(\.name) { next.labels[label, default: 0] += 1 }
+        counts = next
+        app.workspaceNoteCounts[workspace.id] = next.notes
+    }
 
     /// 휴지통 이동(toTrash)·복원한 노트만큼 사이드바 개수를 바로 맞춘다.
     private func adjustCounts(for changed: [Issue], toTrash: Bool) {
@@ -142,6 +164,12 @@ final class WorkspaceModel {
     }
 
     var displayedPinned: [Issue] { pinned }
+
+    /// 목록 줄 순서: 고정 노트 → 번호를 받기 전의 새 노트 → 보통 노트. 새 노트는 번호를 받으면 보통 노트 맨 앞으로
+    /// 들어가므로 이 자리에 두어야 줄이 움직이지 않는다. 목록 화면(NoteListView)과 키보드 이동이 이 순서를 따른다.
+    var listRowIds: [Int] {
+        displayedPinned.map(\.id) + (newNote != nil ? [NoteSession.newNoteSelectionId] : []) + displayedRegular.map(\.id)
+    }
     var displayedRegular: [Issue] {
         let pinnedIds = Set(displayedPinned.map(\.id))
         return issues.filter { !pinnedIds.contains($0.id) }
@@ -365,6 +393,21 @@ final class WorkspaceModel {
     }
 
     /// 다른 화면(음성·병합)이 새로 만든 노트를 목록에 올리고 고른다.
+    /// 병합 결과: 원본(closed)은 목록에서 빼 휴지통으로 세고, 새 노트를 맨 위에 열어 둔다.
+    func applyMerge(created: Issue, closed: [Issue]) {
+        let ids = Set(closed.map(\.id))
+        let shown = issues.filter { ids.contains($0.id) }.count
+        issues.removeAll { ids.contains($0.id) }
+        pinned.removeAll { ids.contains($0.id) }
+        if scope == .notes { totalCount = totalCount.map { max(0, $0 - shown) } }
+        for issue in closed { sessions[issue.number] = nil }
+        selection = []
+        adjustCounts(for: closed, toTrash: true)
+        insertCreated(created)
+        addCount(for: created)
+        refreshCounts()
+    }
+
     func insertCreated(_ issue: Issue) {
         hold(issue)
         if scope != .notes { scope = .notes }
@@ -455,6 +498,7 @@ final class WorkspaceModel {
         hold(issue)
         if !issues.contains(where: { $0.id == issue.id }) { issues.insert(issue, at: 0) }
         totalCount = totalCount.map { $0 + 1 }
+        addCount(for: issue)
         if newNote === session { newNote = nil }
         if openedId == NoteSession.newNoteSelectionId { open(issue.id) }
         refreshCounts()
@@ -471,6 +515,7 @@ final class WorkspaceModel {
         if let previous = issues.first(where: { $0.id == issue.id }) ?? pinned.first(where: { $0.id == issue.id }),
            Set(previous.labels.map(\.name)) != Set(issue.labels.map(\.name)) {
             hold(issue)
+            if !issue.isClosed { adjustLabelCounts(from: previous, to: issue) }
         }
         if let index = issues.firstIndex(where: { $0.id == issue.id }) { issues[index] = issue }
         if let index = pinned.firstIndex(where: { $0.id == issue.id }) { pinned[index] = issue }

@@ -1,0 +1,46 @@
+name: macOS native tests
+
+# 맥 네이티브 앱(macos/)의 화면 없는 테스트. 공통 모듈(GinoteCore)과 화면 모델(GinoteTests, 가짜 GitHub)을 검사한다.
+# 실제 GitHub나 비밀값은 쓰지 않는다.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'macos/**'
+      - 'src/lib/**'
+      - '.github/workflows/macos-native.yml'
+  pull_request:
+    paths:
+      - 'macos/**'
+      - 'src/lib/**'
+      - '.github/workflows/macos-native.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: macos-15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      # GinoteCore 테스트가 웹 코드(src/lib)로 만든 기대값과 비교하므로 Node가 필요하다.
+      - name: Setup Node.js
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: 22
+
+      - name: GinoteCore tests
+        working-directory: macos/Packages/GinoteCore
+        run: swift test
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: App model tests
+        working-directory: macos
+        run: |
+          xcodegen
+          xcodebuild -project GinoteNative.xcodeproj -scheme Ginote -configuration Debug \
+            -derivedDataPath build -destination 'platform=macOS' test

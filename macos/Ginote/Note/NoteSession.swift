@@ -340,7 +340,10 @@ final class NoteSession: Identifiable {
         let resolved = resolvedTitle(trimmedBody: body.trimmingCharacters(in: .whitespacesAndNewlines))
         // 번호를 받기 전의 빈 새 노트는 GitHub에 만들 제목("새 노트")으로 보인다. 저장용 Untitled를 보이면 번호를 받는
         // 순간 목록 줄의 제목이 바뀐다.
-        if resolved.isEmpty || (number == nil && resolved == Self.untitledTitle) { return Self.placeholderTitle }
+        // GitHub 제목이 아직 "새 노트"인 빈 노트도 같다(목록 줄은 GitHub 제목을 쓴다).
+        if resolved.isEmpty || (resolved == Self.untitledTitle && (issue == nil || issue?.title == Self.placeholderTitle)) {
+            return Self.placeholderTitle
+        }
         return resolved
     }
 

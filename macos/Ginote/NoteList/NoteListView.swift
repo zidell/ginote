@@ -40,9 +40,7 @@ struct NoteListView: View {
     /// 검색어·태그 필터가 없으면 첫 노트를 맨 위로 올려 검색칸을 가린다(위로 스크롤하면 드러난다).
     private func hideSearch(_ proxy: ScrollViewProxy) {
         guard workspace.searchText.isEmpty, workspace.activeQuery.isEmpty, workspace.labelFilter == nil else { return }
-        let first: Int? = workspace.displayedPinned.first?.id
-            ?? (workspace.newNote != nil ? NoteSession.newNoteSelectionId : workspace.displayedRegular.first?.id)
-        guard let first else { return }
+        guard let first = workspace.listRowIds.first else { return }
         // 고정 섹션이 있으면 그 머리줄("고정됨")을 맨 위에 둔다. 첫 줄을 올리면 머리줄이 그 제목을 덮는다.
         if !workspace.displayedPinned.isEmpty {
             proxy.scrollTo(Self.pinnedHeaderId, anchor: .top)
@@ -142,8 +140,7 @@ struct NoteListView: View {
             ForEach(workspace.displayedPinned) { issue in row(issue) }
             groupHeader("노트")
         }
-        // 번호를 받기 전의 새 노트는 고정 노트 아래, 보통 노트 맨 위에 둔다. 번호를 받으면 같은 자리(보통 노트 맨 앞)에
-        // 들어가므로 줄이 움직이지 않는다.
+        // 번호를 받기 전의 새 노트는 고정 노트 아래, 보통 노트 맨 위(WorkspaceModel.listRowIds와 같은 순서).
         if let newNote = workspace.newNote {
             NoteRowView(title: newNote.displayTitle, issue: nil, session: newNote, preferences: app.settings.preferences,
                         isOpened: workspace.openedId == NoteSession.newNoteSelectionId)
@@ -417,6 +414,21 @@ enum ListKeyboard {
 
     static var movedRecently: Bool { Date().timeIntervalSince(lastMove) < 0.5 }
 
+    /// 사이드바에서 이미 선택된 줄을 다시 눌렀다(SidebarView가 새로고침한다).
+    static let sidebarReclick = Notification.Name("GinoteSidebarReclick")
+
+    /// 사이드바(원본 목록 모양의 표)에서 지금 선택된 줄을 한 번 누른 경우에만 알린다.
+    private static func postSidebarReclick(_ event: NSEvent) {
+        guard event.clickCount == 1, let content = event.window?.contentView,
+              let hit = content.hitTest(event.locationInWindow) else { return }
+        var view: NSView? = hit
+        while let current = view, !(current is NSTableView) { view = current.superview }
+        guard let table = view as? NSTableView, table.effectiveStyle == .sourceList else { return }
+        let row = table.row(at: table.convert(event.locationInWindow, from: nil))
+        guard row >= 0, row == table.selectedRow else { return }
+        NotificationCenter.default.post(name: sidebarReclick, object: nil)
+    }
+
     /// 코드가 커서를 옮길 때도 열지 않게 표시한다.
     static func markMoved() { lastMove = Date() }
 
@@ -431,6 +443,7 @@ enum ListKeyboard {
         let app = AppModel.shared
         if event.type == .leftMouseDown {
             app.toolbarKeyFocus = nil
+            postSidebarReclick(event)
             return event
         }
         // macOS 목록은 글자를 누르면 그 글자로 시작하는 행으로 선택을 옮긴다(type-select). ⌥T 같은 조합도 글자(†)로
@@ -483,8 +496,7 @@ enum ListKeyboard {
         // 목록 맨 위에서 ↑: 검색칸으로(목록이 직접 ↑를 처리하므로 여기서 가로챈다).
         if event.keyCode == 126, plain, app.activePane == .list,
            event.window?.firstResponder is NSTableView, let workspace = app.workspace {
-            let top = workspace.displayedPinned.first?.id
-                ?? (workspace.newNote != nil ? NoteSession.newNoteSelectionId : workspace.displayedIssues.first?.id)
+            let top = workspace.listRowIds.first
             if workspace.selection.isEmpty || (workspace.selection.count == 1 && workspace.selection.first == top) {
                 app.searchFocusRequest += 1
                 return nil

@@ -22,10 +22,13 @@ public final class GitHubClient: @unchecked Sendable {
         return URLSession(configuration: configuration)
     }()
 
-    public init(token: String, repo: String, session: URLSession = GitHubClient.uncachedSession) {
+    /// 테스트가 가짜 GitHub(URLProtocol)를 끼우는 세션. 정해 두면 세션을 따로 넘기지 않은 클라이언트가 모두 이것을 쓴다.
+    nonisolated(unsafe) public static var sessionOverride: URLSession?
+
+    public init(token: String, repo: String, session: URLSession? = nil) {
         self.token = token
         self.repo = repo
-        self.session = session
+        self.session = session ?? Self.sessionOverride ?? Self.uncachedSession
     }
 
     // MARK: - 요청

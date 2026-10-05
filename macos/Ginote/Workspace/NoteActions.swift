@@ -157,11 +157,16 @@ enum MergeRunner {
             if !comments.isEmpty { merged = try await client.getIssue(created.number) }
 
             var failures: [Int] = []
+            var closed: [Issue] = []
             for target in targets {
-                do { workspace.hold(try await client.setState(target.number, state: "closed")) } catch { failures.append(target.number) }
+                do {
+                    let issue = try await client.setState(target.number, state: "closed")
+                    workspace.hold(issue)
+                    closed.append(issue)
+                } catch { failures.append(target.number) }
             }
-            await workspace.reload()
-            workspace.insertCreated(merged)
+            // 목록을 다시 읽지 않고 바로 반영한다. 방금 닫은 직후의 GitHub 목록·개수는 아직 옛 값이다.
+            workspace.applyMerge(created: merged, closed: closed)
             if failures.isEmpty {
                 Dialogs.inform(String(localized: "병합 노트 #\(merged.number)을(를) 만들었습니다."))
             } else {

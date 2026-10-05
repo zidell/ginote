@@ -13,6 +13,9 @@ struct NoteDetailView: View {
     @State private var bodyText = ""
     @State private var focusRequest = 0
     @State private var showingTags = false
+    /// 태그 창을 열기 전에 키보드 포커스가 있던 곳. 창을 닫으면 그리로 돌려보낸다. 돌려보내지 않으면 AppKit이
+    /// 툴바 첫 버튼(사이드바 접기)에 포커스를 줘 스페이스 한 번에 사이드바가 접힌다.
+    @State private var focusBeforeTags = WeakResponder()
     @State private var showingReplace = false
     @State private var previewing = false
     /// 파일을 노트 위로 끌어 온 중(웹 is-dragging-files: 점선 테두리와 옅은 배경).
@@ -63,6 +66,14 @@ struct NoteDetailView: View {
             else if session.isNew || session.issue?.body?.isEmpty == true { focusRequest += 1 }
         }
         .onChange(of: session.body) { _, value in if value != bodyText { bodyText = value } }
+        .onChange(of: showingTags) { _, showing in
+            if showing {
+                focusBeforeTags.value = NSApp.keyWindow?.firstResponder
+            } else if let responder = focusBeforeTags.value, let window = (responder as? NSView)?.window {
+                DispatchQueue.main.async { window.makeFirstResponder(responder) }
+                focusBeforeTags.value = nil
+            }
+        }
         .onChange(of: app.editorFocusRequest) { _, _ in
             if session.lockState == .locked { session.lockPrompt = .unlock(message: nil) } else { focusRequest += 1 }
         }
@@ -294,6 +305,11 @@ struct NoteDetailView: View {
         .padding(.horizontal, 14).padding(.vertical, 8)
         .background(Color.orange.opacity(0.12))
     }
+}
+
+/// 포커스를 돌려줄 곳을 붙들되 화면이 사라지면 놓는다.
+final class WeakResponder {
+    weak var value: NSResponder?
 }
 
 struct LockPromptItem: Identifiable {

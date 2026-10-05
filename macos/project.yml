@@ -59,3 +59,36 @@ targets:
         DEAD_CODE_STRIPPING: YES
         SWIFT_EMIT_LOC_STRINGS: YES
         LOCALIZATION_PREFERS_STRING_CATALOGS: YES
+  # 화면 모델 단위 테스트. 앱을 호스트로 띄우지만 창·Dock·포커스는 쓰지 않는다(AppModel.isUnitTest).
+  # GitHub는 GinoteTests/FakeGitHub.swift의 메모리 서버로 바꿔 끼운다.
+  GinoteTests:
+    type: bundle.unit-test
+    platform: macOS
+    configFiles:
+      Debug: Signing.xcconfig
+      Release: Signing.xcconfig
+    sources:
+      - path: GinoteTests
+    dependencies:
+      - target: Ginote
+      - package: GinoteCore
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: net.gitools.note.mac.tests
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/Ginote Native.app/Contents/MacOS/Ginote"
+        BUNDLE_LOADER: "$(TEST_HOST)"
+schemes:
+  Ginote:
+    build:
+      targets:
+        Ginote: all
+        GinoteTests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - GinoteTests
+    archive:
+      config: Release

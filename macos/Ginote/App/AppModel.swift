@@ -14,9 +14,21 @@ final class AppModel {
     let localState = LocalState(directory: AppModel.configDirectory.appendingPathComponent("state"))
 
     /// 디버그 빌드의 자가 점검은 사용자 설정·키체인과 섞이지 않게 따로 둔다(Debug/SelfTest.swift).
+    /// 단위 테스트(XCTest)가 앱을 띄운 경우. 창을 띄우지 않고 사용자 설정·키체인을 건드리지 않는다.
+    static var isUnitTest: Bool {
+        #if DEBUG
+        return ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+        #else
+        return false
+        #endif
+    }
+
     static var configDirectory: URL {
         #if DEBUG
         if let path = ProcessInfo.processInfo.environment["GINOTE_CONFIG_DIR"] { return URL(fileURLWithPath: path) }
+        if isUnitTest {
+            return FileManager.default.temporaryDirectory.appendingPathComponent("ginote-unit-tests-\(ProcessInfo.processInfo.processIdentifier)")
+        }
         #endif
         return ConfigStore.defaultDirectory
     }
@@ -24,7 +36,7 @@ final class AppModel {
     /// 자가 점검(GINOTE_CONFIG_DIR로 따로 둔 설정 폴더)으로 실행 중인지.
     static var isSelfTest: Bool {
         #if DEBUG
-        return ProcessInfo.processInfo.environment["GINOTE_CONFIG_DIR"] != nil
+        return ProcessInfo.processInfo.environment["GINOTE_CONFIG_DIR"] != nil || isUnitTest
         #else
         return false
         #endif
@@ -32,7 +44,7 @@ final class AppModel {
 
     static var skipsKeychain: Bool {
         #if DEBUG
-        return ProcessInfo.processInfo.environment["GINOTE_SELF_TEST"] == "ui"
+        return ProcessInfo.processInfo.environment["GINOTE_SELF_TEST"] == "ui" || isUnitTest
         #else
         return false
         #endif
@@ -40,6 +52,7 @@ final class AppModel {
 
     static var keychainService: String {
         #if DEBUG
+        if isUnitTest { return Keychain.service + ".unittest" }
         if ProcessInfo.processInfo.environment["GINOTE_CONFIG_DIR"] != nil { return Keychain.service + ".selftest" }
         #endif
         return Keychain.service

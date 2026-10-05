@@ -41,7 +41,16 @@ struct GinoteApp: App {
 }
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    /// 단위 테스트가 띄운 앱은 Dock에 나오지 않고 앞으로 오지 않으며 창도 닫는다. 테스트하는 동안 화면을 차지하지 않게 한다.
+    func applicationWillFinishLaunching(_ notification: Notification) {
+        if AppModel.isUnitTest { NSApp.setActivationPolicy(.prohibited) }
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
+        if AppModel.isUnitTest {
+            DispatchQueue.main.async { NSApp.windows.forEach { $0.orderOut(nil) } }
+            return
+        }
         Task { @MainActor in
             AppModel.shared.applyTheme()
             MenuShortcuts.install()

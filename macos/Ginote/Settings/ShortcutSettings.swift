@@ -113,8 +113,8 @@ enum MenuShortcuts {
         apply(AppModel.shared.settings)
     }
 
-    static func apply(_ settings: AppSettings) {
-        guard !applying, let menu = NSApp?.mainMenu else { return }
+    static func apply(_ settings: AppSettings, to target: NSMenu? = nil) {
+        guard !applying, let menu = target ?? NSApp?.mainMenu else { return }
         applying = true
         defer { applying = false }
         var byTitle: [String: KeyShortcut?] = [:]

@@ -362,18 +362,24 @@ struct VoiceSettingsView: View {
         Form {
             Section("OpenAI") {
                 if editingKey || app.openAIKey.isEmpty {
-                    SecureField("API 키 (sk-…)", text: $keyInput)
-                        .onSubmit { saveKey() }
-                    HStack {
-                        Button("저장") { saveKey() }.disabled(keyInput.trimmingCharacters(in: .whitespaces).isEmpty)
-                        if !app.openAIKey.isEmpty { Button("취소") { editingKey = false } }
+                    // 테두리 있는 입력칸으로 둔다. Form의 기본 입력칸은 테두리가 없어 칸이 있는지 알아보기 어렵다.
+                    LabeledContent("API 키") {
+                        HStack {
+                            SecureField(text: $keyInput, prompt: Text(verbatim: "sk-…")) { Text("API 키") }
+                                .labelsHidden()
+                                .textFieldStyle(.roundedBorder)
+                                .frame(width: 260)
+                                .onSubmit { saveKey() }
+                            Button("저장") { saveKey() }.disabled(keyInput.trimmingCharacters(in: .whitespaces).isEmpty)
+                            if !app.openAIKey.isEmpty { Button("취소") { editingKey = false } }
+                        }
                     }
                 } else {
                     LabeledContent("API 키") {
                         HStack {
                             Text(VoicePresets.maskAPIKey(app.openAIKey)).font(.body.monospaced())
                             Button("바꾸기") { keyInput = ""; editingKey = true }
-                            Button("지우기", role: .destructive) { app.openAIKey = "" }
+                            Button("지우기", role: .destructive) { app.openAIKey = ""; modelError = nil }
                         }
                     }
                 }
@@ -431,6 +437,7 @@ struct VoiceSettingsView: View {
         let key = keyInput.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !key.isEmpty else { return }
         app.openAIKey = key
+        modelError = nil
         keyInput = ""
         editingKey = false
         Task { await refreshModels() }
