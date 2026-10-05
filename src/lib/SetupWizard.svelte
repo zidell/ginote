@@ -1,6 +1,7 @@
 <script>
   import { _ } from 'svelte-i18n';
   import { externalLinkTarget } from './external-links.js';
+  import { isInstalledApp } from './dialogs.js';
 
   export let repo = '';
   export let tokenInputValue = '';
@@ -15,7 +16,9 @@
 
   const externalTarget = externalLinkTarget();
   // 이미 설치된 앱(Tauri) 안에서는 설치 링크를 보여 줄 이유가 없다.
-  const inApp = Boolean(globalThis.__TAURI_INTERNALS__);
+  // 앱은 그 기기 전용이라 PAT 저장 여부도 묻지 않고 항상 저장한다.
+  const inApp = isInstalledApp();
+  if (inApp) rememberToken = true;
   const lastStep = 4;
   let step = initialStep;
 
@@ -152,10 +155,12 @@
               required
             />
             <div class="form-text">{$_('setup.patHelp')}</div>
-            <div class="form-check mt-3">
-              <input id="setup-remember" class="form-check-input" type="checkbox" bind:checked={rememberToken} disabled={busy} />
-              <label class="form-check-label" for="setup-remember">{$_('setup.rememberPat')}</label>
-            </div>
+            {#if !inApp}
+              <div class="form-check mt-3">
+                <input id="setup-remember" class="form-check-input" type="checkbox" bind:checked={rememberToken} disabled={busy} />
+                <label class="form-check-label" for="setup-remember">{$_('setup.rememberPat')}</label>
+              </div>
+            {/if}
           {/if}
         </div>
 

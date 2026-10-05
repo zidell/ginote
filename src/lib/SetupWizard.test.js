@@ -30,6 +30,11 @@ describe('SetupWizard', () => {
     }
   });
 
+  it('브라우저에서는 PAT 저장 체크박스를 보여 준다', () => {
+    render(SetupWizard, { initialStep: 4, repo: 'zidell/ginote' });
+    expect(screen.getByLabelText('Remember PAT on this device').checked).toBe(true);
+  });
+
   it('initialStep=3이면 저장소 입력 화면부터 시작하고 이전 두 단계는 완료 표시된다', () => {
     render(SetupWizard, { initialStep: 3 });
     expect(screen.getByText('Step 3 of 4')).toBeTruthy();

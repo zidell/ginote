@@ -31,6 +31,22 @@ describe('AddWorkspaceDialog', () => {
     expect(onAdd).toHaveBeenCalledWith({ repo: 'octo/work', token: 'github_pat_abc', rememberToken: false });
   });
 
+  it('앱(Tauri) 안에서는 PAT 저장 체크박스 없이 항상 저장한다', async () => {
+    globalThis.__TAURI_INTERNALS__ = {};
+    try {
+      const onAdd = vi.fn(async () => {});
+      render(AddWorkspaceDialog, { onAdd });
+      await fireEvent.input(screen.getByLabelText('Repository address'), { target: { value: 'octo/work' } });
+      await fireEvent.click(screen.getByRole('button', { name: /Repository address entered/ }));
+      expect(screen.queryByLabelText('Remember PAT on this device')).toBeNull();
+      await fireEvent.input(screen.getByLabelText('Fine-grained PAT'), { target: { value: 'github_pat_abc' } });
+      await fireEvent.click(screen.getByRole('button', { name: /Complete setup/ }));
+      await waitFor(() => expect(onAdd).toHaveBeenCalledWith({ repo: 'octo/work', token: 'github_pat_abc', rememberToken: true }));
+    } finally {
+      delete globalThis.__TAURI_INTERNALS__;
+    }
+  });
+
   it('추가에 실패하면 닫지 않고 이유를 보여준다', async () => {
     const onAdd = vi.fn(async () => { throw Object.assign(new Error('Not Found'), { status: 404 }); });
     const onClose = vi.fn();
