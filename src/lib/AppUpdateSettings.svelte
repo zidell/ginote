@@ -1,5 +1,5 @@
 <script>
-  // 설정 화면의 앱 업데이트 항목. 앱이 스스로 업데이트하는 플랫폼(macOS·Linux)에서만 보인다.
+  // 설정 화면의 앱 업데이트 항목. 앱이 스스로 업데이트하는 데스크톱 플랫폼에서만 보인다.
   import { onMount } from 'svelte';
   import { _ } from 'svelte-i18n';
   import {

@@ -9,7 +9,7 @@ Ginote를 개발·검증·배포하는 규칙과 절차를 모은 시작 문서�
 | 문서 | 내용 |
 | --- | --- |
 | [docs/APP_OTA.md](docs/APP_OTA.md) | 설치된 앱의 웹 빌드 교체: 매니페스트, 서명 키, 네이티브 호환성 |
-| [docs/DESKTOP.md](docs/DESKTOP.md) | 데스크톱 앱: 로컬 빌드, 앱 업데이트, 릴리스, 서명, Windows MSIX |
+| [docs/DESKTOP.md](docs/DESKTOP.md) | 데스크톱 앱: 로컬 빌드, 앱 업데이트, 릴리스, 서명, Windows 설치 프로그램 |
 | [docs/MOBILE.md](docs/MOBILE.md) | Android·iOS: 로컬 빌드, 직접 고친 네이티브 부분, 아이콘 |
 | [docs/TUI.md](docs/TUI.md) | 터미널 TUI: 실행, 기능, 설정, 검사 |
 | [docs/CONFIG.md](docs/CONFIG.md) | 설치형 앱의 설정 파일(`config.toml`)과 자격 증명 저장소 |
@@ -128,14 +128,11 @@ npm run build
 `main`에 push하면 다음이 자동으로 진행된다. 별도 릴리스 브랜치는 없다.
 
 - **웹**: `.github/workflows/ci.yml`이 `check`·`test`를 통과한 웹 빌드를 만들어 서명하고
-  Cloudflare Worker `ginote`(정적 자산, `note.gitools.net`, 설정은 `wrangler.jsonc`)에
-  올린다. 웹 빌드는 이 job에서만 만들고 Cloudflare Workers Builds는 쓰지 않는다. 설치된
-  앱도 이 빌드로 바뀐다([APP_OTA](docs/APP_OTA.md)).
-  필요한 시크릿: `GINOTE_OTA_SIGNING_KEY`, `CLOUDFLARE_API_TOKEN`(Account · Workers Scripts ·
-  Edit), `CLOUDFLARE_ACCOUNT_ID`. 서명 키가 없으면 배포 job이 실패한다. 서명 없이 올리면 앱이
-  업데이트를 조용히 멈추기 때문이다.
+  GitHub Pages(`https://zidell.github.io/ginote/`)에 올린다. 설치된 앱도 이 빌드로 바뀐다
+  ([APP_OTA](docs/APP_OTA.md)). 필요한 시크릿은 `GINOTE_OTA_SIGNING_KEY`다. 서명 키가 없으면
+  배포 job이 실패한다. 서명 없이 올리면 앱이 업데이트를 조용히 멈추기 때문이다.
 - **데스크톱**: 같은 push가 네이티브 셸이나 패키징을 바꿨으면 `.github/workflows/release.yml`이
-  macOS·Linux 릴리스와 Windows MSIX를 만든다. 대상 경로와 시크릿은 [DESKTOP](docs/DESKTOP.md)에
+  macOS·Linux 릴리스와 Windows NSIS 설치 프로그램을 만든다. 대상 경로와 시크릿은 [DESKTOP](docs/DESKTOP.md)에
   있다. 그 밖에 릴리스가 필요하면 Actions의 "Desktop release"를 손으로 실행한다.
 - **모바일**: 스토어 배포는 아직 자동화하지 않았다([MOBILE](docs/MOBILE.md)).
 

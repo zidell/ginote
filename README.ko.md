@@ -10,7 +10,7 @@
 이슈로 저장됩니다. 중간에 앱 서버가 없고, 가입할 계정도 없으며, AI 도구는 GitHub
 공식 MCP 서버를 통해 같은 노트를 그대로 읽고 쓸 수 있습니다.
 
-서비스 주소(누구나 바로 사용 가능): [https://note.gitools.net](https://note.gitools.net)
+서비스 주소(누구나 바로 사용 가능): [https://zidell.github.io/ginote/](https://zidell.github.io/ginote/)
 
 > 개인이 만들어 무료로 공개하는 앱입니다. 자유롭게 쓰셔도 되지만 기능 제안, 버그 신고, 사용 지원은 받지 않습니다. 원하는 기능이 있으면 GPLv3 라이선스에 따라 포크해서 고쳐 쓰세요.
 
@@ -186,11 +186,11 @@ API 사용량에 따라 OpenAI 비용이 발생할 수 있습니다.
 
 ## 데스크톱 앱 다운로드
 
-macOS·Linux용 설치 파일은 [GitHub Releases](https://github.com/zidell/ginote/releases)에서
-내려받을 수 있습니다. macOS는 DMG, Linux는 AppImage·deb·rpm입니다. 설치된 macOS·Linux 앱은
-새 릴리스가 나오면 스스로 설치를 권합니다. Windows 10/11 앱은 Microsoft Store로 배포합니다.
+macOS·Linux·Windows용 설치 파일은 [GitHub Releases](https://github.com/zidell/ginote/releases)에서
+내려받을 수 있습니다. macOS는 DMG, Linux는 AppImage·deb·rpm, Windows는 NSIS 설치 프로그램입니다.
+설치된 데스크톱 앱은 새 릴리스가 나오면 스스로 설치를 권합니다.
 데스크톱 앱은 웹 앱을 내장해 인터넷 연결 없이도 열립니다. 앱 화면과 일반적인 기능
-수정은 웹 배포로 적용되며, 앱이 다음 실행 때 [note.gitools.net](https://note.gitools.net)의
+수정은 웹 배포로 적용되며, 앱이 다음 실행 때 [zidell.github.io/ginote](https://zidell.github.io/ginote/)의
 같은 빌드로 바꿉니다.
 
 [Code signing policy](docs/CODE_SIGNING.md)

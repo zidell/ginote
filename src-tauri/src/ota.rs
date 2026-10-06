@@ -1,7 +1,7 @@
 //! 앱 프론트엔드 자동 교체(OTA). 설계와 규약은 docs/APP_OTA.md에 있다.
 //!
 //! 앱은 가지고 있는 번들(내려받은 번들, 없으면 설치 파일에 내장된 dist)로 바로 뜨고,
-//! 백그라운드에서 note.gitools.net의 서명된 매니페스트를 확인해 새 빌드를 받아 둔다.
+//! 백그라운드에서 GitHub Pages의 서명된 매니페스트를 확인해 새 빌드를 받아 둔다.
 //! 받은 빌드는 다음 실행부터 쓴다. 롤백은 두지 않는다. 업데이트 확인을 JS가 아니라
 //! 여기서 하므로, 프론트엔드가 죽는 빌드가 나가도 고친 빌드를 재배포하면 복구된다.
 
@@ -28,7 +28,7 @@ pub const NATIVE_API: u32 = 2;
 /// 웹 빌드를 받아 올 주소. 포크나 로컬 시험에서는 빌드할 때 GINOTE_OTA_BASE_URL로 바꾼다.
 const BASE_URL: &str = match option_env!("GINOTE_OTA_BASE_URL") {
     Some(url) => url,
-    None => "https://note.gitools.net/",
+    None => "https://zidell.github.io/ginote/",
 };
 const MANIFEST_FILE: &str = "app-manifest.json";
 const SIGNATURE_FILE: &str = "app-manifest.json.sig";

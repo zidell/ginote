@@ -15,7 +15,7 @@ leurs fonctionnalités tout en offrant l'expérience d'une application de prise 
 L'application est composée uniquement de JS statique et le navigateur communique
 directement avec l'API GitHub, ce qui la rend sûre.
 
-Application en ligne (utilisable librement par tous) : [https://note.gitools.net](https://note.gitools.net)
+Application en ligne (utilisable librement par tous) : [https://zidell.github.io/ginote/](https://zidell.github.io/ginote/)
 
 > Ginote est un projet personnel publié gratuitement. Vous pouvez l'utiliser librement, mais je n'accepte ni propositions de fonctionnalités, ni signalements de bugs, ni demandes d'assistance. Si vous voulez une fonctionnalité, forkez le projet et modifiez-le selon la licence GPLv3.
 
@@ -169,11 +169,11 @@ Les installateurs pour macOS et Linux sont disponibles sur
 [GitHub Releases](https://github.com/zidell/ginote/releases) : un DMG pour macOS et des
 paquets AppImage, deb et rpm pour Linux. Les applications installées sur macOS et Linux
 proposent elles-mêmes les nouvelles versions. L'application Windows 10/11 est distribuée via
-le Microsoft Store. L'application de bureau
+GitHub Releases. L'application de bureau
 embarque l'application web et s'ouvre sans connexion Internet. Les modifications de
 l'interface et des fonctionnalités générales sont livrées via les déploiements web : au
 lancement suivant, l'application reprend la même version depuis
-[note.gitools.net](https://note.gitools.net).
+[zidell.github.io/ginote](https://zidell.github.io/ginote/).
 
 [Code signing policy](docs/CODE_SIGNING.md)
 

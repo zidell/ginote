@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ginote-v6';
+const CACHE_NAME = 'ginote-v7';
 
 function appUrl(path) {
   return new URL(path, self.registration.scope).href;

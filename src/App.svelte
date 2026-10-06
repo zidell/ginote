@@ -11,6 +11,9 @@
   import SelectionTagPanel from './lib/SelectionTagPanel.svelte';
   import SelectionToolbar from './lib/SelectionToolbar.svelte';
   import SetupWizard from './lib/SetupWizard.svelte';
+  import LandingPage from './lib/LandingPage.svelte';
+  import { shouldShowLanding } from './lib/landing-mode.js';
+  import { isStandaloneWebApp } from './lib/external-links.js';
   import TagSettings from './lib/TagSettings.svelte';
   import WorkspaceList from './lib/WorkspaceList.svelte';
   import WorkspaceSwitcher from './lib/WorkspaceSwitcher.svelte';
@@ -159,9 +162,10 @@
   let activeWorkspaceId = '';
   let workspaceNoteCounts = {};
   let workspaceWizardOpen = false;
-  // 새 앱 릴리스 안내(macOS·Linux). 자동 확인이나 설정 화면의 "지금 확인"이 채운다.
+  // 새 데스크톱 앱 릴리스 안내. 자동 확인이나 설정 화면의 "지금 확인"이 채운다.
   let releaseUpdate = null;
   let appState = 'booting';
+  let showLanding = false;
   let user = null;
   let repository = null;
   let issues = [];
@@ -448,9 +452,11 @@
         connect(false, true);
       } else {
         appState = 'setup';
+        showLanding = shouldShowLanding({ installedApp: isInstalledApp(), standalone: isStandaloneWebApp(), hasWorkspace: workspaces.length > 0 });
       }
     } else {
       appState = 'setup';
+      showLanding = shouldShowLanding({ installedApp: isInstalledApp(), standalone: isStandaloneWebApp() });
     }
 
     const stopWatchingAppUpdate = watchAppUpdate(() => toast.show($_('dynamic.appUpdateRequired')));
@@ -882,6 +888,7 @@
     pendingNote = null;
     selectedIssue = null;
     appState = 'setup';
+    showLanding = shouldShowLanding({ installedApp: isInstalledApp(), standalone: isStandaloneWebApp() });
     router.navigate('/');
   }
 
@@ -2350,7 +2357,9 @@
     </span>
   </main>
 {:else}
-  {#if appState === 'setup' || appState === 'connecting'}
+  {#if appState === 'setup' && showLanding}
+    <LandingPage onStart={() => { showLanding = false; }} />
+  {:else if appState === 'setup' || appState === 'connecting'}
     <SetupWizard
       bind:repo
       bind:tokenInputValue

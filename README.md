@@ -10,7 +10,7 @@
 own. No app server sits in between, there is no account to create, and your AI tools can
 read and write the same notes through GitHub's official MCP server.
 
-Live app, free for anyone to use: [https://note.gitools.net](https://note.gitools.net)
+Live app, free for anyone to use: [https://zidell.github.io/ginote/](https://zidell.github.io/ginote/)
 
 > This is a personal project, released for free. You're welcome to use it, but I don't take feature requests, bug reports, or support questions. If you want something changed, fork it and modify it under the GPLv3 license.
 
@@ -190,12 +190,12 @@ caches GitHub API requests, PATs, or note data.
 
 ## Downloading the desktop app
 
-Installers for macOS and Linux are available on
+Installers for macOS, Linux, and Windows are available on
 [GitHub Releases](https://github.com/zidell/ginote/releases): a DMG for macOS and AppImage,
-deb, and rpm packages for Linux. Installed macOS and Linux apps offer new releases by
-themselves. The Windows 10/11 app is distributed through the Microsoft Store. The desktop app bundles the web app and opens
+deb, and rpm packages for Linux, plus an NSIS installer for Windows. Installed desktop apps offer new releases by
+themselves. The desktop app bundles the web app and opens
 without an internet connection. UI and general feature changes are delivered through web
-deployments: the app picks up the same build from [note.gitools.net](https://note.gitools.net)
+deployments: the app picks up the same build from [zidell.github.io/ginote](https://zidell.github.io/ginote/)
 on its next launch.
 
 [Code signing policy](docs/CODE_SIGNING.md)

@@ -13,7 +13,7 @@ Ginote 是一个简单、安全的 Web 应用，让你把 GitHub Issues 当作�
 SPA 应用：功能几乎原样保留，只把使用体验做得像笔记应用一样。本应用仅由静态 JS 构成，
 浏览器直接与 GitHub API 通信，因此是安全的。
 
-在线地址（任何人都可以直接使用）：[https://note.gitools.net](https://note.gitools.net)
+在线地址（任何人都可以直接使用）：[https://zidell.github.io/ginote/](https://zidell.github.io/ginote/)
 
 > 这是个人制作并免费公开的应用。欢迎自由使用，但不接受功能建议、错误报告或使用支持。如需其他功能，请依据 GPLv3 许可证 fork 后自行修改。
 
@@ -128,9 +128,9 @@ JavaScript 等应用文件。没有处理登录或笔记存储的应用后端，
 
 macOS 和 Linux 的安装包可以在 [GitHub Releases](https://github.com/zidell/ginote/releases)
 下载：macOS 为 DMG，Linux 为 AppImage、deb 和 rpm。已安装的 macOS 和 Linux 应用会自行提示
-新版本。Windows 10/11 应用通过 Microsoft Store 发布。桌面应用内置了 Web 应用，无需联网也能打开。界面和
+新版本。Windows 10/11 安装程序通过 GitHub Releases 发布。桌面应用内置了 Web 应用，无需联网也能打开。界面和
 一般功能的修改会通过 Web 部署生效，应用会在下次启动时换成
-[note.gitools.net](https://note.gitools.net) 上的同一构建。
+[zidell.github.io/ginote](https://zidell.github.io/ginote/) 上的同一构建。
 
 [Code signing policy](docs/CODE_SIGNING.md)
 

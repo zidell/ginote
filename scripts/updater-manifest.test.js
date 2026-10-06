@@ -14,6 +14,7 @@ describe('updater manifest', () => {
         'Ginote_0.1.9_amd64.AppImage': 'appimage-sig',
         'Ginote_0.1.9_amd64.deb': 'deb-sig',
         'Ginote-0.1.9-1.x86_64.rpm': 'rpm-sig',
+        'Ginote_0.1.9_x64-setup.exe': 'windows-sig',
         'Ginote_0.1.9_universal.dmg': 'ignored'
       }
     });
@@ -24,7 +25,8 @@ describe('updater manifest', () => {
     expect(manifest.platforms['linux-x86_64'].signature).toBe('appimage-sig');
     expect(manifest.platforms['linux-x86_64-deb'].url).toBe(`${base}/Ginote_0.1.9_amd64.deb`);
     expect(manifest.platforms['linux-x86_64-rpm'].signature).toBe('rpm-sig');
-    expect(Object.keys(manifest.platforms)).toHaveLength(8);
+    expect(manifest.platforms['windows-x86_64-nsis'].signature).toBe('windows-sig');
+    expect(Object.keys(manifest.platforms)).toHaveLength(10);
   });
 
   it('refuses to publish a manifest that misses a platform', () => {

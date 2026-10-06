@@ -228,7 +228,7 @@ const SECTION_DOCS = {
   'display.list_row': 'Items shown in each row of the note list.',
   behavior: 'Saving, loading and locking.',
   voice: 'Voice notes (OpenAI). The API key is stored in the operating system\'s credential store, not here.',
-  updates: 'Updates of the installed app itself (macOS and Linux). Windows gets updates from the Microsoft Store or App Installer, phones from their app stores; there these keys are ignored.'
+  updates: 'Updates of the installed desktop app itself (macOS, Linux, and Windows). Phones get updates from their app stores; there these keys are ignored.'
 };
 
 const HEADER = [

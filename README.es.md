@@ -14,7 +14,7 @@ siempre me molestaron. Así que creé una SPA que conserva casi todas sus funcio
 con la experiencia de uso de una app de notas. La app está formada solo por JS estático
 y el navegador se comunica directamente con la API de GitHub, por eso es segura.
 
-App en línea (cualquiera puede usarla gratis): [https://note.gitools.net](https://note.gitools.net)
+App en línea (cualquiera puede usarla gratis): [https://zidell.github.io/ginote/](https://zidell.github.io/ginote/)
 
 > Ginote es un proyecto personal publicado gratis. Puedes usarlo libremente, pero no acepto propuestas de funciones, informes de errores ni solicitudes de soporte. Si quieres una función, haz un fork según la licencia GPLv3 y modifícalo tú mismo.
 
@@ -164,11 +164,11 @@ API de GitHub, el PAT ni los datos de las notas.
 Los instaladores para macOS y Linux están disponibles en
 [GitHub Releases](https://github.com/zidell/ginote/releases): un DMG para macOS y paquetes
 AppImage, deb y rpm para Linux. Las apps instaladas en macOS y Linux ofrecen por sí solas
-las nuevas versiones. La app para Windows 10/11 se distribuye a través de Microsoft Store.
+las nuevas versiones. El instalador para Windows 10/11 también está disponible en GitHub Releases.
 La app de escritorio incluye la app
 web y se abre sin conexión a Internet. Los cambios en la interfaz y en las funciones
 generales se aplican mediante despliegues web: en el siguiente inicio, la app adopta la
-misma compilación desde [note.gitools.net](https://note.gitools.net).
+misma compilación desde [zidell.github.io/ginote](https://zidell.github.io/ginote/).
 
 [Code signing policy](docs/CODE_SIGNING.md)
 

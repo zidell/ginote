@@ -59,7 +59,7 @@ function listFiles(dir) {
     .map((entry) => join(entry.parentPath ?? entry.path, entry.name));
 }
 
-// 앱(src-tauri)은 note.gitools.net의 app-manifest.json을 보고 프론트엔드를 교체한다
+// 앱(src-tauri)은 GitHub Pages의 app-manifest.json을 보고 프론트엔드를 교체한다
 // (docs/APP_OTA.md). public/ 복사까지 끝난 dist를 기준으로 만들어야 하므로 closeBundle에서 돈다.
 // GINOTE_OTA_SIGNING_KEY가 없으면 서명 파일을 만들지 않고, 앱은 그 빌드를 받지 않는다.
 function appManifestPlugin() {

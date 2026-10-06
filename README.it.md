@@ -15,7 +15,7 @@ tutte le funzionalità, offrendo però l'esperienza d'uso di un'app per le note.
 composta solo da JS statico e il browser comunica direttamente con l'API di GitHub,
 per questo è sicura.
 
-App online (utilizzabile liberamente da chiunque): [https://note.gitools.net](https://note.gitools.net)
+App online (utilizzabile liberamente da chiunque): [https://zidell.github.io/ginote/](https://zidell.github.io/ginote/)
 
 > Ginote è un progetto personale pubblicato gratuitamente. Puoi usarlo liberamente, ma non accetto proposte di funzionalità, segnalazioni di bug né richieste di assistenza. Se ti serve una funzionalità, fai un fork secondo la licenza GPLv3 e modificalo tu stesso.
 
@@ -163,10 +163,10 @@ richieste all'API di GitHub, il PAT o i dati delle note.
 I programmi di installazione per macOS e Linux sono disponibili su
 [GitHub Releases](https://github.com/zidell/ginote/releases): un DMG per macOS e pacchetti
 AppImage, deb e rpm per Linux. Le app installate su macOS e Linux propongono da sole le
-nuove versioni. L'app per Windows 10/11 è distribuita tramite il Microsoft Store. L'app desktop include l'app
+nuove versioni. Il programma di installazione per Windows 10/11 è disponibile anche su GitHub Releases. L'app desktop include l'app
 web e si apre anche senza connessione a Internet. Le modifiche all'interfaccia e alle
 funzioni generali vengono distribuite tramite il deploy web: al successivo avvio l'app
-adotta la stessa build da [note.gitools.net](https://note.gitools.net).
+adotta la stessa build da [zidell.github.io/ginote](https://zidell.github.io/ginote/).
 
 [Code signing policy](docs/CODE_SIGNING.md)
 

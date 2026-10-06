@@ -4,8 +4,8 @@ import { check as tauriCheck } from '@tauri-apps/plugin-updater';
 import { installedSnapshot, updateInstalledSnapshot } from './installed-settings.js';
 
 // 앱 자체 업데이트(src-tauri/src/release_update.rs, docs/DESKTOP.md). 웹 빌드 교체(app-update.js)와 달리
-// 설치된 앱을 새 릴리스로 바꾼다. macOS·Linux 데스크톱만 스스로 확인하고, Windows·모바일은
-// 스토어가 맡는다. 확인 여부와 건너뛴 버전은 config.toml의 [updates]에 둔다.
+// 설치된 앱을 새 릴리스로 바꾼다. 데스크톱은 스스로 확인하고 모바일은 스토어가 맡는다.
+// 확인 여부와 건너뛴 버전은 config.toml의 [updates]에 둔다.
 
 export const FIRST_CHECK_DELAY_MS = 10 * 1000;
 export const CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;

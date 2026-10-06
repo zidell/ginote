@@ -14,7 +14,7 @@ Ginote は、GitHub の Issues を個人用ノートのように使える、シ�
 SPA アプリを作りました。このアプリは静的な JS だけで構成されており、ブラウザから
 GitHub API と直接通信するので安全です。
 
-サービス URL（誰でもすぐに利用できます）：[https://note.gitools.net](https://note.gitools.net)
+サービス URL（誰でもすぐに利用できます）：[https://zidell.github.io/ginote/](https://zidell.github.io/ginote/)
 
 > 個人が作って無料で公開しているアプリです。自由にお使いいただけますが、機能の提案、バグ報告、使い方のサポートは受け付けていません。欲しい機能があれば、GPLv3 ライセンスに従ってフォークして改変してください。
 
@@ -147,10 +147,10 @@ PAT、ノートデータはキャッシュしません。
 
 macOS・Linux 向けのインストーラーは [GitHub Releases](https://github.com/zidell/ginote/releases)
 からダウンロードできます。macOS は DMG、Linux は AppImage・deb・rpm です。インストール済みの
-macOS・Linux アプリは新しいリリースを自ら案内します。Windows 10/11 版は Microsoft Store で配布します。
+macOS・Linux アプリは新しいリリースを自ら案内します。Windows 10/11 版のインストーラーも GitHub Releases で配布します。
 デスクトップアプリは Web アプリを内蔵しているため、インターネットに接続していなくても
 起動できます。画面や一般的な機能の修正は Web デプロイで反映され、アプリは次回起動時に
-[note.gitools.net](https://note.gitools.net) の同じビルドに切り替わります。
+[zidell.github.io/ginote](https://zidell.github.io/ginote/) の同じビルドに切り替わります。
 
 [Code signing policy](docs/CODE_SIGNING.md)
 

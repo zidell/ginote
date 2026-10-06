@@ -46,7 +46,7 @@ adb install -r src-tauri/gen/android/app/build/outputs/apk/universal/debug/app-u
 
 ### 확인한 것 (2026-10-03, 에뮬레이터 Pixel Fold API 35)
 
-- 내장 번들로 실행, 실제 `note.gitools.net`에서 OTA로 받아 다음 실행에 적용
+- 내장 번들로 실행, 실제 `zidell.github.io/ginote`에서 OTA로 받아 다음 실행에 적용
 - 출처 `http://tauri.localhost`, 보안 컨텍스트, `api.openai.com`·`api.github.com` CORS 통과
 - 마이크 권한 창 → 허용 → `getUserMedia` 오디오 트랙 `live`
 - 상태 바 겹침 없음, 테마에 따른 시스템 바 색, 키보드가 올라오면 화면 높이 축소

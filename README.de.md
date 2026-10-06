@@ -15,7 +15,7 @@ Funktionsumfang nahezu unverändert übernimmt und nur das Nutzungserlebnis eine
 Notiz-App bietet. Die App besteht ausschließlich aus statischem JS, und der Browser
 kommuniziert direkt mit der GitHub API – deshalb ist sie sicher.
 
-Live-App (für alle frei nutzbar): [https://note.gitools.net](https://note.gitools.net)
+Live-App (für alle frei nutzbar): [https://zidell.github.io/ginote/](https://zidell.github.io/ginote/)
 
 > Ginote ist ein privates Projekt und wird kostenlos veröffentlicht. Du kannst es frei nutzen, aber ich nehme keine Feature-Wünsche, Fehlerberichte oder Support-Anfragen an. Wenn du eine Funktion brauchst, forke das Projekt gemäß der GPLv3-Lizenz und passe es selbst an.
 
@@ -165,10 +165,10 @@ oder Notizdaten.
 Installationsdateien für macOS und Linux gibt es unter
 [GitHub Releases](https://github.com/zidell/ginote/releases): ein DMG für macOS sowie
 AppImage-, deb- und rpm-Pakete für Linux. Installierte macOS- und Linux-Apps bieten neue
-Releases selbst an. Die App für Windows 10/11 wird über den Microsoft Store verteilt. Die Desktop-App
+Releases selbst an. Das Installationsprogramm für Windows 10/11 steht ebenfalls auf GitHub Releases bereit. Die Desktop-App
 enthält die Web-App und startet auch ohne Internetverbindung. Änderungen an Oberfläche
 und allgemeinen Funktionen werden über Web-Deployments ausgeliefert: Beim nächsten Start
-übernimmt die App denselben Build von [note.gitools.net](https://note.gitools.net).
+übernimmt die App denselben Build von [zidell.github.io/ginote](https://zidell.github.io/ginote/).
 
 [Code signing policy](docs/CODE_SIGNING.md)
 

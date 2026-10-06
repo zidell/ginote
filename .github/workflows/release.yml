@@ -45,8 +45,8 @@ jobs:
           RELEASE_NAME: Ginote v${{ env.RELEASE_VERSION }}
           RELEASE_BODY: >-
             Download the installer for your platform. macOS builds are signed and notarized; Linux builds are not code-signed.
-            Installed macOS and Linux apps offer this release by themselves. Windows gets Ginote from the Microsoft Store.
-            The desktop app works offline and updates its interface from https://note.gitools.net automatically.
+            Installed apps offer this release by themselves.
+            The desktop app works offline and updates its interface from https://zidell.github.io/ginote/ automatically.
         run: |
           release_id="$(
             gh api --paginate "repos/${GITHUB_REPOSITORY}/releases?per_page=100" \
@@ -83,6 +83,9 @@ jobs:
             rust-targets: aarch64-apple-darwin,x86_64-apple-darwin
           - platform: ubuntu-22.04
             args: ""
+            rust-targets: ""
+          - platform: windows-latest
+            args: --bundles nsis
             rust-targets: ""
 
     runs-on: ${{ matrix.platform }}
@@ -147,7 +150,7 @@ jobs:
             } >> "$GITHUB_ENV"
           fi
 
-      # 업데이트 파일(.app.tar.gz, AppImage·deb·rpm)과 그 서명(.sig)도 만든다. latest.json은 두 플랫폼
+      # 업데이트 파일(.app.tar.gz, AppImage·deb·rpm, Windows NSIS)과 서명(.sig)을 만든다. latest.json은 세 플랫폼
       # 빌드가 서로 덮어쓰지 않도록 여기서 만들지 않고 publish-release에서 한 번에 만든다.
       - name: Build and publish desktop bundles
         uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f # v1
@@ -165,23 +168,12 @@ jobs:
           releaseName: Ginote v${{ env.RELEASE_VERSION }}
           releaseBody: >-
             Download the installer for your platform. macOS builds are signed and notarized; Linux builds are not code-signed.
-            Installed macOS and Linux apps offer this release by themselves. Windows gets Ginote from the Microsoft Store.
-            The desktop app works offline and updates its interface from https://note.gitools.net automatically.
+            Installed apps offer this release by themselves.
+            The desktop app works offline and updates its interface from https://zidell.github.io/ginote/ automatically.
           releaseDraft: true
           prerelease: false
           includeUpdaterJson: false
           args: ${{ matrix.args }} --config src-tauri/tauri.release.conf.json
-
-  # Windows는 MSIX로 묶어 Microsoft Store에 올린다(docs/DESKTOP.md). 설치 파일을 GitHub 릴리스에
-  # 올리지 않으므로 macOS·Linux 게시를 기다리게 하지 않는다.
-  windows-msix:
-    name: Windows MSIX
-    needs: prepare-release
-    if: needs.prepare-release.result == 'success'
-    uses: ./.github/workflows/windows-msix.yml
-    with:
-      version: 0.1.${{ github.run_number }}
-      ref: ${{ github.sha }}
 
   publish-release:
     name: Publish desktop release

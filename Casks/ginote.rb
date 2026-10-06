@@ -5,7 +5,7 @@ cask "ginote" do
   url "https://github.com/zidell/ginote/releases/download/v#{version}/Ginote_#{version}_universal.dmg"
   name "Ginote"
   desc "Serverless notes app backed by GitHub Issues"
-  homepage "https://note.gitools.net/"
+  homepage "https://zidell.github.io/ginote/"
 
   # 앱이 스스로 새 릴리스를 받는다(docs/DESKTOP.md). brew upgrade가 앱 업데이터와 겹치지 않게 한다.
   auto_updates true

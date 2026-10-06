@@ -269,10 +269,24 @@ afterEach(() => {
 });
 
 describe('App 시작', () => {
-  it('저장된 저장소가 없으면 설정 마법사를 보여준다', async () => {
+  it('일반 브라우저에서 저장소가 없으면 랜딩을 거쳐 설정한다', async () => {
     render(App);
+    expect(await screen.findByRole('heading', { name: /내 GitHub 저장소에/ })).toBeTruthy();
+    expect(screen.queryByText('Set up Ginote')).toBeNull();
+    await fireEvent.click(screen.getByRole('button', { name: /바로 시작/ }));
     expect(await screen.findByText('Set up Ginote')).toBeTruthy();
     expect(githubModule.verifyConnection).not.toHaveBeenCalled();
+  });
+
+  it('PWA standalone에서는 저장소 설정을 바로 보여준다', async () => {
+    globalThis.matchMedia.mockImplementation((query) => ({
+      matches: query === '(display-mode: standalone)',
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn()
+    }));
+    render(App);
+    expect(await screen.findByText('Set up Ginote')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /바로 시작/ })).toBeNull();
   });
 
   it('저장된 저장소로 자동 연결해 고정 노트를 맨 위에 두고 노트 목록을 보여준다', async () => {
@@ -731,7 +745,7 @@ describe('저장소 관리', () => {
 
     await fireEvent.click(screen.getByRole('button', { name: 'Deauthorize' }));
 
-    await waitFor(() => expect(screen.getByText('Set up Ginote')).toBeTruthy());
+    await waitFor(() => expect(screen.getByRole('button', { name: /바로 시작/ })).toBeTruthy());
     expect(JSON.parse(localStorage.getItem(SETTINGS_KEY)).workspaces).toEqual([]);
   });
 });
