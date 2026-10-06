@@ -36,8 +36,8 @@ func (m Model) clampSidebar(width int) int {
 }
 
 // sidebarToolsHeight는 목록 위에 고정된 줄 수다: 머리줄, 구분선, 탭, 가는 선, 검색, 구분선,
-// 새 노트(세 줄), 구분선.
-const sidebarToolsHeight = 10
+// 새 노트, 구분선.
+const sidebarToolsHeight = 8
 
 // searchRow는 검색칸이 있는 화면 줄이다(커서·추천 목록 위치).
 const searchRow = 4
@@ -172,19 +172,7 @@ func (m Model) renderSidebar(width, height int) string {
 	if m.tool == "new" {
 		newButton = fillBackground(lipgloss.PlaceHorizontal(newWidth, lipgloss.Center, lipgloss.NewStyle().Foreground(hex("#ffffff")).Bold(true).Underline(true).Render("+ 새 노트")+" "+t.key("N")), newWidth, t.accent)
 	}
-	// 버튼을 위아래 한 줄씩 키워 세 줄 높이로 그린다(웹 버튼처럼 두툼하게). 세 줄 모두 누를 수 있다.
-	newBackground, micBackground := t.accent, hex("#12302d")
-	switch {
-	case m.selectionMode() || (m.note != nil && m.note.pending):
-		newBackground = t.bgInput
-	}
-	if m.tool == "voice" {
-		micBackground = t.bgHover
-	}
-	padding := []segment{seg(newMarker), hit("new", fillBackground("", newWidth, newBackground)), hit("voice", fillBackground("", lipgloss.Width(mic), micBackground))}
-	b.segments(padding...)
 	b.segments(seg(newMarker), hit("new", newButton), hit("voice", mic))
-	b.segments(padding...)
 	b.line(t.fg(t.divider).Render(strings.Repeat("─", width)))
 
 	// 5. 목록. 고정 노트, 일반 노트, 더 보기.
