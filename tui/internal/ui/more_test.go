@@ -179,7 +179,9 @@ func TestSidebarDragRemembersWidth(t *testing.T) {
 	m.View()
 	m = drive(t, m, tea.MouseClickMsg{X: m.sidebarWidth(), Y: topMargin + 5, Button: tea.MouseLeft})
 	m = drive(t, m, tea.MouseMotionMsg{X: 55, Y: topMargin + 5, Button: tea.MouseLeft})
-	m = drive(t, m, tea.MouseReleaseMsg{X: 55, Y: topMargin + 5, Button: tea.MouseLeft})
+	next, cmd := m.Update(tea.MouseReleaseMsg{X: 55, Y: topMargin + 5, Button: tea.MouseLeft})
+	m = next.(Model)
+	cmd() // 디스크 기록이 끝난 뒤 읽는다. 느린 CI에서는 drive의 대기 시간을 넘는다.
 	if got := config.LoadState(config.StatePath(m.tuiConfigPath)).SidebarWidth; got != m.sidebarCols || got <= 0 {
 		t.Fatalf("saved sidebar width = %d, screen = %d", got, m.sidebarCols)
 	}
