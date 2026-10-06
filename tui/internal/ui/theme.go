@@ -25,8 +25,8 @@ func newTheme(dark bool) theme {
 			text: hex("#e6e6e6"), title: hex("#e8e8e8"), secondary: hex("#bbbbbb"), muted: hex("#999999"),
 			faint: hex("#777777"), placeholder: hex("#5f5f5f"), disabled: hex("#555555"), link: hex("#7dd3c8"),
 			accent: hex("#0f766e"), accentBright: hex("#14b8a6"), shortcut: hex("#f59e0b"),
-			danger: hex("#e05252"), warning: hex("#c7a43a"), border: hex("#383838"),
-			selectedRow: hex("#3a3a3a"), divider: hex("#262626"), tagAdd: hex("#585858"),
+			danger: hex("#e05252"), warning: hex("#c7a43a"), border: hex("#4a4a4a"),
+			selectedRow: hex("#3a3a3a"), divider: hex("#444444"), tagAdd: hex("#585858"),
 		}
 	}
 	return theme{
@@ -35,8 +35,8 @@ func newTheme(dark bool) theme {
 		text: hex("#1f2937"), title: hex("#1e293b"), secondary: hex("#475569"), muted: hex("#64748b"),
 		faint: hex("#64748b"), placeholder: hex("#94a3b8"), disabled: hex("#94a3b8"), link: hex("#0f766e"),
 		accent: hex("#0f766e"), accentBright: hex("#0f766e"), shortcut: hex("#d97706"),
-		danger: hex("#dc2626"), warning: hex("#b45309"), border: hex("#d8dee8"),
-		selectedRow: hex("#e2e8f0"), divider: hex("#eef2f6"), tagAdd: hex("#b2bac5"),
+		danger: hex("#dc2626"), warning: hex("#b45309"), border: hex("#c5ced9"),
+		selectedRow: hex("#e2e8f0"), divider: hex("#cbd3dd"), tagAdd: hex("#b2bac5"),
 	}
 }
 

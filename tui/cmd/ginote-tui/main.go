@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/zidell/ginote/tui/internal/auth"
 	"github.com/zidell/ginote/tui/internal/config"
@@ -91,6 +92,8 @@ func main() {
 	}
 
 	final, err := tea.NewProgram(ui.New(options), tea.WithFilter(ui.QuitFilter)).Run()
+	// 켜 둔 다크·라이트 알림(2031)을 끈다. 안 끄면 종료 뒤 셸에 알림 문자열이 찍힌다.
+	os.Stdout.WriteString(ansi.ResetModeLightDark)
 	// 단축키용으로 바꿔 둔 입력 소스(영문 자판)를 원래대로 돌린다.
 	ime.Restore()
 	if err != nil {

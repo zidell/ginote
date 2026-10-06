@@ -9,6 +9,7 @@ import (
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	uv "github.com/charmbracelet/ultraviolet"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/zidell/ginote/tui/internal/config"
 	"github.com/zidell/ginote/tui/internal/devreload"
@@ -243,7 +244,8 @@ func (m Model) activeWorkspace() (config.Workspace, bool) {
 }
 
 func (m Model) Init() tea.Cmd {
-	cmds := []tea.Cmd{tea.RequestBackgroundColor, devreload.Watch(), tickEvery(), queryKittyGraphics()}
+	// 2031: 터미널이 다크·라이트가 바뀔 때만 알려 준다(알림을 받으면 배경색을 다시 묻는다).
+	cmds := []tea.Cmd{tea.RequestBackgroundColor, tea.Raw(ansi.SetModeLightDark), devreload.Watch(), tickEvery(), queryKittyGraphics()}
 	if len(m.workspaces) == 0 {
 		cmds = append(cmds, func() tea.Msg { return openSetupMsg{} })
 	} else {
@@ -405,6 +407,8 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.th = newTheme(m.dark())
 		m.layoutNote()
 		return m, nil
+	case uv.DarkColorSchemeEvent, uv.LightColorSchemeEvent:
+		return m, tea.RequestBackgroundColor
 	case uv.KittyGraphicsEvent:
 		if msg.Options.ID == kittyQueryID && string(msg.Payload) == "OK" && !m.kittyGraphics {
 			m.kittyGraphics = true
