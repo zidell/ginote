@@ -382,8 +382,10 @@ func TestLockAndUnlockRoundTrip(t *testing.T) {
 		t.Fatal("L asks for the lock number")
 	}
 	m = typeText(t, m, "123456")
-	m = press(t, m, "enter")
-	// 느린 CI에서는 암호화와 저장 명령이 drive의 대기 시간을 넘을 수 있다.
+	// Intel CI에서는 암호화가 drive의 150ms 제한을 넘는다. 결과 메시지를 반드시 적용한다.
+	next, cmd := m.Update(key("enter"))
+	m = drive(t, next.(Model), cmd())
+	// 저장 요청도 비동기이므로 가짜 API의 결과를 확인한다.
 	deadline := time.Now().Add(3 * time.Second)
 	for {
 		fake.mu.Lock()
