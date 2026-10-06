@@ -438,7 +438,6 @@
       activeWorkspaceId = settingsDocument.activeWorkspaceId;
       preferences = settingsDocument.preferences;
       applyTheme(preferences.theme);
-      setAppLocale(preferences.language);
       if (isWebFont(preferences.editorFont)) void loadWebFont(preferences.editorFont);
       const activeWorkspace = workspaces.find((workspace) => workspace.id === activeWorkspaceId);
       if (activeWorkspace) {
@@ -458,6 +457,7 @@
       appState = 'setup';
       showLanding = shouldShowLanding({ installedApp: isInstalledApp(), standalone: isStandaloneWebApp() });
     }
+    setAppLocale(preferences.language);
 
     const stopWatchingAppUpdate = watchAppUpdate(() => toast.show($_('dynamic.appUpdateRequired')));
     const stopWatchingSettingsFile = onInstalledSettingsChange(applySettingsFileChange);
@@ -2361,7 +2361,7 @@
   </main>
 {:else}
   {#if appState === 'setup' && showLanding}
-    <LandingPage onStart={() => { showLanding = false; }} />
+    <LandingPage language={preferences.language} onStart={() => { showLanding = false; }} onLanguageChange={(language) => { preferences = { ...preferences, language }; setAppLocale(language); saveSettings(); }} />
   {:else if appState === 'setup' || appState === 'connecting'}
     <SetupWizard
       bind:repo

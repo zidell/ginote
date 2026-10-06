@@ -273,7 +273,7 @@ describe('App 시작', () => {
     render(App);
     expect(await screen.findByRole('heading', { name: /GitHub Issues, as notes/ })).toBeTruthy();
     expect(screen.queryByText('Set up Ginote')).toBeNull();
-    await fireEvent.click(screen.getByRole('button', { name: /바로 시작/ }));
+    await fireEvent.click(screen.getByRole('button', { name: /Get started/ }));
     expect(await screen.findByText('Set up Ginote')).toBeTruthy();
     expect(githubModule.verifyConnection).not.toHaveBeenCalled();
   });
@@ -281,19 +281,32 @@ describe('App 시작', () => {
   it('다운로드 안내는 선택한 플랫폼만 펼친다', async () => {
     render(App);
     await screen.findByRole('heading', { name: /GitHub Issues, as notes/ });
-    expect(screen.queryByRole('heading', { name: 'Windows에서 설치하기' })).toBeNull();
+    expect(screen.queryByRole('heading', { name: 'Install on Windows' })).toBeNull();
 
     const cards = document.querySelectorAll('.landing-download-grid article');
-    await fireEvent.click(within(cards[1]).getByRole('button', { name: /설치 방법 보기/ }));
-    expect(screen.getByRole('heading', { name: 'Windows에서 설치하기' })).toBeTruthy();
+    await fireEvent.click(within(cards[1]).getByRole('button', { name: /Installation Show/ }));
+    expect(screen.getByRole('heading', { name: 'Install on Windows' })).toBeTruthy();
     expect(cards[1].classList.contains('is-selected')).toBe(true);
     expect(cards[0].classList.contains('is-selected')).toBe(false);
 
-    await fireEvent.click(within(cards[3]).getByRole('button', { name: /설치 방법 보기/ }));
-    expect(screen.queryByRole('heading', { name: 'Windows에서 설치하기' })).toBeNull();
+    await fireEvent.click(within(cards[3]).getByRole('button', { name: /Installation Show/ }));
+    expect(screen.queryByRole('heading', { name: 'Install on Windows' })).toBeNull();
     expect(screen.getByText(/curl -fsSL https:\/\/raw\.githubusercontent\.com\/zidell\/ginote\/main\/tui\/install\.sh/)).toBeTruthy();
     expect(cards[3].classList.contains('is-selected')).toBe(true);
     expect(cards[1].classList.contains('is-selected')).toBe(false);
+  });
+
+  it('랜딩 언어 선택은 안내와 앱 설정에 함께 반영된다', async () => {
+    render(App);
+    const language = await screen.findByRole('combobox', { name: 'Language / 언어' });
+    expect(language.querySelectorAll('option')).toHaveLength(9);
+    await fireEvent.change(language, { target: { value: 'ko' } });
+    expect(screen.getByRole('heading', { name: '다운로드' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /바로 시작/ })).toBeTruthy();
+    expect(JSON.parse(localStorage.getItem(SETTINGS_KEY)).preferences.language).toBe('ko');
+    await fireEvent.change(language, { target: { value: 'ja' } });
+    expect(screen.getByRole('heading', { name: 'ダウンロード' })).toBeTruthy();
+    expect(JSON.parse(localStorage.getItem(SETTINGS_KEY)).preferences.language).toBe('ja');
   });
 
   it('PWA standalone에서는 저장소 설정을 바로 보여준다', async () => {
@@ -304,7 +317,7 @@ describe('App 시작', () => {
     }));
     render(App);
     expect(await screen.findByText('Set up Ginote')).toBeTruthy();
-    expect(screen.queryByRole('button', { name: /바로 시작/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Get started/ })).toBeNull();
   });
 
   it('저장된 저장소로 자동 연결해 고정 노트를 맨 위에 두고 노트 목록을 보여준다', async () => {
@@ -763,7 +776,7 @@ describe('저장소 관리', () => {
 
     await fireEvent.click(screen.getByRole('button', { name: 'Deauthorize' }));
 
-    await waitFor(() => expect(screen.getByRole('button', { name: /바로 시작/ })).toBeTruthy());
+    await waitFor(() => expect(screen.getByRole('button', { name: /Get started/ })).toBeTruthy());
     expect(JSON.parse(localStorage.getItem(SETTINGS_KEY)).workspaces).toEqual([]);
   });
 });

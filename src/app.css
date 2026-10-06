@@ -18,6 +18,9 @@
 .landing-nav, .landing-footer { max-width: 1028px; margin: auto; padding: 24px clamp(20px, 5vw, 64px); display: flex; align-items: center; justify-content: space-between; }
 .landing-nav a, .landing-footer a { color: var(--ui-text-secondary); text-decoration: none; }
 .landing-nav a:hover, .landing-footer a:hover { color: var(--ui-text-primary); }
+.landing-nav-actions { display: flex; align-items: center; gap: 20px; }
+.landing-language { max-width: 156px; padding: 6px 10px; border: 1px solid var(--ui-border-strong); border-radius: 6px; background: var(--ui-bg-card); color: var(--ui-text-primary); cursor: pointer; }
+.landing-language:focus-visible { outline: 2px solid var(--ui-focus); outline-offset: 2px; }
 .landing-brand { display: inline-flex; align-items: center; gap: 10px; color: var(--ui-text-primary) !important; font-size: 20px; font-weight: 750; }
 .landing-brand img { width: 30px; height: 30px; }
 .landing-content { max-width: 1028px; margin: auto; padding: 0 clamp(20px, 5vw, 64px); }
@@ -40,7 +43,7 @@
 .landing-details p { margin: 10px 0 0; color: var(--ui-text-secondary); line-height: 1.65; }
 .landing-details a { color: var(--ui-text-accent); }
 .landing-downloads { padding: 64px 0 90px; border-top: 1px solid var(--ui-border); scroll-margin-top: 20px; }
-.landing-downloads h2 { margin: 14px 0 30px; font-size: clamp(29px, 4vw, 42px); font-weight: 700; }
+.landing-downloads h2 { margin: 0 0 30px; font-size: clamp(29px, 4vw, 42px); font-weight: 700; }
 .landing-download-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 .landing-download-grid article { padding: 26px; border: 1px solid var(--ui-border); border-radius: 10px; background: var(--ui-bg-card); transition: opacity .18s ease, border-color .18s ease; }
 .landing-download-grid.has-selection article:not(.is-selected) { opacity: .45; }
@@ -50,7 +53,7 @@
 .landing-download-grid button { padding: 0; border: 0; background: none; color: var(--ui-text-accent); font-weight: 700; text-align: left; }
 .landing-download-grid button:hover { text-decoration: underline; }
 .landing-install-guide { margin-top: 16px; padding: clamp(24px, 4vw, 42px); border: 1px solid var(--ui-border); border-radius: 12px; background: var(--ui-bg-card); scroll-margin-top: 20px; }
-.landing-install-guide h3 { margin: 12px 0; font-size: 26px; }
+.landing-install-guide h3 { margin: 0 0 12px; font-size: 26px; }
 .landing-install-guide p, .landing-install-guide li { color: var(--ui-text-secondary); line-height: 1.7; }
 .landing-install-guide li { margin-bottom: 12px; }
 .landing-install-guide strong { color: var(--ui-text-primary); }
@@ -70,7 +73,7 @@
 .landing-command button:hover { background: var(--ui-bg-hover); }
 .landing-copy-message { font-size: 13px; }
 .landing-windows-guide { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, .8fr); gap: clamp(24px, 4vw, 56px); scroll-margin-top: 20px; }
-.landing-windows-guide h3 { margin: 12px 0; font-size: 26px; }
+.landing-windows-guide h3 { margin: 0 0 12px; font-size: 26px; }
 .landing-windows-guide p, .landing-windows-guide li { color: var(--ui-text-secondary); line-height: 1.7; }
 .landing-windows-guide ol { padding-left: 24px; margin: 24px 0; }
 .landing-windows-guide li { padding-left: 5px; margin-bottom: 12px; }
