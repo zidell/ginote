@@ -43,8 +43,20 @@ export function currentAppVersion({ getVersion = tauriGetVersion } = {}) {
 export async function findReleaseUpdate({ manual = false, check = tauriCheck } = {}) {
   const update = await check();
   if (!update) return null;
-  if (!manual && update.version === loadReleaseUpdatePreferences().skippedVersion) return null;
+  if (!manual && update.version === loadReleaseUpdatePreferences().skippedVersion) {
+    await closeReleaseUpdate(update);
+    return null;
+  }
   return update;
+}
+
+// 업데이트 객체는 Rust 쪽 리소스를 붙잡고 있으므로 쓰지 않게 되면 닫는다.
+export async function closeReleaseUpdate(update) {
+  try {
+    await update?.close?.();
+  } catch {
+    // 이미 닫혔거나 앱이 재시작 중이면 할 일이 없다.
+  }
 }
 
 // 실행 직후 잠시 뒤와 그 뒤 6시간마다 확인한다. 확인 시점마다 설정을 다시 읽으므로 config.toml이나
@@ -61,6 +73,7 @@ export function watchReleaseUpdates(onUpdate, {
     try {
       const update = await find();
       if (update && !stopped) onUpdate(update);
+      else void closeReleaseUpdate(update);
     } catch {
       // 오프라인이거나 릴리스 서버에 닿지 못하면 다음 차례에 다시 확인한다.
     }

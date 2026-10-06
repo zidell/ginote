@@ -32,6 +32,7 @@ type voiceTarget struct {
 type voiceState struct {
 	target  voiceTarget
 	gen     int
+	ticking bool // 1초 tick 체인이 돌고 있다. 일시정지 직후 재개해도 체인이 둘이 되지 않게 한다
 	rec     audio.Recorder
 	phase   string // "preparing", "recording", "paused", "processing", "failed"
 	status  string
@@ -84,6 +85,15 @@ var voiceTickInterval = 100 * time.Millisecond
 
 func voiceTick(gen int) tea.Cmd {
 	return tea.Tick(voiceTickInterval, func(time.Time) tea.Msg { return voiceTickMsg{gen} })
+}
+
+// startTick은 체인이 없을 때만 tick을 건다. 남은 체인은 녹음 중이면 이어지고 아니면 스스로 끝난다.
+func (v *voiceState) startTick() tea.Cmd {
+	if v.ticking {
+		return nil
+	}
+	v.ticking = true
+	return voiceTick(v.gen)
 }
 
 // openVoice는 녹음 창을 연다(openVoiceRecording). 키가 없으면 환경설정의 API 키 칸으로 보낸다.
@@ -204,7 +214,7 @@ func (m Model) voiceAction(id string) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		v.phase, v.status, v.err = "recording", "녹음 중", ""
-		return m, voiceTick(v.gen)
+		return m, v.startTick()
 	case "finish":
 		if v.elapsed == 0 || (v.phase != "recording" && v.phase != "paused" && v.phase != "failed") {
 			return m, nil
@@ -284,9 +294,13 @@ func (m Model) handleVoiceMsg(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
 			return m, nil, true
 		}
 		v.phase, v.status = "recording", "녹음 중"
-		return m, voiceTick(v.gen), true
+		return m, v.startTick(), true
 	case voiceTickMsg:
-		if v == nil || v.gen != msg.gen || v.phase != "recording" {
+		if v == nil || v.gen != msg.gen {
+			return m, nil, true
+		}
+		if v.phase != "recording" {
+			v.ticking = false
 			return m, nil, true
 		}
 		v.elapsed = v.rec.Elapsed()
@@ -296,6 +310,7 @@ func (m Model) handleVoiceMsg(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
 		}
 		if v.elapsed >= audio.MaxDuration {
 			v.status = "최대 녹음 시간에 도달했습니다. 자동으로 완료하는 중…"
+			v.ticking = false
 			next, cmd := m.processVoice(nil)
 			return next, cmd, true
 		}

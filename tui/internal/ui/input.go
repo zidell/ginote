@@ -618,7 +618,8 @@ var openURL = func(url string) tea.Cmd {
 		case "windows":
 			command = exec.Command("rundll32", "url.dll,FileProtocolHandler", url)
 		}
-		command.Start()
+		// Start만 하고 거두지 않으면 끝난 프로세스가 좀비로 남는다. Cmd는 따로 도는 고루틴이라 기다려도 화면이 멈추지 않는다.
+		command.Run()
 		return nil
 	}
 }

@@ -128,6 +128,21 @@ describe('VoiceRecorder', () => {
     expect(screen.getByRole('button', { name: '녹음 일시정지' })).toBeTruthy();
   });
 
+  it('마이크 권한을 기다리는 사이 닫히면 늦게 온 마이크를 끄고 녹음하지 않는다', async () => {
+    let grant;
+    getUserMedia.mockImplementation(() => new Promise((resolve) => { grant = resolve; }));
+    renderRecorder();
+    await waitFor(() => expect(getUserMedia).toHaveBeenCalled());
+    cleanup();
+
+    grant({ getTracks: () => [track] });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(track.stop).toHaveBeenCalled();
+    expect(FakeAudioContext.instances).toHaveLength(0);
+    expect(FakeMediaRecorder.instances).toHaveLength(0);
+  });
+
   it('녹음이 시작되면 바로 끝낼 수 있도록 완료 버튼에 포커스를 둔다', async () => {
     renderRecorder();
     await waitForRecording();

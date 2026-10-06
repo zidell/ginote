@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 
 	"charm.land/glamour/v2"
 	"charm.land/glamour/v2/styles"
@@ -265,23 +266,56 @@ func (m Model) buildDetailContent(g detailGeometry) detailContent {
 	return content
 }
 
+// 미리보기는 화면을 다시 그릴 때마다(1초 tick 포함) 그리므로, 렌더러와 결과를 기억해 두고
+// 같은 본문·너비·화면 모드면 다시 만들지 않는다. 결과는 markdownCacheMax개를 넘으면 비운다.
+const markdownCacheMax = 64
+
+type markdownKey struct {
+	source string
+	width  int
+	dark   bool
+}
+
+var markdownCache = struct {
+	sync.Mutex
+	renderer *glamour.TermRenderer
+	width    int
+	dark     bool
+	out      map[markdownKey]string
+}{out: map[markdownKey]string{}}
+
 func (m Model) renderMarkdown(source string, width int) string {
 	if strings.TrimSpace(source) == "" {
 		return m.th.fg(m.th.faint).Render("내용이 없습니다.")
 	}
-	style := styles.DarkStyle
-	if !m.dark() {
-		style = styles.LightStyle
+	dark := m.dark()
+	key := markdownKey{source, width, dark}
+	markdownCache.Lock()
+	defer markdownCache.Unlock()
+	if out, ok := markdownCache.out[key]; ok {
+		return out
 	}
-	renderer, err := glamour.NewTermRenderer(glamour.WithStandardStyle(style), glamour.WithWordWrap(width))
+	if markdownCache.renderer == nil || markdownCache.width != width || markdownCache.dark != dark {
+		style := styles.DarkStyle
+		if !dark {
+			style = styles.LightStyle
+		}
+		renderer, err := glamour.NewTermRenderer(glamour.WithStandardStyle(style), glamour.WithWordWrap(width))
+		if err != nil {
+			return source
+		}
+		markdownCache.renderer, markdownCache.width, markdownCache.dark = renderer, width, dark
+	}
+	out, err := markdownCache.renderer.Render(source)
 	if err != nil {
 		return source
 	}
-	out, err := renderer.Render(source)
-	if err != nil {
-		return source
+	out = strings.Trim(out, "\n")
+	if len(markdownCache.out) >= markdownCacheMax {
+		clear(markdownCache.out)
 	}
-	return strings.Trim(out, "\n")
+	markdownCache.out[key] = out
+	return out
 }
 
 // renderDetail은 NoteEditor.svelte를 그린다. 반환값의 커서는 입력 중인 칸의 화면 좌표다.

@@ -86,6 +86,7 @@ type Model struct {
 	issues          []github.Issue
 	page            int
 	hasMore         bool
+	searchAll       []github.Issue // 검색은 한 번에 100개를 받고 화면에는 페이지 크기만큼 보인다
 	loading         bool
 	loadingMore     bool
 	listErr         string

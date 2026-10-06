@@ -3,6 +3,7 @@ import { defaultSnapshot } from './app-config.js';
 import { installedSnapshot, useInstalledSnapshot } from './installed-settings.js';
 import {
   CHECK_INTERVAL_MS,
+  closeReleaseUpdate,
   FIRST_CHECK_DELAY_MS,
   findReleaseUpdate,
   installReleaseUpdate,
@@ -37,6 +38,15 @@ describe('app release updates', () => {
     expect((await findReleaseUpdate({ manual: true, check: async () => update('0.1.5') })).version).toBe('0.1.5');
     expect((await findReleaseUpdate({ check: async () => update('0.1.6') })).version).toBe('0.1.6');
     expect(await findReleaseUpdate({ check: async () => null })).toBeNull();
+  });
+
+  it('closes the native update resource of a skipped version', async () => {
+    saveReleaseUpdatePreferences({ skippedVersion: '0.1.5' });
+    const skipped = { ...update('0.1.5'), close: vi.fn(async () => {}) };
+    expect(await findReleaseUpdate({ check: async () => skipped })).toBeNull();
+    expect(skipped.close).toHaveBeenCalledOnce();
+    await expect(closeReleaseUpdate({ close: async () => { throw new Error('closed'); } })).resolves.toBeUndefined();
+    await expect(closeReleaseUpdate(null)).resolves.toBeUndefined();
   });
 
   it('checks shortly after launch and then periodically while automatic checks are on', async () => {

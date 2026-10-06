@@ -13,6 +13,9 @@ import (
 
 // deviceRecorder는 miniaudio(malgo)로 기본 입력 장치에서 받는다.
 type deviceRecorder struct {
+	// life는 장치를 열고 닫는 일을 묶는다. 처리 중 취소하면 UI의 Close와 처리 고루틴의 Finish가
+	// 동시에 닫으려 해서 같은 C 메모리를 두 번 풀 수 있었다. mu는 장치 콜백이 쓰는 값만 지킨다.
+	life      sync.Mutex
 	mu        sync.Mutex
 	context   *malgo.AllocatedContext
 	device    *malgo.Device
@@ -25,8 +28,14 @@ type deviceRecorder struct {
 func New() Recorder { return &deviceRecorder{} }
 
 func (r *deviceRecorder) Start() error {
+	r.life.Lock()
+	defer r.life.Unlock()
+	return r.startLocked()
+}
+
+func (r *deviceRecorder) startLocked() error {
 	if r.device != nil {
-		return r.Resume()
+		return r.resumeLocked()
 	}
 	context, err := malgo.InitContext(nil, malgo.ContextConfig{}, nil)
 	if err != nil {
@@ -43,7 +52,7 @@ func (r *deviceRecorder) Start() error {
 		return err
 	}
 	r.context, r.device = context, device
-	return r.Resume()
+	return r.resumeLocked()
 }
 
 // receive는 장치 고루틴에서 불린다. 받은 소리를 쌓고 크기(RMS)를 잰다.
@@ -71,14 +80,22 @@ func (r *deviceRecorder) Pause() {
 	r.recording = false
 	r.level = 0
 	r.mu.Unlock()
+	r.life.Lock()
+	defer r.life.Unlock()
 	if r.device != nil {
 		r.device.Stop()
 	}
 }
 
 func (r *deviceRecorder) Resume() error {
+	r.life.Lock()
+	defer r.life.Unlock()
+	return r.resumeLocked()
+}
+
+func (r *deviceRecorder) resumeLocked() error {
 	if r.device == nil {
-		return r.Start()
+		return r.startLocked()
 	}
 	if err := r.device.Start(); err != nil {
 		return err
@@ -126,6 +143,8 @@ func (r *deviceRecorder) Close() {
 	r.mu.Lock()
 	r.recording = false
 	r.mu.Unlock()
+	r.life.Lock()
+	defer r.life.Unlock()
 	if r.device != nil {
 		r.device.Uninit()
 		r.device = nil

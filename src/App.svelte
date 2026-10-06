@@ -31,7 +31,7 @@
   import { watchAppUpdate } from './lib/app-update.js';
   import { confirmAction, isInstalledApp } from './lib/dialogs.js';
   import { onInstalledSettingsChange } from './lib/settings-backend.js';
-  import { watchReleaseUpdates } from './lib/release-update.js';
+  import { closeReleaseUpdate, watchReleaseUpdates } from './lib/release-update.js';
   import AppUpdateSettings from './lib/AppUpdateSettings.svelte';
   import ReleaseUpdateDialog from './lib/ReleaseUpdateDialog.svelte';
   import { createTranscriptionHints } from './lib/transcription-hints.js';
@@ -461,7 +461,10 @@
 
     const stopWatchingAppUpdate = watchAppUpdate(() => toast.show($_('dynamic.appUpdateRequired')));
     const stopWatchingSettingsFile = onInstalledSettingsChange(applySettingsFileChange);
-    const stopWatchingReleaseUpdates = watchReleaseUpdates((update) => { releaseUpdate ??= update; });
+    const stopWatchingReleaseUpdates = watchReleaseUpdates((update) => {
+      if (releaseUpdate) void closeReleaseUpdate(update);
+      else releaseUpdate = update;
+    });
 
     return () => {
       clearTimeout(lockSessionTimer);
@@ -780,7 +783,7 @@
       noteCount: workspaceNoteCounts[activeWorkspaceId],
       openNoteSegment: contentRoute?.screen === 'note' ? contentRoute.segment : '',
       sidebarScroll: noteList?.captureScroll()
-    });
+    }, preferences.workspaceCacheMinutes);
 
     deletionQueue.cancelAll(true);
     clearIssueSelection();
@@ -2416,7 +2419,7 @@
         onHintsInput={transcriptionHints.stage}
       />
 
-      <AppUpdateSettings onUpdateFound={(update) => { releaseUpdate = update; }} />
+      <AppUpdateSettings onUpdateFound={(update) => { if (releaseUpdate !== update) void closeReleaseUpdate(releaseUpdate); releaseUpdate = update; }} />
     </div>
   </SheetView>
   {/if}
@@ -2647,7 +2650,7 @@
 {/if}
 
 {#if releaseUpdate}
-  <ReleaseUpdateDialog update={releaseUpdate} onClose={() => { releaseUpdate = null; }} />
+  <ReleaseUpdateDialog update={releaseUpdate} onClose={() => { void closeReleaseUpdate(releaseUpdate); releaseUpdate = null; }} />
 {/if}
 
 {#if helpTopic}

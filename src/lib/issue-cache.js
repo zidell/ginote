@@ -10,8 +10,13 @@ export function getCachedIssueList(workspaceId, maxAgeMinutes = Infinity) {
   return entry.snapshot;
 }
 
-export function setCachedIssueList(workspaceId, snapshot) {
-  cache.set(workspaceId, { snapshot, cachedAt: Date.now() });
+// 만료된 다른 워크스페이스 목록도 이때 놓는다. 다시 열지 않는 워크스페이스의 목록이 남지 않게 한다.
+export function setCachedIssueList(workspaceId, snapshot, maxAgeMinutes = Infinity) {
+  const now = Date.now();
+  for (const [id, entry] of cache) {
+    if (now - entry.cachedAt > maxAgeMinutes * 60 * 1000) cache.delete(id);
+  }
+  cache.set(workspaceId, { snapshot, cachedAt: now });
 }
 
 export function invalidateCachedIssueList(workspaceId) {

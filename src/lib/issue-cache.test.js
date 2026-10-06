@@ -36,4 +36,14 @@ describe('issue-cache', () => {
     expect(getCachedIssueList('a', 60)).toBeNull();
     vi.useRealTimers();
   });
+
+  it('새로 저장할 때 유지 시간이 지난 다른 워크스페이스 캐시를 놓는다', () => {
+    vi.useFakeTimers();
+    setCachedIssueList('a', { issues: [] }, 60);
+    vi.advanceTimersByTime(60 * 60 * 1000 + 1);
+    setCachedIssueList('b', { issues: [] }, 60);
+    expect(getCachedIssueList('a')).toBeNull();
+    expect(getCachedIssueList('b')).not.toBeNull();
+    vi.useRealTimers();
+  });
 });

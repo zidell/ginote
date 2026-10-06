@@ -185,9 +185,6 @@ func (m Model) loadUser() tea.Cmd {
 	}
 }
 
-// searchAllItems는 검색 결과 전체다. 검색은 한 번에 100개를 받고 화면에는 페이지 크기만큼 보인다.
-var searchAllItems = map[int][]github.Issue{}
-
 func (m Model) applyList(msg listLoadedMsg) (Model, tea.Cmd) {
 	if msg.gen != m.gen {
 		return m, nil
@@ -214,7 +211,7 @@ func (m Model) applyList(msg listLoadedMsg) (Model, tea.Cmd) {
 	m.issues = issues
 	m.page = 1
 	m.hasMore = msg.result.HasMore
-	searchAllItems[m.gen] = msg.searchAll
+	m.searchAll = msg.searchAll
 	m.reconcileSelection()
 	if m.focusListOnLoad {
 		m.focusListOnLoad = false
@@ -258,7 +255,7 @@ func (m Model) loadMore() (Model, tea.Cmd) {
 		return m, nil
 	}
 	if term := strings.TrimSpace(m.listTerm()); term != "" {
-		all := searchAllItems[m.gen]
+		all := m.searchAll
 		shown := len(m.issues) + len(m.pinned)
 		next := min(len(all), shown+m.prefs.NotesPerPage)
 		known := map[int64]bool{}

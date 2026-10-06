@@ -3,6 +3,7 @@
   import { _ } from 'svelte-i18n';
   import TagSettings from './TagSettings.svelte';
   import { workspaceDisplayName } from './settings-storage.js';
+  import { disposeDropdownOnDestroy } from './bootstrap-dropdown.js';
 
   export let workspaces = [];
   export let activeWorkspaceId = '';
@@ -118,6 +119,7 @@
               type="button"
               class="workspace-order-icon-btn"
               data-bs-toggle="dropdown"
+              use:disposeDropdownOnDestroy
               aria-expanded="false"
               aria-label={$_('workspace.moreActions')}
               title={$_('workspace.moreActions')}

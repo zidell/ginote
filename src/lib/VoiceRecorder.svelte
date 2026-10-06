@@ -33,6 +33,8 @@
   let stoppingForLimit = false;
   let audioBlob = $state(null);
   let downloadUrl = $state('');
+  // 마이크 권한을 기다리는 사이 창이 닫히면, 늦게 도착한 스트림을 바로 끄고 녹음을 시작하지 않는다.
+  let destroyed = false;
 
   onMount(() => {
     dialogElement?.showModal();
@@ -43,6 +45,7 @@
   onDestroy(stopEverything);
 
   function stopEverything() {
+    destroyed = true;
     abortController?.abort();
     clearInterval(elapsedInterval);
     clearTimeout(recordingLimitTimeout);
@@ -69,7 +72,12 @@
     if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
       throw new Error('이 기기 또는 브라우저에서는 음성 녹음을 지원하지 않습니다.');
     }
-    stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const nextStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    if (destroyed) {
+      nextStream.getTracks().forEach((track) => track.stop());
+      return;
+    }
+    stream = nextStream;
     audioContext = new AudioContext();
     analyser = audioContext.createAnalyser();
     analyser.fftSize = 256;
@@ -89,6 +97,7 @@
       status = '마이크를 사용할 수 없습니다.';
     } finally {
       preparing = false;
+      if (destroyed) return;
       if (error) void focusInitialControl();
       else void startRecording();
     }
@@ -108,7 +117,9 @@
         return;
       }
       await ensureMicrophone();
+      if (destroyed) return;
       if (audioContext?.state === 'suspended') await audioContext.resume();
+      if (destroyed) return;
       const mimeType = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4'].find((type) => MediaRecorder.isTypeSupported(type));
       recorder = new MediaRecorder(stream, {
         ...(mimeType ? { mimeType } : {}),

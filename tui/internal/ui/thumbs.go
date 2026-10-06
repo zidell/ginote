@@ -29,9 +29,10 @@ import (
 // 이미지는 노트를 열 때 한 번 내려받아 작게 줄여 기억한다.
 
 const (
-	thumbCols    = 18 // 썸네일 너비(칸)
-	thumbRows    = 7  // 썸네일 높이(줄). 점으로는 두 배
-	thumbKeep    = 96 // 기억해 둘 줄인 그림의 긴 변(점)
+	thumbCols    = 18  // 썸네일 너비(칸)
+	thumbRows    = 7   // 썸네일 높이(줄). 점으로는 두 배
+	thumbKeep    = 96  // 기억해 둘 줄인 그림의 긴 변(점)
+	thumbMaxKept = 200 // 기억해 둘 썸네일 수. 넘으면 가장 오래 안 본 것부터 놓는다
 	kittyQueryID = 0x765432
 )
 
@@ -42,6 +43,7 @@ type thumbState struct {
 	id        int
 	uploading bool
 	uploaded  bool
+	used      uint64 // 마지막으로 쓴 순서(클수록 최근)
 }
 
 // thumbCache는 첨부 경로별 썸네일이다. Model을 복사해도 같은 것을 쓰도록 포인터로 둔다.
@@ -50,6 +52,7 @@ type thumbCache struct {
 	items    map[string]*thumbState
 	rendered map[string][]string
 	nextID   int
+	clock    uint64
 }
 
 func newThumbCache() *thumbCache {
@@ -128,7 +131,50 @@ func (c *thumbCache) get(path string) (thumbState, bool) {
 	if !ok {
 		return thumbState{}, false
 	}
+	c.clock++
+	item.used = c.clock
 	return *item, true
+}
+
+// evictLocked는 기억한 썸네일이 thumbMaxKept를 넘으면 가장 오래 안 본 것부터 놓고,
+// 터미널(Kitty)에 올려 둔 그림의 id를 돌려준다. 받는 중이거나 올리는 중인 것은 두고 본다.
+func (c *thumbCache) evictLocked() []int {
+	var uploaded []int
+	for len(c.items) > thumbMaxKept {
+		oldest := ""
+		var oldestUsed uint64
+		for path, state := range c.items {
+			if state.loading || state.uploading {
+				continue
+			}
+			if oldest == "" || state.used < oldestUsed {
+				oldest, oldestUsed = path, state.used
+			}
+		}
+		if oldest == "" {
+			break
+		}
+		if state := c.items[oldest]; state.uploaded {
+			uploaded = append(uploaded, state.id)
+		}
+		delete(c.items, oldest)
+		delete(c.rendered, oldest+"|true")
+		delete(c.rendered, oldest+"|false")
+	}
+	return uploaded
+}
+
+// deleteKittyImages는 놓은 썸네일을 터미널의 이미지 저장소에서도 지운다.
+func deleteKittyImages(ids []int) tea.Cmd {
+	if len(ids) == 0 {
+		return nil
+	}
+	var sequences strings.Builder
+	for _, id := range ids {
+		opts := kitty.Options{Action: kitty.Delete, Delete: kitty.DeleteID, DeleteResources: true, ID: id, Quiet: 2}
+		sequences.WriteString(ansi.KittyGraphics(nil, opts.Options()...))
+	}
+	return tea.Raw(sequences.String())
 }
 
 type thumbLoadedMsg struct {
@@ -154,7 +200,8 @@ func (m Model) loadThumbnails() tea.Cmd {
 		if _, known := m.thumbs.items[attachment.Path]; known {
 			continue
 		}
-		m.thumbs.items[attachment.Path] = &thumbState{loading: true}
+		m.thumbs.clock++
+		m.thumbs.items[attachment.Path] = &thumbState{loading: true, used: m.thumbs.clock}
 		path := attachment.Path
 		cmds = append(cmds, func() tea.Msg {
 			client, err := clientFor(workspace)
@@ -170,6 +217,11 @@ func (m Model) loadThumbnails() tea.Cmd {
 			img, err := shrinkImage(data)
 			return thumbLoadedMsg{path: path, img: img, err: err}
 		})
+	}
+	if m.kittyGraphics {
+		cmds = append(cmds, deleteKittyImages(m.thumbs.evictLocked()))
+	} else {
+		m.thumbs.evictLocked()
 	}
 	return tea.Batch(cmds...)
 }
@@ -193,7 +245,8 @@ func shrinkImage(data []byte) (image.Image, error) {
 
 func (m Model) applyThumbLoaded(msg thumbLoadedMsg) (tea.Model, tea.Cmd) {
 	m.thumbs.mu.Lock()
-	m.thumbs.items[msg.path] = &thumbState{img: msg.img, failed: msg.err != nil}
+	m.thumbs.clock++
+	m.thumbs.items[msg.path] = &thumbState{img: msg.img, failed: msg.err != nil, used: m.thumbs.clock}
 	m.thumbs.mu.Unlock()
 	m.layoutNote()
 	return m, m.uploadThumbnail(msg.path)

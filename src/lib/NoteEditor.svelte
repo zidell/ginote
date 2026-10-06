@@ -1,7 +1,7 @@
 <script>
   import { confirmAction } from './dialogs.js';
   import { afterUpdate, onDestroy, onMount, tick } from 'svelte';
-  import Dropdown from 'bootstrap/js/dist/dropdown';
+  import { disposeDropdownOnDestroy, hideDropdown } from './bootstrap-dropdown.js';
   import { tagColorForName } from './colors.js';
   import { _, locale } from 'svelte-i18n';
   import BrailleSpinner from './BrailleSpinner.svelte';
@@ -1999,12 +1999,12 @@
 
   function replaceAttachments(nextAttachments) {
     attachments = nextAttachments;
-    const currentPaths = new Set(nextAttachments.map((attachment) => attachment.path));
     const nextPreviewUrls = {};
     let removedPreview = false;
 
+    // 댓글 첨부의 미리보기도 previewUrls에 함께 있으므로 본문 첨부만 보고 지우지 않는다.
     for (const [path, url] of Object.entries(previewUrls)) {
-      if (currentPaths.has(path)) nextPreviewUrls[path] = url;
+      if (isCurrentAttachment(path)) nextPreviewUrls[path] = url;
       else {
         URL.revokeObjectURL(url);
         removedPreview = true;
@@ -2738,8 +2738,7 @@
   }
 
   function hideMoreToolbarDropdown() {
-    const toggleButton = moreToolbarElement?.querySelector('[data-bs-toggle="dropdown"]');
-    if (toggleButton) Dropdown.getOrCreateInstance(toggleButton).hide();
+    hideDropdown(moreToolbarElement?.querySelector('[data-bs-toggle="dropdown"]'));
   }
 
   function isShortcutWithoutModifiers(event) {
@@ -2934,8 +2933,7 @@
     if (!toolbar || !toolbar.querySelector('.dropdown-menu.show')) return;
     event.preventDefault();
     event.stopPropagation();
-    const toggleButton = toolbar.querySelector('[data-bs-toggle="dropdown"]');
-    if (toggleButton) Dropdown.getOrCreateInstance(toggleButton).hide();
+    hideDropdown(toolbar.querySelector('[data-bs-toggle="dropdown"]'));
     activeElement.blur?.();
   }
 
@@ -3176,6 +3174,7 @@
         class="btn btn-outline-secondary responsive-toolbar-button"
         type="button"
         data-bs-toggle="dropdown"
+        use:disposeDropdownOnDestroy
         aria-expanded="false"
         aria-label={$_("m.a9b795bbb6")}
         on:mousedown|preventDefault
@@ -3495,6 +3494,7 @@
                         type="button"
                         class="note-comment-more"
                         data-bs-toggle="dropdown"
+                        use:disposeDropdownOnDestroy
                         aria-expanded="false"
                         aria-label={$_("m.02f145f769")}
                         tabindex="-1"
