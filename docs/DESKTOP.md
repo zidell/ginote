@@ -116,3 +116,12 @@ Tauri NSIS 설치 프로그램(`*-setup.exe`)을 GitHub Releases에 올립니다
 설치 프로그램은 현재 Windows 코드 서명이 없어 Windows 보안 경고가 나올 수 있습니다.
 Windows 11과 업데이트된 Windows 10에는 필요한 WebView2 런타임이 기본으로 들어 있습니다.
 과거의 Store 시험용 MSIX 워크플로는 릴리스에서 호출하지 않습니다.
+
+1. [최신 릴리스](https://github.com/zidell/ginote/releases/latest)의 Assets에서 파일 이름이
+   `x64-setup.exe`로 끝나는 설치 프로그램을 내려받습니다.
+2. 파일을 실행할 때 **“Windows의 PC 보호”**가 나오면 **“추가 정보”**를 누릅니다.
+3. 앱 이름이 받은 Ginote 파일과 같은지 확인한 뒤 **“실행”**을 눌러 설치합니다. 브라우저의
+   다운로드 경고는 별개이며, 다운로드 목록의 파일 메뉴에서 **“유지”**를 선택해야 할 수 있습니다.
+
+설치 파일은 반드시 `github.com/zidell/ginote`의 릴리스에서 받습니다. Windows의 Smart App
+Control이 파일을 완전히 차단하는 환경에서는 “추가 정보”가 나타나지 않을 수 있습니다.
