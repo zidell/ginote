@@ -7,7 +7,7 @@ export const MANIFEST_FILE = 'app-manifest.json';
 export const SIGNATURE_FILE = 'app-manifest.json.sig';
 
 // 웹에서만 쓰는 파일은 앱에 내려보내지 않는다.
-const WEB_ONLY = new Set(['_headers', 'sw.js', 'og-image.png', 'landing-preview.gif', 'sitemap.xml', 'robots.txt', MANIFEST_FILE, SIGNATURE_FILE]);
+const WEB_ONLY = new Set(['sw.js', 'og-image.png', 'landing-preview.gif', 'sitemap.xml', 'robots.txt', MANIFEST_FILE, SIGNATURE_FILE]);
 
 export function isAppFile(path) {
   return !WEB_ONLY.has(path) && !path.split('/').some((part) => part.startsWith('.'));

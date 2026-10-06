@@ -1,5 +1,5 @@
-// 앱이 배포되는 세 경로(웹 헤더, index.html의 meta, Tauri 설정)가 서로 다른 CSP를 갖지
-// 않도록 여기 한 곳에서만 정의한다. 웹 헤더와 meta는 빌드 때 이 파일로 생성하고,
+// 앱이 배포되는 두 경로(index.html의 meta, Tauri 설정)가 서로 다른 CSP를 갖지
+// 않도록 여기 한 곳에서만 정의한다. meta는 빌드 때 이 파일로 생성하고,
 // src-tauri/tauri.conf.json 의 값은 csp.test.js 가 이 파일과 일치하는지 검사한다.
 
 // 앱은 웹과 같은 dist를 내장하거나 내려받아 쓰므로(docs/APP_OTA.md), index.html의 meta CSP가
@@ -47,11 +47,6 @@ function withStyleHashes(directives, styleHashes) {
   return { ...directives, 'style-src': [...directives['style-src'], ...styleHashes] };
 }
 
-// meta 태그로는 frame-ancestors 가 무시되므로 HTTP 헤더 쪽에만 넣는다.
-export function webHeaderCsp(styleHashes = []) {
-  return serialize({ ...withStyleHashes(BASE, styleHashes), 'frame-ancestors': ["'none'"] });
-}
-
 export function webMetaCsp(styleHashes = []) {
   return serialize(withStyleHashes(BASE, styleHashes));
 }
@@ -79,24 +74,4 @@ export function tauriCsp() {
 // 프로토콜로 중계하면서 이 값을 걸기 때문에, devMetaCsp처럼 HMR에 필요한 만큼 연다.
 export function tauriDevCsp() {
   return devMetaCsp();
-}
-
-export const SECURITY_HEADERS = {
-  'X-Content-Type-Options': 'nosniff',
-  'Referrer-Policy': 'strict-origin-when-cross-origin',
-  // 마이크는 음성 녹음 기능에만 쓰고 나머지 강력한 기능은 모두 끈다.
-  'Permissions-Policy': 'camera=(), microphone=(self), geolocation=(), payment=(), usb=(), serial=(), midi=(), bluetooth=()',
-  // frame-ancestors 를 이해하지 못하는 오래된 브라우저를 위한 보조 장치다.
-  'X-Frame-Options': 'DENY',
-  'Strict-Transport-Security': 'max-age=31536000; includeSubDomains; preload',
-  // 창을 열어준 쪽과 브라우징 컨텍스트를 공유하지 않는다.
-  'Cross-Origin-Opener-Policy': 'same-origin',
-  // 다른 사이트가 이 앱의 파일을 직접 가져다 쓰지 못하게 한다.
-  'Cross-Origin-Resource-Policy': 'same-origin'
-};
-
-export function headersFile(styleHashes = []) {
-  const lines = ['/*', `  Content-Security-Policy: ${webHeaderCsp(styleHashes)}`];
-  for (const [name, value] of Object.entries(SECURITY_HEADERS)) lines.push(`  ${name}: ${value}`);
-  return `${lines.join('\n')}\n`;
 }

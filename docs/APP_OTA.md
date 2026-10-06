@@ -52,7 +52,7 @@ GitHub Pages 전환 전에 설치한 셸은 이전 웹 주소가 내장돼 있�
   시험용입니다. 앱은 지금 번들보다 큰 `build`만 받으므로 옛 매니페스트로 되돌리는 공격도
   막힙니다.
 - `minNativeApi`: `src/lib/native-api.js`의 `MIN_NATIVE_API`입니다.
-- `files`: `_headers`, `sw.js`, `og-image.png`, `sitemap.xml`, `robots.txt`와 숨김 파일은
+- `files`: `sw.js`, `og-image.png`, `landing-preview.gif`, `sitemap.xml`, `robots.txt`와 숨김 파일은
   앱에 내려보내지 않습니다.
 - `app-manifest.json.sig`: 매니페스트 바이트 그대로에 대한 Ed25519 서명(base64)입니다.
   빌드 환경에 `GINOTE_OTA_SIGNING_KEY`가 있을 때만 만들어지고, 없으면 경고만 남깁니다.

@@ -141,20 +141,16 @@ npm run build
 
 ## 보안 헤더와 CSP
 
-CSP는 `csp.config.js` 한 곳에서 정의하고 세 곳에 반영한다.
+CSP는 `csp.config.js` 한 곳에서 정의하고 두 곳에 반영한다.
 
 - `index.html`의 `<meta>`: Vite 플러그인이 빌드 때 넣는다. 개발 서버에서는 HMR에 필요한 만큼만
   완화한 값을 쓴다.
-- `dist/_headers`: 같은 플러그인이 빌드 산출물로 만든다. `public/`에 두지 않으므로 고칠 때는
-  `csp.config.js`를 고친다.
 - `src-tauri/tauri.conf.json`의 `csp`·`devCsp`: 자동 생성하지 않는다. `csp.test.js`가
   `csp.config.js`와 일치하는지 검사하고, 어긋나면 올바른 값을 출력한다.
 
 주의할 점:
 
-- `_headers`는 Cloudflare Workers 정적 자산·Pages·Netlify 형식이다. 이 파일을 읽지 않는
-  호스팅(GitHub Pages 등)에서는 HSTS나 `frame-ancestors` 같은 HTTP 헤더가 빠지고 `<meta>`의
-  CSP만 남는다.
+- GitHub Pages는 사용자 지정 HTTP 보안 헤더를 설정하지 못하므로 웹에는 `<meta>`의 CSP만 적용된다.
 - `connect-src`의 `ipc:`와 `http://ipc.localhost`를 지우지 않는다. 앱은 웹과 같은 `dist`를
   쓰므로 `index.html`의 CSP가 Tauri WebView에도 적용되고, 이 둘이 없으면 IPC 호출이 막힌다.
 - 폰트를 외부 CDN에서 불러오지 않는다. `font-src`·`style-src`를 그만큼 열어야 하고 사용자 IP가

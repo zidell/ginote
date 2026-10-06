@@ -38,6 +38,8 @@ jobs:
           fail_ci_if_error: false
 
       - name: Build
+        # 공식 main push는 deploy-web에서 서명된 빌드를 다시 만들므로 중복 빌드를 피한다.
+        if: github.event_name == 'pull_request' || github.repository != 'zidell/ginote'
         run: npm run build
 
   # 테스트를 통과한 빌드를 서명해 GitHub Pages에 올린다. 설치형 앱도 이 빌드를 받는다.

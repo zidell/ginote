@@ -83,11 +83,10 @@ openssl rand -hex 32
 VITE_NOTE_LOCK_PEPPER=생성한_64자리_값
 ```
 
-`.env.local`은 Git에 커밋하지 마세요. Cloudflare Pages, Workers Builds,
-GitHub Actions 등에서 빌드할 때는 같은 이름의 **빌드 환경변수** 또는 secret으로
-넣어야 합니다. 외부에서 `npm run build`를 실행한 뒤 Workers Static Assets에
-올리는 경우에는 빌드한 컴퓨터의 `.env` 또는 `.env.local` 값이 사용됩니다.
-Worker를 실행할 때 넣는 변수는 이미 만들어진 Vite 번들에 반영되지 않습니다.
+`.env.local`은 Git에 커밋하지 마세요. GitHub Actions 등에서 빌드할 때는 같은 이름의
+**빌드 환경변수** 또는 secret으로 넣어야 합니다. `npm run build`를 직접 실행할 때는
+빌드한 컴퓨터의 `.env` 또는 `.env.local` 값이 사용됩니다. 배포 후에 환경변수를 바꿔도
+이미 만들어진 Vite 번들에는 반영되지 않습니다.
 
 잠금 노트를 만든 뒤에는 웹·데스크톱·모바일의 모든 빌드에서 같은 pepper를 계속 사용하세요.
 이 저장소의 공식 빌드는 GitHub Actions 저장소 변수 `VITE_NOTE_LOCK_PEPPER`를 웹 배포(`ci.yml`),

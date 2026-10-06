@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { readdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { join, relative, resolve, sep } from 'node:path';
-import { devMetaCsp, headersFile, webMetaCsp } from './csp.config.js';
+import { devMetaCsp, webMetaCsp } from './csp.config.js';
 import { MANIFEST_FILE, SIGNATURE_FILE, createAppManifest, signManifest } from './app-manifest.config.js';
 import { MIN_NATIVE_API } from './src/lib/native-api.js';
 
@@ -15,8 +15,7 @@ function inlineStyleHashes(html) {
     .map(([, css]) => `'sha256-${createHash('sha256').update(css, 'utf8').digest('base64')}'`);
 }
 
-// CSP는 csp.config.js 한 곳에서만 정의하고, index.html의 meta와 배포용 _headers 파일을
-// 빌드 때 거기서 만들어 낸다. 손으로 두 곳을 맞추다 어긋나는 일을 없애기 위함이다.
+// CSP는 csp.config.js 한 곳에서 정의하고 index.html의 meta에 반영한다.
 function cspPlugin() {
   return {
     name: 'ginote-csp',
@@ -33,10 +32,6 @@ function cspPlugin() {
           }]
         };
       }
-    },
-    generateBundle() {
-      const hashes = inlineStyleHashes(readFileSync('index.html', 'utf8'));
-      this.emitFile({ type: 'asset', fileName: '_headers', source: headersFile(hashes) });
     }
   };
 }

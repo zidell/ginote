@@ -6,7 +6,7 @@ const file = (path, text) => ({ path, bytes: Buffer.from(text) });
 
 describe('앱 매니페스트', () => {
   it('웹 전용 파일과 숨김 파일은 앱에 내려보내지 않는다', () => {
-    for (const path of ['_headers', 'sw.js', 'og-image.png', 'sitemap.xml', 'robots.txt', 'app-manifest.json', 'app-manifest.json.sig', '.DS_Store', 'fonts/.keep']) {
+    for (const path of ['sw.js', 'og-image.png', 'landing-preview.gif', 'sitemap.xml', 'robots.txt', 'app-manifest.json', 'app-manifest.json.sig', '.DS_Store', 'fonts/.keep']) {
       expect(isAppFile(path)).toBe(false);
     }
     expect(isAppFile('assets/index-abc.js')).toBe(true);
