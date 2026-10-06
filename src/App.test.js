@@ -509,6 +509,19 @@ describe('키보드 조작', () => {
     await waitFor(() => expect(callsTo('verifyConnection').at(-1)).toEqual(['ghp_work', 'octo/work']));
     await waitFor(() => expect(JSON.parse(localStorage.getItem(SETTINGS_KEY)).activeWorkspaceId).toBe('ws-2'));
   });
+
+  it('설치형 앱은 입력칸에서도 Cmd+숫자로 저장소를 전환한다', async () => {
+    saveWorkspaces([
+      { id: 'ws-1', repo: 'octo/notes', token: 'ghp_test', rememberToken: true },
+      { id: 'ws-2', repo: 'octo/work', token: 'ghp_work', rememberToken: true }
+    ]);
+    await renderReadyApp();
+    vi.stubGlobal('__TAURI_INTERNALS__', {});
+    const search = document.querySelector('input[type="search"]');
+    search.focus();
+    await key('2', { code: 'Digit2', metaKey: true });
+    await waitFor(() => expect(callsTo('verifyConnection').at(-1)).toEqual(['ghp_work', 'octo/work']));
+  });
 });
 
 describe('여러 노트 선택 작업', () => {

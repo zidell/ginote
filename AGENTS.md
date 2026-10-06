@@ -11,6 +11,7 @@ Ginote를 개발·검증·배포하는 규칙과 절차를 모은 시작 문서�
 | [docs/APP_OTA.md](docs/APP_OTA.md) | 설치된 앱의 웹 빌드 교체: 매니페스트, 서명 키, 네이티브 호환성 |
 | [docs/DESKTOP.md](docs/DESKTOP.md) | 데스크톱 앱: 로컬 빌드, 앱 업데이트, 릴리스, 서명, Windows MSIX |
 | [docs/MOBILE.md](docs/MOBILE.md) | Android·iOS: 로컬 빌드, 직접 고친 네이티브 부분, 아이콘 |
+| [docs/TUI.md](docs/TUI.md) | 터미널 TUI: 실행, 기능, 설정, 검사 |
 | [docs/CONFIG.md](docs/CONFIG.md) | 설치형 앱의 설정 파일(`config.toml`)과 자격 증명 저장소 |
 | [docs/ATTACHMENTS.md](docs/ATTACHMENTS.md) | 첨부파일 저장 규약, 권한, 보관, 호환성 |
 | [docs/ENCRYPTION.md](docs/ENCRYPTION.md) | 노트 잠금의 암호화 형식, 보호 경계, 배포 pepper |
@@ -21,6 +22,10 @@ Ginote를 개발·검증·배포하는 규칙과 절차를 모은 시작 문서�
 맥 네이티브 앱(`macos/`)을 고칠 때의 빌드·시험 방법은 [macos/README.md](macos/README.md)에 있다. E2E는
 앱을 앞으로 가져와 키보드·마우스를 쓰므로, 사람이 쓰는 기기에서는 먼저 묻고 실패한 항목만 이름으로 다시
 돌린다(전체를 되풀이하지 않는다).
+
+TUI 코드를 고치면 [docs/TUI.md](docs/TUI.md)의 검사와 로컬 바이너리 갱신을 마친 뒤, 실행 중인
+TUI 세션도 `Ctrl+R`로 재시작한다. 재시작한 프로세스가 새 바이너리를 사용 중인지 확인하고
+나서 반영됐다고 보고한다. 바이너리만 교체하고 기존 세션을 그대로 두지 않는다.
 
 저장소 루트에 `AGENTS.local.md`가 있으면 작업 전에 먼저 읽는다. 개발자 개인에 관한 것(개인 시험 저장소
 이름, 키·인증서 위치와 이름, 그 기기의 설치 상태·입력기·기기 버전)만 담는 파일이며 커밋하지 않는다(`.gitignore`).

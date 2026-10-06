@@ -54,6 +54,7 @@
     isDeleteShortcut,
     isEditableElement,
     isFormControl,
+    isInstalledWorkspaceShortcut,
     isNewNoteShortcut,
     isNoteRowButton,
     isShiftOnly,
@@ -1312,6 +1313,16 @@
     const freshPlainKey = plainKey && !event.repeat;
     const canNavigate = canUseKeyboardListNavigation();
     const canUseShortcuts = !selectionMode && canNavigate;
+
+    // 설치형 앱에서는 입력칸에 포커스가 있어도 Cmd+1~9로 저장소를 바꾼다.
+    if (canUseShortcuts && isInstalledWorkspaceShortcut(event, isInstalledApp())) {
+      const workspace = workspaces[workspaceNumberFromEvent(event) - 1];
+      if (workspace) {
+        event.preventDefault();
+        void switchWorkspace(workspace.id);
+      }
+      return;
+    }
 
     // Shift+↑/↓: 목록 행에서 범위 선택을 넓힌다.
     if (canNavigate && isNoteRowButton(activeElement) && isShiftOnly(event) && direction) {

@@ -19,6 +19,11 @@ export function workspaceNumberFromEvent(event) {
   return Number(keyMatch?.[0] || codeMatch?.[1] || 0);
 }
 
+export function isInstalledWorkspaceShortcut(event, installed) {
+  return installed && event.metaKey && !event.ctrlKey && !event.altKey && !event.shiftKey
+    && !event.repeat && !event.isComposing && workspaceNumberFromEvent(event) > 0;
+}
+
 export function isDeleteShortcut(event) {
   return ['Delete', 'Backspace'].includes(event.key)
     || ['Delete', 'Backspace'].includes(event.code);
