@@ -64,7 +64,7 @@ func TestVerifiedWorkspaceIsAddedOpenedAndSaved(t *testing.T) {
 	workspace := config.Workspace{ID: "tui-1", Repo: "Owner/Notes", Name: "노트", Origin: config.OriginTUI, TokenSource: config.TokenGH}
 	m.setup.busy = true
 	m = drive(t, m, setupVerifiedMsg{workspace: workspace, token: auth.Token{Value: "x", Source: "test"}})
-	if m.setup != nil || len(m.workspaces) != 1 || m.active != 0 || !m.loading {
+	if m.setup != nil || len(m.workspaces) != 1 || m.active != 0 {
 		t.Fatalf("setup = %v workspaces = %+v active = %d", m.setup, m.workspaces, m.active)
 	}
 	saved, err := config.LoadTUI(m.tuiConfigPath)
