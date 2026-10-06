@@ -81,10 +81,13 @@ open /Applications/Ginote.app
 - `src-tauri/`(모바일 프로젝트 `src-tauri/gen/` 제외)
 - `scripts/windows/`, `scripts/updater-manifest.mjs`
 - `.github/workflows/release.yml`
+- `.github/desktop-release-trigger.txt`
 
 화면과 일반 기능 수정은 웹 배포로 설치된 앱에 들어가므로 릴리스하지 않습니다. 그래서 설치된
 앱이 push마다 업데이트를 권하지 않습니다. 다른 이유로 릴리스가 필요하면 Actions의
-"Desktop release"를 손으로 실행합니다.
+"Desktop release"를 손으로 실행하거나 `.github/desktop-release-trigger.txt`를 수정해
+`main`에 커밋합니다. 한 해에 한 번 네이티브 셸을 새로 배포하고 싶다면 이 파일의 연도를
+다음 연도로 바꿉니다. 날짜에 맞춰 자동으로 실행되지는 않습니다.
 
 - 버전은 `0.1.<워크플로 실행 번호>`입니다. 실패한 실행도 번호를 쓰므로 번호가 건너뛸 수
   있습니다. 저장소에는 버전 변경을 커밋하지 않습니다.
@@ -92,7 +95,7 @@ open /Applications/Ginote.app
   올립니다. 세 빌드가 끝나면 `scripts/updater-manifest.mjs`가 서명을 모아 `latest.json`을
   만들고 릴리스를 게시합니다.
 - Windows 설치 프로그램도 같은 GitHub 릴리스에 올립니다(아래 Windows).
-- 게시 뒤 최신 20개 릴리스만 남기고, `Casks/ginote.rb`의 버전과 SHA-256을 GitHub Actions
+- 게시 뒤 최신 데스크톱 릴리스 20개만 남기고, `Casks/ginote.rb`의 버전과 SHA-256을 GitHub Actions
   봇이 `main`에 커밋합니다.
 - 릴리스는 원본 `zidell/ginote` 저장소의 `main`에서만 실행됩니다.
 

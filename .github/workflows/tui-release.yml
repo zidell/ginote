@@ -1,0 +1,100 @@
+name: TUI release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'tui/**'
+      - '.github/workflows/tui-release.yml'
+  pull_request:
+    paths:
+      - 'tui/**'
+      - '.github/workflows/tui-release.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tui-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build ${{ matrix.platform }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            platform: darwin-arm64
+          - runner: macos-15-intel
+            platform: darwin-amd64
+          - runner: ubuntu-22.04
+            platform: linux-amd64
+          - runner: ubuntu-22.04-arm
+            platform: linux-arm64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - name: Setup Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version-file: tui/go.mod
+          cache-dependency-path: tui/go.sum
+
+      - name: Check formatting
+        working-directory: tui
+        run: test -z "$(gofmt -l .)"
+
+      - name: Vet and test
+        working-directory: tui
+        run: |
+          go vet ./...
+          go vet -tags dev ./...
+          go test ./...
+
+      - name: Build archive
+        working-directory: tui
+        env:
+          VITE_NOTE_LOCK_PEPPER: ${{ vars.VITE_NOTE_LOCK_PEPPER }}
+        run: |
+          mkdir -p dist
+          go build -ldflags "$(bash scripts/pepper.sh)" -o dist/ginote-tui ./cmd/ginote-tui
+          tar -C dist -czf "dist/ginote-tui_${{ matrix.platform }}.tar.gz" ginote-tui
+
+      - name: Upload archive
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: tui-${{ matrix.platform }}
+          path: tui/dist/*.tar.gz
+          if-no-files-found: error
+
+  publish:
+    name: Publish TUI release
+    needs: build
+    if: github.repository == 'zidell/ginote' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - name: Download archives
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          pattern: tui-*
+          path: tui-dist
+          merge-multiple: true
+
+      # prerelease로 분리해야 데스크톱 업데이터의 releases/latest가 TUI 전용 릴리스를 선택하지 않는다.
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tag="tui-v0.1.${GITHUB_RUN_NUMBER}"
+          gh release create "$tag" tui-dist/*.tar.gz \
+            --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+            --title "Ginote TUI ${tag}" \
+            --notes "macOS와 Linux용 Ginote TUI 실행 파일입니다. 데스크톱 앱 자동 업데이트와 구분하기 위해 사전 릴리스로 표시합니다." \
+            --draft --prerelease
+          gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --draft=false

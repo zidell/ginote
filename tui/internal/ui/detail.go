@@ -180,7 +180,7 @@ func (m Model) buildDetailContent(g detailGeometry) detailContent {
 			parts = append(parts, seg(" "))
 		}
 		if editable && !n.preview {
-			parts = append(parts, hit("chipadd", t.fg(t.muted).Render("[+추가]")))
+			parts = append(parts, hit("chipadd", t.fg(t.tagAdd).Render("[+태그]")))
 		}
 		content.addSegments(parts...)
 		content.add("")

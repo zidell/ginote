@@ -109,7 +109,7 @@
         <p>Go 1.27.1 이상과 C 컴파일러가 필요합니다. 다음 명령을 터미널에 붙여 넣으면 소스를 내려받아 <code>~/.local/bin/ginote-tui</code>에 설치합니다.</p>
         <div class="landing-command"><code>{tuiInstallCommand}</code><button type="button" on:click={() => copyCommand(tuiInstallCommand)}>명령 복사</button></div>
         {#if copyMessage}<p class="landing-copy-message" role="status">{copyMessage}</p>{/if}
-        <p>설치 후 <code>ginote-tui</code>를 실행하세요. 명령을 찾지 못하면 <code>~/.local/bin</code>을 PATH에 추가하세요. <a href="https://github.com/zidell/ginote/blob/main/tui/install.sh">설치 스크립트 보기</a> · <a href="https://github.com/zidell/ginote/blob/main/docs/TUI.md">TUI 상세 문서</a></p>
+        <p>설치 후 <code>ginote-tui</code>를 실행하세요. 명령을 찾지 못하면 <code>~/.local/bin</code>을 PATH에 추가하세요. 미리 빌드된 파일은 <a href="https://github.com/zidell/ginote/releases">GitHub Releases의 <code>tui-v...</code> 태그</a>에서 받을 수 있습니다. <a href="https://github.com/zidell/ginote/blob/main/tui/install.sh">설치 스크립트 보기</a> · <a href="https://github.com/zidell/ginote/blob/main/docs/TUI.md">TUI 상세 문서</a></p>
       {:else if selectedDownload === 'windows'}
       <div id="windows-install" class="landing-windows-guide">
         <div>

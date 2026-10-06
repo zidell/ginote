@@ -133,7 +133,9 @@ npm run build
   배포 job이 실패한다. 서명 없이 올리면 앱이 업데이트를 조용히 멈추기 때문이다.
 - **데스크톱**: 같은 push가 네이티브 셸이나 패키징을 바꿨으면 `.github/workflows/release.yml`이
   macOS·Linux 릴리스와 Windows NSIS 설치 프로그램을 만든다. 대상 경로와 시크릿은 [DESKTOP](docs/DESKTOP.md)에
-  있다. 그 밖에 릴리스가 필요하면 Actions의 "Desktop release"를 손으로 실행한다.
+  있다. 네이티브 변경 없이 릴리스하려면 `.github/desktop-release-trigger.txt`를 수정해 커밋한다.
+- **TUI**: `tui/`가 바뀌면 `.github/workflows/tui-release.yml`이 macOS·Linux의 arm64·amd64
+  바이너리를 검사·빌드해 별도 `tui-v...` 릴리스로 올린다([TUI](docs/TUI.md)).
 - **모바일**: 스토어 배포는 아직 자동화하지 않았다([MOBILE](docs/MOBILE.md)).
 
 포크를 다른 정적 호스팅에 올릴 때는 `npm run build`의 `dist/`를 그대로 쓴다. 노트 잠금의

@@ -14,6 +14,7 @@ type theme struct {
 	accent, accentBright, shortcut, danger, warning, border            color.Color
 	selectedRow                                                        color.Color
 	divider                                                            color.Color // 구분선보다 옅은 선
+	tagAdd                                                             color.Color // muted를 본문 배경에 50% 합성
 }
 
 func newTheme(dark bool) theme {
@@ -25,7 +26,7 @@ func newTheme(dark bool) theme {
 			faint: hex("#777777"), placeholder: hex("#5f5f5f"), disabled: hex("#555555"), link: hex("#7dd3c8"),
 			accent: hex("#0f766e"), accentBright: hex("#14b8a6"), shortcut: hex("#f59e0b"),
 			danger: hex("#e05252"), warning: hex("#c7a43a"), border: hex("#383838"),
-			selectedRow: hex("#3a3a3a"), divider: hex("#262626"),
+			selectedRow: hex("#3a3a3a"), divider: hex("#262626"), tagAdd: hex("#585858"),
 		}
 	}
 	return theme{
@@ -35,7 +36,7 @@ func newTheme(dark bool) theme {
 		faint: hex("#64748b"), placeholder: hex("#94a3b8"), disabled: hex("#94a3b8"), link: hex("#0f766e"),
 		accent: hex("#0f766e"), accentBright: hex("#0f766e"), shortcut: hex("#d97706"),
 		danger: hex("#dc2626"), warning: hex("#b45309"), border: hex("#d8dee8"),
-		selectedRow: hex("#e2e8f0"), divider: hex("#eef2f6"),
+		selectedRow: hex("#e2e8f0"), divider: hex("#eef2f6"), tagAdd: hex("#b2bac5"),
 	}
 }
 
