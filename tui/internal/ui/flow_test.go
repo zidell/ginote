@@ -383,9 +383,20 @@ func TestLockAndUnlockRoundTrip(t *testing.T) {
 	}
 	m = typeText(t, m, "123456")
 	m = press(t, m, "enter")
-	issue := fake.issue(2)
-	if !notes.IsLockedTitle(issue["title"].(string)) || !notes.IsLockedPayload(issue["body"].(string)) {
-		t.Fatalf("locked = %q / %q", issue["title"], issue["body"])
+	// 느린 CI에서는 암호화와 저장 명령이 drive의 대기 시간을 넘을 수 있다.
+	deadline := time.Now().Add(3 * time.Second)
+	for {
+		fake.mu.Lock()
+		issue := fake.issues[2]
+		title, body := issue["title"].(string), issue["body"].(string)
+		fake.mu.Unlock()
+		if notes.IsLockedTitle(title) && notes.IsLockedPayload(body) {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("locked = %q / %q", title, body)
+		}
+		time.Sleep(10 * time.Millisecond)
 	}
 	// 세션 숫자를 잊은 새 TUI에서 열면 잠겨 있고, 숫자를 넣으면 열린다.
 	other := startApp(t, fake)
