@@ -1,8 +1,8 @@
-import { defineConfig } from 'vite';
+import { defineConfig, searchForWorkspaceRoot } from 'vite';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
-import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { readdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { join, relative, resolve, sep } from 'node:path';
 import { devMetaCsp, headersFile, webMetaCsp } from './csp.config.js';
 import { MANIFEST_FILE, SIGNATURE_FILE, createAppManifest, signManifest } from './app-manifest.config.js';
@@ -93,6 +93,9 @@ export default defineConfig({
   plugins: [svelte(), cspPlugin(), appManifestPlugin()],
   server: {
     strictPort: true,
+    fs: {
+      allow: [searchForWorkspaceRoot(process.cwd()), realpathSync('node_modules')]
+    },
     watch: {
       ignored: ['**/src-tauri/**']
     }

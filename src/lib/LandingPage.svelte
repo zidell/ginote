@@ -1,5 +1,36 @@
 <script>
+  import { onMount, tick } from 'svelte';
+
   export let onStart = () => {};
+
+  const homebrewInstallCommand = 'brew tap zidell/ginote https://github.com/zidell/ginote\nbrew install --cask ginote';
+  const tuiInstallCommand = 'curl -fsSL https://raw.githubusercontent.com/zidell/ginote/main/tui/install.sh | bash';
+  let selectedDownload = '';
+  let copyMessage = '';
+
+  async function showDownload(platform) {
+    selectedDownload = selectedDownload === platform ? '' : platform;
+    copyMessage = '';
+    if (!selectedDownload) return;
+    await tick();
+    document.getElementById('download-details')?.scrollIntoView?.({ block: 'start' });
+  }
+
+  async function copyCommand(command) {
+    try {
+      await navigator.clipboard.writeText(command);
+      copyMessage = '명령을 복사했습니다.';
+    } catch {
+      copyMessage = '복사하지 못했습니다. 위 명령을 직접 복사해 주세요.';
+    }
+  }
+
+  onMount(async () => {
+    if (location.hash !== '#windows-install') return;
+    selectedDownload = 'windows';
+    await tick();
+    document.getElementById('windows-install')?.scrollIntoView?.({ block: 'start' });
+  });
 </script>
 
 <svelte:head>
@@ -14,9 +45,8 @@
 
   <div class="landing-content">
     <section class="landing-hero" aria-labelledby="landing-title">
-      <p class="landing-eyebrow">GITHUB ISSUES, AS NOTES</p>
-      <h1 id="landing-title">내 노트는<br /><em>내 GitHub 저장소에.</em></h1>
-      <p class="landing-lead">Ginote는 GitHub Issues를 빠르고 편한 개인 노트로 바꿉니다. 별도 계정이나 노트 서버 없이, 내가 고른 저장소에 바로 기록합니다.</p>
+      <h1 id="landing-title" aria-label="GitHub Issues, as notes">GitHub Issues,<br /><em>as notes</em></h1>
+      <p class="landing-lead">가볍고 심플한 나만의 노트 앱. GitHub Issues와 연동되어 개발 공간과 MCP 도구에서도 같은 노트를 사용할 수 있습니다.</p>
       <div class="landing-preview">
         <img src="./landing-preview.gif" alt="Ginote에서 노트를 열고 편집하는 화면" />
       </div>
@@ -28,20 +58,59 @@
     </section>
 
     <section class="landing-details" aria-label="Ginote 특징">
-      <div><strong>내가 소유한 데이터</strong><p>노트는 평범한 GitHub 이슈입니다. github.com에서도 그대로 읽고 수정할 수 있습니다.</p></div>
-      <div><strong>서버 없는 연결</strong><p>브라우저가 GitHub API에 직접 연결합니다. Ginote 서버에 노트나 토큰을 보내지 않습니다.</p></div>
+      <div><strong>MCP와 완전 통합</strong><p>노트가 GitHub Issues에 저장되어 GitHub API와 공식 MCP Server에서 그대로 읽고 쓸 수 있습니다. <a href="https://github.com/github/github-mcp-server" target="_blank" rel="noreferrer">MCP 사용 방법 ↗</a></p></div>
+      <div><strong>한 번 더 잠금</strong><p>비공개 저장소에 보관한 노트라도, 원한다면 본문에 잠금을 걸어 암호화할 수 있습니다.</p></div>
       <div><strong>웹과 앱, 터미널</strong><p>브라우저와 설치형 앱, TUI에서 같은 저장소를 사용할 수 있습니다.</p></div>
     </section>
 
     <section id="downloads" class="landing-downloads" aria-labelledby="downloads-title">
       <p class="landing-eyebrow">INSTALL GINOTE</p>
       <h2 id="downloads-title">원하는 곳에서 쓰세요</h2>
-      <div class="landing-download-grid">
-        <article><h3><i class="bi bi-apple" aria-hidden="true"></i> macOS</h3><p>GitHub Releases에서 Universal DMG를 받아 열고 Ginote를 Applications 폴더로 옮기세요.</p><a href="https://github.com/zidell/ginote/releases/latest">macOS 다운로드 ↗</a></article>
-        <article><h3><i class="bi bi-windows" aria-hidden="true"></i> Windows</h3><p>GitHub Releases에서 <code>x64-setup.exe</code> 설치 파일을 받아 실행하세요. 경고 화면이 나오면 아래 순서대로 진행할 수 있습니다.</p><a href="https://github.com/zidell/ginote/releases/latest">Windows 다운로드 ↗</a> <a class="landing-card-secondary" href="#windows-install">설치 방법 ↓</a></article>
-        <article><h3><i class="bi bi-laptop" aria-hidden="true"></i> Linux</h3><p>배포판에 맞는 deb 또는 rpm을 설치하거나, AppImage에 실행 권한을 주고 실행하세요.</p><a href="https://github.com/zidell/ginote/releases/latest">Linux 다운로드 ↗</a></article>
-        <article><h3><i class="bi bi-terminal" aria-hidden="true"></i> TUI</h3><p>Go 1.27 이상이 필요합니다. 소스를 내려받은 뒤 <code>./tui/build-local.sh</code>를 실행하면 <code>~/.local/bin/ginote-tui</code>에 설치됩니다.</p><a href="https://github.com/zidell/ginote/blob/main/docs/TUI.md">TUI 설치 안내 ↗</a></article>
+      <div class="landing-download-grid" class:has-selection={Boolean(selectedDownload)}>
+        <article class:is-selected={selectedDownload === 'macos'}><h3><i class="bi bi-apple" aria-hidden="true"></i> macOS</h3><p>DMG 설치 파일 또는 Homebrew로 설치합니다.</p><button type="button" aria-expanded={selectedDownload === 'macos'} on:click={() => showDownload('macos')}>설치 방법 {selectedDownload === 'macos' ? '접기 ↑' : '보기 ↓'}</button></article>
+        <article class:is-selected={selectedDownload === 'windows'}><h3><i class="bi bi-windows" aria-hidden="true"></i> Windows</h3><p>Microsoft Store 없이 설치 파일을 내려받아 설치합니다.</p><button type="button" aria-expanded={selectedDownload === 'windows'} on:click={() => showDownload('windows')}>설치 방법 {selectedDownload === 'windows' ? '접기 ↑' : '보기 ↓'}</button></article>
+        <article class:is-selected={selectedDownload === 'linux'}><h3><i class="bi bi-laptop" aria-hidden="true"></i> Linux</h3><p>AppImage, deb, rpm 중에서 선택합니다.</p><button type="button" aria-expanded={selectedDownload === 'linux'} on:click={() => showDownload('linux')}>설치 방법 {selectedDownload === 'linux' ? '접기 ↑' : '보기 ↓'}</button></article>
+        <article class:is-selected={selectedDownload === 'tui'}><h3><i class="bi bi-terminal" aria-hidden="true"></i> TUI</h3><p>터미널에서 한 줄 명령으로 빌드하고 설치합니다.</p><button type="button" aria-expanded={selectedDownload === 'tui'} on:click={() => showDownload('tui')}>설치 방법 {selectedDownload === 'tui' ? '접기 ↑' : '보기 ↓'}</button></article>
       </div>
+      {#if selectedDownload}
+      <div id="download-details" class="landing-install-guide">
+      {#if selectedDownload === 'macos'}
+        <p class="landing-eyebrow">MACOS INSTALL GUIDE</p>
+        <h3>macOS에서 설치하기</h3>
+        <p>아래 두 방법 중 하나를 선택하세요.</p>
+        <div class="landing-install-options">
+          <section class="landing-install-option" aria-labelledby="macos-dmg-title">
+            <h4 id="macos-dmg-title">DMG 파일로 설치</h4>
+            <ol>
+              <li><a href="https://github.com/zidell/ginote/releases/latest">최신 릴리스</a>의 Assets에서 <code>universal.dmg</code>로 끝나는 파일을 받으세요.</li>
+              <li>DMG를 열어 <strong>Ginote</strong>를 <strong>Applications</strong> 폴더로 옮기고 앱을 실행하세요.</li>
+            </ol>
+          </section>
+          <span class="landing-install-or" aria-hidden="true">OR</span>
+          <section class="landing-install-option" aria-labelledby="macos-homebrew-title">
+            <h4 id="macos-homebrew-title">Homebrew로 설치</h4>
+            <p>명령을 복사해 터미널에서 실행하세요.</p>
+            <div class="landing-command"><code>{homebrewInstallCommand}</code><button type="button" on:click={() => copyCommand(homebrewInstallCommand)}>명령 복사</button></div>
+            {#if copyMessage}<p class="landing-copy-message" role="status">{copyMessage}</p>{/if}
+          </section>
+        </div>
+      {:else if selectedDownload === 'linux'}
+        <p class="landing-eyebrow">LINUX INSTALL GUIDE</p>
+        <h3>Linux에서 설치하기</h3>
+        <p><a href="https://github.com/zidell/ginote/releases/latest">최신 릴리스</a>의 Assets에서 배포판에 맞는 파일을 받으세요.</p>
+        <ul>
+          <li><strong>AppImage</strong> · 파일에 실행 권한을 주고 실행합니다: <code>chmod +x Ginote_*.AppImage && ./Ginote_*.AppImage</code></li>
+          <li><strong>Debian / Ubuntu</strong> · <code>sudo apt install ./Ginote_*_amd64.deb</code></li>
+          <li><strong>Fedora / RHEL</strong> · <code>sudo dnf install ./Ginote-*.x86_64.rpm</code></li>
+        </ul>
+      {:else if selectedDownload === 'tui'}
+        <p class="landing-eyebrow">TERMINAL INSTALL GUIDE</p>
+        <h3>터미널에서 TUI 설치하기</h3>
+        <p>Go 1.27.1 이상과 C 컴파일러가 필요합니다. 다음 명령을 터미널에 붙여 넣으면 소스를 내려받아 <code>~/.local/bin/ginote-tui</code>에 설치합니다.</p>
+        <div class="landing-command"><code>{tuiInstallCommand}</code><button type="button" on:click={() => copyCommand(tuiInstallCommand)}>명령 복사</button></div>
+        {#if copyMessage}<p class="landing-copy-message" role="status">{copyMessage}</p>{/if}
+        <p>설치 후 <code>ginote-tui</code>를 실행하세요. 명령을 찾지 못하면 <code>~/.local/bin</code>을 PATH에 추가하세요. <a href="https://github.com/zidell/ginote/blob/main/tui/install.sh">설치 스크립트 보기</a> · <a href="https://github.com/zidell/ginote/blob/main/docs/TUI.md">TUI 상세 문서</a></p>
+      {:else if selectedDownload === 'windows'}
       <div id="windows-install" class="landing-windows-guide">
         <div>
           <p class="landing-eyebrow">WINDOWS INSTALL GUIDE</p>
@@ -66,6 +135,9 @@
           </div>
         </div>
       </div>
+      {/if}
+      </div>
+      {/if}
       <p class="landing-pwa">브라우저에서도 설치할 수 있습니다. 이 페이지를 브라우저의 “앱 설치” 메뉴로 추가하면 다음부터 저장소 설정 화면으로 바로 열립니다.</p>
     </section>
   </div>

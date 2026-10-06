@@ -8,6 +8,18 @@
 
 ## 단일 바이너리로 실행
 
+macOS·Linux에서는 다음 한 줄로 공개 저장소의 최신 소스를 내려받아 빌드·설치할 수 있다.
+Go 1.27.1 이상과 C 컴파일러가 필요하다. 스크립트 내용은 [tui/install.sh](../tui/install.sh)에서 볼 수 있다.
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/zidell/ginote/main/tui/install.sh | bash
+```
+
+설치 위치는 `~/.local/bin/ginote-tui`다. 셸이 `ginote-tui`를 찾지 못하면 `~/.local/bin`을
+`PATH`에 추가한다. 한 줄 설치를 다시 실행하면 최신 `main` 소스로 갱신된다.
+
+저장소를 직접 체크아웃해 개발할 때는 기존 빌드 스크립트를 사용한다.
+
 ```bash
 cd tui
 ./build-local.sh       # ~/.local/bin/ginote-tui 빌드·설치

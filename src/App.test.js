@@ -271,11 +271,29 @@ afterEach(() => {
 describe('App 시작', () => {
   it('일반 브라우저에서 저장소가 없으면 랜딩을 거쳐 설정한다', async () => {
     render(App);
-    expect(await screen.findByRole('heading', { name: /내 GitHub 저장소에/ })).toBeTruthy();
+    expect(await screen.findByRole('heading', { name: /GitHub Issues, as notes/ })).toBeTruthy();
     expect(screen.queryByText('Set up Ginote')).toBeNull();
     await fireEvent.click(screen.getByRole('button', { name: /바로 시작/ }));
     expect(await screen.findByText('Set up Ginote')).toBeTruthy();
     expect(githubModule.verifyConnection).not.toHaveBeenCalled();
+  });
+
+  it('다운로드 안내는 선택한 플랫폼만 펼친다', async () => {
+    render(App);
+    await screen.findByRole('heading', { name: /GitHub Issues, as notes/ });
+    expect(screen.queryByRole('heading', { name: 'Windows에서 설치하기' })).toBeNull();
+
+    const cards = document.querySelectorAll('.landing-download-grid article');
+    await fireEvent.click(within(cards[1]).getByRole('button', { name: /설치 방법 보기/ }));
+    expect(screen.getByRole('heading', { name: 'Windows에서 설치하기' })).toBeTruthy();
+    expect(cards[1].classList.contains('is-selected')).toBe(true);
+    expect(cards[0].classList.contains('is-selected')).toBe(false);
+
+    await fireEvent.click(within(cards[3]).getByRole('button', { name: /설치 방법 보기/ }));
+    expect(screen.queryByRole('heading', { name: 'Windows에서 설치하기' })).toBeNull();
+    expect(screen.getByText(/curl -fsSL https:\/\/raw\.githubusercontent\.com\/zidell\/ginote\/main\/tui\/install\.sh/)).toBeTruthy();
+    expect(cards[3].classList.contains('is-selected')).toBe(true);
+    expect(cards[1].classList.contains('is-selected')).toBe(false);
   });
 
   it('PWA standalone에서는 저장소 설정을 바로 보여준다', async () => {
