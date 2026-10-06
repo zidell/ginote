@@ -407,8 +407,10 @@ func TestLockAndUnlockRoundTrip(t *testing.T) {
 		t.Fatal("locked note hides its body")
 	}
 	other = press(t, other, "enter")
-	other = typeText(t, other, "123456")
-	t.Logf("prompt=%+v lock=%v", other.prompt, other.note.lock)
+	other = typeText(t, other, "12345")
+	// 여섯 번째 숫자에서 복호화가 시작된다. Intel CI에서는 150ms보다 오래 걸린다.
+	next, cmd = other.Update(key("6"))
+	other = drive(t, next.(Model), cmd())
 	if other.note.lock != lockUnlocked || !strings.Contains(other.note.body.Value(), "우유") {
 		t.Fatalf("unlocked body = %q", other.note.body.Value())
 	}
