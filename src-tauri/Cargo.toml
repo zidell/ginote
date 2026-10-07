@@ -23,6 +23,7 @@ ring = "0.17"
 ureq = "3"
 tauri-plugin-dialog = "2"
 keyring-core = "1"
+tauri-plugin-deep-link = "2"
 
 # 자격 증명 저장소는 OS마다 하나씩만 붙인다(src/settings.rs).
 [target.'cfg(target_os = "macos")'.dependencies]
@@ -41,3 +42,6 @@ dirs = "7"
 # 데스크톱 앱 자체 업데이트는 macOS·Linux·Windows에서 쓴다(docs/DESKTOP.md).
 [target.'cfg(any(target_os = "macos", target_os = "linux", target_os = "windows"))'.dependencies]
 tauri-plugin-updater = "2"
+# Windows·Linux는 ginote:// 링크마다 앱을 새로 실행하므로, 이미 떠 있는 창으로 링크를 넘긴다(src/deep_link.rs).
+[target.'cfg(any(target_os = "linux", target_os = "windows"))'.dependencies]
+tauri-plugin-single-instance = { version = "2", features = ["deep-link"] }

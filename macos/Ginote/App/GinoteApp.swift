@@ -99,6 +99,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return event
     }
 
+    /// ginote:// 링크(docs/DEEP_LINK.md). 아직 링크로 하는 일이 없어 쌓아 두고 메인 창만 앞으로 가져온다.
+    /// 이 메서드가 있으면 SwiftUI가 링크마다 새 창을 열지 않는다.
+    func application(_ application: NSApplication, open urls: [URL]) {
+        let links = urls.filter { $0.scheme?.lowercased() == "ginote" }
+        guard !links.isEmpty else { return }
+        Task { @MainActor in
+            AppModel.shared.pendingDeepLinks.append(contentsOf: links)
+            #if DEBUG
+            DebugTrace.log("deep link \(links.map(\.absoluteString))")
+            #endif
+            NSApp.activate(ignoringOtherApps: true)
+            AppModel.shared.openMainWindowIfMissing()
+        }
+    }
+
     /// 종료 전에 남은 저장을 끝낸다.
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         Task { @MainActor in

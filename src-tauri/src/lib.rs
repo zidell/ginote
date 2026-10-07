@@ -1,3 +1,4 @@
+mod deep_link;
 mod ota;
 mod release_update;
 mod settings;
@@ -16,12 +17,20 @@ pub fn run() {
     let embedded = context.set_assets(Box::new(EmptyAssets));
     context.set_assets(Box::new(ota::OtaAssets::new(embedded)));
 
-    release_update::register(tauri::Builder::default())
+    let builder = tauri::Builder::default();
+    // single-instance는 다른 플러그인보다 먼저 등록해야 두 번째 실행을 가장 먼저 가로챈다.
+    #[cfg(any(target_os = "linux", target_os = "windows"))]
+    let builder = builder.plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+        deep_link::focus_main(app);
+    }));
+    release_update::register(builder)
+        .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
-        .setup(|_app| {
+        .setup(|app| {
+            deep_link::setup(app.handle());
             #[cfg(desktop)]
-            settings::watch(_app.handle());
+            settings::watch(app.handle());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -34,7 +43,8 @@ pub fn run() {
             settings::secret_set,
             settings::secret_delete,
             release_update::release_update_supported,
-            release_update::app_restart
+            release_update::app_restart,
+            deep_link::deep_link_take
         ])
         .run(context)
         .expect("error while running Ginote");

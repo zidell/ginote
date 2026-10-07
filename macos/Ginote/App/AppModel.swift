@@ -96,6 +96,8 @@ final class AppModel {
     var editorFocusRequest = 0
     /// 노트를 여는 동시에 본문으로 들어갈 때. 새로 뜬 노트 화면이 받아 간다.
     var pendingEditorFocus = false
+    /// 받았지만 아직 처리하지 않은 ginote:// 링크(docs/DEEP_LINK.md). 링크 기능을 붙일 때 여기서 꺼내 쓴다.
+    var pendingDeepLinks: [URL] = []
     /// 메뉴 명령(GinoteCommands)이 넘겨 둔 메인 창 열기. 메인 창 없이 시작했을 때 쓴다.
     @ObservationIgnored var openMainWindow: (() -> Void)?
 

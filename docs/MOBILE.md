@@ -34,6 +34,7 @@ adb install -r src-tauri/gen/android/app/build/outputs/apk/universal/debug/app-u
 
 - `app/src/main/AndroidManifest.xml`: 음성 메모용 `RECORD_AUDIO`, `MODIFY_AUDIO_SETTINGS`.
   WebView의 마이크 요청은 wry의 `RustWebChromeClient`가 런타임 권한 요청으로 이어 줍니다.
+  `DEEP LINK PLUGIN` 블록(`ginote://` 링크)은 딥링크 플러그인 빌드 단계가 쓰는 내용입니다([DEEP_LINK](DEEP_LINK.md)).
 - `app/src/main/java/net/gitools/note/MainActivity.kt`
   - Android 15의 edge-to-edge 화면에서 시스템 바·화면 컷아웃·키보드 영역만큼 WebView를
     안쪽으로 들입니다. 웹 CSS의 safe-area 값은 WebView 버전마다 달라 쓰지 않습니다.
@@ -81,6 +82,8 @@ xcrun simctl install booted ~/Library/Developer/Xcode/DerivedData/ginote-*/Build
 
 - `src-tauri/Info.ios.plist`: 음성 메모용 `NSMicrophoneUsageDescription`. 빌드 때
   `gen/apple/ginote_iOS/Info.plist`로 합쳐집니다.
+- `gen/apple/ginote_iOS/Info.plist`의 `CFBundleURLTypes`(`ginote://` 링크)는 딥링크 플러그인 빌드 단계가
+  씁니다([DEEP_LINK](DEEP_LINK.md)).
 - 노치·상태 바 영역은 WKWebView가 비워 주므로 Android 같은 별도 처리가 없습니다.
 
 ### 확인한 것 (2026-10-03, 시뮬레이터 iPhone 16 iOS 18.5)

@@ -52,6 +52,8 @@ targets:
         EXECUTABLE_NAME: Ginote
         PRODUCT_BUNDLE_IDENTIFIER: net.gitools.note.mac
         GENERATE_INFOPLIST_FILE: YES
+        # 생성되는 Info.plist에 INFOPLIST_KEY_로 넣을 수 없는 항목(ginote:// 스킴)만 담는다.
+        INFOPLIST_FILE: Ginote/Info.plist
         INFOPLIST_KEY_CFBundleDisplayName: Ginote Native
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.productivity

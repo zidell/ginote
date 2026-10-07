@@ -14,6 +14,7 @@ Ginote를 개발·검증·배포하는 규칙과 절차를 모은 시작 문서�
 | [docs/TUI.md](docs/TUI.md) | 터미널 TUI: 실행, 기능, 설정, 검사 |
 | [docs/CONFIG.md](docs/CONFIG.md) | 설치형 앱의 설정 파일(`config.toml`)과 자격 증명 저장소 |
 | [docs/ATTACHMENTS.md](docs/ATTACHMENTS.md) | 첨부파일 저장 규약, 권한, 보관, 호환성 |
+| [docs/DEEP_LINK.md](docs/DEEP_LINK.md) | `ginote://` 딥링크: 플랫폼별 등록, 셸과 화면 사이 전달, 기능을 붙이는 순서 |
 | [docs/ENCRYPTION.md](docs/ENCRYPTION.md) | 노트 잠금의 암호화 형식, 보호 경계, 배포 pepper |
 | [docs/CODE_SIGNING.md](docs/CODE_SIGNING.md) | 플랫폼별 서명과 개인정보 처리 범위 |
 | [docs/screencasting.md](docs/screencasting.md) | README 미리보기 GIF 생성 |
@@ -113,8 +114,9 @@ npm run build
 ## 지켜야 할 규칙
 
 - **네이티브 호환성**: Tauri command·플러그인·권한을 늘리면 `src-tauri/src/ota.rs`의
-  `NATIVE_API`와 `src/lib/native-api.js`의 `MIN_NATIVE_API`를 함께 올린다. 옛 앱이 새
-  네이티브 기능을 쓰는 웹 빌드를 받지 않게 하는 값이다([APP_OTA](docs/APP_OTA.md)).
+  `NATIVE_API`를 올린다. 웹 빌드가 그 기능 없이는 동작하지 않으면 `src/lib/native-api.js`의
+  `MIN_NATIVE_API`도 함께 올린다. 옛 앱이 새 네이티브 기능을 쓰는 웹 빌드를 받지 않게 하는
+  값이다([APP_OTA](docs/APP_OTA.md)). 웹이 없는 command를 조용히 넘기면 올리지 않는다.
 - **설정 항목**: 설정을 추가·변경하면 `src/lib/app-config.js`의 스키마도 고친다. 설치형 앱의
   `config.toml`과 그 주석이 이 스키마에서 만들어진다([CONFIG](docs/CONFIG.md)).
 - **데이터 형식**: 첨부 경로·링크 형식과 잠금 암호문 형식은 이미 저장된 노트를 다시 읽는

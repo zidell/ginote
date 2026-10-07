@@ -67,7 +67,9 @@ GitHub Pages 전환 전에 설치한 셸은 이전 웹 주소가 내장돼 있�
 - `src-tauri/src/ota.rs`의 `NATIVE_API`: 셸이 제공하는 수준
 - `src/lib/native-api.js`의 `MIN_NATIVE_API`: 프론트엔드가 요구하는 수준
 
-네이티브 표면을 넓히는 변경은 두 값을 함께 올리고 네이티브 릴리스와 짝을 이룹니다.
+네이티브 표면을 넓히는 변경은 `NATIVE_API`를 올리고 네이티브 릴리스와 짝을 이룹니다. 프론트엔드가 그 기능
+없이는 동작하지 않을 때 `MIN_NATIVE_API`도 함께 올립니다. 옛 셸에서 없는 command를 조용히 넘기는 기능(예:
+[딥링크](DEEP_LINK.md))은 `MIN_NATIVE_API`를 올리지 않습니다. 올리면 옛 셸이 웹 빌드를 더 받지 못합니다.
 `minNativeApi`가 셸의 `NATIVE_API`보다 큰 빌드는 받지 않고 지금 번들에 머물며, 프론트엔드에
 "앱 업데이트 필요" 알림을 띄웁니다(`src/lib/app-update.js`). 서버는 최신 빌드 하나만
 두므로, 옛 셸은 마지막으로 호환되던 번들에 남습니다.
