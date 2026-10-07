@@ -95,6 +95,10 @@ open /Applications/Ginote.app
   올립니다. 세 빌드가 끝나면 `scripts/updater-manifest.mjs`가 서명을 모아 `latest.json`을
   만들고 릴리스를 게시합니다.
 - Windows 설치 프로그램도 같은 GitHub 릴리스에 올립니다(아래 Windows).
+- 게시 직전에 설치 파일을 버전 없는 이름(`Ginote_universal.dmg`, `Ginote_x64-setup.exe`,
+  `Ginote_amd64.AppImage`, `Ginote_amd64.deb`, `Ginote.x86_64.rpm`)으로 한 벌 더 올립니다. 랜딩 페이지는
+  `releases/latest/download/<이름>`으로 이 파일을 바로 받습니다(`src/lib/release-downloads.js`). 서명이 없어
+  `latest.json`에는 들어가지 않습니다. TUI는 pre-release라 `latest`로 잡히지 않아 랜딩이 API로 찾습니다.
 - 게시 뒤 최신 데스크톱 릴리스 20개만 남기고, `Casks/ginote.rb`의 버전과 SHA-256을 GitHub Actions
   봇이 `main`에 커밋합니다.
 - 릴리스는 원본 `zidell/ginote` 저장소의 `main`에서만 실행됩니다.
@@ -120,8 +124,8 @@ Tauri NSIS 설치 프로그램(`*-setup.exe`)을 GitHub Releases에 올립니다
 Windows 11과 업데이트된 Windows 10에는 필요한 WebView2 런타임이 기본으로 들어 있습니다.
 과거의 Store 시험용 MSIX 워크플로는 릴리스에서 호출하지 않습니다.
 
-1. [최신 릴리스](https://github.com/zidell/ginote/releases/latest)의 Assets에서 파일 이름이
-   `x64-setup.exe`로 끝나는 설치 프로그램을 내려받습니다.
+1. [최신 설치 프로그램](https://github.com/zidell/ginote/releases/latest/download/Ginote_x64-setup.exe)을
+   내려받습니다.
 2. 파일을 실행할 때 **“Windows의 PC 보호”**가 나오면 **“추가 정보”**를 누릅니다.
 3. 앱 이름이 받은 Ginote 파일과 같은지 확인한 뒤 **“실행”**을 눌러 설치합니다. 브라우저의
    다운로드 경고는 별개이며, 다운로드 목록의 파일 메뉴에서 **“유지”**를 선택해야 할 수 있습니다.

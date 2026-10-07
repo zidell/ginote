@@ -172,6 +172,13 @@ vi.mock('./lib/github.js', () => {
 
 // 녹음기는 마이크가 필요하므로 src/lib/__mocks__/VoiceRecorder.svelte 대역을 쓴다.
 vi.mock('./lib/VoiceRecorder.svelte');
+// 랜딩의 TUI 다운로드는 GitHub Releases API 대신 고정된 릴리스 파일을 쓴다.
+vi.mock('./lib/release-downloads.js', async (importOriginal) => ({
+  ...(await importOriginal()),
+  loadTuiDownloads: vi.fn(async () => [
+    { label: 'Windows x64', name: 'ginote-tui_windows-amd64.zip', url: 'https://github.com/zidell/ginote/releases/download/tui-v0.1.10/ginote-tui_windows-amd64.zip', size: 4_000_000 }
+  ])
+}));
 
 // 설치형 앱에서 config.toml이 바깥에서 바뀌었을 때 받는 알림을 테스트에서 직접 보낸다.
 const settingsFile = vi.hoisted(() => ({ listener: null }));
@@ -288,11 +295,15 @@ describe('App 시작', () => {
     expect(screen.getByRole('heading', { name: 'Install on Windows' })).toBeTruthy();
     expect(cards[1].classList.contains('is-selected')).toBe(true);
     expect(cards[0].classList.contains('is-selected')).toBe(false);
+    const installer = screen.getByRole('link', { name: /Ginote_x64-setup\.exe/ });
+    expect(installer.getAttribute('href')).toBe('https://github.com/zidell/ginote/releases/latest/download/Ginote_x64-setup.exe');
+    expect(installer.hasAttribute('download')).toBe(true);
 
     await fireEvent.click(within(cards[3]).getByRole('button', { name: /Installation Show/ }));
     expect(screen.queryByRole('heading', { name: 'Install on Windows' })).toBeNull();
     expect(screen.getByText(/curl -fsSL https:\/\/raw\.githubusercontent\.com\/zidell\/ginote\/main\/tui\/install\.sh/)).toBeTruthy();
     expect(cards[3].classList.contains('is-selected')).toBe(true);
+    expect((await screen.findByRole('link', { name: /ginote-tui_windows-amd64\.zip/ })).getAttribute('href')).toContain('/releases/download/tui-v0.1.10/');
     expect(cards[1].classList.contains('is-selected')).toBe(false);
   });
 

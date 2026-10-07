@@ -3,6 +3,8 @@
   import { locale } from 'svelte-i18n';
   import { landingCopy } from './landing-copy.js';
   import { LOCALE_OPTIONS } from './i18n.js';
+  import LandingFileLink from './LandingFileLink.svelte';
+  import { DESKTOP_DOWNLOADS, loadTuiDownloads } from './release-downloads.js';
 
   export let onStart = () => {};
   export let onLanguageChange = () => {};
@@ -13,6 +15,8 @@
   const tuiWindowsInstallCommand = 'irm https://raw.githubusercontent.com/zidell/ginote/main/tui/install.ps1 | iex';
   let selectedDownload = '';
   let copyMessage = '';
+  let tuiDownloads = [];
+  let tuiDownloadsRequested = false;
   $: t = landingCopy[$locale] || landingCopy.en;
 
   function changeLanguage(event) {
@@ -20,10 +24,18 @@
     onLanguageChange(event.currentTarget.value);
   }
 
+  // Asked only when the TUI guide opens, so a plain landing visit does not call the GitHub API.
+  function requestTuiDownloads() {
+    if (tuiDownloadsRequested) return;
+    tuiDownloadsRequested = true;
+    loadTuiDownloads().then((files) => { tuiDownloads = files; }, () => {});
+  }
+
   async function showDownload(platform) {
     selectedDownload = selectedDownload === platform ? '' : platform;
     copyMessage = '';
     if (!selectedDownload) return;
+    if (selectedDownload === 'tui') requestTuiDownloads();
     await tick();
     document.getElementById('download-details')?.scrollIntoView?.({ block: 'start' });
   }
@@ -99,7 +111,7 @@
           <section class="landing-install-option" aria-labelledby="macos-dmg-title">
             <h4 id="macos-dmg-title">{t.dmg}</h4>
             <ol>
-              <li><a href="https://github.com/zidell/ginote/releases/latest">{t.latest}</a>{t.dmgStep1}</li>
+              <li>{t.dmgStep1}<br /><LandingFileLink file={DESKTOP_DOWNLOADS.dmg} /></li>
               <li>{t.dmgStep2}</li>
             </ol>
           </section>
@@ -113,11 +125,11 @@
         </div>
       {:else if selectedDownload === 'linux'}
         <h3>{t.linuxTitle}</h3>
-        <p><a href="https://github.com/zidell/ginote/releases/latest">{t.latest}</a>{t.linuxIntro}</p>
+        <p>{t.linuxIntro}</p>
         <ul>
-          <li><strong>AppImage</strong> · {t.appImage} <code>chmod +x Ginote_*.AppImage && ./Ginote_*.AppImage</code></li>
-          <li><strong>Debian / Ubuntu</strong> · <code>sudo apt install ./Ginote_*_amd64.deb</code></li>
-          <li><strong>Fedora / RHEL</strong> · <code>sudo dnf install ./Ginote-*.x86_64.rpm</code></li>
+          <li><strong>AppImage</strong> · <LandingFileLink file={DESKTOP_DOWNLOADS.appImage} /><br />{t.appImage} <code>chmod +x {DESKTOP_DOWNLOADS.appImage.name} && ./{DESKTOP_DOWNLOADS.appImage.name}</code></li>
+          <li><strong>Debian / Ubuntu</strong> · <LandingFileLink file={DESKTOP_DOWNLOADS.deb} /><br /><code>sudo apt install ./{DESKTOP_DOWNLOADS.deb.name}</code></li>
+          <li><strong>Fedora / RHEL</strong> · <LandingFileLink file={DESKTOP_DOWNLOADS.rpm} /><br /><code>sudo dnf install ./{DESKTOP_DOWNLOADS.rpm.name}</code></li>
         </ul>
       {:else if selectedDownload === 'tui'}
         <h3>{t.tuiTitle}</h3>
@@ -128,16 +140,24 @@
         <h4>Windows / PowerShell</h4>
         <p>{t.tuiWindowsReq}</p>
         <div class="landing-command"><code>{tuiWindowsInstallCommand}</code><button type="button" on:click={() => copyCommand(tuiWindowsInstallCommand)}>{t.copy}</button></div>
-        <p>{t.tuiWindowsAfter} <a href="https://github.com/zidell/ginote/blob/main/tui/install.ps1">{t.installScript}</a></p>
+        <p>{t.tuiWindowsAfter} <a href="https://github.com/zidell/ginote/blob/main/tui/install.ps1" target="_blank" rel="noreferrer">{t.installScript}</a></p>
         {#if copyMessage}<p class="landing-copy-message" role="status">{copyMessage}</p>{/if}
-        <p>{t.tuiPrebuilt} <a href="https://github.com/zidell/ginote/releases">{t.tuiReleaseLabel}</a>{t.tuiPrebuiltEnd} <a href="https://github.com/zidell/ginote/blob/main/tui/install.sh">{t.installScript} (macOS / Linux)</a> · <a href="https://github.com/zidell/ginote/blob/main/docs/TUI.md">{t.tuiDocs}</a></p>
+        <p>{t.tuiPrebuilt}</p>
+        {#if tuiDownloads.length}
+          <ul class="landing-file-list">
+            {#each tuiDownloads as file}<li><strong>{file.label}</strong> · <LandingFileLink {file} /></li>{/each}
+          </ul>
+        {:else}
+          <p><LandingFileLink fallbackLabel={t.tuiReleaseLabel} fallbackUrl="https://github.com/zidell/ginote/releases" /></p>
+        {/if}
+        <p><a href="https://github.com/zidell/ginote/blob/main/tui/install.sh" target="_blank" rel="noreferrer">{t.installScript} (macOS / Linux)</a> · <a href="https://github.com/zidell/ginote/blob/main/docs/TUI.md" target="_blank" rel="noreferrer">{t.tuiDocs}</a></p>
       {:else if selectedDownload === 'windows'}
       <div id="windows-install" class="landing-windows-guide">
         <div>
           <h3>{t.windowsTitle}</h3>
           <p>{t.windowsIntro}</p>
           <ol>
-            <li><a href="https://github.com/zidell/ginote/releases/latest">{t.latest}</a>{t.windowsStep1}</li>
+            <li>{t.windowsStep1}<br /><LandingFileLink file={DESKTOP_DOWNLOADS.windows} /></li>
             <li>{t.windowsStep2}</li>
             <li>{t.windowsStep3}</li>
           </ol>
@@ -150,7 +170,7 @@
             <strong>{t.protect}</strong>
             <p>{t.protectMsg}</p>
             <span class="landing-warning-link">{t.moreInfo}</span>
-            <div class="landing-warning-publisher">{t.app}: Ginote_x64-setup.exe<br />{t.publisher}</div>
+            <div class="landing-warning-publisher">{t.app}: {DESKTOP_DOWNLOADS.windows.name}<br />{t.publisher}</div>
             <span class="landing-warning-run">{t.run}</span>
           </div>
         </div>
