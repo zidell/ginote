@@ -16,7 +16,9 @@ param(
     $release = $null
     # TUI releases are prereleases, so releases/latest refers to the desktop app.
     for ($page = 1; $page -le 10; $page++) {
-        $releases = @(Invoke-RestMethod -Uri "https://api.github.com/repos/zidell/ginote/releases?per_page=100&page=$page" -Headers $headers)
+        # Invoke-RestMethod emits JSON arrays as one pipeline object in PowerShell 5.1.
+        # Direct assignment preserves the release array without nesting it in another array.
+        $releases = Invoke-RestMethod -Uri "https://api.github.com/repos/zidell/ginote/releases?per_page=100&page=$page" -Headers $headers
         $release = $releases | Where-Object {
             !$_.draft -and $_.tag_name -like 'tui-v*' -and
             ($_.assets.name -contains $archiveName) -and

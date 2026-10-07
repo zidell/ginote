@@ -17,7 +17,8 @@ function Invoke-RestMethod {
     param($Uri, $Headers)
     if ($global:GinoteInstallerTestScenario -eq 'no-release') { return @() }
     # A desktop release must not be mistaken for the TUI prerelease.
-    @(
+    # Match Invoke-RestMethod: a JSON array is emitted as a single pipeline object.
+    return ,@(
         [pscustomobject]@{ draft = $false; tag_name = 'v0.1.999'; published_at = '2026-10-08'; assets = @() },
         [pscustomobject]@{ draft = $false; tag_name = 'tui-v0.1.99'; published_at = '2026-10-07'; assets = @(
             [pscustomobject]@{ name = $archiveName; browser_download_url = 'https://fixture/archive' },
