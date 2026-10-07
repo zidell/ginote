@@ -380,6 +380,14 @@ func (m Model) changeState(state string) (Model, tea.Cmd) {
 	if m.state == state || m.selectionMode() {
 		return m, nil
 	}
+	return m.enterState(state)
+}
+
+// enterState는 탭에 새로 들어간 것처럼 목록을 비우고 처음부터 다시 받는다.
+func (m Model) enterState(state string) (Model, tea.Cmd) {
+	if m.selectionMode() {
+		return m, nil
+	}
 	m, flush := m.closeNote()
 	m.state = state
 	m.search.SetValue("")

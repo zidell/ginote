@@ -251,6 +251,11 @@ func TestArrowUpFromListReachesNewNoteSearchAndTabs(t *testing.T) {
 	if m.state != "closed" || m.tool != "tabs" {
 		t.Fatal("right switches to the trash tab")
 	}
+	gen := m.gen
+	m = press(t, m, "enter")
+	if m.state != "closed" || m.tool != "tabs" || m.gen == gen {
+		t.Fatalf("enter reloads the current tab instead of switching: state = %q", m.state)
+	}
 	m = press(t, m, "left", "down", "down")
 	if m.state != "open" || m.tool != "new" {
 		t.Fatalf("down goes back through search to new note: tool = %q", m.tool)

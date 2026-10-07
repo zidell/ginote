@@ -91,11 +91,8 @@ func (m Model) handleToolKey(key string) (Model, tea.Cmd, bool) {
 			next.tool = "tabs"
 			return next, cmd, true
 		case "enter", "space":
-			state := "closed"
-			if m.state == "closed" {
-				state = "open"
-			}
-			next, cmd := m.changeState(state)
+			// 탭은 ←/→로 바꾸므로 Enter는 지금 탭에 다시 들어가 목록을 처음부터 받는다.
+			next, cmd := m.enterState(m.state)
 			next.tool = "tabs"
 			return next, cmd, true
 		case "down", "j":

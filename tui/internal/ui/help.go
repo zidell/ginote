@@ -64,7 +64,7 @@ func (m Model) helpBlocks(topic string) []helpBlock {
 	}
 	return []helpBlock{
 		{kind: "p", text: "대부분의 단축키는 노트 목록에서 사용할 수 있습니다. 마우스로도 모든 버튼을 누를 수 있습니다."},
-		{kind: "key", key: "↑ ↓ (k j)", text: "노트 목록에서 위·아래로 이동. 첫 노트에서 ↑를 더 누르면 새 노트 → 검색 → 노트/휴지통 탭(←/→로 바꿈) → 저장소 선택·설정(←/→로 오가고 Enter로 엶)으로 올라감"},
+		{kind: "key", key: "↑ ↓ (k j)", text: "노트 목록에서 위·아래로 이동. 첫 노트에서 ↑를 더 누르면 새 노트 → 검색 → 노트/휴지통 탭(←/→로 바꾸고 Enter로 새로고침) → 저장소 선택·설정(←/→로 오가고 Enter로 엶)으로 올라감"},
 		{kind: "key", key: "Enter", text: "현재 노트 열기 · 한 번 더 누르면 편집"},
 		{kind: "key", key: "Tab / Shift+Tab", text: "열린 노트의 편집기로 이동 / 목록으로 돌아가기"},
 		{kind: "key", key: "N", text: "새 노트 만들기"},
