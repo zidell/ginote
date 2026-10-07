@@ -1,0 +1,3 @@
+# Go formatting and Bash scripts must keep LF on Windows checkouts too.
+*.go text eol=lf
+*.sh text eol=lf

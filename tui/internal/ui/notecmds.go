@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -800,7 +801,7 @@ func (m Model) uploadAttachment(path string) tea.Cmd {
 }
 
 func expandHome(path string) string {
-	if strings.HasPrefix(path, "~/") {
+	if strings.HasPrefix(path, "~/") || (runtime.GOOS == "windows" && strings.HasPrefix(path, `~\`)) {
 		if home, err := os.UserHomeDir(); err == nil {
 			return filepath.Join(home, path[2:])
 		}

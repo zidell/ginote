@@ -134,7 +134,7 @@ npm run build
 - **데스크톱**: 같은 push가 네이티브 셸이나 패키징을 바꿨으면 `.github/workflows/release.yml`이
   macOS·Linux 릴리스와 Windows NSIS 설치 프로그램을 만든다. 대상 경로와 시크릿은 [DESKTOP](docs/DESKTOP.md)에
   있다. 네이티브 변경 없이 릴리스하려면 `.github/desktop-release-trigger.txt`를 수정해 커밋한다.
-- **TUI**: `tui/`가 바뀌면 `.github/workflows/tui-release.yml`이 macOS·Linux의 arm64·amd64
+- **TUI**: `tui/`가 바뀌면 `.github/workflows/tui-release.yml`이 macOS·Linux의 arm64·amd64와 Windows의 amd64
   바이너리를 검사·빌드해 별도 `tui-v...` 릴리스로 올린다([TUI](docs/TUI.md)).
 - **모바일**: 스토어 배포는 아직 자동화하지 않았다([MOBILE](docs/MOBILE.md)).
 

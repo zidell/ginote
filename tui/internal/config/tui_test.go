@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -24,7 +25,8 @@ func TestSaveAndLoadTUIWorkspaces(t *testing.T) {
 	if strings.Contains(string(data), "o/app") {
 		t.Fatal("desktop workspaces must not be copied into the TUI file")
 	}
-	if info, _ := os.Stat(path); info.Mode().Perm() != 0o600 {
+	// Windows의 파일 접근 권한은 ACL이며 Go의 Unix permission bits로 표현되지 않는다.
+	if info, _ := os.Stat(path); runtime.GOOS != "windows" && info.Mode().Perm() != 0o600 {
 		t.Errorf("mode = %v", info.Mode().Perm())
 	}
 	loaded, err := LoadTUI(path)
@@ -36,6 +38,13 @@ func TestSaveAndLoadTUIWorkspaces(t *testing.T) {
 	}
 	if got := loaded.Workspaces[1]; got.Name != "업무" || got.TokenSource != TokenGH || got.Origin != OriginTUI {
 		t.Errorf("workspace = %+v", got)
+	}
+	saved.ActiveWorkspace = "tui-a"
+	if err := SaveTUI(path, saved); err != nil {
+		t.Fatal(err)
+	}
+	if loaded, err := LoadTUI(path); err != nil || loaded.ActiveWorkspace != "tui-a" {
+		t.Fatalf("replaced config = %+v, err = %v", loaded, err)
 	}
 }
 

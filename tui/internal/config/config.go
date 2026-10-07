@@ -57,8 +57,8 @@ const (
 	TitleSeparate       = "separate"
 )
 
-// Path는 데스크톱 앱이 쓰는 config.toml 경로다. Windows MSIX 경로는 패키지 이름이 필요해
-// 여기서 다루지 않고 GINOTE_CONFIG로 지정한다.
+// Path는 데스크톱 앱이 쓰는 config.toml 경로다. 옛 Windows MSIX 설치는 패키지 이름이
+// 필요하므로 GINOTE_CONFIG로 지정한다. 현재 NSIS 설치는 APPDATA를 그대로 쓴다.
 func Path() string {
 	if path := os.Getenv("GINOTE_CONFIG"); path != "" {
 		return path
@@ -69,6 +69,13 @@ func Path() string {
 	}
 	if runtime.GOOS == "darwin" {
 		return filepath.Join(home, "Library", "Application Support", appIdentifier, "config.toml")
+	}
+	if runtime.GOOS == "windows" {
+		base, err := os.UserConfigDir()
+		if err != nil {
+			return ""
+		}
+		return filepath.Join(base, appIdentifier, "config.toml")
 	}
 	base := os.Getenv("XDG_CONFIG_HOME")
 	if base == "" {

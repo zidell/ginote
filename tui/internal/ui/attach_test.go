@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"strings"
 	"testing"
@@ -20,7 +21,10 @@ func TestDroppedFilesParsesTerminalPaths(t *testing.T) {
 		}
 	}
 	escaped := strings.NewReplacer(" ", `\ `, "(", `\(`, ")", `\)`).Replace(spaced)
-	got := droppedFiles(plain + " " + escaped + " ")
+	if runtime.GOOS == "windows" {
+		escaped = `"` + spaced + `"`
+	}
+	got := droppedFiles(`"` + plain + `" ` + escaped + " ")
 	if len(got) != 2 || got[0] != plain || got[1] != spaced {
 		t.Fatalf("paths = %q", got)
 	}
@@ -31,6 +35,34 @@ func TestDroppedFilesParsesTerminalPaths(t *testing.T) {
 		if got := droppedFiles(text); got != nil {
 			t.Errorf("%q is not a drop: %q", text, got)
 		}
+	}
+}
+
+func TestSplitDroppedPathsShellFormats(t *testing.T) {
+	cases := []struct {
+		name    string
+		windows bool
+		text    string
+		want    []string
+	}{
+		{"unix escaped", false, `/tmp/a /tmp/회의\ 메모\ \(1\).pdf`, []string{"/tmp/a", "/tmp/회의 메모 (1).pdf"}},
+		{"unix quoted", false, `'/tmp/a b' "/tmp/c d"`, []string{"/tmp/a b", "/tmp/c d"}},
+		{"windows drive", true, `C:\notes\a.txt`, []string{`C:\notes\a.txt`}},
+		{"windows quoted", true, `"C:\회의 메모 (1).pdf" 'D:\other file.txt'`, []string{`C:\회의 메모 (1).pdf`, `D:\other file.txt`}},
+		{"windows UNC", true, `"\\server\share\a b.txt"`, []string{`\\server\share\a b.txt`}},
+		{"powershell apostrophe", true, `'C:\Jane''s\a.txt'`, []string{`C:\Jane's\a.txt`}},
+		{"powershell escaped space", true, "C:\\a` b.txt", []string{`C:\a b.txt`}},
+		{"windows newline", true, "C:\\a.txt\r\nD:\\b.txt", []string{`C:\a.txt`, `D:\b.txt`}},
+		{"unterminated quote", true, `"C:\a.txt`, nil},
+		{"dangling unix escape", false, `/tmp/a\`, nil},
+		{"dangling powershell escape", true, "C:\\a.txt`", nil},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := splitDroppedPaths(tc.text, tc.windows); !reflect.DeepEqual(got, tc.want) {
+				t.Fatalf("paths = %q, want %q", got, tc.want)
+			}
+		})
 	}
 }
 

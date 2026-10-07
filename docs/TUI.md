@@ -8,6 +8,37 @@
 
 ## 단일 바이너리로 실행
 
+### Windows / PowerShell
+
+64비트 Windows PowerShell 5.1 또는 PowerShell 7에서 다음 명령을 실행한다.
+Windows용 릴리스 실행 파일을 설치하므로 WSL·Bash·Go·C 컴파일러·관리자 권한이 필요하지 않다.
+
+```powershell
+irm https://raw.githubusercontent.com/zidell/ginote/main/tui/install.ps1 | iex
+ginote-tui
+```
+
+설치 위치는 `%LOCALAPPDATA%\Programs\ginote-tui\ginote-tui.exe`다. 설치 스크립트가 사용자
+`PATH`와 현재 PowerShell의 `PATH`에 설치 폴더를 추가한다. 갱신할 때는 실행 중인 TUI를
+종료하고 같은 설치 명령을 다시 실행한다. 다운로드의 SHA-256을 확인한 뒤 파일을 교체한다.
+다운로드·검증 실패 시 기존 실행 파일을 보존한다([tui/install.ps1](../tui/install.ps1)).
+Windows용 ZIP과 체크섬이 포함된 `tui-v...` 릴리스가 있어야 설치할 수 있다.
+
+소스를 직접 빌드하는 개발자는 Go 1.27.1 이상과 MinGW 호환 `gcc`를 PATH에 준비하고 실행한다.
+녹음을 포함해 빌드하며, 빌드 pepper는 macOS·Linux와 같은 환경 변수·`.env`에서 읽는다.
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tui\build-local.ps1
+& "$env:LOCALAPPDATA\Programs\ginote-tui\ginote-tui.exe"
+```
+
+Windows Terminal에서 색상을 지원한다. `NO_COLOR` 또는 `TERM=dumb`이 설정되어 있으면 색상이
+꺼진다. 투명도는 터미널의 외관 설정에서 조절한다. 파일 첨부는 경로 입력과 끌어놓기로 할 수
+있으며 드라이브·UNC 경로와 따옴표로 감싼 공백 포함 경로를 받는다. macOS 전용 입력 소스
+자동 전환·Quick Look·소스 변경 시 자동 재빌드는 Windows에서 사용하지 않는다.
+
+### macOS / Linux
+
 macOS·Linux에서는 다음 한 줄로 공개 저장소의 최신 소스를 내려받아 빌드·설치할 수 있다.
 Go 1.27.1 이상과 C 컴파일러가 필요하다. 스크립트 내용은 [tui/install.sh](../tui/install.sh)에서 볼 수 있다.
 
@@ -174,10 +205,18 @@ go vet ./... && go vet -tags dev ./...
 go test ./...
 ```
 
-`tui/` 변경을 `main`에 커밋하면 GitHub Actions가 macOS·Linux의 arm64·amd64 바이너리를
+Windows에서는 PowerShell에서 `go vet ./...`, `go vet -tags dev ./...`, `go test ./...`를 실행한다.
+설치 스크립트 검사는 저장소 루트에서 실행한다(실제 사용자 PATH·설정·자격 증명은 변경하지 않는다).
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tui\install.test.ps1
+```
+
+`tui/` 변경을 `main`에 커밋하면 GitHub Actions가 macOS·Linux의 arm64·amd64, Windows의 amd64 바이너리를
 검사·빌드해 [`tui-v...` 릴리스](https://github.com/zidell/ginote/releases)에 올린다. Tauri
 데스크톱 앱의 자동 업데이트가 TUI 릴리스를 잘못 선택하지 않도록 GitHub에서 사전 릴리스로
-표시한다. 위 한 줄 설치 명령은 계속 최신 `main` 소스를 직접 빌드한다.
+표시한다. macOS·Linux의 한 줄 설치는 최신 `main` 소스를 직접 빌드하고, Windows의 한 줄
+설치는 Windows ZIP·SHA-256 파일이 있는 최신 TUI 릴리스를 받는다.
 
 `internal/ui`의 테스트는 가짜 GitHub 서버(`fake_test.go`)로 화면 흐름 전체를 검증한다: 목록·
 열기·편집·자동 저장·관리 블록 보존, 새 노트, 삭제 유예와 취소, 복원, 고정, 검색·태그 필터,

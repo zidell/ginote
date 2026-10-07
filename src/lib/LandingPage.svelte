@@ -10,6 +10,7 @@
 
   const homebrewInstallCommand = 'brew tap zidell/ginote https://github.com/zidell/ginote\nbrew install --cask ginote';
   const tuiInstallCommand = 'curl -fsSL https://raw.githubusercontent.com/zidell/ginote/main/tui/install.sh | bash';
+  const tuiWindowsInstallCommand = 'irm https://raw.githubusercontent.com/zidell/ginote/main/tui/install.ps1 | iex';
   let selectedDownload = '';
   let copyMessage = '';
   $: t = landingCopy[$locale] || landingCopy.en;
@@ -120,10 +121,16 @@
         </ul>
       {:else if selectedDownload === 'tui'}
         <h3>{t.tuiTitle}</h3>
+        <h4>macOS / Linux</h4>
         <p>{t.tuiReq}</p>
         <div class="landing-command"><code>{tuiInstallCommand}</code><button type="button" on:click={() => copyCommand(tuiInstallCommand)}>{t.copy}</button></div>
+        <p>{t.tuiAfter}</p>
+        <h4>Windows / PowerShell</h4>
+        <p>{t.tuiWindowsReq}</p>
+        <div class="landing-command"><code>{tuiWindowsInstallCommand}</code><button type="button" on:click={() => copyCommand(tuiWindowsInstallCommand)}>{t.copy}</button></div>
+        <p>{t.tuiWindowsAfter} <a href="https://github.com/zidell/ginote/blob/main/tui/install.ps1">{t.installScript}</a></p>
         {#if copyMessage}<p class="landing-copy-message" role="status">{copyMessage}</p>{/if}
-        <p>{t.tuiAfter} {t.tuiPrebuilt} <a href="https://github.com/zidell/ginote/releases">{t.tuiReleaseLabel}</a>{t.tuiPrebuiltEnd} <a href="https://github.com/zidell/ginote/blob/main/tui/install.sh">{t.installScript}</a> · <a href="https://github.com/zidell/ginote/blob/main/docs/TUI.md">{t.tuiDocs}</a></p>
+        <p>{t.tuiPrebuilt} <a href="https://github.com/zidell/ginote/releases">{t.tuiReleaseLabel}</a>{t.tuiPrebuiltEnd} <a href="https://github.com/zidell/ginote/blob/main/tui/install.sh">{t.installScript} (macOS / Linux)</a> · <a href="https://github.com/zidell/ginote/blob/main/docs/TUI.md">{t.tuiDocs}</a></p>
       {:else if selectedDownload === 'windows'}
       <div id="windows-install" class="landing-windows-guide">
         <div>

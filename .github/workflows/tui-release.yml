@@ -33,7 +33,14 @@ jobs:
             platform: linux-amd64
           - runner: ubuntu-22.04-arm
             platform: linux-arm64
+          - runner: windows-2025
+            platform: windows-amd64
     runs-on: ${{ matrix.runner }}
+    env:
+      CGO_ENABLED: '1'
+    defaults:
+      run:
+        shell: bash
     steps:
       - name: Checkout
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
@@ -48,6 +55,11 @@ jobs:
         working-directory: tui
         run: test -z "$(gofmt -l .)"
 
+      - name: Check Windows installer
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: ./tui/install.test.ps1
+
       - name: Vet and test
         working-directory: tui
         run: |
@@ -56,6 +68,7 @@ jobs:
           go test ./...
 
       - name: Build archive
+        if: runner.os != 'Windows'
         working-directory: tui
         env:
           VITE_NOTE_LOCK_PEPPER: ${{ vars.VITE_NOTE_LOCK_PEPPER }}
@@ -64,11 +77,27 @@ jobs:
           go build -ldflags "$(bash scripts/pepper.sh)" -o dist/ginote-tui ./cmd/ginote-tui
           tar -C dist -czf "dist/ginote-tui_${{ matrix.platform }}.tar.gz" ginote-tui
 
+      - name: Build Windows archive
+        if: runner.os == 'Windows'
+        shell: powershell
+        working-directory: tui
+        env:
+          VITE_NOTE_LOCK_PEPPER: ${{ vars.VITE_NOTE_LOCK_PEPPER }}
+        run: |
+          ./build-local.ps1 -BinDir (Join-Path $PWD 'dist')
+          $archive = Join-Path $PWD 'dist/ginote-tui_windows-amd64.zip'
+          Compress-Archive -LiteralPath dist/ginote-tui.exe -DestinationPath $archive
+          $hash = (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant()
+          [IO.File]::WriteAllText("$archive.sha256", "$hash  ginote-tui_windows-amd64.zip`n")
+
       - name: Upload archive
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: tui-${{ matrix.platform }}
-          path: tui/dist/*.tar.gz
+          path: |
+            tui/dist/*.tar.gz
+            tui/dist/*.zip
+            tui/dist/*.sha256
           if-no-files-found: error
 
   publish:
@@ -92,9 +121,9 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           tag="tui-v0.1.${GITHUB_RUN_NUMBER}"
-          gh release create "$tag" tui-dist/*.tar.gz \
+          gh release create "$tag" tui-dist/* \
             --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
             --title "Ginote TUI ${tag}" \
-            --notes "macOS와 Linux용 Ginote TUI 실행 파일입니다. 데스크톱 앱 자동 업데이트와 구분하기 위해 사전 릴리스로 표시합니다." \
+            --notes "macOS, Linux, Windows용 Ginote TUI 실행 파일입니다. 데스크톱 앱 자동 업데이트와 구분하기 위해 사전 릴리스로 표시합니다." \
             --draft --prerelease
           gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --draft=false

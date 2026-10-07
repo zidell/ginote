@@ -109,47 +109,11 @@ func (m Model) uploadFiles(paths []string) (Model, tea.Cmd) {
 	return next, tea.Batch(toast, tea.Sequence(cmds...))
 }
 
-// droppedFiles는 붙여 넣은 글자가 끌어 놓은 파일들의 경로인지 본다. Terminal은 경로의 공백·특수
-// 문자를 \로 이스케이프하고 파일 사이를 공백으로 띄운다. 따옴표로 감싼 경로도 받는다. 하나라도
-// 실제 파일이 아니면 nil이다(그때는 평소처럼 글자로 붙여 넣는다).
+// droppedFiles는 실제 파일의 절대 경로만 첨부로 받는다. Unix 셸의 백슬래시 이스케이프와
+// Windows 경로의 백슬래시를 구분한다. 하나라도 파일이 아니면 평소처럼 글자로 붙여 넣는다.
 func droppedFiles(text string) []string {
-	text = strings.TrimSpace(text)
-	if text == "" || !(strings.HasPrefix(text, "/") || strings.HasPrefix(text, "~/") || strings.HasPrefix(text, "'") || strings.HasPrefix(text, `"`)) {
-		return nil
-	}
-	var paths []string
-	var current strings.Builder
-	var quote rune
-	escaped := false
-	flush := func() {
-		if current.Len() > 0 {
-			paths = append(paths, current.String())
-			current.Reset()
-		}
-	}
-	for _, r := range text {
-		switch {
-		case escaped:
-			current.WriteRune(r)
-			escaped = false
-		case quote != 0:
-			if r == quote {
-				quote = 0
-			} else {
-				current.WriteRune(r)
-			}
-		case r == '\\':
-			escaped = true
-		case r == '\'' || r == '"':
-			quote = r
-		case r == ' ' || r == '\n' || r == '\t':
-			flush()
-		default:
-			current.WriteRune(r)
-		}
-	}
-	flush()
-	if quote != 0 || len(paths) == 0 {
+	paths := splitDroppedPaths(strings.TrimSpace(text), runtime.GOOS == "windows")
+	if len(paths) == 0 {
 		return nil
 	}
 	for index, path := range paths {
@@ -162,6 +126,54 @@ func droppedFiles(text string) []string {
 			return nil
 		}
 		paths[index] = path
+	}
+	return paths
+}
+
+func splitDroppedPaths(text string, windows bool) []string {
+	var paths []string
+	var current strings.Builder
+	var quote rune
+	escaped := false
+	flush := func() {
+		if current.Len() > 0 {
+			paths = append(paths, current.String())
+			current.Reset()
+		}
+	}
+	runes := []rune(text)
+	for index := 0; index < len(runes); index++ {
+		r := runes[index]
+		switch {
+		case escaped:
+			current.WriteRune(r)
+			escaped = false
+		case quote != 0:
+			if r == quote {
+				if windows && index+1 < len(runes) && runes[index+1] == quote {
+					current.WriteRune(r)
+					index++
+				} else {
+					quote = 0
+				}
+			} else if windows && quote == '"' && r == '`' {
+				escaped = true
+			} else {
+				current.WriteRune(r)
+			}
+		case !windows && r == '\\', windows && r == '`':
+			escaped = true
+		case r == '\'' || r == '"':
+			quote = r
+		case r == ' ' || r == '\n' || r == '\r' || r == '\t':
+			flush()
+		default:
+			current.WriteRune(r)
+		}
+	}
+	flush()
+	if quote != 0 || escaped || len(paths) == 0 {
+		return nil
 	}
 	return paths
 }

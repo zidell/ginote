@@ -3,8 +3,27 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
+
+func TestDesktopConfigPathOnWindows(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("Windows desktop config location")
+	}
+	t.Setenv("GINOTE_CONFIG", "")
+	base := t.TempDir()
+	t.Setenv("APPDATA", base)
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(base, "unrelated"))
+	if got, want := Path(), filepath.Join(base, appIdentifier, "config.toml"); got != want {
+		t.Fatalf("Path() = %q, want %q", got, want)
+	}
+	custom := filepath.Join(base, "custom.toml")
+	t.Setenv("GINOTE_CONFIG", custom)
+	if got := Path(); got != custom {
+		t.Fatalf("override = %q", got)
+	}
+}
 
 func TestLoadReadsWorkspacesWrittenByTheDesktopApp(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "config.toml")

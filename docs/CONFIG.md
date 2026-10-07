@@ -10,7 +10,7 @@ AI 에이전트가 앱 화면을 열지 않고도 설정을 찾아 바꿀 수 �
 
 | 대상 | 위치 |
 | --- | --- |
-| 설정 파일 | macOS `~/Library/Application Support/net.gitools.note/config.toml`, Linux `~/.config/net.gitools.note/config.toml`, Windows(MSIX) `%LOCALAPPDATA%\Packages\<패키지 패밀리 이름>\LocalCache\Roaming\net.gitools.note\config.toml`, 모바일은 앱 샌드박스의 같은 이름 파일. 실제 경로는 `ginote --config-path`가 출력합니다. |
+| 설정 파일 | macOS `~/Library/Application Support/net.gitools.note/config.toml`, Linux `~/.config/net.gitools.note/config.toml`, Windows(NSIS) `%APPDATA%\net.gitools.note\config.toml`, 옛 Windows MSIX 설치는 `%LOCALAPPDATA%\Packages\<패키지 패밀리 이름>\LocalCache\Roaming\net.gitools.note\config.toml`, 모바일은 앱 샌드박스의 같은 이름 파일. 실제 경로는 `ginote --config-path`가 출력합니다. |
 | 읽기 결과 | 같은 폴더의 `config-status.txt` |
 | PAT | 자격 증명 저장소, 서비스 `net.gitools.note`, 이름 `github-pat:<워크스페이스 id>` |
 | OpenAI 키 | 자격 증명 저장소, 서비스 `net.gitools.note`, 이름 `openai-api-key` |
