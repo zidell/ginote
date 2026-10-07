@@ -285,6 +285,30 @@ describe('App 시작', () => {
     expect(githubModule.verifyConnection).not.toHaveBeenCalled();
   });
 
+  it('휴대폰 랜딩은 데스크톱 다운로드보다 홈 화면 추가 안내를 먼저 보여 준다', async () => {
+    vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue('Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Version/18.0 Mobile/15E148 Safari/604.1');
+    render(App);
+    const guide = (await screen.findByRole('heading', { name: 'Install on your phone' })).closest('article');
+    expect(guide.nextElementSibling.classList.contains('landing-download-grid')).toBe(true);
+    expect(within(guide).getByText(/Add to Home Screen/)).toBeTruthy();
+    expect(document.querySelector('.landing-pwa')).toBeNull();
+  });
+
+  it('저장소를 연결한 휴대폰 브라우저에는 닫을 수 있는 설치 배너를 한 번 보여 준다', async () => {
+    vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue('Mozilla/5.0 (Linux; Android 15; Pixel 9) AppleWebKit/537.36 Chrome/140.0 Mobile Safari/537.36');
+    saveWorkspaces();
+    seedRepository();
+    const { unmount } = await renderReadyApp();
+    const banner = screen.getByRole('region', { name: 'Install on your phone' });
+    expect(within(banner).getByText(/Install app/)).toBeTruthy();
+    await fireEvent.click(within(banner).getByRole('button', { name: 'Close install guide' }));
+    expect(screen.queryByRole('region', { name: 'Install on your phone' })).toBeNull();
+
+    unmount();
+    await renderReadyApp();
+    expect(screen.queryByRole('region', { name: 'Install on your phone' })).toBeNull();
+  });
+
   it('다운로드 안내는 선택한 플랫폼만 펼친다', async () => {
     render(App);
     await screen.findByRole('heading', { name: /GitHub Issues, as notes/ });

@@ -458,11 +458,22 @@ const help = {
   }
 };
 
-addMessages('en', { ...en, dynamic: dynamic.en, errors: errors.en, meta: meta.en, settings: settings.en, setup: setup.en, workspace: workspace.en, help: help.en });
-addMessages('ko', { ...ko, dynamic: dynamic.ko, errors: errors.ko, meta: meta.ko, settings: settings.ko, setup: setup.ko, workspace: workspace.ko, help: help.ko });
-addMessages('zh-CN', { ...zh, dynamic: dynamicFor('zh-CN'), errors: errors.en, meta: meta['zh-CN'], settings: { ...settings.en, ...settings['zh-CN'] }, setup: setup['zh-CN'], workspace: workspace['zh-CN'], help: help['zh-CN'] });
+const pwaInstall = {
+  en: { title: 'Install on your phone', intro: 'Add Ginote to your home screen to open it full screen, like an app.', install: 'Install app', installed: 'Installed. Open Ginote from your home screen.', dismiss: 'Close install guide' },
+  ko: { title: '휴대폰에 앱으로 설치', intro: '홈 화면에 추가하면 앱처럼 전체 화면으로 열립니다.', install: '앱 설치', installed: '설치했습니다. 홈 화면의 Ginote 아이콘으로 여세요.', dismiss: '설치 안내 닫기' },
+  'zh-CN': { title: '安装到手机', intro: '将 Ginote 添加到主屏幕后，可像应用一样全屏打开。', install: '安装应用', installed: '已安装。请从主屏幕打开 Ginote。', dismiss: '关闭安装提示' },
+  ja: { title: 'スマートフォンにインストール', intro: 'ホーム画面に追加すると、アプリのように全画面で開けます。', install: 'アプリをインストール', installed: 'インストールしました。ホーム画面の Ginote から開いてください。', dismiss: 'インストール案内を閉じる' },
+  de: { title: 'Auf dem Smartphone installieren', intro: 'Füge Ginote zum Startbildschirm hinzu, um es wie eine App im Vollbild zu öffnen.', install: 'App installieren', installed: 'Installiert. Öffne Ginote über den Startbildschirm.', dismiss: 'Installationshinweis schließen' },
+  fr: { title: 'Installer sur votre téléphone', intro: 'Ajoutez Ginote à l’écran d’accueil pour l’ouvrir en plein écran, comme une application.', install: 'Installer l’application', installed: 'Installée. Ouvrez Ginote depuis l’écran d’accueil.', dismiss: 'Fermer le guide d’installation' },
+  it: { title: 'Installa sul telefono', intro: 'Aggiungi Ginote alla schermata Home per aprirlo a schermo intero, come un’app.', install: 'Installa app', installed: 'Installata. Apri Ginote dalla schermata Home.', dismiss: 'Chiudi la guida all’installazione' },
+  es: { title: 'Instalar en el teléfono', intro: 'Añade Ginote a la pantalla de inicio para abrirlo a pantalla completa, como una app.', install: 'Instalar app', installed: 'Instalada. Abre Ginote desde la pantalla de inicio.', dismiss: 'Cerrar la guía de instalación' }
+};
+
+addMessages('en', { ...en, dynamic: dynamic.en, errors: errors.en, meta: meta.en, settings: settings.en, setup: setup.en, workspace: workspace.en, help: help.en, pwaInstall: pwaInstall.en });
+addMessages('ko', { ...ko, dynamic: dynamic.ko, errors: errors.ko, meta: meta.ko, settings: settings.ko, setup: setup.ko, workspace: workspace.ko, help: help.ko, pwaInstall: pwaInstall.ko });
+addMessages('zh-CN', { ...zh, dynamic: dynamicFor('zh-CN'), errors: errors.en, meta: meta['zh-CN'], settings: { ...settings.en, ...settings['zh-CN'] }, setup: setup['zh-CN'], workspace: workspace['zh-CN'], help: help['zh-CN'], pwaInstall: pwaInstall['zh-CN'] });
 for (const code of ['ja', 'de', 'fr', 'it', 'es']) {
-  addMessages(code, { ...catalogWithOverrides(common[code]), dynamic: dynamicFor(code), errors: errors.en, meta: meta[code], settings: { ...settings.en, ...settings[code] }, setup: setup[code], workspace: workspace[code], help: help[code] });
+  addMessages(code, { ...catalogWithOverrides(common[code]), dynamic: dynamicFor(code), errors: errors.en, meta: meta[code], settings: { ...settings.en, ...settings[code] }, setup: setup[code], workspace: workspace[code], help: help[code], pwaInstall: pwaInstall[code] });
 }
 
 export function normalizeLocale(value) {

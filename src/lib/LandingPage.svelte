@@ -4,6 +4,8 @@
   import { landingCopy } from './landing-copy.js';
   import { LOCALE_OPTIONS } from './i18n.js';
   import LandingFileLink from './LandingFileLink.svelte';
+  import MobileInstallGuide from './MobileInstallGuide.svelte';
+  import { mobileInstallPlatform } from './pwa-install.js';
   import { DESKTOP_DOWNLOADS, loadTuiDownloads } from './release-downloads.js';
 
   export let onStart = () => {};
@@ -17,6 +19,8 @@
   let copyMessage = '';
   let tuiDownloads = [];
   let tuiDownloadsRequested = false;
+  // Phones cannot use the desktop downloads, so their install route comes first.
+  const mobilePlatform = mobileInstallPlatform();
   $: t = landingCopy[$locale] || landingCopy.en;
 
   function changeLanguage(event) {
@@ -96,6 +100,7 @@
 
     <section id="downloads" class="landing-downloads" aria-labelledby="downloads-title">
       <h2 id="downloads-title">{t.download}</h2>
+      {#if mobilePlatform}<MobileInstallGuide platform={mobilePlatform} />{/if}
       <div class="landing-download-grid" class:has-selection={Boolean(selectedDownload)}>
         <article class:is-selected={selectedDownload === 'macos'}><h3><i class="bi bi-apple" aria-hidden="true"></i> macOS</h3><p>{t.cards.macos}</p><button type="button" aria-expanded={selectedDownload === 'macos'} on:click={() => showDownload('macos')}>{t.installMethod} {selectedDownload === 'macos' ? t.hide : t.view}</button></article>
         <article class:is-selected={selectedDownload === 'windows'}><h3><i class="bi bi-windows" aria-hidden="true"></i> Windows</h3><p>{t.cards.windows}</p><button type="button" aria-expanded={selectedDownload === 'windows'} on:click={() => showDownload('windows')}>{t.installMethod} {selectedDownload === 'windows' ? t.hide : t.view}</button></article>
@@ -178,7 +183,7 @@
       {/if}
       </div>
       {/if}
-      <p class="landing-pwa">{t.pwa}</p>
+      {#if !mobilePlatform}<p class="landing-pwa">{t.pwa}</p>{/if}
     </section>
   </div>
   <footer class="landing-footer">Ginote · <a href="https://github.com/zidell/ginote">{t.source}</a> · GPLv3</footer>

@@ -14,6 +14,8 @@
   import LandingPage from './lib/LandingPage.svelte';
   import { shouldShowLanding } from './lib/landing-mode.js';
   import { isStandaloneWebApp } from './lib/external-links.js';
+  import MobileInstallGuide from './lib/MobileInstallGuide.svelte';
+  import { dismissInstallBanner, isInstallBannerDismissed, mobileInstallPlatform } from './lib/pwa-install.js';
   import TagSettings from './lib/TagSettings.svelte';
   import WorkspaceList from './lib/WorkspaceList.svelte';
   import WorkspaceSwitcher from './lib/WorkspaceSwitcher.svelte';
@@ -166,6 +168,8 @@
   let releaseUpdate = null;
   let appState = 'booting';
   let showLanding = false;
+  // Mobile visitors who already connected a repository skip the landing page, so they learn about installing here.
+  let installBannerPlatform = isInstallBannerDismissed() ? '' : mobileInstallPlatform({ installedApp: isInstalledApp() });
   let user = null;
   let repository = null;
   let issues = [];
@@ -2428,9 +2432,13 @@
     class="app-shell"
     class:mobile-detail-active={Boolean(contentRoute)}
     class:touch-device={touchDevice}
+    class:has-install-banner={Boolean(installBannerPlatform)}
   >
     {#if $toast}
       <div class="app-toast" role="status">{$toast}</div>
+    {/if}
+    {#if installBannerPlatform && !contentRoute}
+      <MobileInstallGuide variant="banner" platform={installBannerPlatform} onDismiss={() => { dismissInstallBanner(); installBannerPlatform = ''; }} />
     {/if}
     <main class="note-workspace" class:sidebar-resizing={sidebarResizing} style="--sidebar-width: {sidebarWidth}px">
       <aside class="note-sidebar">

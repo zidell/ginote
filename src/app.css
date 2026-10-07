@@ -52,6 +52,11 @@
 .landing-download-grid p { min-height: 48px; color: var(--ui-text-secondary); line-height: 1.6; }
 .landing-download-grid button { padding: 0; border: 0; background: none; color: var(--ui-text-accent); font-weight: 700; text-align: left; }
 .landing-download-grid button:hover { text-decoration: underline; }
+.landing-mobile-install { margin-bottom: 16px; padding: 26px; border: 1px solid var(--ui-text-accent); border-radius: 10px; background: var(--ui-bg-card); }
+.landing-mobile-install h3 { margin: 0 0 12px; font-size: 20px; }
+.landing-mobile-install p { margin: 0 0 14px; color: var(--ui-text-secondary); line-height: 1.6; }
+.landing-mobile-install p:last-child { margin-bottom: 0; }
+.landing-mobile-install-steps { color: var(--ui-text-primary) !important; }
 .landing-install-guide { margin-top: 16px; padding: clamp(24px, 4vw, 42px); border: 1px solid var(--ui-border); border-radius: 12px; background: var(--ui-bg-card); scroll-margin-top: 20px; }
 .landing-install-guide h3 { margin: 0 0 12px; font-size: 26px; }
 .landing-install-guide p, .landing-install-guide li { color: var(--ui-text-secondary); line-height: 1.7; }
@@ -638,6 +643,13 @@ html.mode-light .note-row-labels { opacity: 1; }
 @media (max-width: 420px) { .keyboard-shortcuts > div { grid-template-columns: 1fr; gap: .2rem; } }
 .region-spinner { --bs-spinner-width: 1rem; --bs-spinner-height: 1rem; --bs-spinner-border-width: .14em; }
 .app-toast { position: fixed; z-index: 1100; top: 100px; left: 50%; padding: .55rem .85rem; border: 1px solid var(--ui-toast-border); border-radius: 5px; color: var(--ui-toast-text); background: var(--ui-toast-bg); box-shadow: 0 6px 18px var(--ui-shadow); font-size: .85rem; pointer-events: none; transform: translateX(-50%); }
+.pwa-install-banner { position: fixed; z-index: 1090; right: .75rem; bottom: calc(.75rem + env(safe-area-inset-bottom)); left: .75rem; display: flex; align-items: center; gap: .65rem; padding: .65rem .55rem .65rem .75rem; border: 1px solid var(--ui-border-input); border-radius: 8px; color: var(--ui-text-primary); background: var(--ui-bg-overlay); box-shadow: 0 6px 18px var(--ui-shadow); font-size: .85rem; }
+.pwa-install-banner-text span { color: var(--ui-text-secondary); }
+.pwa-install-banner img { flex: none; width: 32px; height: 32px; }
+.pwa-install-banner-text { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: .1rem; line-height: 1.4; }
+.pwa-install-banner .btn { flex: none; }
+.pwa-install-dismiss { color: inherit; }
+.has-install-banner .note-list-scroll { padding-bottom: 6rem; }
 .merge-progress-overlay { position: fixed; z-index: 1200; inset: 0; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: .65rem; color: var(--ui-text-heading); background: var(--ui-api-mask); font-size: .95rem; pointer-events: auto; cursor: wait; }
 .merge-progress-overlay .braille-spinner { font-size: 1.3rem; }
 .list-api-overlay { display: grid; place-items: center; background: var(--ui-api-mask); }
