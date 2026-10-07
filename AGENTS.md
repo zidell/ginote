@@ -113,6 +113,7 @@ npm run build
 
 ## 지켜야 할 규칙
 
+- **단축키 대응**: macOS의 `Cmd` 단축키는 Windows에서 `Ctrl`로 대응하며, Tauri 셸의 키 전달과 웹앱의 처리를 함께 확인한다.
 - **네이티브 호환성**: Tauri command·플러그인·권한을 늘리면 `src-tauri/src/ota.rs`의
   `NATIVE_API`를 올린다. 웹 빌드가 그 기능 없이는 동작하지 않으면 `src/lib/native-api.js`의
   `MIN_NATIVE_API`도 함께 올린다. 옛 앱이 새 네이티브 기능을 쓰는 웹 빌드를 받지 않게 하는

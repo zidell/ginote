@@ -3,6 +3,7 @@
   import McpGuide from './McpGuide.svelte';
   import SheetView from './SheetView.svelte';
   import { externalLinkTarget } from './external-links.js';
+  import { isInstalledApp } from './dialogs.js';
 
   export let topic;
   export let mcpRepository = '';
@@ -51,6 +52,11 @@
       <div><dt><kbd>↑</kbd> <kbd>↓</kbd></dt><dd>{$_('help.keyboardMove')}</dd></div>
       <div><dt><kbd>Enter</kbd></dt><dd>{$_('help.keyboardOpen')}</dd></div>
       <div><dt><kbd>N</kbd></dt><dd>{$_('help.keyboardNew')}</dd></div>
+      {#if isInstalledApp()}
+        <div><dt><kbd>Ctrl</kbd>/<kbd>Cmd</kbd> + <kbd>N</kbd></dt><dd>{$_('help.keyboardNew')}</dd></div>
+        <div><dt><kbd>Ctrl</kbd>/<kbd>Cmd</kbd> + <kbd>,</kbd></dt><dd>{$_('settings.sidebarLabel')}</dd></div>
+        <div><dt><kbd>Ctrl</kbd>/<kbd>Cmd</kbd> + <kbd>1</kbd>~<kbd>9</kbd></dt><dd>{$_('help.keyboardWorkspace')}</dd></div>
+      {/if}
       <div><dt><kbd>Ctrl</kbd>/<kbd>Cmd</kbd> + <kbd>R</kbd></dt><dd>{$_('help.keyboardRefresh')}</dd></div>
       <div><dt><kbd>`</kbd></dt><dd>{$_('help.keyboardWorkspaceMenu')}</dd></div>
       <div><dt><kbd>1</kbd>~<kbd>9</kbd></dt><dd>{$_('help.keyboardWorkspace')}</dd></div>

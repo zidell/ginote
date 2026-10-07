@@ -53,11 +53,15 @@ describe('단축키 판별', () => {
     expect(workspaceNumberFromEvent(keyEvent('a', { code: 'KeyA' }))).toBe(0);
   });
 
-  it('설치형 앱에서 수정 키가 Cmd뿐인 숫자 키를 저장소 단축키로 본다', () => {
+  it('설치형 앱에서 Ctrl 또는 Cmd와 숫자 키를 저장소 단축키로 본다', () => {
     expect(isInstalledWorkspaceShortcut(keyEvent('2', { metaKey: true }), true)).toBe(true);
     expect(isInstalledWorkspaceShortcut(keyEvent('2', { metaKey: true }), false)).toBe(false);
     expect(isInstalledWorkspaceShortcut(keyEvent('2', { metaKey: true, shiftKey: true }), true)).toBe(false);
-    expect(isInstalledWorkspaceShortcut(keyEvent('2', { ctrlKey: true }), true)).toBe(false);
+    expect(isInstalledWorkspaceShortcut(keyEvent('2', { ctrlKey: true }), true)).toBe(true);
+    expect(isInstalledWorkspaceShortcut(keyEvent('2', { ctrlKey: true, metaKey: true }), true)).toBe(false);
+    expect(isInstalledWorkspaceShortcut(keyEvent('2', { ctrlKey: true, altKey: true }), true)).toBe(false);
+    expect(isInstalledWorkspaceShortcut(keyEvent('2', { ctrlKey: true, repeat: true }), true)).toBe(false);
+    expect(isInstalledWorkspaceShortcut(keyEvent('2', { ctrlKey: true, isComposing: true }), true)).toBe(false);
   });
 
   it('Delete와 Backspace를 키나 물리 키 위치로 알아본다', () => {

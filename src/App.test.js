@@ -193,6 +193,7 @@ vi.mock('./lib/settings-backend.js', async (importOriginal) => ({
 import App from './App.svelte';
 import { defaultSnapshot } from './lib/app-config.js';
 import * as githubModule from './lib/github.js';
+import * as dialogs from './lib/dialogs.js';
 import { setAppLocale } from './lib/i18n.js';
 
 const SETTINGS_KEY = 'issue-note.settings.v1';
@@ -536,6 +537,33 @@ describe('키보드 조작', () => {
     await waitFor(() => expect(window.location.hash).toBe('#!/note.100'));
   });
 
+  it.each(['ctrlKey', 'metaKey'])('설치형 앱의 %s+N은 편집 중에도 새 노트를 연다', async (modifier) => {
+    saveWorkspaces();
+    await renderReadyApp();
+    await key('ArrowDown');
+    await key('Enter');
+    await key('Enter');
+    await waitFor(() => expect(document.activeElement).toBe(document.querySelector('.note-detail-layer.active .inline-body')));
+    vi.spyOn(dialogs, 'isInstalledApp').mockReturnValue(true);
+
+    await key('ㅜ', { code: 'KeyN', [modifier]: true });
+
+    await waitFor(() => expect(callsTo('createIssue')).toHaveLength(1));
+    await waitFor(() => expect(window.location.hash).toBe('#!/note.100'));
+  });
+
+  it('브라우저의 Ctrl+N과 설치형 앱의 반복 입력은 새 노트를 만들지 않는다', async () => {
+    saveWorkspaces();
+    await renderReadyApp();
+    const browserEvent = new KeyboardEvent('keydown', { key: 'n', code: 'KeyN', ctrlKey: true, cancelable: true });
+    window.dispatchEvent(browserEvent);
+    expect(browserEvent.defaultPrevented).toBe(false);
+    vi.spyOn(dialogs, 'isInstalledApp').mockReturnValue(true);
+    await key('n', { ctrlKey: true, repeat: true });
+    await key('n', { ctrlKey: true, isComposing: true });
+    expect(callsTo('createIssue')).toHaveLength(0);
+  });
+
   it('Delete는 2초 유예 뒤 휴지통으로 옮기고, 그 전에 Esc로 취소할 수 있다', async () => {
     saveWorkspaces();
     await renderReadyApp();
@@ -590,7 +618,7 @@ describe('키보드 조작', () => {
     await waitFor(() => expect(JSON.parse(localStorage.getItem(SETTINGS_KEY)).activeWorkspaceId).toBe('ws-2'));
   });
 
-  it('설치형 앱은 입력칸에서도 Cmd+숫자로 저장소를 전환한다', async () => {
+  it.each(['ctrlKey', 'metaKey'])('설치형 앱은 입력칸에서도 %s+숫자로 저장소를 전환한다', async (modifier) => {
     saveWorkspaces([
       { id: 'ws-1', repo: 'octo/notes', token: 'ghp_test', rememberToken: true },
       { id: 'ws-2', repo: 'octo/work', token: 'ghp_work', rememberToken: true }
@@ -599,7 +627,7 @@ describe('키보드 조작', () => {
     vi.stubGlobal('__TAURI_INTERNALS__', {});
     const search = document.querySelector('input[type="search"]');
     search.focus();
-    await key('2', { code: 'Digit2', metaKey: true });
+    await key('2', { code: 'Digit2', [modifier]: true });
     await waitFor(() => expect(callsTo('verifyConnection').at(-1)).toEqual(['ghp_work', 'octo/work']));
   });
 });
@@ -640,6 +668,24 @@ describe('여러 노트 선택 작업', () => {
 });
 
 describe('환경설정과 안내', () => {
+  it.each(['ctrlKey', 'metaKey'])('설치형 앱의 %s+,는 편집 중 환경설정을 열고 닫으면 노트로 돌아온다', async (modifier) => {
+    saveWorkspaces();
+    await renderReadyApp();
+    await key('ArrowDown');
+    await key('Enter');
+    await key('Enter');
+    await waitFor(() => expect(document.activeElement).toBe(document.querySelector('.note-detail-layer.active .inline-body')));
+    const noteHash = window.location.hash;
+    vi.spyOn(dialogs, 'isInstalledApp').mockReturnValue(true);
+
+    await key(',', { code: 'Comma', [modifier]: true });
+    await waitFor(() => expect(window.location.hash).toBe(`${noteHash}/settings`));
+    await key(',', { [modifier]: true });
+    expect(window.location.hash).toBe(`${noteHash}/settings`);
+    await fireEvent.click(screen.getByRole('button', { name: 'Close settings' }));
+    await waitFor(() => expect(window.location.hash).toBe(noteHash));
+  });
+
   it('환경설정에서 바꾼 값은 닫을 때 저장한다', async () => {
     saveWorkspaces();
     await renderReadyApp();

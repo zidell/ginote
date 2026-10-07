@@ -20,8 +20,7 @@ export function workspaceNumberFromEvent(event) {
 }
 
 export function isInstalledWorkspaceShortcut(event, installed) {
-  return installed && event.metaKey && !event.ctrlKey && !event.altKey && !event.shiftKey
-    && !event.repeat && !event.isComposing && workspaceNumberFromEvent(event) > 0;
+  return isInstalledPrimaryShortcut(event, installed) && workspaceNumberFromEvent(event) > 0;
 }
 
 export function isDeleteShortcut(event) {
@@ -32,6 +31,20 @@ export function isDeleteShortcut(event) {
 export function isNewNoteShortcut(event) {
   // event.key는 현재 입력 소스를 반영하지만 event.code는 물리 키 위치를 유지한다.
   return event.key.toLocaleLowerCase() === 'n' || event.code === 'KeyN';
+}
+
+function isInstalledPrimaryShortcut(event, installed) {
+  return installed && Boolean(event.ctrlKey) !== Boolean(event.metaKey)
+    && !event.altKey && !event.shiftKey && !event.repeat && !event.isComposing;
+}
+
+export function isInstalledNewNoteShortcut(event, installed) {
+  return isInstalledPrimaryShortcut(event, installed) && isNewNoteShortcut(event);
+}
+
+export function isInstalledSettingsShortcut(event, installed) {
+  return isInstalledPrimaryShortcut(event, installed)
+    && (event.key === ',' || event.code === 'Comma');
 }
 
 // 포커스가 여기에 있으면 목록 단축키를 쓰지 않는다.

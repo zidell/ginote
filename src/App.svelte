@@ -59,6 +59,8 @@
     isDeleteShortcut,
     isEditableElement,
     isFormControl,
+    isInstalledNewNoteShortcut,
+    isInstalledSettingsShortcut,
     isInstalledWorkspaceShortcut,
     isNewNoteShortcut,
     isNoteRowButton,
@@ -1328,7 +1330,20 @@
     const canNavigate = canUseKeyboardListNavigation();
     const canUseShortcuts = !selectionMode && canNavigate;
 
-    // 설치형 앱에서는 입력칸에 포커스가 있어도 Cmd+1~9로 저장소를 바꾼다.
+    // 설치형 앱에서는 편집 중에도 Ctrl/Cmd+N으로 새 노트를 연다.
+    if (canUseShortcuts && isInstalledNewNoteShortcut(event, isInstalledApp())) {
+      event.preventDefault();
+      newNote();
+      return;
+    }
+
+    if (canUseShortcuts && isInstalledSettingsShortcut(event, isInstalledApp())) {
+      event.preventDefault();
+      openSettings();
+      return;
+    }
+
+    // 설치형 앱에서는 입력칸에 포커스가 있어도 Ctrl/Cmd+1~9로 저장소를 바꾼다.
     if (canUseShortcuts && isInstalledWorkspaceShortcut(event, isInstalledApp())) {
       const workspace = workspaces[workspaceNumberFromEvent(event) - 1];
       if (workspace) {
