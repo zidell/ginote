@@ -5,6 +5,7 @@ package ui
 
 import (
 	"strconv"
+	"strings"
 	"time"
 
 	"charm.land/bubbles/v2/textinput"
@@ -337,14 +338,23 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 // dragZoneSeq는 TUIDock 자체 터미널에 끌기를 받을 칸을 알리는 OSC 7790이다. TUIDock은 마우스를 켠 프로그램에서도
-// 끌기를 화면 글자 선택으로 쓰고, 여기 알린 칸(사이드바 경계선 한 열)에서 누른 끌기만 프로그램에 넘긴다.
-// 다른 터미널은 모르는 OSC라 버린다. 경계선을 누를 수 없을 때(좁은 화면, 모달)는 비운다.
+// 끌기를 화면 글자 선택으로 쓰고, 여기 알린 칸에서 누른 끌기만 프로그램에 넘긴다: 사이드바 경계선 한 열과, 노트를 열었으면
+// 노트 내용 칸(본문·댓글 편집기의 글자 선택, select.go). 다른 터미널은 모르는 OSC라 버린다. 모달이 떠 있으면 비운다.
 func (m Model) dragZoneSeq() string {
-	zone := ""
-	if m.wide() && !m.modalOpen() && m.height > 0 {
-		zone = strconv.Itoa(m.sidebarWidth()) + ",0,1," + strconv.Itoa(m.height)
+	var zones []string
+	rect := func(x, y, width, height int) {
+		zones = append(zones, strconv.Itoa(x)+","+strconv.Itoa(y)+","+strconv.Itoa(width)+","+strconv.Itoa(height))
 	}
-	return "\x1b]7790;" + zone + "\x07"
+	if !m.modalOpen() && m.height > 0 {
+		if m.wide() {
+			rect(m.sidebarWidth(), 0, 1, m.height)
+		}
+		if m.note != nil {
+			g := m.detailGeometry()
+			rect(g.contentX, g.viewTop, g.contentWidth, g.viewHeight)
+		}
+	}
+	return "\x1b]7790;" + strings.Join(zones, ";") + "\x07"
 }
 
 func (m Model) wantsText() bool {

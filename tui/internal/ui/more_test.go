@@ -203,6 +203,12 @@ func TestDragZoneFollowsSidebarDivider(t *testing.T) {
 		t.Fatalf("drag zone after resize = %q, want prefix %q", deref(m.sentDragZone), want)
 	}
 	m = drive(t, m, tea.MouseReleaseMsg{X: 55, Y: 5, Button: tea.MouseLeft})
+	m = press(t, m, "down", "down", "enter")
+	g := m.detailGeometry()
+	body := strconv.Itoa(g.contentX) + "," + strconv.Itoa(g.viewTop) + "," + strconv.Itoa(g.contentWidth) + "," + strconv.Itoa(g.viewHeight)
+	if m.note == nil || !strings.HasSuffix(deref(m.sentDragZone), ";"+body+"\x07") {
+		t.Fatalf("drag zone with a note = %q, want the note content %s", deref(m.sentDragZone), body)
+	}
 	m.help = "shortcuts"
 	m = drive(t, m, tea.WindowSizeMsg{Width: m.width, Height: m.height})
 	if got := deref(m.sentDragZone); got != "\x1b]7790;\x07" {
