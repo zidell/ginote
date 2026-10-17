@@ -1,35 +1,25 @@
-// Package config는 설치형 앱의 config.toml(docs/CONFIG.md)에서 워크스페이스 목록을 읽는다.
-// 파일의 형식과 쓰기는 데스크톱 앱(src/lib/app-config.js)이 맡고, TUI는 읽기만 한다.
+// Package config는 TUI의 설정 파일(tui.go)과 워크스페이스·환경설정 형식을 다룬다.
+// 데스크톱 앱의 config.toml은 읽지 않는다. 저장소·토큰·환경설정은 TUI에서 따로 설정한다.
 package config
 
 import (
-	"errors"
-	"io/fs"
 	"net/url"
-	"os"
-	"path/filepath"
 	"regexp"
-	"runtime"
 	"strings"
-
-	"github.com/BurntSushi/toml"
 )
-
-const appIdentifier = "net.gitools.note"
 
 type Workspace struct {
 	ID   string
 	Repo string
 	Name string
-	// Origin은 이 워크스페이스를 어디서 읽었는지다. OriginApp은 데스크톱 앱 설정이라 TUI가
-	// 고치지 않고, OriginTUI는 TUI에서 추가한 것이다(tui.go).
+	// Origin은 이 워크스페이스를 어디서 읽었는지다. OriginTUI는 TUI에서 추가해 설정 파일에 둔 것이고,
+	// OriginFlag는 --repo로 이번 실행에만 연 것이다(저장하지 않는다).
 	Origin string
 	// TokenSource는 TUI 워크스페이스의 토큰 출처다(TokenKeychain, TokenGH).
 	TokenSource string
 }
 
 const (
-	OriginApp     = "app"
 	OriginTUI     = "tui"
 	OriginFlag    = "flag"
 	TokenKeychain = "keychain"
@@ -44,96 +34,11 @@ func (w Workspace) Label() string {
 	return w.Repo
 }
 
-type Config struct {
-	Workspaces      []Workspace
-	ActiveWorkspace string
-	Preferences     Preferences
-	Voice           VoiceSettings
-}
-
 const (
 	defaultNotesPerPage = 30
 	TitleFirstLine      = "first-line"
 	TitleSeparate       = "separate"
 )
-
-// Path는 데스크톱 앱이 쓰는 config.toml 경로다. 옛 Windows MSIX 설치는 패키지 이름이
-// 필요하므로 GINOTE_CONFIG로 지정한다. 현재 NSIS 설치는 APPDATA를 그대로 쓴다.
-func Path() string {
-	if path := os.Getenv("GINOTE_CONFIG"); path != "" {
-		return path
-	}
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return ""
-	}
-	if runtime.GOOS == "darwin" {
-		return filepath.Join(home, "Library", "Application Support", appIdentifier, "config.toml")
-	}
-	if runtime.GOOS == "windows" {
-		base, err := os.UserConfigDir()
-		if err != nil {
-			return ""
-		}
-		return filepath.Join(base, appIdentifier, "config.toml")
-	}
-	base := os.Getenv("XDG_CONFIG_HOME")
-	if base == "" {
-		base = filepath.Join(home, ".config")
-	}
-	return filepath.Join(base, appIdentifier, "config.toml")
-}
-
-type rawConfig struct {
-	rawDesktopPreferences
-	ActiveWorkspace string `toml:"active_workspace"`
-	Workspaces      []struct {
-		ID   string `toml:"id"`
-		Repo string `toml:"repo"`
-		Name string `toml:"name"`
-	} `toml:"workspaces"`
-}
-
-// Load는 파일이 없으면 빈 설정을 돌려준다. repo가 "owner/name"이 아닌 항목은 앱처럼 건너뛴다.
-func Load(path string) (Config, error) {
-	data, err := os.ReadFile(path)
-	if errors.Is(err, fs.ErrNotExist) {
-		return Config{Preferences: DefaultPreferences()}, nil
-	}
-	if err != nil {
-		return Config{}, err
-	}
-	var raw rawConfig
-	if err := toml.Unmarshal(data, &raw); err != nil {
-		return Config{}, err
-	}
-	config := Config{Preferences: raw.preferences(), Voice: raw.Voice}
-	for _, item := range raw.Workspaces {
-		repo, ok := ParseRepo(item.Repo)
-		if !ok {
-			continue
-		}
-		id := strings.TrimSpace(item.ID)
-		if id == "" {
-			id = repo
-		}
-		config.Workspaces = append(config.Workspaces, Workspace{ID: id, Repo: repo, Name: strings.TrimSpace(item.Name), Origin: OriginApp})
-	}
-	config.ActiveWorkspace = raw.ActiveWorkspace
-	if _, ok := config.Find(raw.ActiveWorkspace); !ok && len(config.Workspaces) > 0 {
-		config.ActiveWorkspace = config.Workspaces[0].ID
-	}
-	return config, nil
-}
-
-func (c Config) Find(id string) (Workspace, bool) {
-	for _, workspace := range c.Workspaces {
-		if workspace.ID == id {
-			return workspace, true
-		}
-	}
-	return Workspace{}, false
-}
 
 var (
 	githubURLPrefix = regexp.MustCompile(`(?i)^https?://github\.com/`)

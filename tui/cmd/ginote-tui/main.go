@@ -1,5 +1,5 @@
-// ginote-tui는 Ginote의 터미널 버전이다. 워크스페이스는 데스크톱 앱의 config.toml과 TUI에서
-// 추가한 것(TUI 설정 파일)을 함께 쓰고, --repo로 저장소 하나를 바로 열 수도 있다.
+// ginote-tui는 Ginote의 터미널 버전이다. 워크스페이스·환경설정은 TUI 설정 파일에만 두고
+// (데스크톱 앱·웹과 공유하지 않는다), --repo로 저장소 하나를 바로 열 수도 있다.
 // 개발 방법은 docs/TUI.md에 있다.
 package main
 
@@ -25,19 +25,9 @@ func main() {
 	if ime.Main(os.Args) {
 		return
 	}
-	repoFlag := flag.String("repo", "", `열 저장소("owner/name"). 데스크톱 앱 설정에 있으면 그 워크스페이스로 연다`)
-	configFlag := flag.String("config", "", "config.toml 경로(기본: 데스크톱 앱의 설정 파일, GINOTE_CONFIG)")
+	repoFlag := flag.String("repo", "", `열 저장소("owner/name"). TUI에 추가한 저장소면 그 워크스페이스로 연다`)
 	flag.Parse()
 
-	path := *configFlag
-	if path == "" {
-		path = config.Path()
-	}
-	settings, err := config.Load(path)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "ginote-tui: %s을 읽지 못했습니다: %v\n", path, err)
-		os.Exit(1)
-	}
 	tuiPath := config.TUIPath()
 	tuiSettings, err := config.LoadTUI(tuiPath)
 	if err != nil {
@@ -45,26 +35,21 @@ func main() {
 		os.Exit(1)
 	}
 
-	// 데스크톱 앱의 워크스페이스 뒤에 TUI에서 추가한 워크스페이스를 붙인다. 시작 워크스페이스는
-	// TUI가 마지막으로 연 것, 없으면 데스크톱 앱의 active_workspace다.
+	// 시작 워크스페이스는 TUI가 마지막으로 연 것이다.
 	options := ui.Options{
-		Workspaces:    append(settings.Workspaces, tuiSettings.Workspaces...),
-		Preferences:   settings.Preferences,
+		Workspaces:    tuiSettings.Workspaces,
+		Preferences:   config.DefaultPreferences(),
 		TUIConfigPath: tuiPath,
-		DesktopVoice:  &settings.Voice,
-		TUIVoice:      tuiSettings.Voice,
+		Voice:         tuiSettings.Voice,
 		SidebarWidth:  config.LoadState(config.StatePath(tuiPath)).SidebarWidth,
 	}
-	// TUI에서 바꾼 환경설정이 있으면 그것을, 없으면 데스크톱 앱의 값을 쓴다.
 	if tuiSettings.Preferences != nil {
 		options.Preferences = *tuiSettings.Preferences
 		options.TUIPreferences = true
 	}
-	for _, id := range []string{settings.ActiveWorkspace, tuiSettings.ActiveWorkspace} {
-		for index, workspace := range options.Workspaces {
-			if id != "" && workspace.ID == id {
-				options.Active = index
-			}
+	for index, workspace := range options.Workspaces {
+		if tuiSettings.ActiveWorkspace != "" && workspace.ID == tuiSettings.ActiveWorkspace {
+			options.Active = index
 		}
 	}
 	if *repoFlag != "" {

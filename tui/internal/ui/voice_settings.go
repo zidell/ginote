@@ -47,13 +47,10 @@ type voiceModelsMsg struct {
 	err    error
 }
 
-// resolveVoice는 기본값 위에 데스크톱 → TUI 설정을 차례로 얹는다.
-func resolveVoice(layers ...*config.VoiceSettings) voice.Settings {
+// resolveVoice는 기본값 위에 TUI 설정 파일의 [voice]를 얹는다.
+func resolveVoice(layer *config.VoiceSettings) voice.Settings {
 	settings := voice.DefaultSettings()
-	for _, layer := range layers {
-		if layer == nil {
-			continue
-		}
+	if layer != nil {
 		if layer.TranscriptionModel != nil {
 			settings.TranscriptionModel = *layer.TranscriptionModel
 		}

@@ -79,51 +79,8 @@ func clampInt(value, minimum, maximum, fallback int) int {
 	return int(math.Min(float64(maximum), math.Max(float64(minimum), float64(value))))
 }
 
-// rawDesktopPreferences는 데스크톱 config.toml에서 읽는 환경설정 키다(app-config.js의 ENTRIES).
-type rawDesktopPreferences struct {
-	Display struct {
-		Theme     string `toml:"theme"`
-		TitleMode string `toml:"title_mode"`
-		ListRow   *struct {
-			Title   *bool `toml:"title"`
-			Summary *bool `toml:"summary"`
-			Meta    *bool `toml:"meta"`
-			Tags    *bool `toml:"tags"`
-		} `toml:"list_row"`
-	} `toml:"display"`
-	Behavior struct {
-		AutoSaveSeconds    *float64 `toml:"auto_save_seconds"`
-		NotesPerPage       *float64 `toml:"notes_per_page"`
-		LockSessionMinutes *float64 `toml:"lock_session_minutes"`
-	} `toml:"behavior"`
-	Voice VoiceSettings `toml:"voice"`
-}
-
-func (raw rawDesktopPreferences) preferences() Preferences {
-	prefs := DefaultPreferences()
-	if raw.Display.Theme != "" {
-		prefs.Theme = raw.Display.Theme
-	}
-	if raw.Display.TitleMode != "" {
-		prefs.TitleMode = raw.Display.TitleMode
-	}
-	if row := raw.Display.ListRow; row != nil {
-		pick := func(value *bool) bool { return value == nil || *value }
-		prefs.ListRow = ListRowFields{Title: pick(row.Title), Summary: pick(row.Summary), Meta: pick(row.Meta), Tags: pick(row.Tags)}
-	}
-	round := func(value *float64, target *int) {
-		if value != nil {
-			*target = int(math.Round(*value))
-		}
-	}
-	round(raw.Behavior.AutoSaveSeconds, &prefs.AutoSaveSeconds)
-	round(raw.Behavior.NotesPerPage, &prefs.NotesPerPage)
-	round(raw.Behavior.LockSessionMinutes, &prefs.LockSessionMinutes)
-	return prefs.Normalize()
-}
-
 // VoiceSettings는 음성 녹음 설정([voice], app-config.js의 voice 항목)이다. 값이 없는 항목은 nil이고,
-// 쓰는 쪽(internal/ui)이 기본값(voice.DefaultSettings) 위에 데스크톱 → TUI 순서로 얹는다.
+// 쓰는 쪽(internal/ui)이 기본값(voice.DefaultSettings) 위에 얹는다.
 // OpenAI API 키는 여기 두지 않고 OS 자격 증명 저장소에 둔다(internal/auth).
 type VoiceSettings struct {
 	TranscriptionModel    *string `toml:"transcription_model,omitempty"`

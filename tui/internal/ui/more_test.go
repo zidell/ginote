@@ -97,7 +97,7 @@ func TestSeparateTitleMode(t *testing.T) {
 	seed(fake)
 	prefs := config.DefaultPreferences()
 	prefs.TitleMode = config.TitleSeparate
-	m := New(Options{Workspaces: []config.Workspace{{ID: "w1", Repo: "o/notes", Origin: config.OriginApp}}, Preferences: prefs, TUIConfigPath: t.TempDir() + "/tui.toml"})
+	m := New(Options{Workspaces: []config.Workspace{{ID: "w1", Repo: "o/notes", Origin: config.OriginTUI}}, Preferences: prefs, TUIConfigPath: t.TempDir() + "/tui.toml"})
 	m = drive(t, m, tea.WindowSizeMsg{Width: 140, Height: 40})
 	m = runCmd(t, m, m.Init())
 	m = press(t, m, "down", "down", "enter", "enter")
@@ -157,8 +157,8 @@ func TestWorkspaceSwitchByNumberAndSwitcher(t *testing.T) {
 	fake := newFakeGitHub(t)
 	seed(fake)
 	m := New(Options{Workspaces: []config.Workspace{
-		{ID: "w1", Repo: "o/notes", Origin: config.OriginApp},
-		{ID: "w2", Repo: "o/notes", Name: "둘째", Origin: config.OriginApp},
+		{ID: "w1", Repo: "o/notes", Origin: config.OriginTUI},
+		{ID: "w2", Repo: "o/notes", Name: "둘째", Origin: config.OriginTUI},
 	}, Preferences: config.DefaultPreferences(), TUIConfigPath: t.TempDir() + "/tui.toml"})
 	m = drive(t, m, tea.WindowSizeMsg{Width: 140, Height: 40})
 	m = runCmd(t, m, m.Init())

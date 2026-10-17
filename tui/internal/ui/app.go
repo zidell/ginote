@@ -54,9 +54,8 @@ type Options struct {
 	TUIConfigPath string
 	// TUIPreferences는 TUI 설정 파일에 환경설정이 있었는지다. 없으면 바꿀 때 처음 쓴다.
 	TUIPreferences bool
-	// DesktopVoice·TUIVoice는 데스크톱 앱과 TUI 설정 파일의 [voice]다(TUI가 우선).
-	DesktopVoice *config.VoiceSettings
-	TUIVoice     *config.VoiceSettings
+	// Voice는 TUI 설정 파일의 [voice]다. 없으면 기본값을 쓴다.
+	Voice *config.VoiceSettings
 	// SidebarWidth는 state.json에 기억한 사이드바 너비다.
 	SidebarWidth int
 }
@@ -182,8 +181,8 @@ func New(options Options) Model {
 		helpBar:       newActionBar(),
 		thumbs:        newThumbCache(),
 		sidebarCols:   options.SidebarWidth,
-		voiceConfig:   resolveVoice(options.DesktopVoice, options.TUIVoice),
-		voiceCustom:   options.TUIVoice != nil,
+		voiceConfig:   resolveVoice(options.Voice),
+		voiceCustom:   options.Voice != nil,
 		voiceModels:   voice.DefaultModelLists(),
 	}
 	if m.active < 0 || m.active >= len(m.workspaces) {

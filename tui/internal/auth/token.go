@@ -1,8 +1,7 @@
 // Package auth는 워크스페이스의 GitHub 토큰을 찾고, TUI에서 입력한 PAT를 OS 자격 증명
 // 저장소에 둔다. 토큰은 설정 파일에 쓰지 않는다.
-// 찾는 순서: GINOTE_GITHUB_TOKEN → 워크스페이스의 PAT(데스크톱 앱 워크스페이스는 앱이 둔
-// net.gitools.note / github-pat:<id>, TUI 워크스페이스는 net.gitools.note.tui / github-pat:<id>)
-// → `gh auth token`.
+// 찾는 순서: GINOTE_GITHUB_TOKEN → TUI에서 넣은 PAT(net.gitools.note.tui / github-pat:<id>)
+// → `gh auth token`. 데스크톱 앱이 둔 자격 증명(net.gitools.note)은 읽지 않는다.
 package auth
 
 import (
@@ -19,7 +18,6 @@ import (
 )
 
 const (
-	secretService  = "net.gitools.note"
 	tuiService     = "net.gitools.note.tui"
 	patPrefix      = "github-pat:"
 	overrideEnv    = "GINOTE_GITHUB_TOKEN"
@@ -74,12 +72,7 @@ func lookup(workspace config.Workspace) (Token, error) {
 	if value := strings.TrimSpace(os.Getenv(overrideEnv)); value != "" {
 		return Token{value, sourceOverride}, nil
 	}
-	switch {
-	case workspace.Origin == config.OriginApp && workspace.ID != "":
-		if value := readSecret(secretService, workspace.ID); value != "" {
-			return Token{value, "Ginote 앱 자격 증명"}, nil
-		}
-	case workspace.Origin == config.OriginTUI && workspace.TokenSource == config.TokenKeychain:
+	if workspace.Origin == config.OriginTUI && workspace.TokenSource == config.TokenKeychain {
 		if value := readSecret(tuiService, workspace.ID); value != "" {
 			return Token{value, "TUI에서 입력한 PAT"}, nil
 		}
@@ -144,19 +137,17 @@ func HandoffEnv() string {
 // openAISecret은 OpenAI API 키의 자격 증명 이름이다(settings-backend.js의 OPENAI_SECRET).
 const openAISecret = "openai-api-key"
 
-// OpenAIKey는 음성 녹음에 쓸 OpenAI API 키다. TUI에서 넣은 키(net.gitools.note.tui)가 먼저이고,
-// 없으면 데스크톱 앱이 둔 키(net.gitools.note)를 쓴다. 설정 파일에는 쓰지 않는다.
+// OpenAIKey는 음성 녹음에 쓸 OpenAI API 키다. TUI에서 넣은 키(net.gitools.note.tui)만 쓴다.
+// 설정 파일에는 쓰지 않는다.
 func OpenAIKey() string {
-	for _, service := range []string{tuiService, secretService} {
-		if value, err := keyring.Get(service, openAISecret); err == nil && strings.TrimSpace(value) != "" {
-			return strings.TrimSpace(value)
-		}
+	value, err := keyring.Get(tuiService, openAISecret)
+	if err != nil {
+		return ""
 	}
-	return ""
+	return strings.TrimSpace(value)
 }
 
 // SaveOpenAIKey는 TUI의 OpenAI API 키를 OS 자격 증명 저장소에 둔다. 빈 값이면 지운다.
-// 데스크톱 앱의 키는 건드리지 않는다.
 func SaveOpenAIKey(value string) error {
 	value = strings.TrimSpace(value)
 	if value == "" {

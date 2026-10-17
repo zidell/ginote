@@ -59,7 +59,7 @@ func (m Model) helpBlocks(topic string) []helpBlock {
 			{kind: "code", text: "brew tap zidell/ginote https://github.com/zidell/ginote\nbrew install --cask ginote"},
 			{kind: "p", text: "GitHub Releases에서 내려받기: https://github.com/zidell/ginote/releases"},
 			{kind: "h", text: "터미널 앱"},
-			{kind: "p", text: "데스크톱 앱에서 연결한 저장소를 그대로 읽어 씁니다. 터미널에서 추가한 저장소와 환경설정은 따로 저장됩니다: " + m.tuiConfigPath},
+			{kind: "p", text: "저장소·토큰·환경설정을 웹·데스크톱 앱과 공유하지 않고 따로 저장합니다: " + m.tuiConfigPath},
 		}
 	}
 	return []helpBlock{

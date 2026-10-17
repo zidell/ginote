@@ -408,7 +408,7 @@ func screenText(m Model) string {
 func startApp(t *testing.T, fake *fakeGitHub) Model {
 	t.Helper()
 	m := New(Options{
-		Workspaces:    []config.Workspace{{ID: "w1", Repo: "o/notes", Origin: config.OriginApp}},
+		Workspaces:    []config.Workspace{{ID: "w1", Repo: "o/notes", Origin: config.OriginTUI}},
 		Preferences:   config.DefaultPreferences(),
 		TUIConfigPath: t.TempDir() + "/tui.toml",
 	})

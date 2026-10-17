@@ -14,7 +14,7 @@ func TestSaveAndLoadTUIWorkspaces(t *testing.T) {
 		ActiveWorkspace: "tui-b",
 		Workspaces: []Workspace{
 			{ID: "tui-a", Repo: "o/notes", Origin: OriginTUI, TokenSource: TokenKeychain},
-			{ID: "app", Repo: "o/app", Origin: OriginApp},
+			{ID: "flag", Repo: "o/app", Origin: OriginFlag},
 			{ID: "tui-b", Repo: "o/work", Name: "업무", Origin: OriginTUI, TokenSource: TokenGH},
 		},
 	}
@@ -23,7 +23,7 @@ func TestSaveAndLoadTUIWorkspaces(t *testing.T) {
 	}
 	data, _ := os.ReadFile(path)
 	if strings.Contains(string(data), "o/app") {
-		t.Fatal("desktop workspaces must not be copied into the TUI file")
+		t.Fatal("--repo workspaces must not be saved into the TUI file")
 	}
 	// Windows의 파일 접근 권한은 ACL이며 Go의 Unix permission bits로 표현되지 않는다.
 	if info, _ := os.Stat(path); runtime.GOOS != "windows" && info.Mode().Perm() != 0o600 {

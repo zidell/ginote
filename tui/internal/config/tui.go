@@ -13,10 +13,9 @@ import (
 	"github.com/BurntSushi/toml"
 )
 
-// TUI에서 추가한 워크스페이스는 데스크톱 앱의 config.toml이 아니라 이 파일에 둔다. 데스크톱
-// 앱은 config.toml이 없을 때만 예전 localStorage 설정을 옮겨 오므로(settings-backend.js init),
-// TUI가 그 파일을 먼저 만들면 앱의 기존 워크스페이스가 옮겨지지 않는다. 토큰은 이 파일에
-// 쓰지 않는다(internal/auth).
+// TUI의 워크스페이스·환경설정·음성 설정은 이 파일에만 둔다. 데스크톱 앱의 config.toml은
+// 읽지도 만들지도 않는다(앱은 그 파일이 없을 때만 예전 localStorage 설정을 옮겨 오므로,
+// settings-backend.js init). 토큰은 이 파일에 쓰지 않는다(internal/auth).
 
 // TUIPath는 TUI 설정 파일 경로다. GINOTE_TUI_CONFIG로 바꿀 수 있다.
 func TUIPath() string {
@@ -86,8 +85,8 @@ func LoadTUI(path string) (TUIConfig, error) {
 	return config, nil
 }
 
-const tuiHeader = `# Ginote TUI 설정. TUI에서 추가한 워크스페이스를 둔다. 데스크톱 앱의 워크스페이스는
-# 앱의 config.toml에서 따로 읽는다(docs/TUI.md).
+const tuiHeader = `# Ginote TUI 설정. TUI에서 추가한 워크스페이스와 환경설정을 둔다. 데스크톱 앱·웹의 설정과는
+# 공유하지 않는다(docs/TUI.md).
 #
 # active_workspace  시작할 때 열 워크스페이스 id
 # [[workspaces]]
@@ -124,7 +123,7 @@ func SaveTUI(path string, config TUIConfig) error {
 	return os.Rename(temporary, path)
 }
 
-// NewWorkspaceID는 TUI 워크스페이스 id다. 데스크톱 앱의 id와 섞이지 않게 접두사를 붙인다.
+// NewWorkspaceID는 TUI 워크스페이스 id다. 토큰 이름에 쓰이므로 데스크톱 앱의 id와 섞이지 않게 접두사를 붙인다.
 func NewWorkspaceID() string {
 	random := make([]byte, 6)
 	rand.Read(random)

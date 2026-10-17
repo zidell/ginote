@@ -119,7 +119,7 @@ func TestWorkspaceSwitchFocusesFirstListRow(t *testing.T) {
 	fake := newFakeGitHub(t)
 	seed(fake)
 	m := startApp(t, fake)
-	m.workspaces = append(m.workspaces, config.Workspace{ID: "w2", Repo: "o/notes", Origin: config.OriginApp})
+	m.workspaces = append(m.workspaces, config.Workspace{ID: "w2", Repo: "o/notes", Origin: config.OriginTUI})
 	m.tool = "ws"
 	m.choice = m.switcherChoice()
 	m = press(t, m, "2")

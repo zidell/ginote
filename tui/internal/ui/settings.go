@@ -744,7 +744,7 @@ func (m Model) activateSettings(control settingsControl) (tea.Model, tea.Cmd) {
 		if workspace.Origin == config.OriginTUI {
 			items = append(items, menuItem{id: "rename:" + key, label: "표시 이름 변경"}, menuItem{id: "leave:" + key, label: "연결 해제", danger: true})
 		} else {
-			items = append(items, menuItem{id: "none", label: "데스크톱 앱 저장소는 앱에서 관리합니다", disabled: true})
+			items = append(items, menuItem{id: "none", label: "--repo로 연 저장소는 이번 실행에만 씁니다", disabled: true})
 		}
 		m.choice = newChoice("settings-ws", workspace.Label(), items, 0)
 	case id == "ws-add":

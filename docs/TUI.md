@@ -155,29 +155,28 @@ cd tui
 
 ## 저장소와 토큰
 
-저장소(워크스페이스)는 두 곳에서 모은다.
+TUI는 저장소·토큰·환경설정·음성 설정을 웹이나 데스크톱 앱과 공유하지 않는다. 데스크톱 앱의
+`config.toml`과 앱이 둔 자격 증명(`net.gitools.note`)은 읽지도 만들지도 않는다. 예전에는 앱의
+저장소와 환경설정을 읽어 왔지만, 웹(브라우저 저장소)은 읽을 수 없어 저장소 일부만 보였고, TUI에서
+같은 저장소를 추가하면 목록에 두 번 보였으며, 앱에서 온 저장소는 TUI에서 연결 해제할 수 없었다.
 
-- **데스크톱 앱 저장소**: 앱의 `config.toml`([CONFIG](CONFIG.md))에서 읽기만 한다. 경로는
-  `--config` 또는 `GINOTE_CONFIG`로 바꿀 수 있다.
-- **TUI 저장소**: TUI 안에서 추가한다. 저장소가 없으면 시작할 때 추가 화면이 뜨고, 그 밖에는
-  저장소 선택(`` ` ``)이나 환경설정의 "다른 저장소 추가"로 연다. 저장소 주소와 토큰을 받아
-  GitHub에 연결해 본 뒤 저장한다. 이름 바꾸기·순서·연결 해제는 환경설정의 저장소 관리에서 한다.
+저장소는 TUI 안에서 추가한다. 저장소가 없으면 시작할 때 추가 화면이 뜨고, 그 밖에는 저장소
+선택(`` ` ``)이나 환경설정의 "다른 저장소 추가"로 연다. 저장소 주소와 토큰을 받아 GitHub에 연결해
+본 뒤 저장한다. 이름 바꾸기·순서·연결 해제는 환경설정의 저장소 관리에서 한다. `--repo owner/name`으로
+연 저장소는 이번 실행에만 쓰고 저장하지 않는다.
 
 TUI 설정 파일은 `os.UserConfigDir()/ginote-tui/config.toml`(macOS
-`~/Library/Application Support/ginote-tui/config.toml`, `GINOTE_TUI_CONFIG`로 변경)이다. TUI
-저장소, 마지막으로 연 저장소, TUI에서 바꾼 환경설정(`[preferences]`)을 둔다. 환경설정을 TUI에서
-바꾼 적이 없으면 데스크톱 앱 `config.toml`의 값(`[display]`, `[behavior]`)을 쓴다.
+`~/Library/Application Support/ginote-tui/config.toml`, `GINOTE_TUI_CONFIG`로 변경)이다. 저장소,
+마지막으로 연 저장소, 환경설정(`[preferences]`), 음성 설정(`[voice]`)을 둔다. 환경설정을 바꾼 적이
+없으면 기본값을 쓴다.
 
-TUI는 데스크톱 앱의 `config.toml`을 만들거나 고치지 않는다. 앱은 그 파일이 없을 때만 예전
-`localStorage` 설정을 옮겨 오므로(`settings-backend.js`의 `init`), TUI가 먼저 만들면 앱의 기존
-저장소와 PAT가 옮겨지지 않는다.
-
-GitHub 토큰은 설정 파일에 쓰지 않는다. 찾는 순서(`internal/auth`):
+GitHub 토큰과 OpenAI API 키는 설정 파일에 쓰지 않는다. 토큰을 찾는 순서(`internal/auth`):
 
 1. `GINOTE_GITHUB_TOKEN`
-2. 저장소의 PAT. 데스크톱 앱 저장소는 앱이 둔 `net.gitools.note` / `github-pat:<id>`,
-   TUI 저장소는 추가할 때 넣은 `net.gitools.note.tui` / `github-pat:<id>`(OS 자격 증명 저장소)
+2. 저장소를 추가할 때 넣은 PAT(`net.gitools.note.tui` / `github-pat:<id>`, OS 자격 증명 저장소)
 3. `gh auth token`. 추가 화면에서 토큰을 비워 두면 이 방식으로 저장한다.
+
+OpenAI API 키는 음성 설정에서 넣은 `net.gitools.note.tui` / `openai-api-key`만 쓴다.
 
 ## 웹과 맞추는 규칙
 
