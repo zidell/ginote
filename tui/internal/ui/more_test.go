@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -186,6 +187,34 @@ func TestSidebarDragRemembersWidth(t *testing.T) {
 	if got := config.LoadState(config.StatePath(m.tuiConfigPath)).SidebarWidth; got != m.sidebarCols || got <= 0 {
 		t.Fatalf("saved sidebar width = %d, screen = %d", got, m.sidebarCols)
 	}
+}
+
+func TestDragZoneFollowsSidebarDivider(t *testing.T) {
+	fake := newFakeGitHub(t)
+	seed(fake)
+	m := startApp(t, fake)
+	want := "\x1b]7790;" + strconv.Itoa(m.sidebarWidth()) + ",0,1," + strconv.Itoa(m.height) + "\x07"
+	if m.sentDragZone == nil || *m.sentDragZone != want {
+		t.Fatalf("drag zone = %q, want %q", deref(m.sentDragZone), want)
+	}
+	m = drive(t, m, tea.MouseClickMsg{X: m.sidebarWidth(), Y: 5, Button: tea.MouseLeft})
+	m = drive(t, m, tea.MouseMotionMsg{X: 55, Y: 5, Button: tea.MouseLeft})
+	if want := "\x1b]7790;55,0,1,"; !strings.HasPrefix(deref(m.sentDragZone), want) {
+		t.Fatalf("drag zone after resize = %q, want prefix %q", deref(m.sentDragZone), want)
+	}
+	m = drive(t, m, tea.MouseReleaseMsg{X: 55, Y: 5, Button: tea.MouseLeft})
+	m.help = "shortcuts"
+	m = drive(t, m, tea.WindowSizeMsg{Width: m.width, Height: m.height})
+	if got := deref(m.sentDragZone); got != "\x1b]7790;\x07" {
+		t.Fatalf("drag zone with a modal = %q, want empty", got)
+	}
+}
+
+func deref(s *string) string {
+	if s == nil {
+		return "<nil>"
+	}
+	return *s
 }
 
 func TestHelpTopicsOpenFromLinks(t *testing.T) {

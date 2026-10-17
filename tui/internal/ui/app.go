@@ -4,6 +4,7 @@
 package ui
 
 import (
+	"strconv"
 	"time"
 
 	"charm.land/bubbles/v2/textinput"
@@ -136,6 +137,7 @@ type Model struct {
 	lastListLoad   time.Time // 목록을 마지막으로 받은(받기 시작한) 때. 자동 갱신 간격을 잰다
 	sidebarCols    int       // 경계선을 끌어 정한 사이드바 너비(0이면 화면 너비에 맞춤)
 	dragSidebar    bool      // 사이드바 경계선을 끄는 중
+	sentDragZone   *string   // 터미널에 마지막으로 알린 끌기 칸(dragZoneSeq). nil이면 아직 안 알림
 	dragText       string
 	restore        *Snapshot
 
@@ -327,7 +329,22 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	next, cmd := m.update(msg)
 	model := next.(Model)
 	model.syncInputSource()
+	if zone := model.dragZoneSeq(); model.sentDragZone == nil || *model.sentDragZone != zone {
+		model.sentDragZone = &zone
+		cmd = tea.Batch(cmd, tea.Raw(zone))
+	}
 	return model, cmd
+}
+
+// dragZoneSeq는 TUIDock 자체 터미널에 끌기를 받을 칸을 알리는 OSC 7790이다. TUIDock은 마우스를 켠 프로그램에서도
+// 끌기를 화면 글자 선택으로 쓰고, 여기 알린 칸(사이드바 경계선 한 열)에서 누른 끌기만 프로그램에 넘긴다.
+// 다른 터미널은 모르는 OSC라 버린다. 경계선을 누를 수 없을 때(좁은 화면, 모달)는 비운다.
+func (m Model) dragZoneSeq() string {
+	zone := ""
+	if m.wide() && !m.modalOpen() && m.height > 0 {
+		zone = strconv.Itoa(m.sidebarWidth()) + ",0,1," + strconv.Itoa(m.height)
+	}
+	return "\x1b]7790;" + zone + "\x07"
 }
 
 func (m Model) wantsText() bool {
