@@ -1,7 +1,10 @@
 package ui
 
 import (
+	"fmt"
 	"image/color"
+	"regexp"
+	"strconv"
 	"strings"
 
 	"charm.land/lipgloss/v2"
@@ -167,23 +170,77 @@ func overlay(base string, top string, x, y int) string {
 		if gap := x - ansi.StringWidth(left); gap > 0 {
 			left += strings.Repeat(" ", gap)
 		}
+		// 오른쪽 조각은 잘린 앞부분에서 켠 색을 잃으므로, 앞부분의 SGR을 차례로 다시 적용해 이어 간다
+		// (어둡게 한 화면에서 색을 지정하지 않은 칸이 원래 밝기로 돌아오지 않게).
+		state := strings.Join(sgrPattern.FindAllString(ansi.Truncate(under, x+width, ""), -1), "")
 		right := ansi.TruncateLeft(under, x+width, "")
-		baseLines[target] = left + "\x1b[m" + line + "\x1b[m" + right
+		baseLines[target] = left + "\x1b[m" + line + "\x1b[m" + state + right
 	}
 	return strings.Join(baseLines, "\n")
 }
 
-// dim은 모달 뒤에 깔린 화면을 어둡게 한다(웹 모달의 반투명 배경). 줄마다 흐림(SGR 2)을 걸고,
-// 안쪽 조각의 색 초기화 뒤에도 다시 건다. 배경색은 그대로 두고 글자만 흐리게 한다.
-func dim(content string) string {
-	const faint = "\x1b[2m"
+// modalScrim은 모달 아래 화면에 남길 밝기다. 글자만 흐리게(SGR 2) 하면 배경이 그대로라 덜 가려지므로,
+// 웹의 반투명 마스크처럼 글자색·배경색을 모두 검정 쪽으로 섞는다.
+const modalScrim = 0.4
+
+// dim은 모달 아래 화면을 어둡게 한다. 트루컬러 글자·배경색을 어둡게 바꾸고, 색을 지정하지 않은 칸은
+// 터미널 기본색(앱 배경·본문색)을 어둡게 한 값으로 칠한다.
+func (t theme) dim(content string) string {
+	reset := "\x1b[0;" + scrimSGR(38, t.text) + ";" + scrimSGR(48, t.bgApp) + "m"
 	lines := strings.Split(content, "\n")
 	for index, line := range lines {
-		line = strings.ReplaceAll(line, "\x1b[m", "\x1b[m"+faint)
-		line = strings.ReplaceAll(line, "\x1b[0m", "\x1b[0m"+faint)
-		lines[index] = faint + line + "\x1b[m"
+		line = sgrPattern.ReplaceAllStringFunc(line, func(seq string) string {
+			return dimSGR(seq[2:len(seq)-1], t)
+		})
+		lines[index] = reset + line + "\x1b[m"
 	}
 	return strings.Join(lines, "\n")
+}
+
+var sgrPattern = regexp.MustCompile("\x1b\\[[0-9;]*m")
+
+func scrimSGR(kind int, c color.Color) string {
+	r, g, b, _ := c.RGBA()
+	scale := func(v uint32) int { return int(float64(v>>8) * modalScrim) }
+	return fmt.Sprintf("%d;2;%d;%d;%d", kind, scale(r), scale(g), scale(b))
+}
+
+// dimSGR은 SGR 매개변수 하나를 어둡게 바꾼다. 초기화(0, 39, 49)는 어둡게 한 기본색으로 돌린다.
+func dimSGR(params string, t theme) string {
+	if params == "" {
+		params = "0"
+	}
+	parts := strings.Split(params, ";")
+	var out []string
+	for i := 0; i < len(parts); i++ {
+		switch parts[i] {
+		case "0", "":
+			out = append(out, "0", scrimSGR(38, t.text), scrimSGR(48, t.bgApp))
+		case "39":
+			out = append(out, scrimSGR(38, t.text))
+		case "49":
+			out = append(out, scrimSGR(48, t.bgApp))
+		case "38", "48":
+			if i+4 < len(parts) && parts[i+1] == "2" {
+				var rgb [3]int
+				for j := range rgb {
+					rgb[j], _ = strconv.Atoi(parts[i+2+j])
+				}
+				out = append(out, scrimSGR(atoi(parts[i]), color.RGBA{uint8(rgb[0]), uint8(rgb[1]), uint8(rgb[2]), 255}))
+				i += 4
+				continue
+			}
+			out = append(out, parts[i])
+		default:
+			out = append(out, parts[i])
+		}
+	}
+	return "\x1b[" + strings.Join(out, ";") + "m"
+}
+
+func atoi(s string) int {
+	n, _ := strconv.Atoi(s)
+	return n
 }
 
 // panel은 테두리 상자다. 줄마다 배경을 채워 안쪽 색 조각 사이에 빈 곳이 생기지 않게 한다.

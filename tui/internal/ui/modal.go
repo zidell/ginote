@@ -225,7 +225,7 @@ func (m Model) placeModal(base string, box modalBox, bodyHeight int) (string, *c
 	if box.cursor != nil {
 		cursor = &cursorPos{x: x + 1 + box.pad + box.cursor.x, y: y + 1 + box.cursor.y}
 	}
-	return overlay(dim(base), rendered, x, y), cursor
+	return overlay(m.th.dim(base), rendered, x, y), cursor
 }
 
 // modalWidth는 화면에 맞춘 모달 안쪽 너비다.

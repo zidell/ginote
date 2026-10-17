@@ -72,7 +72,7 @@ func (m Model) render() (string, *cursorPos) {
 		cursor = boxCursor
 	}
 	sheet := func(box string, x, y int, sheetCursor *cursorPos) {
-		base = overlay(dim(base), box, x, y)
+		base = overlay(m.th.dim(base), box, x, y)
 		cursor = sheetCursor
 	}
 	if m.help != "" {

@@ -367,8 +367,9 @@ func TestModalsStackDimAndCloseFromTheTop(t *testing.T) {
 	fake := newFakeGitHub(t)
 	seed(fake)
 	m := startApp(t, fake)
+	dimmed := scrimSGR(48, m.th.bgApp)
 	plain, _ := m.render()
-	if strings.Contains(plain, "\x1b[2m") {
+	if strings.Contains(plain, dimmed) {
 		t.Fatal("nothing is dimmed without a modal")
 	}
 	m = press(t, m, ",")
@@ -377,7 +378,7 @@ func TestModalsStackDimAndCloseFromTheTop(t *testing.T) {
 		t.Fatal("adding a workspace opens over the settings")
 	}
 	stacked, _ := m.render()
-	if !strings.Contains(stacked, "\x1b[2m") {
+	if !strings.Contains(stacked, dimmed) {
 		t.Fatal("the screen under a modal is dimmed")
 	}
 	m = press(t, m, "esc")
