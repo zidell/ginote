@@ -3,6 +3,7 @@ package ui
 import (
 	"strings"
 	"testing"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -177,9 +178,9 @@ func TestSidebarDragRemembersWidth(t *testing.T) {
 	seed(fake)
 	m := startApp(t, fake)
 	m.View()
-	m = drive(t, m, tea.MouseClickMsg{X: m.sidebarWidth(), Y: topMargin + 5, Button: tea.MouseLeft})
-	m = drive(t, m, tea.MouseMotionMsg{X: 55, Y: topMargin + 5, Button: tea.MouseLeft})
-	next, cmd := m.Update(tea.MouseReleaseMsg{X: 55, Y: topMargin + 5, Button: tea.MouseLeft})
+	m = drive(t, m, tea.MouseClickMsg{X: m.sidebarWidth(), Y: 5, Button: tea.MouseLeft})
+	m = drive(t, m, tea.MouseMotionMsg{X: 55, Y: 5, Button: tea.MouseLeft})
+	next, cmd := m.Update(tea.MouseReleaseMsg{X: 55, Y: 5, Button: tea.MouseLeft})
 	m = next.(Model)
 	cmd() // 디스크 기록이 끝난 뒤 읽는다. 느린 CI에서는 drive의 대기 시간을 넘는다.
 	if got := config.LoadState(config.StatePath(m.tuiConfigPath)).SidebarWidth; got != m.sidebarCols || got <= 0 {
@@ -409,5 +410,35 @@ func TestSettingsWheelReachesVoiceSection(t *testing.T) {
 	}
 	if screen := screenText(m); !strings.Contains(screen, "자주 쓰는 전사 단어") {
 		t.Fatalf("wheel scrolls to the voice settings\n%s", screen)
+	}
+}
+
+// 창에 머무는 동안 일정 간격마다, 창으로 돌아오면 쿨다운 뒤에 목록을 다시 받는다. 창을 떠나 있으면 받지 않는다.
+func TestListRefreshesInBackground(t *testing.T) {
+	fake := newFakeGitHub(t)
+	seed(fake)
+	m := startApp(t, fake)
+	base := time.Date(2026, 9, 4, 9, 0, 0, 0, time.UTC)
+
+	fake.addIssue(4, "다른 기기에서 쓴 노트", "다른 기기에서 쓴 노트", nil, base.Add(time.Hour))
+	m = drive(t, m, tickMsg{time.Now()})
+	if strings.Contains(screenText(m), "다른 기기에서 쓴 노트") {
+		t.Fatal("간격이 지나기 전에 목록을 다시 받았다")
+	}
+	m = drive(t, m, tea.BlurMsg{})
+	m = drive(t, m, tickMsg{time.Now().Add(listPollInterval + time.Second)})
+	if strings.Contains(screenText(m), "다른 기기에서 쓴 노트") {
+		t.Fatal("창을 떠나 있는데 목록을 다시 받았다")
+	}
+	m.lastListLoad = time.Now().Add(-focusRefreshCooldown - time.Second)
+	m = drive(t, m, tea.FocusMsg{})
+	if !strings.Contains(screenText(m), "다른 기기에서 쓴 노트") {
+		t.Fatal("창으로 돌아왔는데 목록을 다시 받지 않았다")
+	}
+
+	fake.addIssue(5, "한참 뒤 노트", "한참 뒤 노트", nil, base.Add(2*time.Hour))
+	m = drive(t, m, tickMsg{time.Now().Add(listPollInterval + time.Second)})
+	if !strings.Contains(screenText(m), "한참 뒤 노트") {
+		t.Fatal("창에 머무는 동안 간격이 지나도 목록을 다시 받지 않았다")
 	}
 }

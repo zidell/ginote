@@ -31,7 +31,7 @@ func TestClickingABodyLinkOpensIt(t *testing.T) {
 	m.View()
 	zone, _ := m.hits.lookup("body")
 	at := func(x, y int, mod tea.KeyMod) tea.MouseClickMsg {
-		return tea.MouseClickMsg{X: zone.originX + x, Y: zone.originY + y + topMargin, Button: tea.MouseLeft, Mod: mod}
+		return tea.MouseClickMsg{X: zone.originX + x, Y: zone.originY + y, Button: tea.MouseLeft, Mod: mod}
 	}
 	// 편집 중이 아니면 링크를 누르면 연다.
 	m = drive(t, m, at(8, 2, 0))
@@ -40,9 +40,9 @@ func TestClickingABodyLinkOpensIt(t *testing.T) {
 	}
 	// 링크가 아닌 곳은 편집을 시작하고, 편집 중에는 링크를 눌러도 커서만 옮긴다.
 	m = drive(t, m, at(0, 0, 0))
-	m = drive(t, m, tea.MouseReleaseMsg{X: zone.originX, Y: zone.originY + topMargin})
+	m = drive(t, m, tea.MouseReleaseMsg{X: zone.originX, Y: zone.originY})
 	m = drive(t, m, at(8, 2, 0))
-	m = drive(t, m, tea.MouseReleaseMsg{X: zone.originX + 8, Y: zone.originY + 2 + topMargin})
+	m = drive(t, m, tea.MouseReleaseMsg{X: zone.originX + 8, Y: zone.originY + 2})
 	if len(opened) != 1 || m.focus != focusBody {
 		t.Fatalf("editing keeps the click in the editor: %v", opened)
 	}

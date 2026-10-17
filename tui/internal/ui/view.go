@@ -22,7 +22,7 @@ func (m Model) View() tea.View {
 		view.WindowTitle = "Ginote · " + workspace.Label()
 	}
 	if cursor != nil {
-		view.Cursor = tea.NewCursor(cursor.x, cursor.y+topMargin)
+		view.Cursor = tea.NewCursor(cursor.x, cursor.y)
 	}
 	return view
 }
@@ -106,26 +106,7 @@ func (m Model) render() (string, *cursorPos) {
 	if footer := m.renderFooter(); footer != "" {
 		base += "\n" + footer
 	}
-	return m.renderTopMargin() + base, cursor
-}
-
-// renderTopMargin은 맨 위 여백이다. 넓은 화면이면 사이드바 경계선을 위까지 잇는다.
-func (m Model) renderTopMargin() string {
-	if m.width == 0 {
-		return strings.Repeat("\n", topMargin)
-	}
-	line := ""
-	if m.wide() && (len(m.workspaces) > 0 || m.setup != nil) {
-		color := m.th.border
-		if m.dragSidebar {
-			color = m.th.accentBright
-		}
-		line = strings.Repeat(" ", m.sidebarWidth()) + m.th.fg(color).Render("│")
-	}
-	if m.modalOpen() {
-		line = dim(line)
-	}
-	return strings.Repeat(line+"\n", topMargin)
+	return base, cursor
 }
 
 func (m Model) renderSuggestions(names []string) string {

@@ -23,8 +23,6 @@ import (
 // (웹의 hasNoInteractiveFocus).
 type inputFocus int
 
-const topMargin = 1
-
 const (
 	focusNone inputFocus = iota
 	focusSearch
@@ -133,11 +131,12 @@ type Model struct {
 	devError       string
 	restart        string // "dev"(새 빌드) 또는 "reload"(전체 새로고침)
 	restartPending bool
-	quitting       bool  // 끝내는 중. 이때 오는 종료 메시지는 그대로 통과시킨다(main의 QuitFilter)
-	imeText        *bool // 입력 소스에 마지막으로 알린 모드(true면 글쓰기)
-	blurred        bool  // 창을 떠나 있다. 그동안은 입력 소스를 바꾸지 않는다
-	sidebarCols    int   // 경계선을 끌어 정한 사이드바 너비(0이면 화면 너비에 맞춤)
-	dragSidebar    bool  // 사이드바 경계선을 끄는 중
+	quitting       bool      // 끝내는 중. 이때 오는 종료 메시지는 그대로 통과시킨다(main의 QuitFilter)
+	imeText        *bool     // 입력 소스에 마지막으로 알린 모드(true면 글쓰기)
+	blurred        bool      // 창을 떠나 있다. 그동안은 입력 소스를 바꾸지 않는다
+	lastListLoad   time.Time // 목록을 마지막으로 받은(받기 시작한) 때. 자동 갱신 간격을 잰다
+	sidebarCols    int       // 경계선을 끌어 정한 사이드바 너비(0이면 화면 너비에 맞춤)
+	dragSidebar    bool      // 사이드바 경계선을 끄는 중
 	dragText       string
 	restore        *Snapshot
 
@@ -326,28 +325,10 @@ func (m Model) showToast(text string) (Model, tea.Cmd) {
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	next, cmd := m.update(fromScreen(msg))
+	next, cmd := m.update(msg)
 	model := next.(Model)
 	model.syncInputSource()
 	return model, cmd
-}
-
-func fromScreen(msg tea.Msg) tea.Msg {
-	switch event := msg.(type) {
-	case tea.MouseClickMsg:
-		event.Y -= topMargin
-		return event
-	case tea.MouseMotionMsg:
-		event.Y -= topMargin
-		return event
-	case tea.MouseReleaseMsg:
-		event.Y -= topMargin
-		return event
-	case tea.MouseWheelMsg:
-		event.Y -= topMargin
-		return event
-	}
-	return msg
 }
 
 func (m Model) wantsText() bool {
@@ -399,7 +380,7 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.quitForRestart()
 
 	case tea.WindowSizeMsg:
-		m.width, m.height = msg.Width, max(1, msg.Height-topMargin)
+		m.width, m.height = msg.Width, msg.Height
 		m.layoutNote()
 		return m, nil
 	case tea.BackgroundColorMsg:
@@ -449,7 +430,7 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		closeQuickLook()
 		m.blurred = false
 		m.recheckInputSource()
-		return m, nil
+		return m.refreshList(time.Now(), focusRefreshCooldown, false)
 	case tea.BlurMsg:
 		// 창을 떠나면 바꿔 둔 입력 소스를 되돌려 다른 창에서는 쓰던 한글을 그대로 쓴다.
 		m.blurred = true
@@ -547,6 +528,11 @@ func (m Model) onTick(now time.Time) (tea.Model, tea.Cmd) {
 	}
 	for _, entry := range m.deletions.Expired(now) {
 		cmds = append(cmds, m.moveIssuesNow(entry.Items, entry.NextState, entry.ID))
+	}
+	if !m.blurred {
+		var refresh tea.Cmd
+		m, refresh = m.refreshList(now, listPollInterval, true)
+		cmds = append(cmds, refresh)
 	}
 	return m, tea.Batch(cmds...)
 }

@@ -19,9 +19,9 @@ func TestDragSelectsBodyTextAndCopies(t *testing.T) {
 	m.View()
 	zone, _ := m.hits.lookup("body")
 	// 본문 "장보기\n\n- 우유"에서 첫 줄 처음부터 셋째 줄 "- 우"까지 끈다.
-	m = drive(t, m, tea.MouseClickMsg{X: zone.originX, Y: zone.originY + topMargin, Button: tea.MouseLeft})
-	m = drive(t, m, tea.MouseMotionMsg{X: zone.originX + 4, Y: zone.originY + 2 + topMargin, Button: tea.MouseLeft})
-	m = drive(t, m, tea.MouseReleaseMsg{X: zone.originX + 4, Y: zone.originY + 2 + topMargin, Button: tea.MouseLeft})
+	m = drive(t, m, tea.MouseClickMsg{X: zone.originX, Y: zone.originY, Button: tea.MouseLeft})
+	m = drive(t, m, tea.MouseMotionMsg{X: zone.originX + 4, Y: zone.originY + 2, Button: tea.MouseLeft})
+	m = drive(t, m, tea.MouseReleaseMsg{X: zone.originX + 4, Y: zone.originY + 2, Button: tea.MouseLeft})
 	if copied != "" || m.note.body.SelectedText() != "장보기\n\n- 우" {
 		t.Fatalf("release only selects: copied = %q", copied)
 	}
@@ -56,7 +56,7 @@ func TestClipboardResultsAndIssueNumber(t *testing.T) {
 	if !ok {
 		t.Fatal("issue number hit target missing")
 	}
-	m = drive(t, m, tea.MouseClickMsg{X: zone.x0, Y: zone.y0 + topMargin, Button: tea.MouseLeft})
+	m = drive(t, m, tea.MouseClickMsg{X: zone.x0, Y: zone.y0, Button: tea.MouseLeft})
 	if copied != "#2" || m.toast != "#2 복사했습니다." {
 		t.Fatalf("issue number copy: %q, toast %q", copied, m.toast)
 	}

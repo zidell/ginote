@@ -396,7 +396,7 @@ func click(t *testing.T, m Model, id string) Model {
 	if !ok {
 		t.Fatalf("no clickable %q on screen\n%s", id, screenText(m))
 	}
-	return drive(t, m, tea.MouseClickMsg{X: zone.x0, Y: zone.y0 + topMargin, Button: tea.MouseLeft})
+	return drive(t, m, tea.MouseClickMsg{X: zone.x0, Y: zone.y0, Button: tea.MouseLeft})
 }
 
 func screenText(m Model) string {

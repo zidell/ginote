@@ -21,6 +21,11 @@ const (
 	pinnedPageSize = 100
 	// deleteDelay는 휴지통으로 옮기기 전 취소할 수 있는 시간이다(DELETE_DELAY_MS).
 	deleteDelay = 2 * time.Second
+	// 창으로 돌아오면 목록을 다시 받는다. 창 전환이 잦아도 이 간격 안에서는 한 번만(ACTIVE_PAGE_REFRESH_COOLDOWN_MS).
+	focusRefreshCooldown = 30 * time.Second
+	// 창에 머무는 동안에도 다른 기기의 변경을 받도록 이 간격마다 목록을 다시 받는다. 터미널 멀티플렉서는
+	// 창 전환을 알려 주지 않기도 해서 포커스 갱신만으로는 모자란다.
+	listPollInterval = 5 * time.Minute
 )
 
 type listLoadedMsg struct {
@@ -190,6 +195,7 @@ func (m Model) applyList(msg listLoadedMsg) (Model, tea.Cmd) {
 		return m, nil
 	}
 	m.loading = false
+	m.lastListLoad = time.Now()
 	if msg.err != nil {
 		if !msg.background {
 			m.listErr = describeError(msg.err)
@@ -208,10 +214,24 @@ func (m Model) applyList(msg listLoadedMsg) (Model, tea.Cmd) {
 			issues = append(issues, issue)
 		}
 	}
-	m.issues = issues
-	m.page = 1
-	m.hasMore = msg.result.HasMore
-	m.searchAll = msg.searchAll
+	if msg.background && m.page > 1 && len(msg.searchAll) == 0 {
+		// 자동 갱신은 더 불러온 뒤쪽 페이지를 버리지 않는다. 첫 페이지만 새로 바꾸고 나머지는 이어 둔다.
+		seen := map[int64]bool{}
+		for _, issue := range issues {
+			seen[issue.ID] = true
+		}
+		for _, issue := range m.issues {
+			if !seen[issue.ID] && !pinnedIDs[issue.ID] {
+				issues = append(issues, issue)
+			}
+		}
+		m.issues = issues
+	} else {
+		m.issues = issues
+		m.page = 1
+		m.hasMore = msg.result.HasMore
+		m.searchAll = msg.searchAll
+	}
 	m.reconcileSelection()
 	if m.focusListOnLoad {
 		m.focusListOnLoad = false
@@ -328,6 +348,19 @@ func (m Model) reload() (Model, tea.Cmd) {
 		cmds = append(cmds, m.refreshNote(m.note.number()))
 	}
 	return m, tea.Batch(cmds...)
+}
+
+// refreshList는 화면을 막지 않고 목록을 다시 받는다. 마지막으로 받은 뒤 after가 지나지 않았거나
+// 다른 목록 요청·설정 화면, 휴지통 이동 유예, 저장 중인 노트가 있으면 건너뛴다(응답이 방금 한 일을 덮지 않게). poll이면 검색 중에도 건너뛴다(검색 API 한도가 작다).
+// 열린 노트는 applyList가 목록의 새 내용으로 맞춘다.
+func (m Model) refreshList(now time.Time, after time.Duration, poll bool) (Model, tea.Cmd) {
+	if _, ok := m.activeWorkspace(); !ok || now.Sub(m.lastListLoad) < after || m.loading || m.loadingMore ||
+		m.setup != nil || m.settings != nil || (poll && strings.TrimSpace(m.listTerm()) != "") ||
+		m.deletions.Len() > 0 || (m.note != nil && (m.note.pending || m.note.saving)) {
+		return m, nil
+	}
+	m.lastListLoad = now
+	return m, m.loadList(true)
 }
 
 // submitSearch는 검색어를 적용한다. "#태그"가 저장소 태그와 같으면 태그 필터로 바꾼다.
