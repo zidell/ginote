@@ -205,16 +205,31 @@ struct NoteDetailView: View {
 
     @ToolbarContentBuilder
     private var toolbar: some ToolbarContent {
-        // 미리보기 중에는 버튼들 앞에 닫기 버튼을 둔다(웹 "닫기 (M)"). 이 자리는 미리보기가 아닐 때도 빈 채로 둔다.
-        // 자리가 있다 없다 하면 SwiftUI가 노트 칸 버튼들을 왼쪽 끝과 오른쪽 끝 사이로 옮긴다.
-        ToolbarItem(placement: .principal) {
-            if previewing {
-                Button { previewing = false } label: { Label("미리보기 닫기", systemImage: "xmark") .labelStyle(.titleAndIcon) }
-                    .help(String(localized: "미리보기 닫기") + app.shortcutHint(.preview))
-            } else {
-                ToolbarSlot()
+        // 번호·날짜와 미리보기 닫기는 노트 칸 왼쪽의 같은 자리를 쓴다.
+        ToolbarItem(placement: .automatic) {
+            Group {
+                if previewing {
+                    Button { previewing = false } label: { Label("미리보기 닫기", systemImage: "xmark") .labelStyle(.titleAndIcon) }
+                        .help(String(localized: "미리보기 닫기") + app.shortcutHint(.preview))
+                } else if let issue = session.issue {
+                    HStack(spacing: 4) {
+                        Button {
+                            NoteActions.copyIssueNumber(number: issue.number, title: NoteLock.removeLock(from: session.displayTitle))
+                        } label: { Text(verbatim: "#\(issue.number)") }
+                        .buttonStyle(.plain)
+                        .help(String(localized: "이슈 번호 복사"))
+                        Text("|")
+                        Text(toolbarDateText(issue.updatedAt.isEmpty ? issue.createdAt : issue.updatedAt))
+                    }
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                } else {
+                    Text("새 노트").font(.caption).foregroundStyle(.secondary)
+                }
             }
         }
+        // 자동 배치 항목을 왼쪽에 두고 오른쪽 도구 버튼과 간격을 벌린다.
+        ToolbarItem(placement: .automatic) { Spacer().frame(maxWidth: .infinity) }
         ToolbarItemGroup(placement: .primaryAction) {
             // 올리는 중이거나 30개를 채우면 끈다(웹과 같음).
             Button { session.chooseAttachments() } label: { Label("첨부", systemImage: "paperclip") }
@@ -297,6 +312,13 @@ struct NoteDetailView: View {
         GitHubDate.parse(value)?.formatted(date: .abbreviated, time: .shortened) ?? value
     }
 
+    private func toolbarDateText(_ value: String) -> String {
+        guard let date = GitHubDate.parse(value) else { return String(value.prefix(10)) }
+        let parts = Calendar.current.dateComponents([.year, .month, .day], from: date)
+        guard let year = parts.year, let month = parts.month, let day = parts.day else { return String(value.prefix(10)) }
+        return String(format: "%04d-%02d-%02d", year, month, day)
+    }
+
     private func errorBanner(_ message: String) -> some View {
         HStack(spacing: 8) {
             Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
@@ -311,7 +333,6 @@ struct NoteDetailView: View {
         .background(Color.orange.opacity(0.12))
     }
 }
-
 /// 포커스를 돌려줄 곳을 붙들되 화면이 사라지면 놓는다.
 final class WeakResponder {
     weak var value: NSResponder?

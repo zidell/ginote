@@ -4,6 +4,11 @@ import Observation
 
 enum NoteScope: Hashable { case notes, trash }
 
+/// UndoManager는 AppKit의 메인 스레드에서만 사용한다. Task로 넘길 때도 메인 액터에서만 꺼낸다.
+private struct MainActorUndoManager: @unchecked Sendable {
+    let value: UndoManager
+}
+
 /// 저장소 하나의 목록·태그·열린 노트 상태. 웹 `App.svelte`의 목록 부분을 옮겼다.
 @MainActor
 @Observable
@@ -629,8 +634,9 @@ final class WorkspaceModel {
         refreshCounts()
         if let opened = openedId, moved.contains(where: { $0.id == opened }) { openedId = nil }
         guard !moved.isEmpty, let undoManager else { return }
+        let undo = MainActorUndoManager(value: undoManager)
         undoManager.registerUndo(withTarget: self) { model in
-            Task { @MainActor in await model.restore(moved, undoManager: undoManager) }
+            Task { @MainActor in await model.restore(moved, undoManager: undo.value) }
         }
         undoManager.setActionName(moved.count == 1 ? String(localized: "휴지통으로 이동") : String(localized: "\(moved.count)개 노트를 휴지통으로 이동"))
     }
@@ -657,8 +663,9 @@ final class WorkspaceModel {
         refreshCounts()
         if let opened = openedId, restored.contains(where: { $0.id == opened }) { openedId = nil }
         guard !restored.isEmpty, let undoManager else { return }
+        let undo = MainActorUndoManager(value: undoManager)
         undoManager.registerUndo(withTarget: self) { model in
-            Task { @MainActor in await model.moveToTrash(restored, undoManager: undoManager) }
+            Task { @MainActor in await model.moveToTrash(restored, undoManager: undo.value) }
         }
         undoManager.setActionName(String(localized: "복원"))
     }
@@ -764,7 +771,7 @@ final class WorkspaceModel {
                 for expired in try await client.listExpiredClosedIssues() where !openNumbers.contains(expired.number) {
                     _ = try await client.purgeAttachments(issueNumber: expired.number)
                 }
-                await self?.app.localState.markAttachmentsPruned(repo: client.repo)
+                self?.app.localState.markAttachmentsPruned(repo: client.repo)
             } catch {
                 // 실패하면 다음 연결 때 다시 시도한다.
             }

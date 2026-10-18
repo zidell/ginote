@@ -136,13 +136,24 @@ final class NoteSessionTests: GinoteTestCase {
 
     // MARK: - 원격 반영
 
+    func testFirstOpenUsesListBodyUntilReselected() async throws {
+        let number = FakeGitHub.addIssue(title: "목록 제목", body: "목록 본문")
+        let session = try await open(number)
+        FakeGitHub.editIssue(number, title: "새 제목", body: "새 본문")
+        await session.loadDetails()
+        XCTAssertEqual(session.body, "목록 본문")
+
+        await session.refreshOnReselect()
+        XCTAssertEqual(session.body, "새 본문")
+    }
+
     func testRefreshFromRemoteAppliesOtherDeviceEdit() async throws {
         let number = FakeGitHub.addIssue(title: "a", body: "a")
         let session = try await open(number)
         await session.refreshFromRemote()
         XCTAssertEqual(session.body, "a", "updated_at이 같으면 그대로")
         FakeGitHub.editIssue(number, title: "b", body: "b")
-        await session.loadDetails()
+        await session.refreshOnReselect()
         XCTAssertEqual(session.body, "b")
         XCTAssertFalse(session.refreshing)
 

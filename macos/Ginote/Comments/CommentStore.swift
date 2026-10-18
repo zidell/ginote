@@ -7,8 +7,8 @@ import UniformTypeIdentifiers
 @MainActor
 @Observable
 final class CommentItem: Identifiable {
-    let localId: String
-    var id: String { localId }
+    nonisolated let localId: String
+    nonisolated var id: String { localId }
     var remoteId: Int?
     /// 편집 화면용 글: 관리 블록·`<audio>` 표기를 빼고 첨부 주소를 `{repo}/`로 줄인 것.
     var text: String

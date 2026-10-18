@@ -322,7 +322,7 @@ actor ThumbnailCache {
         ? FileManager.default.temporaryDirectory.appendingPathComponent("ginote-unittest-cache")
         : FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0].appendingPathComponent(ConfigStore.bundleIdentifier))
         .appendingPathComponent("attachments")
-    private var thumbnails: [String: NSImage] = [:]
+    private var thumbnails: [String: CGImage] = [:]
 
     func file(sha: String, name: String) -> URL? {
         let url = directory.appendingPathComponent(sha).appendingPathComponent(name)
@@ -338,7 +338,7 @@ actor ThumbnailCache {
         return url
     }
 
-    func thumbnail(for url: URL, sha: String, size: CGFloat) -> NSImage? {
+    func thumbnail(for url: URL, sha: String, size: CGFloat) -> CGImage? {
         if let cached = thumbnails[sha] { return cached }
         guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
               let image = CGImageSourceCreateThumbnailAtIndex(source, 0, [
@@ -346,8 +346,7 @@ actor ThumbnailCache {
                   kCGImageSourceCreateThumbnailWithTransform: true,
                   kCGImageSourceThumbnailMaxPixelSize: size * 2
               ] as CFDictionary) else { return nil }
-        let thumbnail = NSImage(cgImage: image, size: .zero)
-        thumbnails[sha] = thumbnail
-        return thumbnail
+        thumbnails[sha] = image
+        return image
     }
 }

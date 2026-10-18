@@ -130,7 +130,9 @@ struct AttachmentTile: View {
         }
         .task(id: item.sha) {
             guard item.isImage, let url = try? await store.localFile(item) else { return }
-            thumbnail = await ThumbnailCache.shared.thumbnail(for: url, sha: item.sha, size: 64)
+            if let image = await ThumbnailCache.shared.thumbnail(for: url, sha: item.sha, size: 64) {
+                thumbnail = NSImage(cgImage: image, size: .zero)
+            }
         }
     }
 
@@ -192,7 +194,7 @@ final class QuickLook: NSObject, QLPreviewPanelDataSource, QLPreviewPanelDelegat
     func observeFocusLoss() {
         guard observers.isEmpty else { return }
         let center = NotificationCenter.default
-        let close: (Notification) -> Void = { note in
+        let close: @Sendable (Notification) -> Void = { note in
             MainActor.assumeIsolated {
                 guard QLPreviewPanel.sharedPreviewPanelExists(), let panel = QLPreviewPanel.shared(), panel.isVisible else { return }
                 if let window = note.object as? NSWindow, window === panel { return }

@@ -103,20 +103,22 @@ final class NoteSession: Identifiable {
         }
     }
 
-    /// 노트를 열 때 첨부 폴더와 댓글을 읽는다.
-    /// 노트를 열며 GitHub에서 다시 읽는 중. 목록 행에 스피너를 띄운다(웹 note-row-refresh-spinner).
+    /// 목록 응답의 본문은 이미 있으므로 첫 열람 때는 첨부 폴더와 댓글만 읽는다.
+    /// 같은 행을 다시 클릭해 GitHub의 최신 본문을 확인하는 동안 목록 행에 스피너를 띄운다.
     private(set) var refreshing = false
 
     func loadDetails() async {
         guard number != nil else { return }
-        refreshing = true
-        defer { refreshing = false }
-        // 웹처럼 열 때마다 이슈를 다시 읽는다. 예전에 열어 둔 세션은 다른 기기의 수정을 모르기 때문이다.
-        // 첨부·기록과 함께 읽어 기록이 늦게 뜨지 않게 한다.
-        async let latest: Void = refreshFromRemote()
         async let files: Void = attachments.load()
         async let notes: Void = comments.load()
-        _ = await (latest, files, notes)
+        _ = await (files, notes)
+    }
+
+    func refreshOnReselect() async {
+        guard !refreshing else { return }
+        refreshing = true
+        defer { refreshing = false }
+        await refreshFromRemote()
     }
 
     /// 새 노트면 번호를 받을 때까지 기다린다.

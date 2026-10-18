@@ -127,11 +127,11 @@ struct NoteListView: View {
                 else { await workspace.moveToTrash(targets, undoManager: undoManager) }
             }
         }
-        // 목록 선택은 키보드 커서다. 마우스에서 온 선택만 열람으로 연다.
+        // 키보드 이동은 커서만 바꾼다. 마우스는 mouseDown에서 먼저 열고, 행 번호를 알 수 없었을 때만 여기서 연다.
         .onChange(of: workspace.selection) { old, selection in
             if selection.count > 1 { workspace.selectionPreviewId = selection.subtracting(old).first ?? workspace.selectionPreviewId }
             guard ListKeyboard.consumeListClick(), selection.count == 1, let id = selection.first else { return }
-            workspace.openedId = id
+            if workspace.openedId != id { workspace.openedId = id }
             workspace.listReadSelectionId = id
         }
         .onPasteCommand(of: [.fileURL, .plainText, .png, .tiff]) { providers in
@@ -445,8 +445,9 @@ enum ListKeyboard {
         NotificationCenter.default.post(name: sidebarReclick, object: nil)
     }
 
-    /// 키보드 커서가 이미 놓인 노트 행을 클릭하면 선택 변경 알림이 없으므로 직접 열람한다.
-    private static func openSelectedRowOnClick(_ event: NSEvent) {
+    /// List의 selection 변경은 mouseUp 뒤에 오므로, mouseDown 때 행 번호로 목록의 본문을 바로 연다.
+    /// 행 구조가 예상과 다르면 onChange(of: selection) 경로에 맡긴다.
+    private static func openRowOnMouseDown(_ event: NSEvent) {
         guard event.clickCount == 1,
               event.modifierFlags.intersection([.command, .shift, .option, .control]).isEmpty,
               AppModel.shared.activePane == .list,
@@ -456,12 +457,33 @@ enum ListKeyboard {
         while let current = view, !(current is NSTableView) { view = current.superview }
         guard let table = view as? NSTableView, table.effectiveStyle != .sourceList else { return }
         let row = table.row(at: table.convert(event.locationInWindow, from: nil))
-        guard row >= 0, row == table.selectedRow,
-              let workspace = AppModel.shared.workspace,
-              workspace.selection.count == 1,
-              let id = workspace.selection.first else { return }
-        workspace.openedId = id
+        guard let workspace = AppModel.shared.workspace, workspace.selection.count <= 1,
+              let id = issueId(at: row, tableRows: table.numberOfRows, workspace: workspace) else { return }
+        if workspace.openedId == id, let issue = workspace.issue(id: id) {
+            let session = workspace.session(for: issue)
+            Task { await session.refreshOnReselect() }
+        } else {
+            workspace.openedId = id
+        }
         workspace.listReadSelectionId = id
+    }
+
+    private static func issueId(at row: Int, tableRows: Int, workspace: WorkspaceModel) -> Int? {
+        guard row >= 0, !workspace.showingSkeleton, workspace.hasLoaded else { return nil }
+        // NoteListView.list의 검색 행, listRows의 머리·새 노트·이슈, 마지막 상태 행과 같은 순서.
+        var rows: [Int?] = [nil]
+        let pinned = workspace.displayedPinned
+        if !pinned.isEmpty {
+            rows.append(nil)
+            rows.append(contentsOf: pinned.map(\.id))
+            rows.append(nil)
+        }
+        if workspace.newNote != nil { rows.append(NoteSession.newNoteSelectionId) }
+        rows.append(contentsOf: workspace.displayedRegular.map(\.id))
+        if workspace.loadingMore { rows.append(nil) }
+        if workspace.searchLimitReached { rows.append(nil) }
+        guard tableRows == rows.count, row < rows.count else { return nil }
+        return rows[row]
     }
 
     /// 코드가 커서를 옮길 때도 열지 않게 표시한다.
@@ -475,7 +497,8 @@ enum ListKeyboard {
     static func install() {
         guard monitor == nil else { return }
         monitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .leftMouseDown]) { event in
-            MainActor.assumeIsolated { handle(event) }
+            let keep = MainActor.assumeIsolated { handle(event) != nil }
+            return keep ? event : nil
         }
     }
 
@@ -485,7 +508,7 @@ enum ListKeyboard {
             app.toolbarKeyFocus = nil
             listClickPending = true
             postSidebarReclick(event)
-            openSelectedRowOnClick(event)
+            openRowOnMouseDown(event)
             return event
         }
         // macOS 목록은 글자를 누르면 그 글자로 시작하는 행으로 선택을 옮긴다(type-select). ⌥T 같은 조합도 글자(†)로

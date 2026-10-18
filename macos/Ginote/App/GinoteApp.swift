@@ -73,9 +73,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         AppModel.shared.applyTheme()
         MenuShortcuts.install()
         Task { await ensureMainWindow() }
-        NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in MainActor.assumeIsolated { zoomKey(event) } }
+        NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            let keep = MainActor.assumeIsolated { zoomKey(event) != nil }
+            return keep ? event : nil
+        }
         #if DEBUG
-        NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in MainActor.assumeIsolated { traceKey(event) } }
+        NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            let keep = MainActor.assumeIsolated { traceKey(event) != nil }
+            return keep ? event : nil
+        }
         if ProcessInfo.processInfo.environment["GINOTE_SELF_TEST"] != nil { await SelfTest.run() }
         #endif
     }
