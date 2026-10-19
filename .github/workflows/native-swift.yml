@@ -27,4 +27,4 @@ jobs:
         working-directory: macos
         run: |
           xcodegen
-          xcodebuild -quiet -project GinoteNative.xcodeproj -scheme Ginote -derivedDataPath build/test-derived -destination 'platform=macOS' test
+          xcodebuild -quiet -project GinoteNative.xcodeproj -scheme Ginote -derivedDataPath build/test-derived -destination 'platform=macOS' -testLanguage ko -testRegion KR test
