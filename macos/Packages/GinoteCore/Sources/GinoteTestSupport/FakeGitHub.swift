@@ -192,7 +192,19 @@ public final class FakeGitHub: URLProtocol {
 
         if path == "/user" { return (200, ["login": "tester", "avatar_url": "https://example.com/a.png"], [:]) }
         if path == base { return (200, ["full_name": repo, "private": true, "default_branch": "main"], [:]) }
-        if path == "/graphql" { return (200, graphCounts(), [:]) }
+        if path == "/graphql" {
+            if (body["query"] as? String)?.contains("deleteIssue") == true {
+                let variables = body["variables"] as? [String: Any]
+                let nodeId = variables?["issueId"] as? String
+                guard let number = issues.first(where: { $0.value["node_id"] as? String == nodeId })?.key else {
+                    return (200, ["errors": [["message": "Not Found"]]], [:])
+                }
+                issues[number] = nil
+                comments[number] = nil
+                return (200, ["data": ["deleteIssue": ["clientMutationId": NSNull()]]], [:])
+            }
+            return (200, graphCounts(), [:])
+        }
         if path == "/search/issues" { return search(query) }
 
         // git 데이터 API
@@ -428,7 +440,7 @@ public final class FakeGitHub: URLProtocol {
 
     private static func makeIssue(number: Int, title: String, body: String, labels names: [String], state: String) -> [String: Any] {
         tick()
-        return ["id": 100_000 + number, "number": number, "title": title, "body": body, "state": state,
+        return ["id": 100_000 + number, "node_id": "I_\(number)", "number": number, "title": title, "body": body, "state": state,
                 "labels": names.map(labelJSON), "created_at": now(), "updated_at": now(),
                 "closed_at": state == "closed" ? now() as Any : NSNull(), "comments": 0, "user": ["login": "tester"],
                 "html_url": "https://github.com/\(repo)/issues/\(number)"]

@@ -642,6 +642,7 @@ final class WorkspaceModel {
     }
 
     func restore(_ targets: [Issue], undoManager: UndoManager?) async {
+        guard !deletingNote else { return }
         var restored: [Issue] = []
         for issue in targets {
             do {
@@ -668,6 +669,39 @@ final class WorkspaceModel {
             Task { @MainActor in await model.moveToTrash(restored, undoManager: undo.value) }
         }
         undoManager.setActionName(String(localized: "복원"))
+    }
+
+    private(set) var deletingNote = false
+
+    func permanentlyDelete(_ issue: Issue) async {
+        guard issue.isClosed, !deletingNote else { return }
+        deletingNote = true
+        defer { deletingNote = false }
+        guard await Dialogs.confirm(String(localized: "이 노트와 댓글, 첨부파일을 완전히 삭제할까요? 되돌릴 수 없습니다."),
+                                    confirmTitle: String(localized: "완전 삭제"), destructive: true) else { return }
+        errorMessage = nil
+        do {
+            try await client.permanentlyDeleteIssue(issue.number)
+        } catch {
+            errorMessage = friendly(error)
+            guard error is GitHubClient.AttachmentCleanupError else { return }
+        }
+        requestVersion += 1
+        loading = false
+        loadingMore = false
+        showingSkeleton = false
+        let shown = issues.contains { $0.id == issue.id }
+        issues.removeAll { $0.id == issue.id }
+        pinned.removeAll { $0.id == issue.id }
+        holds[issue.id] = nil
+        listCache.removeAll()
+        sessions[issue.number] = nil
+        selection.remove(issue.id)
+        if openedId == issue.id { openedId = nil }
+        if shown { totalCount = totalCount.map { max(0, $0 - 1) } }
+        if var next = counts { next.trash = max(0, next.trash - 1); counts = next }
+        localCountChange = Date()
+        refreshCounts()
     }
 
     // MARK: - 고정

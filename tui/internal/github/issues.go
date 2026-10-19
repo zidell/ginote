@@ -2,6 +2,7 @@ package github
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"sort"
@@ -245,6 +246,43 @@ func (c *Client) SetIssueLabels(ctx context.Context, repoInput string, number in
 func (c *Client) SetIssueState(ctx context.Context, repoInput string, number int, state string) (Issue, error) {
 	return c.issueCall(ctx, repoInput, http.MethodPatch, fmt.Sprintf("/issues/%d", number),
 		map[string]any{"state": state})
+}
+
+// PermanentlyDeleteIssue returns deleted=true even if attachment cleanup fails after deletion.
+func (c *Client) PermanentlyDeleteIssue(ctx context.Context, repo string, number int) (deleted bool, err error) {
+	issue, err := c.GetIssue(ctx, repo, number)
+	if err != nil {
+		return false, err
+	}
+	if issue.State != "closed" {
+		return false, fmt.Errorf("휴지통에 있는 노트만 완전히 삭제할 수 있습니다.")
+	}
+	var result struct {
+		Data struct {
+			DeleteIssue json.RawMessage `json:"deleteIssue"`
+		} `json:"data"`
+		Errors []struct {
+			Message string `json:"message"`
+		} `json:"errors"`
+	}
+	_, err = c.request(ctx, http.MethodPost, "/graphql", map[string]any{
+		"query":     "mutation($issueId: ID!) { deleteIssue(input: { issueId: $issueId }) { clientMutationId } }",
+		"variables": map[string]string{"issueId": issue.NodeID},
+	}, &result)
+	if err != nil {
+		return false, err
+	}
+	if len(result.Errors) > 0 {
+		return false, fmt.Errorf("%s", result.Errors[0].Message)
+	}
+	if len(result.Data.DeleteIssue) == 0 || string(result.Data.DeleteIssue) == "null" {
+		return false, fmt.Errorf("노트를 완전히 삭제하지 못했습니다.")
+	}
+	_, err = c.PurgeIssueAttachments(ctx, repo, number)
+	if err != nil {
+		return true, fmt.Errorf("노트는 완전히 삭제했지만 첨부파일을 정리하지 못했습니다: %w", err)
+	}
+	return true, nil
 }
 
 func (c *Client) issueCall(ctx context.Context, repoInput, method, suffix string, body any) (Issue, error) {

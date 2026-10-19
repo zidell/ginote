@@ -91,6 +91,7 @@ type Model struct {
 	loadingMore     bool
 	listErr         string
 	gen             int
+	deletingNote    bool
 	listScroll      int
 	kbFocus         int64 // keyboardFocusedIssueId
 	focusListOnLoad bool  // 저장소 전환 뒤 새 목록의 첫 행을 포커스한다

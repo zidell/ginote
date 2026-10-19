@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"strconv"
 	"strings"
 	"unicode"
 
@@ -209,6 +210,12 @@ func (m Model) submitPrompt() (tea.Model, tea.Cmd) {
 	case "confirm:delete-attachment":
 		m.prompt = nil
 		return m.deleteAttachment(p.target)
+	case "confirm:delete-note":
+		m.prompt = nil
+		if m.note != nil && m.state == "closed" && p.target == strconv.Itoa(m.note.number()) {
+			return m.permanentlyDeleteNote(m.note.issue)
+		}
+		return m, nil
 	case "confirm:cancel-voice":
 		m.prompt = nil
 		return m.closeVoice()

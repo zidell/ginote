@@ -14,6 +14,39 @@ final class GitHubClientTests: XCTestCase {
 
     // MARK: - 연결과 오류
 
+    func testPermanentDeletionRemovesIssueCommentsAndAttachments() async throws {
+        let number = FakeGitHub.addIssue(title: "휴지통", state: "closed")
+        FakeGitHub.addComment(to: number, body: "댓글")
+        let path = ".issue-note-assets/issues/\(number)/comments/1/a.txt"
+        FakeGitHub.putFile(path, data: Data("a".utf8))
+        try await client.permanentlyDeleteIssue(number)
+        XCTAssertNil(FakeGitHub.state(number))
+        XCTAssertFalse(FakeGitHub.filePaths.contains(path))
+        XCTAssertEqual(FakeGitHub.commentBodies(number), [])
+    }
+
+    func testPermanentDeletionRefusesOpenIssueAndGraphQLError() async throws {
+        let number = FakeGitHub.addIssue(title: "노트")
+        do { try await client.permanentlyDeleteIssue(number); XCTFail("열린 노트 삭제") } catch {}
+        XCTAssertEqual(FakeGitHub.state(number), "open")
+        FakeGitHub.editIssue(number, state: "closed")
+        FakeGitHub.override("/graphql", status: 200, json: ["errors": [["message": "Forbidden"]]])
+        do { try await client.permanentlyDeleteIssue(number); XCTFail("권한 오류 무시") } catch {}
+        XCTAssertEqual(FakeGitHub.state(number), "closed")
+    }
+
+    func testPermanentDeletionReportsAttachmentCleanupAfterIssueIsGone() async throws {
+        let number = FakeGitHub.addIssue(title: "휴지통", state: "closed")
+        FakeGitHub.fail("/contents/", method: "GET", status: 403, message: "Forbidden")
+        do {
+            try await client.permanentlyDeleteIssue(number)
+            XCTFail("첨부 정리 오류가 필요함")
+        } catch {
+            XCTAssertTrue(error is GitHubClient.AttachmentCleanupError)
+        }
+        XCTAssertNil(FakeGitHub.state(number))
+    }
+
     func testVerifyReturnsUserAndRepository() async throws {
         let result = try await client.verify()
         XCTAssertEqual(result.user.login, "tester")

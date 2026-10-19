@@ -105,6 +105,11 @@ func (m Model) runChoice(id string) (tea.Model, tea.Cmd) {
 		return m.noteShortcut("e")
 	case "move":
 		return m.moveIssues([]github.Issue{m.note.issue})
+	case "permanently-delete":
+		if m.state == "closed" && m.note.issue.State == "closed" {
+			m.prompt = newConfirmPrompt("confirm:delete-note", "완전 삭제", "이 노트와 댓글, 첨부파일을 완전히 삭제할까요? 되돌릴 수 없습니다.", strconv.Itoa(m.note.number()))
+		}
+		return m, nil
 	}
 	return m, nil
 }
@@ -168,7 +173,8 @@ func (m Model) noteMenu() *choiceModal {
 		items = append(items, menuItem{id: "github", label: "GitHub에서 보기", key: "G"})
 		if !m.selectionMode() {
 			if archived {
-				items = append(items, menuItem{id: "move", label: "복원", key: "Delete", divider: true})
+				items = append(items, menuItem{id: "move", label: "복원", divider: true},
+					menuItem{id: "permanently-delete", label: "완전 삭제", danger: true, disabled: m.deletingNote})
 			} else {
 				items = append(items, menuItem{id: "move", label: "삭제", key: "Delete", divider: true, danger: true})
 			}

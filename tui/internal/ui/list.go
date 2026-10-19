@@ -619,6 +619,9 @@ func (m Model) pendingDeletion(id int64) bool {
 
 // moveIssues는 노트를 휴지통으로 옮기거나(2초 유예) 휴지통에서 바로 복원한다.
 func (m Model) moveIssues(issues []github.Issue) (Model, tea.Cmd) {
+	if m.state == "closed" && m.deletingNote {
+		return m, nil
+	}
 	var targets []github.Issue
 	for _, issue := range issues {
 		if issue.ID != 0 && !m.pendingDeletion(issue.ID) {
@@ -698,6 +701,66 @@ func (m Model) applyMoved(msg issueMovedMsg) (Model, tea.Cmd) {
 	}
 	m.clampListScroll()
 	return m, cmd
+}
+
+type issueDeletedMsg struct {
+	issue       github.Issue
+	workspaceID string
+	deleted     bool
+	err         error
+}
+
+func (m Model) permanentlyDeleteNote(issue github.Issue) (Model, tea.Cmd) {
+	workspace, ok := m.activeWorkspace()
+	if !ok || m.deletingNote || m.state != "closed" || issue.State != "closed" {
+		return m, nil
+	}
+	m.deletingNote = true
+	return m, func() tea.Msg {
+		client, err := clientFor(workspace)
+		if err != nil {
+			return issueDeletedMsg{issue: issue, workspaceID: workspace.ID, err: err}
+		}
+		ctx, cancel := requestContext()
+		defer cancel()
+		deleted, err := client.PermanentlyDeleteIssue(ctx, workspace.Repo, issue.Number)
+		return issueDeletedMsg{issue: issue, workspaceID: workspace.ID, deleted: deleted, err: err}
+	}
+}
+
+func (m Model) applyDeleted(msg issueDeletedMsg) (Model, tea.Cmd) {
+	m.deletingNote = false
+	workspace, ok := m.activeWorkspace()
+	if !ok || workspace.ID != msg.workspaceID {
+		return m, nil
+	}
+	if msg.deleted {
+		m.gen++ // 먼저 보낸 목록 응답이 삭제한 노트를 되살리지 않게 한다.
+		m.loading, m.loadingMore = false, false
+		m.issues = removeIssue(m.issues, msg.issue.ID)
+		m.pinned = removeIssue(m.pinned, msg.issue.ID)
+		m.searchAll = removeIssue(m.searchAll, msg.issue.ID)
+		delete(m.selected, msg.issue.ID)
+		if m.entered == msg.issue.ID {
+			m.entered = 0
+		}
+		if m.anchor == msg.issue.ID {
+			m.anchor = 0
+		}
+		if m.kbFocus == msg.issue.ID {
+			m.kbFocus = 0
+		}
+		if m.note != nil && m.note.issue.ID == msg.issue.ID {
+			m.note = nil
+			m.focus = focusNone
+			m.dragText = ""
+		}
+		m.clampListScroll()
+	}
+	if msg.err != nil {
+		return m.showToast(describeError(msg.err))
+	}
+	return m.showToast("노트를 완전히 삭제했습니다.")
 }
 
 func removeIssue(issues []github.Issue, id int64) []github.Issue {

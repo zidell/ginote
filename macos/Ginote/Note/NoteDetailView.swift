@@ -269,6 +269,9 @@ struct NoteDetailView: View {
                     Divider()
                     if session.isArchived {
                         Button("복원") { Task { await session.workspace.restore([issue], undoManager: undoManager) } }
+                            .disabled(session.workspace.deletingNote)
+                        Button("완전 삭제", role: .destructive) { Task { await session.workspace.permanentlyDelete(issue) } }
+                            .disabled(session.workspace.deletingNote)
                     } else {
                         Button("휴지통으로 이동", role: .destructive) { Task { await session.workspace.moveToTrash([issue], undoManager: undoManager) } }
                     }

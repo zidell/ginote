@@ -26,6 +26,8 @@ func (m Model) handleData(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case issueMovedMsg:
 		return m.applyMoved(msg)
+	case issueDeletedMsg:
+		return m.applyDeleted(msg)
 	case pinToggledMsg:
 		return m.applyPin(msg)
 	case noteRefreshedMsg:

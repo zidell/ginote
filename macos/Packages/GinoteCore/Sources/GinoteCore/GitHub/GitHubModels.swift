@@ -24,6 +24,7 @@ public struct GitHubRepository: Codable, Hashable, Sendable {
 /// 노트 하나 = GitHub 이슈 하나. 열린 이슈는 노트, 닫힌 이슈는 휴지통이다.
 public struct Issue: Codable, Hashable, Identifiable, Sendable {
     public var id: Int
+    public var nodeId: String?
     public var number: Int
     public var title: String
     public var body: String?
@@ -43,8 +44,9 @@ public struct Issue: Codable, Hashable, Identifiable, Sendable {
 
     public init(id: Int, number: Int, title: String, body: String?, state: String = "open", labels: [GitHubLabel] = [],
                 createdAt: String, updatedAt: String, closedAt: String? = nil, comments: Int? = 0,
-                user: GitHubUser? = nil, htmlUrl: String? = nil) {
+                user: GitHubUser? = nil, htmlUrl: String? = nil, nodeId: String? = nil) {
         self.id = id; self.number = number; self.title = title; self.body = body; self.state = state
+        self.nodeId = nodeId
         self.labels = labels; self.createdAt = createdAt; self.updatedAt = updatedAt; self.closedAt = closedAt
         self.comments = comments; self.user = user; self.htmlUrl = htmlUrl; self.pullRequest = nil
     }

@@ -54,7 +54,7 @@ func (f *fakeGitHub) addIssue(number int, title, body string, labels []string, u
 		labelObjects = append(labelObjects, map[string]any{"name": name})
 	}
 	f.issues[number] = map[string]any{
-		"id": 1000 + number, "number": number, "title": title, "body": body, "state": "open",
+		"id": 1000 + number, "node_id": fmt.Sprintf("I_%d", number), "number": number, "title": title, "body": body, "state": "open",
 		"labels": labelObjects, "created_at": updated.Format(time.RFC3339), "updated_at": updated.Format(time.RFC3339),
 		"html_url": fmt.Sprintf("https://github.com/o/notes/issues/%d", number), "user": map[string]any{"login": "octocat"},
 	}
@@ -124,6 +124,18 @@ func (f *fakeGitHub) handle(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Path
 	now := time.Now().UTC().Format(time.RFC3339)
 	switch {
+	case path == "/graphql":
+		variables, _ := body["variables"].(map[string]any)
+		id, _ := variables["issueId"].(string)
+		number, _ := strconv.Atoi(strings.TrimPrefix(id, "I_"))
+		if f.issues[number] == nil {
+			write(200, map[string]any{"errors": []map[string]string{{"message": "Not Found"}}})
+			return
+		}
+		delete(f.issues, number)
+		delete(f.comments, number)
+		write(200, map[string]any{"data": map[string]any{"deleteIssue": map[string]any{"clientMutationId": nil}}})
+		return
 	case path == "/repos/o/notes/git/ref/heads/ginote-assets":
 		if f.files == nil {
 			write(404, map[string]any{"message": "Not Found"})

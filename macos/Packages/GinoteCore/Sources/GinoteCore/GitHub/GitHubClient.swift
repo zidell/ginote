@@ -195,6 +195,30 @@ public final class GitHubClient: @unchecked Sendable {
         try await call("\(repoPath)/issues/\(number)", method: "PATCH", json: ["state": state])
     }
 
+    public struct AttachmentCleanupError: Error, LocalizedError, Sendable {
+        public let message: String
+        public var errorDescription: String? { message }
+    }
+
+    public func permanentlyDeleteIssue(_ number: Int) async throws {
+        let issue = try await getIssue(number)
+        guard issue.isClosed else { throw GitHubError(status: 0, message: String(localized: "휴지통에 있는 노트만 완전히 삭제할 수 있습니다.")) }
+        guard let nodeId = issue.nodeId, !nodeId.isEmpty else { throw GitHubError(status: 0, message: "Missing issue node ID") }
+        let response = try await send("/graphql", method: "POST", json: [
+            "query": "mutation($issueId: ID!) { deleteIssue(input: { issueId: $issueId }) { clientMutationId } }",
+            "variables": ["issueId": nodeId]
+        ])
+        let payload = try JSONSerialization.jsonObject(with: response.data) as? [String: Any]
+        if let errors = payload?["errors"] as? [[String: Any]], !errors.isEmpty {
+            throw GitHubError(status: 0, message: errors.compactMap { $0["message"] as? String }.joined(separator: "\n"))
+        }
+        guard let data = payload?["data"] as? [String: Any], data["deleteIssue"] is [String: Any] else {
+            throw GitHubError(status: 0, message: String(localized: "노트를 완전히 삭제하지 못했습니다."))
+        }
+        do { _ = try await purgeAttachments(issueNumber: number) }
+        catch { throw AttachmentCleanupError(message: String(localized: "노트는 완전히 삭제했지만 첨부파일을 정리하지 못했습니다: \(error.localizedDescription)")) }
+    }
+
     // MARK: - 개수(사이드바 배지)
 
     public struct NoteCounts: Equatable, Sendable {

@@ -18,6 +18,26 @@ final class NoteActionsTests: GinoteTestCase {
 
     // MARK: - 번호 복사·GitHub
 
+    func testPermanentDeletionConfirmsAndClearsSession() async throws {
+        let number = FakeGitHub.addIssue(title: "휴지통", state: "closed")
+        try await connect()
+        workspace.scope = .trash
+        await workspace.reload()
+        let target = try await issue(number)
+        workspace.open(target.id)
+        _ = workspace.session(for: target)
+        Dialogs.autoAnswer = false
+        await workspace.permanentlyDelete(target)
+        XCTAssertEqual(FakeGitHub.state(number), "closed")
+        Dialogs.autoAnswer = true
+        await workspace.permanentlyDelete(target)
+        XCTAssertNil(FakeGitHub.state(number))
+        XCTAssertFalse(workspace.issues.contains { $0.id == target.id })
+        XCTAssertNil(workspace.openedId)
+        XCTAssertNil(workspace.sessions[number])
+        XCTAssertFalse(workspace.deletingNote)
+    }
+
     func testMergeMovesCommentsCopiesFilesAndClosesOriginals() async throws {
         let first = FakeGitHub.addIssue(title: "", body: "첫 노트", labels: ["work"])
         let second = FakeGitHub.addIssue(title: "둘째", body: "둘째 노트", labels: ["home"])
