@@ -140,6 +140,7 @@
     searchIssuesPage,
     setIssueLabels,
     setIssueState,
+    permanentlyDeleteIssue,
     uploadAttachment,
     verifyConnection
   } from './lib/github.js';
@@ -2157,6 +2158,38 @@
     else router.navigate('/');
   }
 
+  async function permanentlyDeleteNote(issue) {
+    if (state !== 'closed' || issue.state !== 'closed' || selectionMode) return;
+    const workspaceId = activeWorkspaceId;
+    const requestedToken = token;
+    const requestedRepo = repo;
+    if (!await confirmAction($_('dynamic.permanentlyDeleteConfirm', { values: { title: issue.title } }))) return;
+    error = '';
+    let deletionError = null;
+    try {
+      await permanentlyDeleteIssue(requestedToken, requestedRepo, issue.number);
+    } catch (reason) {
+      deletionError = reason;
+    }
+    if (!deletionError || deletionError.issueDeleted) invalidateCachedIssueList(workspaceId);
+    if (workspaceId !== activeWorkspaceId || requestedToken !== token || requestedRepo !== repo) return;
+    if (!deletionError || deletionError.issueDeleted) {
+      issueListMutationVersion += 1;
+      const listed = issues.some((item) => item.id === issue.id);
+      issues = issues.filter((item) => item.id !== issue.id);
+      pinnedIssues = pinnedIssues.filter((item) => item.id !== issue.id);
+      pendingTrashedIssues = pendingTrashedIssues.filter((item) => item.id !== issue.id);
+      pendingRestoredIssues = pendingRestoredIssues.filter((item) => item.id !== issue.id);
+      if (listed) totalIssues = Math.max(0, totalIssues - 1);
+      if (selectedIssue?.id === issue.id) {
+        selectedIssue = null;
+        if (router.getDepth()) router.popTo(0);
+      }
+      notice = $_('dynamic.permanentlyDeleted');
+    }
+    if (deletionError) error = friendlyError(deletionError);
+  }
+
   async function moveIssue(issue, nextState, { deletionEntryId = null } = {}) {
     error = '';
     const requestedWorkspaceId = activeWorkspaceId;
@@ -2600,6 +2633,7 @@
               onMove={(issue, savePromise) => state === 'open'
                 ? moveIssues([issue], { savePromise })
                 : moveIssue(issue, 'open')}
+              onPermanentlyDelete={permanentlyDeleteNote}
               onVoiceRecording={(issue, target) => openVoiceRecording(issue, target)}
               voiceEnabled={Boolean(voiceApiKey.trim())}
               {voiceComment}

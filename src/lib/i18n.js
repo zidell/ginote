@@ -99,6 +99,21 @@ Object.assign(dynamicOverrides.fr, { appUpdateRequired: 'Une nouvelle version de
 Object.assign(dynamicOverrides.it, { appUpdateRequired: 'È disponibile una nuova versione dell’app. Aggiornala per ricevere le ultime modifiche.', appUpdating: 'Aggiornamento di Ginote all’ultima versione…', dialogOk: 'OK', dialogCancel: 'Annulla', settingsFileInvalid: 'config.toml non è un TOML valido, quindi la modifica è stata ignorata. Vedi config-status.txt nella stessa cartella.' });
 Object.assign(dynamicOverrides.es, { appUpdateRequired: 'Hay una nueva versión de la app. Actualízala para recibir los últimos cambios.', appUpdating: 'Actualizando Ginote a la última versión…', dialogOk: 'Aceptar', dialogCancel: 'Cancelar', settingsFileInvalid: 'config.toml no es TOML válido, así que el cambio se ignoró. Consulta config-status.txt en la misma carpeta.' });
 
+Object.assign(dynamic.en, {
+  permanentlyDelete: 'Permanently delete',
+  permanentlyDeleteConfirm: 'Permanently delete “{title}”, including its comments and attachments? This cannot be undone.',
+  permanentlyDeleted: 'Permanently deleted the note.',
+  deleteClosedOnly: 'Only notes in trash can be permanently deleted.',
+  deletedAttachmentCleanupFailed: 'The note was permanently deleted, but its attachment files could not be removed. {error}'
+});
+Object.assign(dynamic.ko, {
+  permanentlyDelete: '완전 삭제',
+  permanentlyDeleteConfirm: '“{title}” 노트와 댓글, 첨부파일을 완전히 삭제할까요? 되돌릴 수 없습니다.',
+  permanentlyDeleted: '노트를 완전히 삭제했습니다.',
+  deleteClosedOnly: '휴지통에 있는 노트만 완전히 삭제할 수 있습니다.',
+  deletedAttachmentCleanupFailed: '노트는 완전히 삭제했지만 첨부파일을 정리하지 못했습니다. {error}'
+});
+
 function dynamicFor(code) {
   return { ...dynamic.en, ...(dynamicOverrides[code] || {}) };
 }

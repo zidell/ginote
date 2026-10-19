@@ -77,6 +77,10 @@ const github = vi.hoisted(() => {
       return { items: clone(items), hasMore: false, totalCount: items.length };
     },
     listExpiredClosedIssues: async () => [],
+    permanentlyDeleteIssue: async (token, repo, number) => {
+      record('permanentlyDeleteIssue', [token, repo, number]);
+      state.issues = state.issues.filter((item) => item.number !== number);
+    },
     purgeIssueAttachments: async () => null,
     listLabels: async () => clone(state.labels),
     getIssue: async (token, repo, number) => clone(findIssue(number)),
@@ -924,10 +928,26 @@ describe('붙여넣기와 휴지통', () => {
     await waitFor(() => expect(rowTitles()).toEqual(['지난 메모']));
     const layer = await openNote('지난 메모');
 
-    await fireEvent.click(layer.querySelector('[aria-keyshortcuts="Delete"]'));
+    await fireEvent.click(within(layer).getByRole('button', { name: 'Restore' }));
 
     await waitFor(() => expect(callsTo('setIssueState')).toEqual([['ghp_test', 'octo/notes', 4, 'open']]));
     await waitFor(() => expect(rowTitles()).toEqual([]));
+  });
+
+  it('휴지통 노트 완전 삭제는 확인 후 목록과 상세에서 제거한다', async () => {
+    saveWorkspaces();
+    await renderReadyApp();
+    await fireEvent.click(screen.getByRole('button', { name: /Trash/ }));
+    await waitFor(() => expect(rowTitles()).toEqual(['지난 메모']));
+    const layer = await openNote('지난 메모');
+    const button = within(layer).getByRole('button', { name: 'Permanently delete' });
+    vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true);
+    await fireEvent.click(button);
+    expect(callsTo('permanentlyDeleteIssue')).toEqual([]);
+    await fireEvent.click(button);
+    await waitFor(() => expect(callsTo('permanentlyDeleteIssue')).toEqual([['ghp_test', 'octo/notes', 4]]));
+    await waitFor(() => expect(rowTitles()).toEqual([]));
+    expect(github.state.issues.some((item) => item.number === 4)).toBe(false);
   });
 });
 

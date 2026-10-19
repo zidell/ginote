@@ -129,6 +129,16 @@ describe('NoteEditor 코멘트 블록', () => {
     render(NoteEditor, { token: 't', repo: 'owner/repo', issue: baseIssue, archived: true });
 
     expect(document.querySelector('.inline-body').readOnly).toBe(true);
+    expect(screen.getByRole('button', { name: 'Restore' }).hasAttribute('aria-keyshortcuts')).toBe(false);
+    expect(screen.getByRole('button', { name: 'Permanently delete' })).toBeTruthy();
+    expect(document.querySelector('[aria-keyshortcuts="Delete"]')).toBeNull();
+  });
+
+  it('일반 노트와 읽기 전용 화면에는 완전 삭제 메뉴를 표시하지 않는다', async () => {
+    const { rerender } = render(NoteEditor, { token: 't', repo: 'owner/repo', issue: baseIssue });
+    expect(screen.queryByRole('button', { name: 'Permanently delete' })).toBeNull();
+    await rerender({ archived: true, readOnly: true });
+    expect(screen.queryByRole('button', { name: 'Permanently delete' })).toBeNull();
   });
 
   it('저장 전에 다른 디바이스에서 닫힌 이슈를 감지하면 아니오일 때 로컬 변경을 버린다', async () => {

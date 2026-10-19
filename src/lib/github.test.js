@@ -18,6 +18,7 @@ import {
   listIssuesPage,
   loadVoiceTranscriptionHints,
   purgeIssueAttachments,
+  permanentlyDeleteIssue,
   removeIssueLabel,
   renameLabel,
   searchIssues,
@@ -58,6 +59,40 @@ describe('GitHub API client', () => {
   afterEach(() => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
+  });
+
+  it('완전 삭제는 GraphQL 성공 뒤 댓글 폴더까지 첨부를 정리한다', async () => {
+    fetch
+      .mockResolvedValueOnce(jsonResponse({ state: 'closed', node_id: 'I_node' }))
+      .mockResolvedValueOnce(jsonResponse({ data: { deleteIssue: { clientMutationId: null } } }))
+      .mockResolvedValueOnce(jsonResponse({ ref: 'refs/heads/ginote-assets' }))
+      .mockResolvedValueOnce(jsonResponse([{ type: 'dir', path: '.issue-note-assets/issues/5/comments' }]))
+      .mockResolvedValueOnce(jsonResponse([{ type: 'file', path: '.issue-note-assets/issues/5/comments/a.txt', name: 'a.txt', sha: 'sha' }]))
+      .mockResolvedValueOnce(jsonResponse({}));
+    await permanentlyDeleteIssue('token', 'owner/repo', 5);
+    const [url, options] = fetch.mock.calls[1];
+    expect(url).toBe('https://api.github.com/graphql');
+    expect(JSON.parse(options.body).variables).toEqual({ issueId: 'I_node' });
+    expect(fetch.mock.calls[5][1].method).toBe('DELETE');
+  });
+
+  it('GraphQL 권한 오류와 열린 노트는 첨부를 지우지 않는다', async () => {
+    fetch
+      .mockResolvedValueOnce(jsonResponse({ state: 'closed', node_id: 'I_node' }))
+      .mockResolvedValueOnce(jsonResponse({ data: { deleteIssue: null }, errors: [{ message: 'Forbidden' }] }));
+    await expect(permanentlyDeleteIssue('token', 'owner/repo', 5)).rejects.toThrow('Forbidden');
+    expect(fetch).toHaveBeenCalledTimes(2);
+    fetch.mockReset().mockResolvedValueOnce(jsonResponse({ state: 'open' }));
+    await expect(permanentlyDeleteIssue('token', 'owner/repo', 5)).rejects.toThrow('Only notes in trash');
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('이슈 삭제 후 첨부 정리 실패에는 이슈 삭제 완료를 표시한다', async () => {
+    fetch
+      .mockResolvedValueOnce(jsonResponse({ state: 'closed', node_id: 'I_node' }))
+      .mockResolvedValueOnce(jsonResponse({ data: { deleteIssue: { clientMutationId: null } } }))
+      .mockResolvedValueOnce(jsonResponse({ message: 'Forbidden' }, { status: 403 }));
+    await expect(permanentlyDeleteIssue('token', 'owner/repo', 5)).rejects.toMatchObject({ issueDeleted: true });
   });
 
   it('저장소 URL을 owner/repository 형식으로 정규화해 연결한다', async () => {

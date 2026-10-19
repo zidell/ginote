@@ -260,6 +260,30 @@ export function setIssueState(token, repoInput, issueNumber, state) {
   });
 }
 
+// 이슈 삭제는 REST가 아닌 GraphQL에서 제공한다. 권한 오류가 나면 첨부는 그대로 둔다.
+export async function permanentlyDeleteIssue(token, repoInput, issueNumber) {
+  const issue = await getIssue(token, repoInput, issueNumber);
+  if (issue.state !== 'closed') throw new Error(translate('dynamic.deleteClosedOnly'));
+  const result = await request('/graphql', token, {
+    method: 'POST',
+    body: JSON.stringify({
+      query: 'mutation($issueId: ID!) { deleteIssue(input: { issueId: $issueId }) { clientMutationId } }',
+      variables: { issueId: issue.node_id }
+    })
+  });
+  if (result.errors?.length || !result.data?.deleteIssue) {
+    throw new Error(result.errors?.map((error) => error.message).join('\n') || translate('errors.githubRequest'));
+  }
+  try {
+    await purgeIssueAttachments(token, repoInput, issueNumber);
+  } catch (reason) {
+    // 삭제된 이슈를 화면에 남기지 않으면서 첨부 정리 실패도 사용자에게 알린다.
+    const error = new Error(translate('dynamic.deletedAttachmentCleanupFailed', { error: reason.message }));
+    error.issueDeleted = true;
+    throw error;
+  }
+}
+
 function arrayBufferToBase64(buffer) {
   const bytes = new Uint8Array(buffer);
   const chunkSize = 0x8000;

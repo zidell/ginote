@@ -89,6 +89,7 @@
   export let onLabelsAvailable = () => {};
   export let onTagSelect = () => {};
   export let onMove = () => {};
+  export let onPermanentlyDelete = async () => {};
   export let onVoiceRecording = () => {};
   export let voiceEnabled = false;
   export let voiceComment = null;
@@ -2881,7 +2882,11 @@
     // 휴지통에서는 저장할 내용이 없으므로 바로 복원한다. 열린 노트는 삭제
     // 의도를 부모에 즉시 알리고, 실제 이동만 저장 완료 뒤에 진행시킨다.
     if (archived) {
-      onMove(remoteIssue);
+      try {
+        await onMove(remoteIssue);
+      } finally {
+        moveRequested = false;
+      }
       return;
     }
 
@@ -2899,6 +2904,16 @@
     // 저장 실패 뒤에는 사용자가 다시 시도할 수 있게 한다. 성공 시 편집기는
     // 이동과 함께 사라진다.
     if (!await savePromise) moveRequested = false;
+  }
+
+  async function requestPermanentDeletion() {
+    if (!remoteIssue || !archived || readOnly || moveRequested) return;
+    moveRequested = true;
+    try {
+      await onPermanentlyDelete(remoteIssue);
+    } finally {
+      moveRequested = false;
+    }
   }
 
   function handleMoreToolbarEscape(event) {
@@ -3253,12 +3268,19 @@
             <button
               type="button"
               class="dropdown-item"
-              aria-keyshortcuts="Delete"
+              aria-keyshortcuts={archived ? undefined : 'Delete'}
+              disabled={moveRequested}
               on:click={() => void requestMove()}
             >
               <i class={`bi ${archived ? 'bi-arrow-counterclockwise' : 'bi-trash3'}`} aria-hidden="true"></i>
-              {archived ? $_("m.3cbe6d6b9a") : $_("m.f6fdbe48dc")} <span class="shortcut-hint"><span class="shortcut-key" class:is-available={canUseNoteShortcut('delete')}>Delete</span></span>
+              {archived ? $_("m.3cbe6d6b9a") : $_("m.f6fdbe48dc")}
+              {#if !archived}<span class="shortcut-hint"><span class="shortcut-key" class:is-available={canUseNoteShortcut('delete')}>Delete</span></span>{/if}
             </button>
+            {#if archived}
+              <button type="button" class="dropdown-item text-danger" disabled={moveRequested} on:click={() => void requestPermanentDeletion()}>
+                <i class="bi bi-trash3" aria-hidden="true"></i> {$_('dynamic.permanentlyDelete')}
+              </button>
+            {/if}
           {/if}
           <div class="dropdown-divider"></div>
           <div class="dropdown-header detail-toolbar-timestamps">
