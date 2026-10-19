@@ -12,11 +12,19 @@ import {
 // 앱 코드와 무관하게 Node crypto(pbkdf2Sync + aes-256-gcm)로 저장 형식 스펙대로 만든 고정 벡터다.
 // [버전 0x02][salt 16B = 01..10][iv 12B = a0..ab][암호문 + GCM tag]를 base64로 인코딩했다.
 // 이 값이 풀리지 않으면 이미 GitHub에 저장된 잠금 노트를 열 수 없게 된다는 뜻이다.
-const GOLDEN_DEFAULT_PEPPER = {
+// 예전 소스 기본 pepper('issue-note-lock::…')로 만든 벡터다.
+const GOLDEN_LEGACY_PEPPER = {
   payload: 'AgECAwQFBgcICQoLDA0ODxCgoaKjpKWmp6ipqquuwDg4UE/bF4Z6dOWsIHBZCgo4yZJozj14F9jS4ID2wmXznZnChW/hrXwwMMtcE2fCZw++2w==',
   pin: '123456',
   issueNumber: 42,
   body: '잠긴 노트 본문 🔐\nsecond line'
+};
+// 같은 형식이지만 지금 소스 기본 pepper('3e825c25…')로 만든 벡터다.
+const GOLDEN_DEFAULT_PEPPER = {
+  payload: 'AgECAwQFBgcICQoLDA0ODxCgoaKjpKWmp6ipqqtddos1kl8JbfxfOV/3sk20F8XQj54qbo/ermHrfpOgjIIFZfFGaZVH',
+  pin: '135790',
+  issueNumber: 9,
+  body: '새 기본 pepper 본문'
 };
 // 같은 형식이지만 pepper를 'custom-pepper'로 만든 벡터다.
 const GOLDEN_CUSTOM_PEPPER = {
@@ -81,7 +89,7 @@ describe('잠금 제목 표식', () => {
 
 describe('isLockedPayload', () => {
   it('저장 형식(버전 2 + 헤더 + 암호문)을 알아본다', () => {
-    expect(isLockedPayload(GOLDEN_DEFAULT_PEPPER.payload)).toBe(true);
+    expect(isLockedPayload(GOLDEN_LEGACY_PEPPER.payload)).toBe(true);
   });
 
   it('일반 본문이나 깨진 값은 잠금 데이터로 보지 않는다', () => {
@@ -92,7 +100,7 @@ describe('isLockedPayload', () => {
   });
 
   it('버전이 다르거나 헤더만 있는 데이터는 거부한다', () => {
-    const bytes = decodePayload(GOLDEN_DEFAULT_PEPPER.payload);
+    const bytes = decodePayload(GOLDEN_LEGACY_PEPPER.payload);
     const otherVersion = bytes.slice();
     otherVersion[0] = 1;
     expect(isLockedPayload(encodePayload(otherVersion))).toBe(false);
@@ -102,7 +110,7 @@ describe('isLockedPayload', () => {
 
 describe('잠금 본문 암복호화', () => {
   it('기존 저장 형식의 고정 벡터를 복호화한다', async () => {
-    const { payload, pin, issueNumber, body } = GOLDEN_DEFAULT_PEPPER;
+    const { payload, pin, issueNumber, body } = GOLDEN_LEGACY_PEPPER;
     await expect(decryptLockedBody(payload, pin, issueNumber)).resolves.toBe(body);
     // PIN과 이슈 번호는 숫자·문자열 어느 쪽으로 넘겨도 같은 키가 나와야 한다.
     await expect(decryptLockedBody(payload, Number(pin), String(issueNumber))).resolves.toBe(body);
@@ -132,17 +140,17 @@ describe('잠금 본문 암복호화', () => {
   }, CRYPTO_TIMEOUT);
 
   it('PIN이 틀리면 복호화하지 않는다', async () => {
-    const { payload, issueNumber } = GOLDEN_DEFAULT_PEPPER;
+    const { payload, issueNumber } = GOLDEN_LEGACY_PEPPER;
     await expect(decryptLockedBody(payload, '654321', issueNumber)).rejects.toThrow('6자리 숫자가 맞지 않거나');
   }, CRYPTO_TIMEOUT);
 
   it('다른 이슈로 옮겨진 암호문은 같은 PIN으로도 열리지 않는다', async () => {
-    const { payload, pin } = GOLDEN_DEFAULT_PEPPER;
+    const { payload, pin } = GOLDEN_LEGACY_PEPPER;
     await expect(decryptLockedBody(payload, pin, 43)).rejects.toThrow('6자리 숫자가 맞지 않거나');
   }, CRYPTO_TIMEOUT);
 
   it('암호문이 한 바이트라도 바뀌면 GCM 인증에서 거부한다', async () => {
-    const { payload, pin, issueNumber } = GOLDEN_DEFAULT_PEPPER;
+    const { payload, pin, issueNumber } = GOLDEN_LEGACY_PEPPER;
     const bytes = decodePayload(payload);
     bytes[bytes.length - 1] ^= 0x01;
     await expect(decryptLockedBody(encodePayload(bytes), pin, issueNumber)).rejects.toThrow('6자리 숫자가 맞지 않거나');
@@ -152,13 +160,13 @@ describe('잠금 본문 암복호화', () => {
     await expect(decryptLockedBody('%%%not-base64%%%', '123456', 1)).rejects.toThrow('잠금 데이터 형식을 읽을 수 없습니다.');
     await expect(decryptLockedBody('그냥 평문', '123456', 1)).rejects.toThrow('잠금 데이터 형식을 읽을 수 없습니다.');
     await expect(decryptLockedBody('aGVsbG8=', '123456', 1)).rejects.toThrow('지원하지 않는 잠금 데이터입니다.');
-    const bytes = decodePayload(GOLDEN_DEFAULT_PEPPER.payload);
+    const bytes = decodePayload(GOLDEN_LEGACY_PEPPER.payload);
     bytes[0] = 1;
     await expect(decryptLockedBody(encodePayload(bytes), '123456', 42)).rejects.toThrow('지원하지 않는 잠금 데이터입니다.');
   });
 
   it('PIN이나 이슈 번호가 잘못되면 암복호화 모두 거부한다', async () => {
-    const { payload } = GOLDEN_DEFAULT_PEPPER;
+    const { payload } = GOLDEN_LEGACY_PEPPER;
     for (const pin of ['12345', '', null, 'abcdef']) {
       await expect(encryptLockedBody('본문', pin, 1)).rejects.toThrow('6자리 숫자를 입력해 주세요.');
       await expect(decryptLockedBody(payload, pin, 42)).rejects.toThrow('6자리 숫자를 입력해 주세요.');
@@ -190,8 +198,9 @@ describe('VITE_NOTE_LOCK_PEPPER로 pepper를 바꾼 배포', () => {
 
   it('pepper를 바꾸기 전 기본 pepper로 잠근 노트도 계속 연다', async () => {
     const lock = await importWithPepper('custom-pepper');
-    const { payload, pin, issueNumber, body } = GOLDEN_DEFAULT_PEPPER;
-    await expect(lock.decryptLockedBody(payload, pin, issueNumber)).resolves.toBe(body);
+    for (const { payload, pin, issueNumber, body } of [GOLDEN_DEFAULT_PEPPER, GOLDEN_LEGACY_PEPPER]) {
+      await expect(lock.decryptLockedBody(payload, pin, issueNumber)).resolves.toBe(body);
+    }
   }, CRYPTO_TIMEOUT);
 
   it('새로 잠그는 노트는 설정한 pepper를 쓴다', async () => {
@@ -205,6 +214,14 @@ describe('VITE_NOTE_LOCK_PEPPER로 pepper를 바꾼 배포', () => {
   it('기본 빌드는 사용자 지정 pepper로 잠근 노트를 열지 못한다', async () => {
     const { payload, pin, issueNumber } = GOLDEN_CUSTOM_PEPPER;
     await expect(decryptLockedBody(payload, pin, issueNumber)).rejects.toThrow('6자리 숫자가 맞지 않거나');
+  }, CRYPTO_TIMEOUT);
+
+  it('기본 빌드는 지금 기본 pepper로 잠그고 연다', async () => {
+    const { payload, pin, issueNumber, body } = GOLDEN_DEFAULT_PEPPER;
+    await expect(decryptLockedBody(payload, pin, issueNumber)).resolves.toBe(body);
+    const lock = await importWithPepper('3e825c25be54fa5431953dd8d708d5951c77eb2213bd09e023ee00614a7f3ce4');
+    const fresh = await encryptLockedBody('기본 본문', '444444', 8);
+    await expect(lock.decryptLockedBody(fresh, '444444', 8)).resolves.toBe('기본 본문');
   }, CRYPTO_TIMEOUT);
 
   it('공백뿐인 설정값은 무시하고 기본 pepper를 쓴다', async () => {

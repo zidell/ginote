@@ -92,6 +92,11 @@ VITE_NOTE_LOCK_PEPPER=생성한_64자리_값
 이 저장소의 공식 빌드는 GitHub Actions 저장소 변수 `VITE_NOTE_LOCK_PEPPER`를 웹 배포(`ci.yml`),
 데스크톱 릴리스(`release.yml`), Windows MSIX(`windows-msix.yml`) 빌드에 넘깁니다. 변수가
 없으면 소스 기본값으로 빌드됩니다.
+
+소스 기본값은 `3e825c25`로 시작하는 64자리 값이며 웹(`src/lib/note-lock.js`의 `DEFAULT_APP_PEPPER`),
+TUI, 맥 네이티브 앱이 같은 값을 씁니다. 예전 기본값(`issue-note-lock::…`, `LEGACY_APP_PEPPER`)으로 잠근
+노트도 계속 열 수 있도록, 복호화는 이 빌드의 pepper → 기본값 → 예전 기본값 순서로 시도합니다. 새로
+잠그는 노트는 이 빌드의 pepper로만 암호화합니다.
 배포 pepper를 바꾸거나 잃어버리면 6자리 숫자를 알고 있어도 기존 잠금 노트를
 읽지 못할 수 있습니다.
 

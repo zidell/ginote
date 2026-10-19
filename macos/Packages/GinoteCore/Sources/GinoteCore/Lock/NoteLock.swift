@@ -14,8 +14,10 @@ public enum NoteLockError: Error, Equatable {
 /// 저장값 = Base64(버전 1B + salt 16B + IV 12B + AES-GCM 암호문·태그),
 /// 키 = PBKDF2-SHA256(`pepper:이슈번호:PIN`, salt, 600,000회) → AES-256.
 public struct NoteLock: Sendable {
-    /// 웹 `DEFAULT_APP_PEPPER`와 같은 값. 바꾸면 기존 잠금 노트를 읽지 못한다.
-    public static let defaultPepper = "issue-note-lock::7b1f4e93c8a642d5a0ef36b91472c85d"
+    /// 웹 `DEFAULT_APP_PEPPER`와 같은 값. 바꾸면 예전 값을 `legacyPepper`에 남겨야 기존 잠금 노트를 연다.
+    public static let defaultPepper = "3e825c25be54fa5431953dd8d708d5951c77eb2213bd09e023ee00614a7f3ce4"
+    /// 예전 기본값(웹 `LEGACY_APP_PEPPER`). 이 값으로 잠근 노트를 열 때만 쓴다.
+    public static let legacyPepper = "issue-note-lock::7b1f4e93c8a642d5a0ef36b91472c85d"
     public static let lockPrefix = "🔒"
 
     static let formatVersion: UInt8 = 2
@@ -95,8 +97,11 @@ public struct NoteLock: Sendable {
         let ciphertext = encrypted.prefix(encrypted.count - 16)
         let tag = encrypted.suffix(16)
 
-        // 설정된 pepper로 먼저 열고, 안 되면 기본값으로 연다(웹과 같은 순서).
-        let peppers = pepper == Self.defaultPepper ? [pepper] : [pepper, Self.defaultPepper]
+        // 설정된 pepper → 기본값 → 예전 기본값 순서로 연다(웹과 같은 순서).
+        var peppers = [pepper]
+        for candidate in [Self.defaultPepper, Self.legacyPepper] where !peppers.contains(candidate) {
+            peppers.append(candidate)
+        }
         for candidate in peppers {
             let key = Self.deriveKey(pin: pin, issueNumber: context, pepper: candidate, salt: salt)
             guard let box = try? AES.GCM.SealedBox(nonce: AES.GCM.Nonce(data: iv), ciphertext: ciphertext, tag: tag),

@@ -30,7 +30,7 @@ const (
 	lockKeyBytes      = 32
 	lockTitleMaxUnits = 256
 
-	// DefaultAppPepper는 공식 pepper다(note-lock.js의 OFFICIAL_APP_PEPPER). note.gitools.net과
+	// DefaultAppPepper는 공식 pepper다(note-lock.js의 DEFAULT_APP_PEPPER). note.gitools.net과
 	// 설치형 앱이 같은 값을 쓰도록 소스에 고정한 공개값이다.
 	DefaultAppPepper = "3e825c25be54fa5431953dd8d708d5951c77eb2213bd09e023ee00614a7f3ce4"
 	// LegacyAppPepper는 예전 소스 기본값이다(LEGACY_APP_PEPPER). 열 때만 시도한다.
@@ -168,7 +168,7 @@ func DecryptLockedBody(body, pin string, issueNumber int) (string, error) {
 	salt := packed[1 : 1+lockSaltBytes]
 	iv := packed[1+lockSaltBytes : lockHeaderBytes]
 	ciphertext := packed[lockHeaderBytes:]
-	// 이 설정의 pepper → 공식 → 예전 기본값 순서로 연다(DECRYPT_PEPPERS).
+	// 이 설정의 pepper → 공식 → 예전 기본값 순서로 연다(note-lock.js의 DECRYPT_PEPPERS).
 	peppers := []string{configuredPepper()}
 	for _, pepper := range []string{DefaultAppPepper, LegacyAppPepper} {
 		if !slices.Contains(peppers, pepper) {

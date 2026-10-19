@@ -1,7 +1,13 @@
 const LOCK_PREFIX = '🔒';
 const FORMAT_VERSION = 2;
-const DEFAULT_APP_PEPPER = 'issue-note-lock::7b1f4e93c8a642d5a0ef36b91472c85d';
+// 빌드에 VITE_NOTE_LOCK_PEPPER가 없을 때 쓰는 공개 기본값이다. 바꾸면 이 값으로 잠근 노트를 열도록
+// 예전 값을 LEGACY_APP_PEPPER에 남긴다(TUI·Swift도 같은 값).
+const DEFAULT_APP_PEPPER = '3e825c25be54fa5431953dd8d708d5951c77eb2213bd09e023ee00614a7f3ce4';
+// 예전 소스 기본값. 이 값으로 잠근 노트를 열 때만 쓴다.
+const LEGACY_APP_PEPPER = 'issue-note-lock::7b1f4e93c8a642d5a0ef36b91472c85d';
 const APP_PEPPER = String(import.meta.env?.VITE_NOTE_LOCK_PEPPER || '').trim() || DEFAULT_APP_PEPPER;
+// 이 빌드의 pepper → 기본값 → 예전 기본값 순서로 연다.
+const DECRYPT_PEPPERS = [...new Set([APP_PEPPER, DEFAULT_APP_PEPPER, LEGACY_APP_PEPPER])];
 const SALT_BYTES = 16;
 const IV_BYTES = 12;
 const HEADER_BYTES = 1 + SALT_BYTES + IV_BYTES;
@@ -70,8 +76,7 @@ export async function decryptLockedBody(body, pin, issueNumber) {
   const salt = packed.slice(1, 1 + SALT_BYTES);
   const iv = packed.slice(1 + SALT_BYTES, HEADER_BYTES);
   const ciphertext = packed.slice(HEADER_BYTES);
-  const peppers = APP_PEPPER === DEFAULT_APP_PEPPER ? [APP_PEPPER] : [APP_PEPPER, DEFAULT_APP_PEPPER];
-  for (const pepper of peppers) {
+  for (const pepper of DECRYPT_PEPPERS) {
     try {
       const key = await deriveKey(normalizedPin, context, pepper, salt, ['decrypt']);
       const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ciphertext);

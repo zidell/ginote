@@ -355,7 +355,8 @@ macos/
   - 스크립트는 값을 출력하지 않는다. 생성 파일에는 Base64로 넣어 문자열 이스케이프 문제를 피한다.
 - **배포 빌드**: 지금은 없다. 나중에 배포한다면 웹 배포(`ci.yml`)·데스크톱 릴리스(`release.yml`)와
   같이 GitHub Actions 저장소 변수 `VITE_NOTE_LOCK_PEPPER`를 빌드 환경변수로 넘긴다.
-- **복호화 순서**: 설정된 pepper로 먼저 열고, 실패하면 기본값으로 다시 연다(웹과 같음).
+- **복호화 순서**: 설정된 pepper → 기본값 → 예전 기본값(`NoteLock.legacyPepper`, 웹 `LEGACY_APP_PEPPER`) 순서로
+  연다(웹·TUI와 같음).
   암호화는 설정된 pepper로만 한다.
 
 ## 8. 설정 파일·자격 증명·로컬 상태
