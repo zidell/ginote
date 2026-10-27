@@ -34,6 +34,28 @@ brew tap zidell/ginote https://github.com/zidell/ginote
 brew install --cask ginote
 ```
 
+### Linux 마이크 권한
+
+Linux 앱은 WebKitGTK를 사용합니다. 음성 녹음을 처음 열면 Ginote가 마이크 사용의
+**허용·거부** 창을 표시합니다. 허용은 앱을 종료할 때까지 유지하며, 거부하거나 창을 닫으면
+녹음 화면의 녹음 버튼으로 다시 요청할 수 있습니다. 카메라와 화면 공유는 허용하지 않습니다.
+이 처리는 `src-tauri/src/microphone.rs`에 있으며, Tauri 2의 `with_webview`를 통해
+WebKitGTK의 비동기 권한 요청을 처리합니다. 외부 페이지의 요청은 거부합니다.
+
+권한 처리기가 없는 이전 Linux 앱은 마이크 요청을 창 없이 거부하므로 새 네이티브 빌드를
+설치해야 합니다. 웹 자동 업데이트만으로는 이 처리가 추가되지 않습니다.
+
+녹음에는 GStreamer의 base·good·bad 플러그인이 필요합니다. 특히 WebKitGTK의
+MediaRecorder는 bad 플러그인의 `uritranscodebin`을 사용합니다. deb·rpm은 이 패키지들을
+의존성으로 지정하며, AppImage는 빌드할 때 미디어 프레임워크를 함께 묶습니다.
+로컬 빌드에도 이 런타임 의존성이 필요합니다. Ubuntu·Debian에서는 다음으로 설치합니다.
+
+```bash
+sudo apt-get install gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-plugins-bad
+```
+
+권한을 허용했는데도 장치를 열지 못하면 시스템의 입력 장치·음소거 상태를 확인합니다.
+
 ## 앱 업데이터 (macOS·Linux·Windows)
 
 - 실행 10초 뒤와 그 뒤 6시간마다 최신 GitHub 릴리스의 `latest.json`을 확인합니다. 새 버전이

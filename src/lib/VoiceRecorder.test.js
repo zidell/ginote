@@ -188,6 +188,17 @@ describe('VoiceRecorder', () => {
     expect(FakeMediaRecorder.instances).toHaveLength(0);
   });
 
+  it('마이크 권한 거부 뒤 녹음 버튼으로 다시 요청하고 허용하면 녹음을 시작한다', async () => {
+    getUserMedia.mockRejectedValueOnce(Object.assign(new Error('denied'), { name: 'NotAllowedError' }));
+    renderRecorder();
+
+    await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('녹음 버튼으로 다시 시도'));
+    await fireEvent.click(screen.getByRole('button', { name: '녹음 시작' }));
+    await waitForRecording();
+    expect(getUserMedia).toHaveBeenCalledTimes(2);
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
   it('완료하면 전사·정제 결과를 노트에 기록하고, 기록 전에 미저장 상태를 해제한다', async () => {
     transcribeAudio.mockResolvedValue('원문 전사');
     refineTranscript.mockResolvedValue({ body: '정제된 본문', tags: ['회의'], title: '회의 메모' });

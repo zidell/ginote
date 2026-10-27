@@ -1,4 +1,6 @@
 mod deep_link;
+#[cfg(target_os = "linux")]
+mod microphone;
 mod ota;
 mod release_update;
 mod settings;
@@ -28,6 +30,8 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
+            #[cfg(target_os = "linux")]
+            microphone::setup(app.handle())?;
             deep_link::setup(app.handle());
             #[cfg(desktop)]
             settings::watch(app.handle());

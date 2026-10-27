@@ -40,6 +40,17 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "linux": {
+      "deb": {
+        "depends": ["gstreamer1.0-plugins-base", "gstreamer1.0-plugins-good", "gstreamer1.0-plugins-bad"]
+      },
+      "rpm": {
+        "depends": ["gstreamer1-plugins-base", "gstreamer1-plugins-good", "gstreamer1-plugins-bad-free"]
+      },
+      "appimage": {
+        "bundleMediaFramework": true
+      }
+    },
     "resources": {
       "resources/readme.txt": "readme.txt"
     },

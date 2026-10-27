@@ -91,9 +91,7 @@
       if (audioContext?.state === 'suspended') await audioContext.resume();
       status = '녹음을 시작하는 중…';
     } catch (reason) {
-      error = reason?.name === 'NotAllowedError'
-        ? '마이크 권한이 필요합니다. 브라우저 또는 시스템 설정에서 마이크를 허용해 주세요.'
-        : (reason?.message || '마이크를 시작하지 못했습니다.');
+      error = microphoneError(reason);
       status = '마이크를 사용할 수 없습니다.';
     } finally {
       preparing = false;
@@ -101,6 +99,12 @@
       if (error) void focusInitialControl();
       else void startRecording();
     }
+  }
+
+  function microphoneError(reason) {
+    return reason?.name === 'NotAllowedError'
+      ? '마이크 권한이 필요합니다. 녹음 버튼으로 다시 시도하고 권한 요청이 나타나면 허용해 주세요. 계속 실패하면 브라우저 또는 시스템의 마이크 설정을 확인해 주세요.'
+      : (reason?.message || '마이크를 시작하지 못했습니다.');
   }
 
   async function startRecording() {
@@ -146,9 +150,7 @@
       onDirtyChange(true);
       status = '녹음 중';
     } catch (reason) {
-      error = reason?.name === 'NotAllowedError'
-        ? '마이크 권한이 필요합니다. 브라우저 또는 시스템 설정에서 마이크를 허용해 주세요.'
-        : (reason?.message || '마이크를 시작하지 못했습니다.');
+      error = microphoneError(reason);
       status = '녹음을 시작할 수 없습니다.';
     } finally { preparing = false; void focusInitialControl(); }
   }
