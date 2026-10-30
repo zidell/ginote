@@ -198,6 +198,7 @@ import App from './App.svelte';
 import { defaultSnapshot } from './lib/app-config.js';
 import * as githubModule from './lib/github.js';
 import * as dialogs from './lib/dialogs.js';
+import * as appReload from './lib/app-reload.js';
 import { setAppLocale } from './lib/i18n.js';
 
 const SETTINGS_KEY = 'issue-note.settings.v1';
@@ -554,6 +555,32 @@ describe('키보드 조작', () => {
 
     await waitFor(() => expect(callsTo('createIssue')).toHaveLength(1));
     await waitFor(() => expect(window.location.hash).toBe('#!/note.100'));
+  });
+
+  it.each(['metaKey', 'ctrlKey'])('설치형 앱은 본문 편집 중에도 새로고침 조합을 처리한다 (%s)', async (modifier) => {
+    saveWorkspaces();
+    await renderReadyApp();
+    await key('ArrowDown');
+    await key('Enter');
+    await key('Enter');
+    vi.spyOn(dialogs, 'isInstalledApp').mockReturnValue(true);
+    const reload = vi.spyOn(appReload, 'reloadApp').mockResolvedValue(true);
+    const event = new KeyboardEvent('keydown', {
+      key: 'ㄱ', code: 'KeyR', [modifier]: true, bubbles: true, cancelable: true
+    });
+    document.activeElement.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(true);
+    expect(reload).toHaveBeenCalledTimes(1);
+  });
+
+  it('브라우저의 Ctrl+R은 브라우저에 맡긴다', async () => {
+    saveWorkspaces();
+    await renderReadyApp();
+    const reload = vi.spyOn(appReload, 'reloadApp').mockResolvedValue(true);
+    const event = new KeyboardEvent('keydown', { key: 'r', ctrlKey: true, cancelable: true });
+    window.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(false);
+    expect(reload).not.toHaveBeenCalled();
   });
 
   it('브라우저의 Ctrl+N과 설치형 앱의 반복 입력은 새 노트를 만들지 않는다', async () => {

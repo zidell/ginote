@@ -5,6 +5,7 @@ import LockSessionHost from './__fixtures__/LockSessionHost.svelte';
 import { composeAttachmentLink, withManagedAttachmentBlock } from './attachments.js';
 import { MAX_ISSUE_BODY_LENGTH, MAX_ISSUE_COMMENT_LENGTH } from './github-limits.js';
 import { setAppLocale } from './i18n.js';
+import { reloadApp } from './app-reload.js';
 
 vi.mock('./github.js', () => ({
   createIssue: vi.fn(),
@@ -1264,7 +1265,7 @@ describe('NoteEditor 마크다운 프리뷰와 단축키', () => {
     const event = dispatchShortcut('r', 'KeyR');
 
     expect(event.defaultPrevented).toBe(true);
-    expect(reload).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(reload).toHaveBeenCalledTimes(1));
   });
 
   it('포커스가 없을 때 S로 현재 노트를 저장한다', async () => {
@@ -1851,6 +1852,26 @@ describe('NoteEditor 노트 잠금', () => {
   beforeEach(() => localStorage.clear());
 
   const lockedIssue = { ...baseIssue, title: '🔒 비밀 노트', body: 'enc|123456|5|비밀 본문', comments: 0 };
+
+  it('잠금 노트는 수정한 본문이 저장된 뒤 앱을 새로고침한다', async () => {
+    let finishUpdate;
+    updateIssue.mockImplementationOnce((token, repo, number, note) => new Promise((resolve) => {
+      finishUpdate = () => resolve({ ...lockedIssue, ...note, labels: [] });
+    }));
+    renderWithLockSession({ issue: lockedIssue });
+    await typePin('123456');
+    await waitFor(() => expect(document.querySelector('.inline-body').value).toBe('비밀 본문'));
+    await fireEvent.input(document.querySelector('.inline-body'), { target: { value: '새로고침 전 수정' } });
+    const reload = vi.fn();
+    const pending = reloadApp({ reload });
+    await waitFor(() => expect(finishUpdate).toBeTypeOf('function'));
+    expect(reload).not.toHaveBeenCalled();
+    finishUpdate();
+    expect(await pending).toBe(true);
+    expect(updateIssue).toHaveBeenCalledWith('t', 'owner/repo', 5,
+      expect.objectContaining({ body: 'enc|123456|5|새로고침 전 수정' }), expect.any(Object));
+    expect(reload).toHaveBeenCalledTimes(1);
+  });
 
   it.each([false, true])('저장 시작 전에 편집기를 닫아도 본문을 저장한다 (잠금=%s)', async (locked) => {
     const onSaved = vi.fn();

@@ -1,5 +1,6 @@
 <script>
   import { confirmAction } from './dialogs.js';
+  import { reloadApp } from './app-reload.js';
   import { afterUpdate, onDestroy, onMount, tick } from 'svelte';
   import { disposeDropdownOnDestroy, hideDropdown } from './bootstrap-dropdown.js';
   import { tagColorForName } from './colors.js';
@@ -413,6 +414,7 @@
     }, 1000);
     window.addEventListener('beforeunload', handlePageExit);
     window.addEventListener('pagehide', handlePageExit);
+    window.addEventListener('app-before-reload', handleAppReload);
     window.addEventListener('keydown', handleMoreToolbarEscape, true);
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
@@ -462,7 +464,10 @@
     window.removeEventListener('keydown', handleMoreToolbarEscape, true);
     document.removeEventListener('visibilitychange', handleVisibilityChange);
     persistPendingWork();
-    if (hasPendingWork) void flushPendingWork({ reason: 'destroy', allowPaused: true, requestOptions: { keepalive: true } });
+    if (hasPendingWork) {
+      void flushPendingWork({ reason: 'destroy', allowPaused: true, requestOptions: { keepalive: true } })
+        .finally(() => window.removeEventListener('app-before-reload', handleAppReload));
+    } else window.removeEventListener('app-before-reload', handleAppReload);
     Object.values(previewUrls).forEach((url) => URL.revokeObjectURL(url));
     previewUrls = {};
     Object.values(voiceAudioPreviewUrls).forEach((url) => URL.revokeObjectURL(url));
@@ -807,6 +812,11 @@
       allowPaused: true,
       requestOptions: { keepalive: true }
     });
+  }
+
+  function handleAppReload(event) {
+    clearTimeout(remoteTimer);
+    event.detail.saves.push(flushPendingWork({ reason: 'reload', allowPaused: true }));
   }
 
   function changed({ debounceListUpdate = false, listPreviewChanged = true } = {}) {
@@ -2844,7 +2854,7 @@
       return true;
     }
     if (key === 'r') {
-      location.reload();
+      void reloadApp();
       return true;
     }
     if (key === 's') {

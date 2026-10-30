@@ -47,6 +47,11 @@ export function isInstalledSettingsShortcut(event, installed) {
     && (event.key === ',' || event.code === 'Comma');
 }
 
+export function isInstalledReloadShortcut(event, installed) {
+  return isInstalledPrimaryShortcut(event, installed)
+    && (event.key.toLocaleLowerCase() === 'r' || event.code === 'KeyR');
+}
+
 // 포커스가 여기에 있으면 목록 단축키를 쓰지 않는다.
 export function isFormControl(element) {
   return element instanceof HTMLInputElement

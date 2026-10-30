@@ -60,6 +60,7 @@
     isEditableElement,
     isFormControl,
     isInstalledNewNoteShortcut,
+    isInstalledReloadShortcut,
     isInstalledSettingsShortcut,
     isInstalledWorkspaceShortcut,
     isNewNoteShortcut,
@@ -68,6 +69,7 @@
     isTextControl,
     workspaceNumberFromEvent
   } from './lib/keyboard-shortcuts.js';
+  import { reloadApp } from './lib/app-reload.js';
   import { rangeSelection, reconcileSelection, toggleSelection } from './lib/issue-selection.js';
   import {
     hasIssueLabel,
@@ -1271,6 +1273,11 @@
   function handleGlobalKeydown(event) {
     if (mergeBusy) {
       event.preventDefault();
+      return;
+    }
+    if (isInstalledReloadShortcut(event, isInstalledApp())) {
+      event.preventDefault();
+      void reloadApp();
       return;
     }
     if (topRoute?.screen === 'voice') {
