@@ -1346,7 +1346,6 @@
     if (!targetIssue?.number) return { targetIssue, reopen: false };
 
     const latestIssue = await getIssue(token, repo, targetIssue.number);
-    if (destroyed) return { cancelled: true };
     if (!latestIssue) return { targetIssue, reopen: false };
 
     remoteIssue = latestIssue;
@@ -1444,7 +1443,6 @@
         reopenRequested = prepared.reopen;
         previousIssue = prepared.previousIssue;
       }
-      if (destroyed && issue) return false;
 
       const knownNames = new Set(visibleAvailableLabels.map((label) => label.name.toLocaleLowerCase()));
       const missingNames = labels.filter((name) => !isPinLabel(name) && !knownNames.has(name.toLocaleLowerCase()));
@@ -1455,7 +1453,6 @@
         availableLabels = [...availableLabels, ...createdLabels];
         onLabelsAvailable(createdLabels);
       }
-      if (destroyed && issue) return false;
 
       const remoteNote = await noteForRemote(note);
       let saved = targetIssue
@@ -1485,7 +1482,17 @@
       // 캐시에 반영해야 한다. 새 노트는 부모가 이미 번호 할당을 처리했을 수
       // 있으므로 onCreated는 파괴 뒤에 호출하지 않는다.
       if (destroyed) {
+        remoteIssue = saved;
+        if (lockState !== 'plain') encryptedBody = saved.body || encryptedBody;
+        lastRemoteSignature = signature;
+        if (!hasNewerChanges) {
+          dirty = false;
+          removeLocalDraft();
+        }
         if (issue) onSaved(saved, hasNewerChanges ? draftPayload() : null);
+        // 화면을 닫기 직전에도 입력할 수 있다. 먼저 보낸 요청의 응답으로
+        // 끝내지 않고, 그 뒤의 수정까지 같은 저장 흐름에서 마친다.
+        if (hasNewerChanges) forceSaveQueued = true;
         return saveSucceeded;
       }
 
@@ -1513,7 +1520,7 @@
     } finally {
       saving = false;
       activeSavingSignature = '';
-      if (forceSaveQueued && !destroyed) {
+      if (forceSaveQueued) {
         const queuedAllowPaused = forceSaveAllowPaused;
         forceSaveQueued = false;
         forceSaveAllowPaused = false;

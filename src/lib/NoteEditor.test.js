@@ -1852,6 +1852,68 @@ describe('NoteEditor 노트 잠금', () => {
 
   const lockedIssue = { ...baseIssue, title: '🔒 비밀 노트', body: 'enc|123456|5|비밀 본문', comments: 0 };
 
+  it.each([false, true])('저장 시작 전에 편집기를 닫아도 본문을 저장한다 (잠금=%s)', async (locked) => {
+    const onSaved = vi.fn();
+    const view = renderWithLockSession({ issue: locked ? lockedIssue : baseIssue, onSaved });
+    if (locked) {
+      await typePin('123456');
+      await waitFor(() => expect(document.querySelector('.inline-body').value).toBe('비밀 본문'));
+    }
+    await fireEvent.input(document.querySelector('.inline-body'), { target: { value: '닫기 직전 수정' } });
+    view.unmount();
+
+    await waitFor(() => expect(updateIssue).toHaveBeenCalledWith(
+      't', 'owner/repo', 5,
+      expect.objectContaining({ body: locked ? 'enc|123456|5|닫기 직전 수정' : '닫기 직전 수정' }),
+      expect.any(Object)
+    ));
+    await waitFor(() => expect(onSaved).toHaveBeenCalledWith(expect.objectContaining({
+      body: locked ? 'enc|123456|5|닫기 직전 수정' : '닫기 직전 수정'
+    }), null));
+  });
+
+  it('저장 전 GitHub 조회를 기다리는 동안 닫아도 잠금 노트 저장을 끝낸다', async () => {
+    let finishGet;
+    getIssue.mockImplementationOnce(() => new Promise((resolve) => { finishGet = resolve; }));
+    const onSaved = vi.fn();
+    const view = renderWithLockSession({ issue: lockedIssue, onSaved });
+    await typePin('123456');
+    await waitFor(() => expect(document.querySelector('.inline-body').value).toBe('비밀 본문'));
+    const input = document.querySelector('.inline-body');
+    await fireEvent.input(input, { target: { value: '조회 중 닫아도 저장' } });
+    await fireEvent.keyDown(input, { key: 's', ctrlKey: true });
+    await waitFor(() => expect(finishGet).toBeTypeOf('function'));
+    view.unmount();
+    finishGet(lockedIssue);
+
+    await waitFor(() => expect(onSaved).toHaveBeenCalledWith(expect.objectContaining({
+      body: 'enc|123456|5|조회 중 닫아도 저장'
+    }), null));
+  });
+
+  it('잠금 노트 저장 중 추가로 수정하고 닫으면 마지막 수정까지 저장한다', async () => {
+    let finishUpdate;
+    updateIssue.mockImplementationOnce((token, repo, number, note) => new Promise((resolve) => {
+      finishUpdate = () => resolve({ ...lockedIssue, ...note, labels: [] });
+    }));
+    const onSaved = vi.fn();
+    const view = renderWithLockSession({ issue: lockedIssue, onSaved });
+    await typePin('123456');
+    await waitFor(() => expect(document.querySelector('.inline-body').value).toBe('비밀 본문'));
+    const input = document.querySelector('.inline-body');
+    await fireEvent.input(input, { target: { value: '먼저 보낸 수정' } });
+    await fireEvent.keyDown(input, { key: 's', ctrlKey: true });
+    await waitFor(() => expect(finishUpdate).toBeTypeOf('function'));
+    await fireEvent.input(input, { target: { value: '닫기 직전 마지막 수정' } });
+    view.unmount();
+    finishUpdate();
+
+    await waitFor(() => expect(onSaved).toHaveBeenLastCalledWith(expect.objectContaining({
+      body: 'enc|123456|5|닫기 직전 마지막 수정'
+    }), null));
+    expect(updateIssue).toHaveBeenCalledTimes(2);
+  });
+
   function renderWithLockSession({ lockPin = '', ...editorProps }) {
     const onSetLockSession = vi.fn();
     const view = render(LockSessionHost, {
