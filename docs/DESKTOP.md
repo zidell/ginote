@@ -88,6 +88,15 @@ npm run tauri:build   # npm run build의 dist를 내장한 프로덕션 빌드
 설치하면 고쳐 쓰던 로컬 빌드를 덮어쓰기 때문입니다. 릴리스 워크플로는 빌드 때 `GINOTE_RELEASE_BUILD=1`을 넣어
 확인을 켭니다. 로컬 빌드에서 업데이트 화면을 시험하려면 같은 값을 넣고 빌드합니다.
 
+### Linux에서 빌드한 앱 실행
+
+`npm run tauri:build -- --no-bundle`로 빌드한 뒤
+`bash scripts/launch-linux.sh`로 연다. 재실행할 때는 기존 창에서 편집을 마치고 정상
+종료한 뒤 같은 실행기를 쓴다. 빌드 명령 자체는 실행 중인 앱을 종료하지 않는다.
+실행기는 사용자 systemd에 별도 서비스를 만들어 Codex·빌드 터미널이 종료돼도 앱을
+유지한다. 로그인 자동 시작 설정은 바꾸지 않는다. `nohup`이나 직접 백그라운드 실행은
+에이전트의 cgroup을 벗어나지 못하므로 대신 쓰지 않는다.
+
 ### 로컬 빌드를 설치해 쓰기 (macOS)
 
 고치면서 바로 확인하려고 배포본 대신 로컬 빌드를 `/Applications`에 두고 쓸 수 있습니다. 배포본(Homebrew·DMG)과

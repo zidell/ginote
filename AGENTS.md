@@ -34,6 +34,14 @@ TUI 세션도 `Ctrl+R`로 재시작한다. 재시작한 프로세스가 새 바�
 
 ## 개발 환경
 
+독립 앱을 빌드한 뒤에는 에이전트·빌드 터미널의 프로세스 그룹이나 cgroup 밖에서 실행한다.
+Linux 데스크톱은 `bash scripts/launch-linux.sh`, TUI 전용 창은
+`bash scripts/launch-linux.sh --tui`(먼저 `tui/build-local.sh`로 설치)를 사용한다.
+macOS는 `open`, Windows는 탐색기에서 앱·터미널 바로가기로 실행한다.
+직접 agent exec·`nohup`·`setsid`·분리한 자식 프로세스만으로 독립 실행을 대신하지 않는다.
+호출한 세션이 끝난 뒤에도 앱이 유지되는지 확인한다. 로그인 자동 시작은 켜지 않는다.
+웹 개발 서버·명시적 `tauri:dev`·TUI `dev.sh` 등 대화형 개발/진단은 연결된 실행을 유지한다.
+
 CI는 Node.js 22와 `npm ci`를 쓴다. 의존성을 바꾸면 `package.json`과 `package-lock.json`을
 함께 커밋한다. 네이티브 앱은 Rust와 [Tauri 사전 요구 사항](https://v2.tauri.app/start/prerequisites/)이
 필요하다.
