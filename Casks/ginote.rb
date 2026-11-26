@@ -1,5 +1,5 @@
 cask "ginote" do
-  version "0.1.93"
+  version "0.1.94"
   sha256 ""
 
   url "https://github.com/zidell/ginote/releases/download/v#{version}/Ginote_#{version}_universal.dmg"
