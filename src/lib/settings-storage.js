@@ -1,3 +1,4 @@
+import { normalizeAppScale } from './app-zoom.js';
 import { LOCALE_OPTIONS } from './i18n.js';
 import { installedSnapshot, updateInstalledSnapshot } from './installed-settings.js';
 
@@ -63,6 +64,7 @@ export function normalizePreferences(raw) {
   const savedLanguage = raw?.language || 'auto';
   return {
     theme: normalizeTheme(raw?.theme),
+    uiScale: normalizeAppScale(raw?.uiScale),
     titleMode: raw?.titleMode || 'first-line',
     listRowFields: normalizeListRowFields(raw?.listRowFields),
     editorFont: raw?.editorFont || 'system',
@@ -82,6 +84,7 @@ export function finalizePreferences(preferences) {
   return {
     ...preferences,
     theme: normalizeTheme(preferences.theme),
+    uiScale: normalizeAppScale(preferences.uiScale),
     editorFontSize: Math.round(clampNumber(preferences.editorFontSize, 12, 32, 17)),
     editorLineHeight: clampNumber(preferences.editorLineHeight, 1.2, 2.5, 1.8),
     editorMaxWidth: Math.round(clampNumber(preferences.editorMaxWidth, 480, 1600, 840)),
@@ -95,6 +98,7 @@ export function finalizePreferences(preferences) {
 export function preferenceSignature(preferences) {
   return JSON.stringify([
     preferences.theme,
+    preferences.uiScale,
     preferences.titleMode,
     preferences.listRowFields,
     preferences.editorFont,

@@ -11,6 +11,7 @@ function sampleSnapshot() {
   snapshot.preferences = {
     ...snapshot.preferences,
     theme: 'light',
+    uiScale: 1.3,
     language: 'ko',
     editorFont: 'local:Menlo',
     editorLineHeight: 1.65,

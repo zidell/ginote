@@ -52,6 +52,14 @@ const ENTRIES = [
     doc: ['Color theme.', `Allowed: ${quoteList(THEME_OPTIONS)}. Default: "${THEME_DEFAULT}". Applied immediately.`]
   },
   {
+    path: ['display', 'ui_scale'],
+    get: (s) => s.preferences.uiScale,
+    set: (s, v) => { s.preferences.uiScale = v; },
+    normalize: range(0.5, 2, 1, { integer: false }),
+    doc: ['Desktop app zoom. Number 0.5..2. Default: 1 (100%). Applied immediately.',
+      'Ctrl/Cmd + plus or = zooms in, minus zooms out, 0 restores 100%.']
+  },
+  {
     path: ['display', 'language'],
     get: (s) => s.preferences.language,
     set: (s, v) => { s.preferences.language = v; },

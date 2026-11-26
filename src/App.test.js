@@ -1,6 +1,9 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/svelte';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+const webviewZoom = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
+vi.mock('@tauri-apps/api/webview', () => ({ getCurrentWebview: () => ({ setZoom: webviewZoom }) }));
+
 // GitHub를 메모리 안의 가짜 저장소로 대신한다. App은 이 모듈만 통해 GitHub와 통신하므로,
 // 여기서 기록한 호출과 데이터로 화면 흐름 전체를 검증할 수 있다.
 const github = vi.hoisted(() => {
@@ -555,6 +558,28 @@ describe('키보드 조작', () => {
 
     await waitFor(() => expect(callsTo('createIssue')).toHaveLength(1));
     await waitFor(() => expect(window.location.hash).toBe('#!/note.100'));
+  });
+
+  it('설치형 앱은 편집 중 확대하고 배율을 저장·복원한다', async () => {
+    saveWorkspaces();
+    vi.spyOn(dialogs, 'isInstalledApp').mockReturnValue(true);
+    await renderReadyApp();
+    await key('ArrowDown');
+    await key('Enter');
+    await key('Enter');
+    const editor = document.querySelector('.note-detail-layer.active .inline-body');
+    await waitFor(() => expect(document.activeElement).toBe(editor));
+    await fireEvent.keyDown(editor, { key: '+', ctrlKey: true, shiftKey: true });
+    await waitFor(() => expect(JSON.parse(localStorage.getItem(SETTINGS_KEY)).preferences.uiScale).toBe(1.1));
+    expect(webviewZoom).toHaveBeenLastCalledWith(1.1);
+    expect(document.activeElement).toBe(editor);
+    cleanup();
+    webviewZoom.mockClear();
+    await renderReadyApp();
+    await waitFor(() => expect(webviewZoom).toHaveBeenCalledWith(1.1));
+    await key('0', { metaKey: true });
+    await waitFor(() => expect(JSON.parse(localStorage.getItem(SETTINGS_KEY)).preferences.uiScale).toBe(1));
+    expect(webviewZoom).toHaveBeenLastCalledWith(1);
   });
 
   it.each(['metaKey', 'ctrlKey'])('설치형 앱은 본문 편집 중에도 새로고침 조합을 처리한다 (%s)', async (modifier) => {

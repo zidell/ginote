@@ -69,6 +69,7 @@
     isTextControl,
     workspaceNumberFromEvent
   } from './lib/keyboard-shortcuts.js';
+  import { createAppZoom } from './lib/app-zoom.js';
   import { reloadApp } from './lib/app-reload.js';
   import { rangeSelection, reconcileSelection, toggleSelection } from './lib/issue-selection.js';
   import {
@@ -276,6 +277,9 @@
   let voiceCommentEdit = null;
   let voiceSettings;
 
+  let appZoom;
+  $: if (appZoom) void appZoom.sync(preferences.uiScale);
+
   const toast = createToast();
   const deletionQueue = createDeletionQueue({ delayMs: DELETE_DELAY_MS, onExpire: runPendingIssueDeletion });
   const longPress = createLongPress({ onLongPress: selectIssueByLongPress });
@@ -467,6 +471,15 @@
       showLanding = shouldShowLanding({ installedApp: isInstalledApp(), standalone: isStandaloneWebApp() });
     }
     setAppLocale(preferences.language);
+    appZoom = createAppZoom({
+      getScale: () => preferences.uiScale,
+      onChange: (uiScale) => {
+        preferences = { ...preferences, uiScale };
+        saveSettings();
+      },
+      onError: (reason) => toast.show(friendlyError(reason))
+    });
+    void appZoom.sync(preferences.uiScale);
 
     const stopWatchingAppUpdate = watchAppUpdate(() => toast.show($_('dynamic.appUpdateRequired')));
     const stopWatchingSettingsFile = onInstalledSettingsChange(applySettingsFileChange);
@@ -482,6 +495,7 @@
       stopWatchingSettingsFile();
       stopWatchingReleaseUpdates();
       longPress.destroy();
+      appZoom?.destroy();
       toast.destroy();
       deletionQueue.cancelAll(true);
       touchMedia.removeEventListener('change', updateTouchDevice);

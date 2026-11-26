@@ -54,6 +54,7 @@
       <div><dt><kbd>N</kbd></dt><dd>{$_('help.keyboardNew')}</dd></div>
       {#if isInstalledApp()}
         <div><dt><kbd>Ctrl</kbd>/<kbd>Cmd</kbd> + <kbd>N</kbd></dt><dd>{$_('help.keyboardNew')}</dd></div>
+        <div><dt><kbd>Ctrl</kbd>/<kbd>Cmd</kbd> + <kbd>+</kbd> / <kbd>-</kbd> / <kbd>0</kbd></dt><dd>{$_('help.keyboardZoom')}</dd></div>
         <div><dt><kbd>Ctrl</kbd>/<kbd>Cmd</kbd> + <kbd>,</kbd></dt><dd>{$_('settings.sidebarLabel')}</dd></div>
         <div><dt><kbd>Ctrl</kbd>/<kbd>Cmd</kbd> + <kbd>1</kbd>~<kbd>9</kbd></dt><dd>{$_('help.keyboardWorkspace')}</dd></div>
       {/if}

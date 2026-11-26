@@ -95,6 +95,7 @@ describe('normalizePreferences', () => {
   it('값이 없으면 전부 기본값을 채운다', () => {
     expect(normalizePreferences(undefined)).toEqual({
       theme: 'dark',
+      uiScale: 1,
       titleMode: 'first-line',
       listRowFields: { title: true, summary: true, meta: true, tags: true },
       editorFont: 'system',
@@ -308,6 +309,7 @@ describe('finalizePreferences', () => {
     });
     expect(finalized).toMatchObject({
       theme: 'dark',
+      uiScale: 1,
       titleMode: 'separate',
       editorFontSize: 32,
       editorLineHeight: 1.2,
