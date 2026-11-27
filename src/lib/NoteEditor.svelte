@@ -64,7 +64,6 @@
   export let ignoreRecoveredDraft = false;
   export let externalPasteRequest = null;
   export let refreshRequest = 0;
-  export let justCreated = false;
   export let focusRequest = 0;
   export let allocationPromise = null;
   export let archived = false;
@@ -268,6 +267,9 @@
     ])
   ]).size;
   $: editable = !archived && !readOnly;
+  // 새 노트의 번호가 도착해도 편집기를 다시 만들지 않는다. 로컬 본문·조합·
+  // 저장 타이머는 그대로 두고, 이후 저장·댓글·첨부가 쓸 원격 대상만 연결한다.
+  $: if (issue?.number && !remoteIssue?.number) remoteIssue = issue;
   $: canPreview = lockState !== 'locked' && !lockPanelMode;
   $: compactStatus = !editable
     ? $_("m.601dcc1c87")
@@ -418,7 +420,7 @@
     window.addEventListener('keydown', handleMoreToolbarEscape, true);
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
-    if ((!issue || justCreated) && editable && !paused) {
+    if (!issue && editable && !paused) {
       tick().then(() => bodyInput?.focus());
     }
 
@@ -1627,9 +1629,8 @@
   async function uploadFiles(fileList) {
     if (!editable) return;
     const requestedFiles = Array.from(fileList || []);
-    // 번호 할당을 기다리며 업로드를 계속하면, 할당 완료 때 부모가 이 편집기를
-    // 정식 노트 편집기로 교체해 결과가 유실된다. 부모에 요청을 보관해 새
-    // 편집기가 받은 뒤 업로드하게 한다.
+    // 번호가 생기기 전의 첨부 요청은 부모에 보관하고, 원격 대상이 연결된
+    // 뒤 externalPasteRequest 경로에서 한 번만 업로드한다.
     if (!remoteIssue?.number && allocationPromise) {
       onFileUploadRequested(requestedFiles);
       return;

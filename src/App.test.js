@@ -545,6 +545,34 @@ describe('키보드 조작', () => {
     await waitFor(() => expect(window.location.hash).toBe('#!/note.100'));
   });
 
+  it.each([false, true])('번호 할당 중 본문과 선택 영역, 포커스 및 조합을 유지한다 (조합: %s)', async (composing) => {
+    saveWorkspaces(undefined, { autoSaveSeconds: 9999 });
+    await renderReadyApp();
+    let allocate;
+    githubModule.createIssue.mockImplementationOnce((...args) => new Promise((resolve) => {
+      allocate = async () => resolve(await github.api.createIssue(...args));
+    }));
+    await key('n');
+    const body = document.querySelector('.note-detail-layer.active .inline-body');
+    await waitFor(() => expect(document.activeElement).toBe(body));
+    if (composing) await fireEvent.compositionStart(body);
+    await fireEvent.input(body, { target: { value: '이어 쓰는 본문' }, isComposing: composing });
+    body.setSelectionRange(2, 4, 'backward');
+
+    await allocate();
+    await waitFor(() => expect(window.location.hash).toBe('#!/note.100'));
+    expect(document.querySelector('.note-detail-layer.active .inline-body')).toBe(body);
+    expect(document.activeElement).toBe(body);
+    expect(body.value).toBe('이어 쓰는 본문');
+    expect([body.selectionStart, body.selectionEnd, body.selectionDirection]).toEqual([2, 4, 'backward']);
+    if (composing) await fireEvent.compositionEnd(body);
+    await fireEvent.input(body, { target: { value: '이어 쓰는 본문 계속' } });
+    await fireEvent.keyDown(body, { key: 's', ctrlKey: true });
+    await waitFor(() => expect(github.state.issues.find((issue) => issue.number === 100)?.body).toBe('이어 쓰는 본문 계속'));
+    expect(document.activeElement).toBe(body);
+    expect(callsTo('createIssue')).toHaveLength(1);
+  });
+
   it.each(['ctrlKey', 'metaKey'])('설치형 앱의 %s+N은 편집 중에도 새 노트를 연다', async (modifier) => {
     saveWorkspaces();
     await renderReadyApp();

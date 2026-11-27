@@ -192,10 +192,9 @@
   const lastOpenedIssueIds = new Map();
   let pendingNote = null;
   let pendingAllocation = null;
-  // 새 노트가 번호를 받아 정식 이슈로 바뀌는 순간 NoteEditor가 (segment가
-  // new→note.{번호}로 바뀌므로) 리마운트된다. 그 인스턴스가 계속 이어서
-  // 타이핑할 수 있도록 딱 그 첫 렌더에서만 포커스를 넣어준다.
-  let justPromotedNumber = null;
+  // 번호 할당은 같은 편집 세션이다. 주소가 바뀌어도 편집기와 textarea를
+  // 유지해야 WebView의 입력 포커스·선택 영역·진행 중인 IME 조합이 이어진다.
+  let editorKeys = {};
   let editorFocusRequest = 0;
   // 이전 노트의 Enter 요청이 새로 열린 편집기에 전달되지 않도록 대상 경로를 묶는다.
   let editorFocusTargetSegment = '';
@@ -1272,6 +1271,7 @@
         countBaseline: totalIssues,
         allocation: 'creating'
       };
+      editorKeys = { ...editorKeys, new: pendingNote.id };
       pendingAllocation = allocatePendingIssue(pendingNote);
     }
     selectedIssue = pendingNote;
@@ -1997,6 +1997,7 @@
     // 번호 할당 시점에 이미 주소를 note.{번호}로 바꿔두므로, 저장이 끝날 때쯤엔
     // contentRoute.screen이 'new'가 아니라 'note'일 수 있다.
     const newNoteIsActive = isPendingNoteRoute(contentRoute);
+    editorKeys = { ...editorKeys, [`note.${savedIssue.number}`]: editorKeys.new };
     error = '';
     query = activeLabel ? `#${activeLabel}` : '';
     appliedQuery = query;
@@ -2009,15 +2010,6 @@
     if (newNoteIsActive) {
       selectedIssue = savedIssue;
       synchronizeKeyboardFocusWithDetail(savedIssue);
-    }
-    if (newNoteIsActive) {
-      // note.{번호}로 리마운트되는 그 인스턴스에서만 한 번 포커스를 넣도록,
-      // 렌더가 반영된 직후 바로 지운다(이후 그 번호를 다시 열 때 엉뚱하게
-      // 자동 포커스되지 않게).
-      justPromotedNumber = savedIssue.number;
-      tick().then(() => {
-        if (justPromotedNumber === savedIssue.number) justPromotedNumber = null;
-      });
     }
     if (newNoteIsActive && activeLabel && !hasIssueLabel(savedIssue, activeLabel)) {
       router.navigate(`/note.${savedIssue.number}`);
@@ -2603,7 +2595,7 @@
 
       <section class="note-detail">
         {#if contentRoutes.length}
-          {#each contentRoutes as route (route.segment)}
+          {#each contentRoutes as route (`${activeWorkspaceId}:${editorKeys[route.segment] || route.segment}`)}
             {@const routeIssue = issueForRoute(route)}
             {#if isPendingNoteRoute(route) || routeIssue}
             <div
@@ -2617,7 +2609,6 @@
               issue={routeIssue}
               initialDraft={isPendingNoteRoute(route) ? pendingNote : null}
               ignoreRecoveredDraft={isPendingNoteRoute(route) && Boolean(pendingNote?.ignoreRecoveredDraft)}
-              justCreated={Boolean(routeIssue) && routeIssue.number === justPromotedNumber}
               focusRequest={route === contentRoute && route.segment === editorFocusTargetSegment ? editorFocusRequest : 0}
               externalPasteRequest={route === contentRoute ? externalPasteRequest : null}
               refreshRequest={routeIssue ? issueRefreshRequests[routeIssue.number] || 0 : 0}
